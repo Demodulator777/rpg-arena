@@ -679,6 +679,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN physical_only_wins INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN mission_gems_earned INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN global_cooldown_until INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN temp_stat_buffs TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN raid_cooldown_until INTEGER DEFAULT 0',
             'ALTER TABLE guild_raids ADD COLUMN mercenary_pool TEXT DEFAULT NULL',
             'ALTER TABLE guild_raid_members ADD COLUMN is_npc INTEGER DEFAULT 0',
@@ -1450,6 +1451,7 @@ const MISSION_SIZES = {
 const SKILL_DURATION = 5 * 3600;
 const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
 const HEALTH_POTION_COOLDOWN = 30 * 60;
+const TEMP_STAT_BUFF_DURATION = 60 * 60; // 1 hour
 
 // ── Premium Features ───────────────────────────────────────────────────────
 const PREMIUM_FEATURES = {
@@ -8842,23 +8844,23 @@ function calculateBackendItemPrice(item, level) {
 
 const POTION_CATALOGUE = [
     { id:'potion_minor_hp',    name:'Minor Health Potion',     emoji:'🧪', level:1,  price:60,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
-    { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
-    { id:'potion_minor_def',   name:'Minor Defense Tonic',     emoji:'🧴', level:1,  price:120,  priceType:'gold', desc:'+2 Defense for session.',   effect:{ type:'temp_stat', stat:'defense',  value:2 }, consumable:true, category:'consumable' },
+    { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for 1 hour (1h cooldown).',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
+    { id:'potion_minor_def',   name:'Minor Defense Tonic',     emoji:'🧴', level:1,  price:120,  priceType:'gold', desc:'+2 Defense for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'defense',  value:2 }, consumable:true, category:'consumable' },
     { id:'potion_light_hp',    name:'Light Health Potion',     emoji:'🧪', level:5,  price:200,  priceType:'gold', desc:'Restores 100 HP.',          effect:{ type:'heal', value:100 }, consumable:true, category:'consumable' },
-    { id:'potion_light_agi',   name:'Light Agility Draught',   emoji:'⚗️', level:5,  price:300,  priceType:'gold', desc:'+3 Agility for session.',   effect:{ type:'temp_stat', stat:'agility',  value:3 }, consumable:true, category:'consumable' },
+    { id:'potion_light_agi',   name:'Light Agility Draught',   emoji:'⚗️', level:5,  price:300,  priceType:'gold', desc:'+3 Agility for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'agility',  value:3 }, consumable:true, category:'consumable' },
     { id:'potion_moderate_hp', name:'Health Potion',           emoji:'🧪', level:10, price:400,  priceType:'gold', desc:'Restores 200 HP.',          effect:{ type:'heal', value:200 }, consumable:true, category:'consumable' },
-    { id:'potion_moderate_str',name:'Strength Elixir',         emoji:'⚗️', level:10, price:250,  priceType:'gold', desc:'+5 Strength for session.',  effect:{ type:'temp_stat', stat:'strength', value:5 }, consumable:true, category:'consumable' },
-    { id:'potion_moderate_mag',name:"Mage's Focus Tonic",      emoji:'🔮', level:10, price:500,  priceType:'gold', desc:'+5 Magic for session.',     effect:{ type:'temp_stat', stat:'magic',    value:5 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_str',name:'Strength Elixir',         emoji:'⚗️', level:10, price:250,  priceType:'gold', desc:'+5 Strength for 1 hour (1h cooldown).',  effect:{ type:'temp_stat', stat:'strength', value:5 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_mag',name:"Mage's Focus Tonic",      emoji:'🔮', level:10, price:500,  priceType:'gold', desc:'+5 Magic for 1 hour (1h cooldown).',     effect:{ type:'temp_stat', stat:'magic',    value:5 }, consumable:true, category:'consumable' },
     { id:'potion_greater_hp',  name:'Greater Health Potion',   emoji:'🧪', level:20, price:600,  priceType:'gold', desc:'Restores 300 HP.',          effect:{ type:'heal', value:300 }, consumable:true, category:'consumable' },
-    { id:'potion_greater_def', name:'Greater Defense Tonic',   emoji:'🧴', level:20, price:400, priceType:'gold', desc:'+8 Defense for session.',   effect:{ type:'temp_stat', stat:'defense',  value:8 }, consumable:true, category:'consumable' },
-    { id:'potion_greater_agi', name:'Greater Agility Draught', emoji:'⚗️', level:20, price:800, priceType:'gold', desc:'+8 Agility for session.',   effect:{ type:'temp_stat', stat:'agility',  value:8 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_def', name:'Greater Defense Tonic',   emoji:'🧴', level:20, price:400, priceType:'gold', desc:'+8 Defense for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'defense',  value:8 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_agi', name:'Greater Agility Draught', emoji:'⚗️', level:20, price:800, priceType:'gold', desc:'+8 Agility for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'agility',  value:8 }, consumable:true, category:'consumable' },
     { id:'potion_superior_hp', name:'Superior Health Potion',  emoji:'🧪', level:35, price:1000, priceType:'gold', desc:'Restores 500 HP.',          effect:{ type:'heal', value:500 }, consumable:true, category:'consumable' },
     { id:'potion_major_hp',    name:'Major Health Potion',     emoji:'🧪', level:55, price:2000, priceType:'gold', desc:'Restores 1000 HP.',         effect:{ type:'heal', value:1000 }, consumable:true, category:'consumable' },
     { id:'potion_ultimate_hp', name:'Ultimate Health Potion',  emoji:'🧪', level:75, price:4000, priceType:'gold', desc:'Restores 2000 HP.',         effect:{ type:'heal', value:2000 }, consumable:true, category:'consumable' },
     { id:'potion_colossal_hp', name:'Colossal Health Potion',  emoji:'🧪', level:90, price:6000, priceType:'gold', desc:'Restores 3000 HP.',         effect:{ type:'heal', value:3000 }, consumable:true, category:'consumable' },
     { id:'potion_titan_hp',    name:'Titan Health Potion',     emoji:'🧪', level:100, price:10000, priceType:'gold', desc:'Restores 5000 HP.',         effect:{ type:'heal', value:5000 }, consumable:true, category:'consumable' },
-    { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:750, priceType:'gold', desc:'+15 Strength for session.', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
-    { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:1500, priceType:'gold', desc:'+15 Magic for session.',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:750, priceType:'gold', desc:'+15 Strength for 1 hour (1h cooldown).', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:1500, priceType:'gold', desc:'+15 Magic for 1 hour (1h cooldown).',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
     { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP.',    effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
     { id:'potion_mana',        name:'Mana Potion',             emoji:'💧', level:1,  price:5,    priceType:'gems', desc:'Restores 100 MP.',          effect:{ type:'mp', value:100 }, consumable:true, category:'consumable' },
 ];
@@ -9224,20 +9226,30 @@ async function buildCharacterResponse(char, db) {
         console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
     }
 
+    // Temp-stat potion buffs (1h), applied to stats and returned for display
+    const tempStatBuffs = {};
+    try { tempStatBuffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
+    const activeTempBuffs = {};
+    for (const [stat, buff] of Object.entries(tempStatBuffs)) {
+        if (buff && Number(buff.exp) > now) activeTempBuffs[stat] = buff;
+    }
+    const tempBonus = (stat) => Number(activeTempBuffs[stat]?.value || 0);
+
     return {
         ...withTrain,
         tutorial_skipped: char.tutorial_skipped || 0,
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
         draws:        (char.draws       || 0),
-        vitality:     (char.vitality    || 10) + beastVitBonus,
+        vitality:     (char.vitality    || 10) + beastVitBonus + tempBonus('vitality'),
         gems:         char.gems        || 0,
         hp_max:       hpMax,
         hp_current:   hpCurrent,
-        strength:     (char.strength    || 0) + beastStrBonus,
-        defense:      (char.defense     || 0) + beastDefBonus,
-        agility:      (char.agility     || 0),
-        magic:        (char.magic       || 0) + beastMagBonus,
+        strength:     (char.strength    || 0) + beastStrBonus + tempBonus('strength'),
+        defense:      (char.defense     || 0) + beastDefBonus + tempBonus('defense'),
+        agility:      (char.agility     || 0) + tempBonus('agility'),
+        magic:        (char.magic       || 0) + beastMagBonus + tempBonus('magic'),
+        temp_stat_buffs: activeTempBuffs,
         beast_role:   beastRole,
         beast_stat_bonus: { str: beastStrBonus, def: beastDefBonus, mag: beastMagBonus, vit: beastVitBonus },
         hit_chance:   (char.hit_chance  || 0),
@@ -13073,7 +13085,18 @@ router.post('/use/:inventoryId', auth, async (req, res) => {
                 message = `Fully restored HP! (${trueHpMax}/${trueHpMax})`;
                 updated = true;
             } else if (data.effect.type === 'temp_stat') {
-                message = `+${data.effect.value} ${data.effect.stat} for session.`;
+                const stat = data.effect.stat;
+                if (!stat) return res.status(400).json({ error: 'Invalid stat potion' });
+                let buffs = {};
+                try { buffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
+                const existing = buffs[stat];
+                const cdLeft = (existing?.exp || 0) - now;
+                if (cdLeft > 0) {
+                    return res.status(400).json({ error: `${stat.charAt(0).toUpperCase() + stat.slice(1)} potions are on cooldown for ${formatDurationShort(cdLeft)}.` });
+                }
+                buffs[stat] = { value: data.effect.value, exp: now + TEMP_STAT_BUFF_DURATION };
+                await dbRun(db, 'UPDATE characters SET temp_stat_buffs=? WHERE id=?', [JSON.stringify(buffs), char.id]);
+                message = `+${data.effect.value} ${stat} for 1 hour.`;
                 updated = true;
             } else if (data.effect.type === 'xp') {
                 let newXp = (char.xp || 0) + data.effect.value, newLevel = char.level;
