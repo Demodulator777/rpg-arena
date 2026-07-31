@@ -8901,7 +8901,7 @@ async function showSquadDetail(squadId) {
             </div>
             <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
             ${!amMember ? `<div style="margin:14px 4px 0;text-align:center">
-                <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>📋 Apply</button>
+                <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>Apply</button>
             </div>` : ''}
         </div>`;
         ensureGameDialogModal();
