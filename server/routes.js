@@ -10831,6 +10831,12 @@ router.post('/squads/wars/start', auth, async (req, res) => {
             "SELECT 1 FROM clan_wars WHERE defender_squad_id=? AND status='completed' AND resolved_at > ? LIMIT 1",
             [targetBase.owner_squad_id, Math.floor(Date.now() / 1000) - 86400]);
         if (defCooldown) return res.status(400).json({ error: 'This squad is on a 24h cooldown after defending a war.' });
+        const cfg = NPC_BASE_CAPTURE[targetBase.tier];
+        const minMembers = cfg?.min_members || 20;
+        const atkCount = await dbGet(db, 'SELECT COUNT(*) AS c FROM squad_members WHERE squad_id=?', [membership.squad_id]);
+        if (Number(atkCount?.c || 0) < minMembers) {
+            return res.status(400).json({ error: `Need at least ${minMembers} squad members to declare war on a ${targetBase.tier} base (current: ${atkCount?.c || 0}).` });
+        }
         const intent = req.body.intent === 'loot' ? 'loot' : 'capture';
         const now = Math.floor(Date.now() / 1000);
         const scoutEndsAt = now + 43200; // 12 hours
