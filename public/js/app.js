@@ -6144,7 +6144,7 @@ function isWeaponSuitedForClass(weapon, cls) {
     let result = true;
     if (cls === 'rogue')   result = is('dagger') || is('bow') || is('scythe');
     else if (cls === 'mage')    result = is('scythe') || is('staff');
-    else if (cls === 'paladin') result = is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword');
+    else if (cls === 'paladin') result = is('mace') || is('hammer') || is('staff') || is('axe') || is('blade') || is('spear') || is('scythe') || is('sword') || is('greatsword');
     else if (cls === 'warrior') result = !(is('staff') || is('dagger'));
     if (!result) console.log('[WPNDEBUG]', weapon.name, 'type='+weapon.type, 'weaponType='+weapon.weaponType, 'weapon_type='+weapon.weapon_type, 'wpnType='+wpnType, 'name='+name, 'cls='+cls);
     return result;
