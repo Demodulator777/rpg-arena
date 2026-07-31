@@ -1025,8 +1025,8 @@ const SKILL_TREES = {
                     death_mark: {
                         id: 'death_mark', tier: 5, name: 'Death Mark', emoji: '☠️',
                         type: 'progressive',
-                        desc: 'Mark enemy: next hit deals (Agility × 3) bonus damage.',
-                        effects: [{ type: 'active_combat', id: 'death_mark', agility_mult: 3.0, uses: 1 }],
+                        desc: 'Mark enemy: next hit deals (Agility × 1.5) bonus damage.',
+                        effects: [{ type: 'active_combat', id: 'death_mark', agility_mult: 1.5, uses: 1 }],
                         requires: ['venomfang'],
                         unlockCondition: 'wins_150',
                         thresholds: ROGUE_THRESHOLDS.tier5,
@@ -1440,8 +1440,8 @@ const SKILL_TREES = {
                     divine_judgment: {
                         id: 'divine_judgment', tier: 4, name: 'Divine Judgment', emoji: '⚖️',
                         type: 'progressive',
-                        desc: 'Once per battle: deal (Defense × 2.5) holy damage, ignore armor.',
-                        effects: [{ type: 'active_combat', id: 'divine_judgment', defense_mult: 2.5, ignore_armour: true, uses: 1 }],
+                        desc: 'Once per battle: deal (Defense × 2) holy damage.',
+                        effects: [{ type: 'active_combat', id: 'divine_judgment', defense_mult: 2.0, uses: 1 }],
                         requires: ['consecrate'],
                         unlockCondition: 'level_20',
                         thresholds: PALADIN_THRESHOLDS.tier4,
@@ -1467,7 +1467,7 @@ const SKILL_TREES = {
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.30 },
                             { type: 'passive_pct', stat: 'defense', value: 0.20 },
-                            { type: 'active_combat', id: 'divine_judgment', defense_mult: 3.0, ignore_armour: true, uses: 2 },
+                            { type: 'active_combat', id: 'divine_judgment', defense_mult: 2.5, uses: 2 },
                             { type: 'active_combat', id: 'consecrate', reflect_pct: 0.25 }
                         ],
                         requires: ['avatar_of_justice'],
@@ -1578,7 +1578,7 @@ const SKILL_TREES = {
                         id: 'holy_crusade', tier: 4, name: 'Holy Crusade', emoji: '🏳️',
                         type: 'progressive',
                         desc: 'Once per battle: deal (Magic + Defense) × 1.8 holy damage, ignore resist.',
-                        effects: [{ type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 1.8, ignore_resist: true, uses: 1 }],
+                        effects: [{ type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 1.5, ignore_resist: true, uses: 1 }],
                         requires: ['righteous_fury'],
                         unlockCondition: 'level_20',
                         thresholds: PALADIN_THRESHOLDS.tier4,
@@ -1604,7 +1604,7 @@ const SKILL_TREES = {
                         effects: [
                             { type: 'passive_pct', stat: 'magic', value: 0.35 },
                             { type: 'resist_bonus', elems: ['pyro', 'water', 'wind', 'electro'], value: 30 },
-                            { type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 2.0, ignore_resist: true, uses: 2 },
+                            { type: 'active_combat', id: 'holy_crusade', stats_sum: ['magic', 'defense'], multiplier: 1.8, ignore_resist: true, uses: 2 },
                             { type: 'class_modifier', id: 'holy_fire_amplify', bonus: 0.45 }
                         ],
                         requires: ['undying_crusader'],
