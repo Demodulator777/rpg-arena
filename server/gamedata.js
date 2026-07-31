@@ -845,6 +845,56 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
                 pyro_dmg:8, pyro_resist:10, water_resist:-20, wind_resist:-12 },
         components:{ crimson_royal_blood:1, crimson_alloy:2, void_crystal:3 }, goldCost:17000,
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 10 — ABYSSAL VOID  (Void-touched zone)
+    //  Void/physical focus · high strength · endurance
+    // ══════════════════════════════════════════════
+    {
+        id:'abyssal_void_weapon', setId:'abyssal_void', setPiece:'weapon',
+        name:'Silence-Carver', emoji:'⚔️', quality:'legendary',
+        slot:'weapon', weaponType:'greatsword',
+        desc:'Forged from the final, unfinished word of a king consumed mid-command. Increases defense by 5% each round (max 25%).',
+        stats:{ dmg_min:30, dmg_max:45, strength:32, defense:79, hit_chance:46, crit_chance:6, agility:-12,
+                electro_dmg:18, electro_resist:10, pyro_resist:-10, wind_resist:-15 },
+        components:{ void_plate:3, abyss_weave:2, shadowsteel_bar:2 }, goldCost:23000, requiredZone:'void',
+    },
+    {
+        id:'abyssal_void_armor', setId:'abyssal_void', setPiece:'armor',
+        name:'Deathfrost Cuirass', emoji:'🥼', quality:'legendary',
+        slot:'armor',
+        desc:'Quenched in the heart of a dead star, where even heat forgot to exist.',
+        stats:{ defense:94, armor:22, hp_max:130, strength:20, hit_chance:43,
+                electro_dmg:10, electro_resist:22, pyro_resist:-20, wind_resist:-12, water_resist:-8 },
+        components:{ void_plate:3, abyss_weave:2, void_crystal:3 }, goldCost:27000, requiredZone:'void',
+    },
+    {
+        id:'abyssal_void_helmet', setId:'abyssal_void', setPiece:'helmet',
+        name:'Null-Gaze', emoji:'👑', quality:'legendary',
+        slot:'helmet',
+        desc:'Its seamless faceplate shows enemies not their reflection, but the hollow space where their courage died.',
+        stats:{ strength:24, magic:12, defense:88, armor:14, hp_max:40, hit_chance:45,
+                electro_dmg:12, electro_resist:14, pyro_resist:-12, wind_resist:-18, water_resist:-6 },
+        components:{ void_plate:2, shadowsteel_bar:3, void_crystal:2 }, goldCost:20000, requiredZone:'void',
+    },
+    {
+        id:'abyssal_void_shield', setId:'abyssal_void', setPiece:'shield',
+        name:'The Null Bastion', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'Pulled fully-formed from the Void, it does not block attacks—it erases the wielder from the enemy\'s awareness.',
+        stats:{ defense:22, armor:30, strength:26, defense: 99,hit_chance:42, crit_chance:4, agility:-10,
+                electro_dmg:8, electro_resist:24, pyro_resist:-16, wind_resist:-20, water_resist:-10 },
+        components:{ void_plate:3, abyss_weave:3, shadowsteel_bar:2 }, goldCost:26000, requiredZone:'void',
+    },
+    {
+        id:'abyssal_void_boots', setId:'abyssal_void', setPiece:'boots',
+        name:'Echoes of Oblivion', emoji:'👟', quality:'legendary',
+        slot:'boots',
+        desc:'These boots walk not on ground, but on the fading memory of ground that no longer remembers itself.',
+        stats:{ defense:10, armor:8, agility:6, strength:16, defense:72, hit_chance:44, crit_chance:2,
+                electro_dmg:6, electro_resist:12, pyro_resist:-14, wind_resist:-16 },
+        components:{ void_crystal:3, shadowsteel_bar:2, abyss_weave:1 }, goldCost:18000, requiredZone:'void',
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -949,6 +999,18 @@ const CRAFTING_SETS = {
             strength:32, hit_chance:28, crit_chance:10, dmg_min:6, dmg_max:10,
             pyro_dmg:35, pyro_resist:20, hp_max:80,
             desc:'5/5: +32 STR · +28 Hit · +10 Crit · +6-10 Dmg · +35 Pyro Dmg · +20 Pyro Resist · +80 HP'
+        },
+    },
+    abyssal_void: {
+        name:'Abyssal Void Set', emoji:'🕳️',
+        bonus3:{
+            strength:14, defense:12, hp_max:90, electro_resist:12,
+            desc:'2/5: +14 STR · +12 DEF · +90 HP · +12 Electro Resist'
+        },
+        bonus5:{
+            strength:30, defense:24, armor:10, hp_max:170, vitality:5,
+            electro_dmg:16, pyro_resist:16, water_resist:16, wind_resist:16, electro_resist:16,
+            desc:'5/5: +30 STR · +24 DEF · +10 Armor · +170 HP · +5 VIT · +16 Electro Dmg · +16 all Elem Resist'
         },
     },
 };
