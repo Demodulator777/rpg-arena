@@ -9860,7 +9860,14 @@ router.get('/squads/me', auth, async (req, res) => {
             COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
             COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
             FROM squad_members sm JOIN characters c ON c.id = sm.char_id
-            WHERE sm.squad_id=? ORDER BY c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id]);
+            WHERE sm.squad_id=? ORDER BY 
+            CASE sm.role 
+                WHEN 'leader' THEN 1 
+                WHEN 'co_leader' THEN 2 
+                WHEN 'officer' THEN 3 
+                ELSE 4 
+            END, 
+            c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id]);
         res.json({ squad, members });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -10226,7 +10233,7 @@ router.get('/squads/bases', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         const squadId = membership?.squad_id || null;
-        const bases = await dbAll(db, `SELECT b.*, su.upgrade_level, su.last_upkeep_paid, s.name AS owner_name
+        const bases = await dbAll(db, `SELECT b.*, su.upgrade_level, su.last_upkeep_paid, s.name AS owner_name, s.squad_tag AS owner_tag
             FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
             LEFT JOIN squads s ON s.id = b.owner_squad_id ORDER BY b.tier, b.id`, []);
         const enhanced = bases.map(b => ({
@@ -10234,6 +10241,7 @@ router.get('/squads/bases', auth, async (req, res) => {
             map_x: Number(b.map_x), map_y: Number(b.map_y),
             owner_squad_id: Number(b.owner_squad_id || 0),
             owner_name: b.owner_name || null,
+            owner_tag: b.owner_tag || null,
             upgrade_level: Number(b.upgrade_level || 0),
             is_owner: squadId && Number(b.owner_squad_id || 0) === squadId,
             discount_pct: b.owner_squad_id && Number(b.upgrade_level || 0) > 0
