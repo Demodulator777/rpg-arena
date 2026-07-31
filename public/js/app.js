@@ -8610,6 +8610,7 @@ async function openWarPanel(warId) {
                     ${!w.is_npc_war && w.scout_ends_at ? `Defense phase ends: ${formatDate(w.scout_ends_at)}` : ''}
                     ${w.attack_ends_at ? `· Auto-resolve: ${formatDate(w.attack_ends_at)}` : ''}
                 </div>
+                ${w.is_attacker && w.phase !== 'attacking' ? `<div class="squads-meta" style="font-size:0.7rem;margin-top:4px;color:#f1c40f;font-weight:700">⏳ Wait for the attack phase to start to scout and assign fighters.</div>` : ''}
             </div></div>
             <div class="squads-members" style="padding:8px 12px">
                 <div class="squads-title" style="font-size:0.8rem">Outposts</div>
