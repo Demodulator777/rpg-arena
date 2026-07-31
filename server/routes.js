@@ -10726,7 +10726,7 @@ async function resolveWarBattle(db, war) {
                 [war.attacker_squad_id, Number(oldBase.id)]);
         }
         await dbRun(db, 'UPDATE clan_bases SET owner_squad_id=?, occupied_at=? WHERE id=?', [war.attacker_squad_id, Math.floor(Date.now() / 1000), war.base_id]);
-        const newLevel = Math.max(1, prevLevel - 1);
+        const newLevel = Math.max(0, prevLevel - 1);
         await dbRun(db, 'INSERT INTO squad_base_upgrades (squad_id, base_id, upgrade_level) VALUES (?,?,?) ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=?',
             [war.attacker_squad_id, war.base_id, newLevel, newLevel]);
     }
