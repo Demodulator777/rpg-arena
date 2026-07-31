@@ -2733,7 +2733,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border-radius: 14px;
     padding: 16px;
 }
-.squads-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap: 12px; }
+.squads-card-head { 
+    display:flex; 
+    flex-wrap: wrap; 
+    align-items: center; 
+    justify-content:space-between; 
+    gap: 12px; 
+}
+.squads-card-head .squads-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+@media (max-width: 480px) {
+    .squads-card-head { justify-content: center; text-align: center; }
+}
 .squads-title { font-family: 'Cinzel',serif; font-weight: 800; color: var(--gold-light); font-size: 1.1rem; }
 .squads-meta { font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; }
 .squads-actions { display:flex; gap: 10px; align-items:center; }
@@ -2778,6 +2792,31 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .squad-name { font-weight: 900; color: var(--text-bright); overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
 .squad-sub { font-size: 0.74rem; color: var(--text-dim); margin-top: 2px; }
 .squad-metric { font-weight: 900; color: var(--gold-light); white-space: nowrap; }
+
+.squads-setup-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 16px;
+}
+.squads-setup-box {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.squads-subhead {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 4px;
+}
+@media (max-width: 600px) {
+    .squads-setup-grid { grid-template-columns: 1fr; }
+}
 
 /* Badge picker: ensure <select>/<option> are readable across browsers */
 #badge-picker-modal select.input-field {
