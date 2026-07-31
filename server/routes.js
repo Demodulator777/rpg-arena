@@ -19027,7 +19027,6 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
         }
 
         await dbRun(db, 'UPDATE characters SET mission_points = mission_points - 60 WHERE id = ?', [freshChar.id]);
-        await recordTotalMpSpent(db, freshChar.id, 60);
 
         const potionData = {
             id: 'special_mana_potion',
