@@ -722,6 +722,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE messages ADD COLUMN admin_batch_id INTEGER DEFAULT NULL',
             'ALTER TABLE messages ADD COLUMN hidden INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_prune_missions INTEGER DEFAULT 1',
+            'ALTER TABLE users ADD COLUMN last_online_at INTEGER DEFAULT 0',
             'ALTER TABLE squads ADD COLUMN logo TEXT DEFAULT NULL',
             `CREATE TABLE IF NOT EXISTS chat_messages (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -9858,8 +9859,10 @@ router.get('/squads/me', auth, async (req, res) => {
         const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at, squad_tag FROM squads WHERE id=?', [membership.squad_id]);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
             COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
-            COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
+            COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated,
+            u.last_online_at
             FROM squad_members sm JOIN characters c ON c.id = sm.char_id
+            JOIN users u ON c.user_id = u.id
             WHERE sm.squad_id=? ORDER BY 
             CASE sm.role 
                 WHEN 'leader' THEN 1 
