@@ -6737,7 +6737,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const dmEff = getActiveCombatEffect(attacker, 'death_mark');
             attacker._usedAbilities.death_mark = true;
             const agiVal = attacker.agility || 0;
-            specialAttackDmg = Math.floor(agiVal * (dmEff?.agility_mult || 3.0));
+            specialAttackDmg = Math.floor(agiVal * (dmEff?.agility_mult || 1.5));
             if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses DEATH MARK — ${specialAttackDmg} damage`;
         }
         // blade_storm: dual_strike, pierce_block, 1 use
@@ -6757,7 +6757,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (used < maxUses) {
                 if (used === 0 || roundNum >= 6) {
                     attacker._usedAbilities.divineJudgment = used + 1;
-                    const defMult = djEff?.defense_mult || 2.5;
+                    const defMult = djEff?.defense_mult || 2.0;
                     specialAttackDmg = Math.max(1, Math.floor((attacker.defense || 0) * defMult));
                     if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses DIVINE JUDGMENT — ${specialAttackDmg} damage`;
                 }
@@ -6775,7 +6775,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const stats = hcEff?.stats_sum || ['magic', 'defense'];
                     let sum = 0;
                     for (const s of stats) sum += attacker[s] || 0;
-                    specialAttackDmg = Math.max(1, Math.floor(sum * (hcEff?.multiplier || 1.8)));
+                    specialAttackDmg = Math.max(1, Math.floor(sum * (hcEff?.multiplier || 1.5)));
                     if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} uses HOLY CRUSADE — ${specialAttackDmg} damage`;
                 }
             }
