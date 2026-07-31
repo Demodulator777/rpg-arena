@@ -10429,8 +10429,8 @@ router.post('/squads/bases/:baseId/capture', auth, async (req, res) => {
             return res.status(400).json({ error: `Need at least ${cfg.min_members} squad members to capture a ${base.tier} base (current: ${memberCount?.c || 0}).` });
         }
         // Check for existing war
-        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND status IN ('preparation','attacking') LIMIT 1",
-            [membership.squad_id]);
+        const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') LIMIT 1",
+            [membership.squad_id, membership.squad_id]);
         if (activeWar) return res.status(400).json({ error: 'Your squad already has an active war. Finish it before starting another.' });
         const now = Math.floor(Date.now() / 1000);
         const attackEndsAt = now + 43200; // 12h assignment phase
@@ -10824,8 +10824,8 @@ router.post('/squads/wars/start', auth, async (req, res) => {
             [baseId]);
         if (activeWar) return res.status(400).json({ error: 'There is already an active war for this base.' });
         const squadActiveWar = await dbGet(db,
-            "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND status IN ('preparation','attacking') LIMIT 1",
-            [membership.squad_id]);
+            "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') LIMIT 1",
+            [membership.squad_id, membership.squad_id]);
         if (squadActiveWar) return res.status(400).json({ error: 'Your squad already has an active war. Finish it before declaring another.' });
         const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
             [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
