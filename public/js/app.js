@@ -8393,7 +8393,7 @@ function renderSquads() {
                    <span>
                        <span class="squads-member-name">${escHtml(m.name)}</span>
                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
-                       <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)} · 🟢 ${formatRelativeTime(m.last_online_at)}</span>
+                       <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)} · ${onlineDot(m.last_online_at)} ${formatRelativeTime(m.last_online_at)}</span>
                    </span>
                     <span style="display:flex;align-items:center;gap:4px">
                         ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader')) ? `
@@ -11415,6 +11415,17 @@ function formatRelativeTime(ts) {
     if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
     return `${Math.floor(diff / 86400)}d ago`;
+}
+
+function onlineDot(ts) {
+    if (!ts) return '<span class="online-dot" style="background:#6d0000"></span>';
+    const now = Math.floor(Date.now() / 1000);
+    const diff = now - ts;
+    if (diff < 300) return '🟢';
+    if (diff < 3600) return '🟡';
+    if (diff < 43200) return '🟠';
+    if (diff < 86400) return '🔴';
+    return '<span class="online-dot" style="background:#6d0000"></span>';
 }
 
 function formatDate(ts) {
