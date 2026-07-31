@@ -8503,7 +8503,7 @@ async function showClanBaseDetail(baseId) {
         if (!b) return;
         let html = `<div class="squads-card" style="max-width:100%">
             <div class="squads-card-head">
-                <div><div class="squads-title">🏰 ${escHtml(b.name)}</div>
+                <div><div class="squads-title"><img src="/images/assets/base${b.tier}.png" style="width:28px;height:auto;vertical-align:middle;margin-right:6px">${escHtml(b.name)}</div>
                 <div class="squads-meta">${tierNames[b.tier] || b.tier}
                     ${b.is_owned ? '· Owned by your squad' : b.is_occupied ? `· Owned by ${escHtml(b.owner_squad_name)}` : '· Unoccupied'}
                 </div>
