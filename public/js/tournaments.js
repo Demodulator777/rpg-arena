@@ -187,7 +187,7 @@ function render(char, data) {
         })() : ''}
       </div>` : ''}
     <div class="tabs">
-      <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Standings</button>
+      <button class="tab-btn active" data-action="tournamentTab" data-args='["standings"]'>Participants</button>
       <button class="tab-btn" data-action="tournamentTab" data-args='["history"]'>History</button>
     </div>
     <div id="tab-standings">
