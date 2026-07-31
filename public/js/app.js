@@ -7021,7 +7021,7 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <img class="lootbox-summary-img" src="/images/assets/gold-coin.png" data-error-src="/images/assets/prize.png" alt="Gold">
-                <div><strong>${goldAmount} Gold</strong></div>
+                <div><strong>💰 ${goldAmount.toLocaleString()} Gold</strong></div>
             </div>
         `;
     }
@@ -7030,7 +7030,7 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <img class="lootbox-summary-img" src="/images/assets/gem.png" data-error-src="/images/assets/prize.png" alt="Gems">
-                <div><strong>${gemsAmount} Gems</strong></div>
+                <div><strong>💎 ${gemsAmount.toLocaleString()} Gems</strong></div>
             </div>
         `;
     }
@@ -8391,7 +8391,7 @@ function renderSquads() {
             <div class="squads-members">
                 ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
                    <span>
-                       <span class="squads-member-name">${escHtml(m.name)}</span>
+                       <span class="squads-member-name" style="cursor:pointer" ${actionAttrs('openProfile', m.id)}>${escHtml(m.name)}</span>
                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)} · ${onlineDot(m.last_online_at)} ${formatRelativeTime(m.last_online_at)}</span>
                    </span>
