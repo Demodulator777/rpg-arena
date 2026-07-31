@@ -8636,7 +8636,7 @@ async function openWarPanel(warId) {
             </div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
                 ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
-                ${w.phase === 'attacking' || w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : ''}
+                ${w.is_attacker ? (w.phase === 'attacking' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : '') : (w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : '')}
             </div>
         </div>`;
         openGameNoticeDialog({ title: 'War Panel', message: html, confirmLabel: 'Close' });
