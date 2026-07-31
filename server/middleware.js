@@ -81,11 +81,10 @@ module.exports = async (req, res, next) => {
             };
         }
 
-        // Update IP address on each request (non-blocking)
+        // Update IP address and last_online_at on each request (non-blocking)
         const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection?.remoteAddress || '';
-        if (clientIp) {
-            db.execute({ sql: 'UPDATE users SET ip_address=? WHERE id=? AND (ip_address IS NULL OR ip_address!=?)', args: [clientIp, user.rows[0].id, clientIp] }).catch(() => {});
-        }
+        const now = Math.floor(Date.now() / 1000);
+        db.execute({ sql: 'UPDATE users SET ip_address=?, last_online_at=? WHERE id=? AND (ip_address IS NULL OR ip_address!=? OR last_online_at < ?)', args: [clientIp, now, user.rows[0].id, clientIp, now - 60] }).catch(() => {});
 
         next();
     } catch (error) {
