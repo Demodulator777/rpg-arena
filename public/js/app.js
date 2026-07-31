@@ -8256,16 +8256,24 @@ function renderSquads() {
     if (!squad) {
         el.innerHTML = `
         <div class="squads-card">
-            <div class="squads-title">🛡️ Squads</div>
-            <div class="squads-meta">Create a squad or join one by invite code.</div>
-            <div class="squads-actions">
-                <input id="squad-name" class="input-field" placeholder="Squad name (3-20 chars)">
-                <input id="squad-tag" class="input-field" placeholder="Tag (1-5 chars, required)" style="width:100px" required>
-                <button class="btn-primary" ${actionAttrs('createSquad')}>Create</button>
+            <div class="squads-card-head">
+                <div class="squads-title">🛡️ Squad Management</div>
+                <div class="squads-meta">Gather your allies or join a legendary squad.</div>
             </div>
-            <div class="squads-actions" style="margin-top:10px">
-                <input id="squad-code" class="input-field" placeholder="Invite code">
-                <button class="btn-secondary" ${actionAttrs('joinSquad')}>Join</button>
+            
+            <div class="squads-setup-grid">
+                <div class="squads-setup-box">
+                    <div class="squads-subhead">Create New Squad</div>
+                    <input id="squad-name" class="input-field" placeholder="Squad Name (3-20)">
+                    <input id="squad-tag" class="input-field" placeholder="Tag (1-5 chars)" required>
+                    <button class="btn-primary" ${actionAttrs('createSquad')}>Create Squad</button>
+                </div>
+                
+                <div class="squads-setup-box">
+                    <div class="squads-subhead">Join Existing Squad</div>
+                    <input id="squad-code" class="input-field" placeholder="Invite Code">
+                    <button class="btn-secondary" ${actionAttrs('joinSquad')}>Join Squad</button>
+                </div>
             </div>
         </div>`;
         return;
@@ -8441,7 +8449,7 @@ function renderBaseMapContent() {
         const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
         return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
                     <div style="width:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;height:${b.tier === 'main' ? 24 : b.tier === 'large' ? 20 : b.tier === 'medium' ? 16 : 12}px;border-radius:50%;background:${isOwned ? '#2ecc71' : isOccupied ? '#e74c3c' : color};border:2px solid ${isOwned ? '#27ae60' : isOccupied ? '#c0392b' : 'rgba(255,255,255,0.3)'};margin:0 auto;box-shadow:0 0 ${isOwned ? 8 : 4}px ${color}44"></div>
-                    <div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:${isOwned ? '#2ecc71' : '#aaa'}">${escHtml(b.name)}${b.discount_pct ? ' 🏷️' : ''}</div>
+                    ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
                 </div>`;
     }).join('')}
         </div>
