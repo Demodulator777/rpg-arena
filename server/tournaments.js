@@ -20,6 +20,7 @@ const {
 
 const TOURNAMENT_COST = 500;
 const MIN_PLAYERS = 8;
+const MIN_REAL_PLAYERS = 4;
 const ROUND_INTERVAL_MS = 60_000;
 const DAILY_HOUR = 21;
 const DAILY_MINUTE = 30;
@@ -85,9 +86,8 @@ async function startTournament() {
     try {
       const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
       const realCount = participants.filter(p => !p.is_npc).length;
-      if (realCount === 0) {
-        await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
-        console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — no real players joined`);
+      if (realCount < MIN_REAL_PLAYERS) {
+        await abortTournament(db, t, realCount);
         return;
       }
       await runTournament(db, t, true);
@@ -97,13 +97,23 @@ async function startTournament() {
   }));
 }
 
+async function abortTournament(db, t, realCount) {
+  const reason = realCount === 0 ? 'no real players' : `only ${realCount} real players (need at least ${MIN_REAL_PLAYERS})`;
+  // Refund entry gold to all real participants
+  const realParts = await dbAll_t(db, "SELECT char_id FROM tournament_participants WHERE tournament_id = ? AND is_npc = 0 AND char_id IS NOT NULL", [t.id]);
+  for (const p of realParts) {
+    await dbRun_t(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [TOURNAMENT_COST, p.char_id]).catch(() => {});
+  }
+  await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
+  console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — ${reason}; refunded ${TOURNAMENT_COST} gold to ${realParts.length} players`);
+}
+
 async function ensureMinPlayers(db, t) {
   let participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
   const realCount = participants.filter(p => !p.is_npc).length;
   console.log(`🏟️ Tournament #${t.id}: ${participants.length} participants (${realCount} real)`);
-  if (realCount === 0) {
-    await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
-    console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — no real players`);
+  if (realCount === 0 || realCount < MIN_REAL_PLAYERS) {
+    await abortTournament(db, t, realCount);
     return [];
   }
   const mode = t.mode || 'deathmatch';
