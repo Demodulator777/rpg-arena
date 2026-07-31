@@ -6952,6 +6952,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
             if (finalDmg > 0 && (defender.armor || 0) > 0) {
                 let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+                // Silence-Carver (Abyssal Void): +5% defense per round, cap +25%
+                if (defender.weapon?.id === 'abyssal_void_weapon') {
+                    effArmor = Math.floor(effArmor * (1.0 + Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05))));
+                }
                 const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
                 if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
                 const brArmourEff = getActiveCombatEffect(attacker, 'berserker_rage');
