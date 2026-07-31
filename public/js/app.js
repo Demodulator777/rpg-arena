@@ -8496,7 +8496,7 @@ function _startUpkeepTicker() {
 } function _stopUpkeepTicker() { if (_upkeepTick) { clearInterval(_upkeepTick); _upkeepTick = null; } }
 
 async function showClanBaseDetail(baseId) {
-    const tierNames = { main: '🏰 Main', large: '🏯 Large', medium: '🏘️ Medium', small: '🛖 Small' };
+    const tierNames = { main: 'Main', large: 'Large', medium: 'Medium', small: 'Small' };
     try {
         const res = await api('GET', `/game/squads/bases/${baseId}`);
         const b = res.base;
