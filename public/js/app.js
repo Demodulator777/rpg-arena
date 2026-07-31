@@ -8698,6 +8698,97 @@ async function doScout(warId, charId, outpostIdx, type) {
 }
 window.doScout = doScout;
 
+let _assignWarId = null;
+let _assignMembers = [];
+let _assignIsAttacker = false;
+let _assignSelections = {}; // char_id -> outpost_index (or -1)
+
+function ensureAssignModal() {
+    if (document.getElementById('assign-war-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="assign-war-modal" class="modal-overlay hidden">
+            <div class="modal-box game-dialog-box">
+                <div class="modal-header">
+                    <h3 id="assign-war-title">📋 Assign Fighters</h3>
+                    <button class="btn-secondary" data-action="closeAssignModal">✕</button>
+                </div>
+                <div id="assign-war-list" class="game-dialog-message"></div>
+                <div class="game-dialog-actions">
+                    <button class="btn-primary" data-action="saveAssignments">💾 Save Assignments</button>
+                </div>
+            </div>
+        </div>
+        <div id="assign-outpost-modal" class="modal-overlay hidden">
+            <div class="modal-box game-dialog-box" style="max-width:340px">
+                <div class="modal-header"><h3 id="assign-outpost-title">Choose Outpost</h3><button class="btn-secondary" data-action="closeAssignOutpostModal">✕</button></div>
+                <div id="assign-outpost-list" class="game-dialog-message"></div>
+            </div>
+        </div>`);
+}
+function closeAssignModal() { document.getElementById('assign-war-modal')?.classList.add('hidden'); }
+window.closeAssignModal = closeAssignModal;
+function closeAssignOutpostModal() { document.getElementById('assign-outpost-modal')?.classList.add('hidden'); }
+window.closeAssignOutpostModal = closeAssignOutpostModal;
+
+function _renderAssignList() {
+    const list = document.getElementById('assign-war-list');
+    if (!list) return;
+    const isCaptured = (m) => m.captured || false;
+    list.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px">${_assignIsAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+        ${_assignMembers.map(m => {
+            const cur = _assignSelections[m.id] != null ? _assignSelections[m.id] : -1;
+            return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:10px;border:1px solid #ffffff12;background:rgba(0,0,0,0.18)${isCaptured(m) ? ';opacity:0.5' : ''}">
+                <div style="flex:1 1 150px;min-width:130px;display:flex;align-items:center;gap:6px">
+                    <span style="font-size:0.82rem;font-weight:600">${escHtml(m.name)}</span>
+                    ${isCaptured(m) ? '<span style="font-size:0.65rem;color:#e74c3c">(captured)</span>' : ''}
+                </div>
+                <div style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
+                <button class="btn-secondary btn-sm" data-action="openAssignOutpost" data-args="${encodeActionArgs([m.id])}" ${isCaptured(m) ? 'disabled' : ''} style="flex:1 1 130px;min-width:120px;padding:6px 8px;font-size:0.78rem">
+                    ${cur >= 0 ? `Outpost ${cur + 1}` : '— Unassigned —'}
+                </button>
+            </div>`;
+        }).join('')}
+        </div>`;
+}
+function openAssignOutpost(charId) {
+    const m = _assignMembers.find(x => x.id === charId);
+    if (!m) return;
+    const modal = document.getElementById('assign-outpost-modal');
+    const list = document.getElementById('assign-outpost-list');
+    if (!modal || !list) return;
+    document.getElementById('assign-outpost-title').textContent = `Assign ${m.name}`;
+    list.innerHTML = '<button class="btn-secondary" style="width:100%;margin-bottom:6px" data-action="pickAssignOutpost" data-args="' + encodeActionArgs([charId, -1]) + '">— Unassigned —</button>' +
+        [0,1,2,3,4].map(i => {
+            const cur = _assignSelections[charId] != null ? _assignSelections[charId] : -1;
+            const active = cur === i;
+            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAssignOutpost" data-args="${encodeActionArgs([charId, i])}">Outpost ${i + 1}${active ? ' ✓' : ''}</button>`;
+        }).join('');
+    modal.classList.remove('hidden');
+}
+function pickAssignOutpost(charId, outpostIdx) {
+    _assignSelections[charId] = outpostIdx;
+    closeAssignOutpostModal();
+    _renderAssignList();
+}
+window.openAssignOutpost = openAssignOutpost;
+window.pickAssignOutpost = pickAssignOutpost;
+async function saveAssignments() {
+    const assignments = [];
+    for (const m of _assignMembers) {
+        const idx = _assignSelections[m.id] != null ? _assignSelections[m.id] : -1;
+        if (idx >= 0) assignments.push({ char_id: m.id, outpost_index: idx });
+    }
+    try {
+        await api('POST', `/game/squads/wars/${_assignWarId}/assign`, { assignments });
+        closeAssignModal();
+        await openGameNoticeDialog({ title: 'Assignments Saved', message: 'Fighters assigned to outposts!', confirmLabel: 'Close' });
+    } catch (e) {
+        await openGameNoticeDialog({ title: 'Assign Failed', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.saveAssignments = saveAssignments;
+
 async function assignToOutpost(warId) {
     try {
         const res = await api('GET', `/game/squads/wars/${warId}`);
@@ -8710,52 +8801,16 @@ async function assignToOutpost(warId) {
         if (w.is_npc_war && !isAttacker) {
             return openGameNoticeDialog({ title: 'Assign', message: 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
         }
-        const members = w.squad_members || [];
-        const isCaptured = (m) => m.captured || false;
-        let html = `<div class="squads-card" style="max-width:100%">
-            <div class="squads-card-head">
-                <div><div class="squads-title">📋 Assign Fighters</div>
-                <div class="squads-meta">${isAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
-            </div></div>
-            <div style="padding:8px 12px;display:flex;flex-direction:column;gap:8px">
-                ${members.map(m => `
-                <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:10px;border:1px solid #ffffff12;background:rgba(0,0,0,0.18)${isCaptured(m) ? ';opacity:0.5' : ''}">
-                    <div style="flex:1 1 140px;min-width:120px;display:flex;align-items:center;gap:6px">
-                        <span style="font-size:0.82rem;font-weight:600">${escHtml(m.name)}</span>
-                        ${isCaptured(m) ? '<span style="font-size:0.65rem;color:#e74c3c">(captured)</span>' : ''}
-                    </div>
-                    <div style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
-                    <select class="input-field" id="assign-${m.id}" style="flex:1 1 130px;min-width:120px;padding:4px 8px;font-size:0.78rem" ${isCaptured(m) ? 'disabled' : ''}>
-                        <option value="-1">— Unassigned —</option>
-                        ${[0,1,2,3,4].map(i => `<option value="${i}" ${m.assigned_outpost === i ? 'selected' : ''}>Outpost ${i+1}</option>`).join('')}
-                    </select>
-                </div>`).join('')}
-            </div>
-            <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px">
-                <button class="btn-primary btn-sm" id="save-assignments" data-war-id="${warId}">💾 Save Assignments</button>
-            </div>
-        </div>`;
-        openGameNoticeDialog({ title: 'Assign Fighters', message: html, confirmLabel: 'Close' });
-        // Wire save button after dialog renders
-        const saveBtn = document.getElementById('save-assignments');
-        if (saveBtn) {
-            saveBtn.onclick = async () => {
-                const assignments = [];
-                for (const m of members) {
-                    const sel = document.getElementById(`assign-${m.id}`);
-                    if (sel) {
-                        const outpostIdx = parseInt(sel.value);
-                        if (outpostIdx >= 0) assignments.push({ char_id: m.id, outpost_index: outpostIdx });
-                    }
-                }
-                try {
-                    await api('POST', `/game/squads/wars/${warId}/assign`, { assignments });
-                    await openGameNoticeDialog({ title: 'Assignments Saved', message: 'Fighters assigned to outposts!', confirmLabel: 'Close' });
-                } catch (e) {
-                    await openGameNoticeDialog({ title: 'Assign Failed', message: e.message || String(e), confirmLabel: 'Close' });
-                }
-            };
+        ensureAssignModal();
+        _assignWarId = warId;
+        _assignMembers = w.squad_members || [];
+        _assignIsAttacker = isAttacker;
+        _assignSelections = {};
+        for (const m of _assignMembers) {
+            _assignSelections[m.id] = m.assigned_outpost != null ? m.assigned_outpost : -1;
         }
+        _renderAssignList();
+        document.getElementById('assign-war-modal').classList.remove('hidden');
     } catch (e) {
         await openGameNoticeDialog({ title: 'Assign', message: e.message || String(e), confirmLabel: 'Close' });
     }
