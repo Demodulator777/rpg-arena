@@ -6783,6 +6783,14 @@ function createLootboxModal() {
                 border-radius: 20px;
                 padding: 6px;
             }
+            .lootbox-item-emoji {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 40px;
+                line-height: 1;
+                background: rgba(0,0,0,0.3);
+            }
 
             .lootbox-item-card.lootbox-rarity-rare .lootbox-item-image {
                 filter: drop-shadow(0 0 14px rgba(155,89,182,0.62)) drop-shadow(0 4px 8px rgba(0,0,0,0.5));
@@ -6995,14 +7003,23 @@ function escapeHtml(str) {
 function renderSingleLootboxItem(item) {
     const itemName = item.name || 'Unknown Item';
     const qtyText = (item.qty && item.qty > 1) ? ` x${item.qty}` : '';
-    const imagePath = getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
     const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
     const quality = (item.quality || 'common').toLowerCase();
     const rarityClass = ['rare', 'epic', 'legendary'].includes(quality) ? ` lootbox-rarity-${quality}` : '';
 
+    let imageHtml;
+    if (item.type === 'gold') {
+        imageHtml = `<span class="lootbox-item-image lootbox-item-emoji">💰</span>`;
+    } else if (item.type === 'gem') {
+        imageHtml = `<span class="lootbox-item-image lootbox-item-emoji">💎</span>`;
+    } else {
+        const imagePath = getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+        imageHtml = `<img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">`;
+    }
+
     return `
         <div class="lootbox-item-card${rarityClass}">
-            <img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">
+            ${imageHtml}
             <div class="lootbox-item-info">
                 <div class="lootbox-item-title">${escapeHtml(itemName)}${qtyText}</div>
                 <div class="lootbox-item-sub">${escapeHtml(descText)}</div>
