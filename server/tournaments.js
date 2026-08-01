@@ -696,6 +696,10 @@ function deathmatchBattle(fighterA, fighterB) {
     if (elemALog) resA.logLine += ` | ${elemALog}`;
     if (elemBLog) resB.logLine += ` | ${elemBLog}`;
 
+    // Apply round-start heals BEFORE damage so a fighter can die when HP reaches 0
+    if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
+    if (resB.roundStartHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+
     const dmgToB = resA.damageDealt + resB.damageCounter;
     const dmgToA = resB.damageDealt + resA.damageCounter;
 
@@ -721,13 +725,6 @@ function deathmatchBattle(fighterA, fighterB) {
     const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
     if (burnToA > 0) { hpA = Math.max(0, hpA - burnToA); log.push(`🔥 ${fighterA.name} takes ${burnToA} burn damage`); }
     if (burnToB > 0) { hpB = Math.max(0, hpB - burnToB); log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`); }
-
-    if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
-    if (resB.roundStartHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
-    if (resA.postDmgHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
-    if (resA.postDmgHealDefender > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
-    if (resB.postDmgHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
-    if (resB.postDmgHealDefender > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
 
     fighterA.hp = hpA; fighterB.hp = hpB;
 
@@ -789,6 +786,19 @@ function deathmatchBattle(fighterA, fighterB) {
       }
       break;
     }
+
+    // Apply post-damage heals AFTER the death check so a dead fighter can't heal
+    // (sanctioned_strike → attacker; bastion_heart → defender)
+    if (hpA > 0) {
+      if (resA.postDmgHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+      if (resB.postDmgHealDefender > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
+    }
+    if (hpB > 0) {
+      if (resB.postDmgHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+      if (resA.postDmgHealDefender > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+    }
+    fighterA.hp = hpA; fighterB.hp = hpB;
+
     log.push('---');
   }
 
@@ -888,6 +898,10 @@ function normalBattle(fighterA, fighterB) {
     if (elemALog) resA.logLine += ` | ${elemALog}`;
     if (elemBLog) resB.logLine += ` | ${elemBLog}`;
 
+    // Apply round-start heals BEFORE damage so a fighter can die when HP reaches 0
+    if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
+    if (resB.roundStartHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+
     const dmgToB = resA.damageDealt + resB.damageCounter;
     const dmgToA = resB.damageDealt + resA.damageCounter;
 
@@ -911,13 +925,6 @@ function normalBattle(fighterA, fighterB) {
     const burnToB = (resB.attackerBurnDmg || 0) + (resA.defenderBurnDmg || 0);
     if (burnToA > 0) { hpA = Math.max(0, hpA - burnToA); log.push(`🔥 ${fighterA.name} takes ${burnToA} burn damage`); }
     if (burnToB > 0) { hpB = Math.max(0, hpB - burnToB); log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`); }
-
-    if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
-    if (resB.roundStartHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
-    if (resA.postDmgHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
-    if (resA.postDmgHealDefender > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
-    if (resB.postDmgHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
-    if (resB.postDmgHealDefender > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
 
     fighterA.hp = hpA; fighterB.hp = hpB;
 
@@ -966,6 +973,19 @@ function normalBattle(fighterA, fighterB) {
       }
       break;
     }
+
+    // Apply post-damage heals AFTER the death check so a dead fighter can't heal
+    // (sanctioned_strike → attacker; bastion_heart → defender)
+    if (hpA > 0) {
+      if (resA.postDmgHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+      if (resB.postDmgHealDefender > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
+    }
+    if (hpB > 0) {
+      if (resB.postDmgHeal > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+      if (resA.postDmgHealDefender > 0) hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+    }
+    fighterA.hp = hpA; fighterB.hp = hpB;
+
     log.push('---');
   }
 
