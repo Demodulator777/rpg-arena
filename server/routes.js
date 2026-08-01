@@ -7340,6 +7340,15 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         if (elemALog) resA.logLine += ` | ${elemALog}`;
         if (elemBLog) resB.logLine += ` | ${elemBLog}`;
 
+        // Apply round-start heals BEFORE damage so a fighter can die when HP reaches 0
+        // (radiance, divine_light, phoenix_soul, holy_regen, battle_start_heal)
+        if (resA.roundStartHeal > 0) {
+            hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
+        }
+        if (resB.roundStartHeal > 0) {
+            hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
+        }
+
         const dmgToB = resA.damageDealt + resB.damageCounter;
         const dmgToA = resB.damageDealt + resA.damageCounter;
 
@@ -7377,27 +7386,6 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         if (burnToB > 0) {
             hpB = Math.max(0, hpB - burnToB);
             log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`);
-        }
-
-        // Apply round-start heals (radiance, divine_light, phoenix_soul, holy_regen, battle_start_heal)
-        if (resA.roundStartHeal > 0) {
-            hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
-        }
-        if (resB.roundStartHeal > 0) {
-            hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.roundStartHeal);
-        }
-        // Apply post-damage heals (sanctioned_strike → attacker; bastion_heart → defender)
-        if (resA.postDmgHeal > 0) {
-            hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
-        }
-        if (resA.postDmgHealDefender > 0) {
-            hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
-        }
-        if (resB.postDmgHeal > 0) {
-            hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
-        }
-        if (resB.postDmgHealDefender > 0) {
-            hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
         }
 
         fighterA.hp = hpA; fighterB.hp = hpB;
@@ -7460,6 +7448,27 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             }
             break;
         }
+
+        // Apply post-damage heals AFTER the death check so a dead fighter can't heal
+        // (sanctioned_strike → attacker; bastion_heart → defender)
+        if (hpA > 0) {
+            if (resA.postDmgHeal > 0) {
+                hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.postDmgHeal);
+            }
+            if (resB.postDmgHealDefender > 0) {
+                hpA = Math.min(fighterA.hpMax || 9999, hpA + resB.postDmgHealDefender);
+            }
+        }
+        if (hpB > 0) {
+            if (resB.postDmgHeal > 0) {
+                hpB = Math.min(fighterB.hpMax || 9999, hpB + resB.postDmgHeal);
+            }
+            if (resA.postDmgHealDefender > 0) {
+                hpB = Math.min(fighterB.hpMax || 9999, hpB + resA.postDmgHealDefender);
+            }
+        }
+        fighterA.hp = hpA; fighterB.hp = hpB;
+
         if (round < 10) log.push('---');
     }
 
@@ -8844,23 +8853,23 @@ function calculateBackendItemPrice(item, level) {
 
 const POTION_CATALOGUE = [
     { id:'potion_minor_hp',    name:'Minor Health Potion',     emoji:'🧪', level:1,  price:60,   priceType:'gold', desc:'Restores 30 HP.',          effect:{ type:'heal', value:30  }, consumable:true, category:'consumable' },
-    { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for 1 hour (1h cooldown).',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
-    { id:'potion_minor_def',   name:'Minor Defense Tonic',     emoji:'🧴', level:1,  price:120,  priceType:'gold', desc:'+2 Defense for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'defense',  value:2 }, consumable:true, category:'consumable' },
+    { id:'potion_minor_str',   name:'Minor Strength Draught',  emoji:'⚗️', level:1,  price:120,  priceType:'gold', desc:'+2 Strength for 1 hour.',  effect:{ type:'temp_stat', stat:'strength', value:2 }, consumable:true, category:'consumable' },
+    { id:'potion_minor_def',   name:'Minor Defense Tonic',     emoji:'🧴', level:1,  price:120,  priceType:'gold', desc:'+2 Defense for 1 hour.',   effect:{ type:'temp_stat', stat:'defense',  value:2 }, consumable:true, category:'consumable' },
     { id:'potion_light_hp',    name:'Light Health Potion',     emoji:'🧪', level:5,  price:200,  priceType:'gold', desc:'Restores 100 HP.',          effect:{ type:'heal', value:100 }, consumable:true, category:'consumable' },
-    { id:'potion_light_agi',   name:'Light Agility Draught',   emoji:'⚗️', level:5,  price:300,  priceType:'gold', desc:'+3 Agility for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'agility',  value:3 }, consumable:true, category:'consumable' },
+    { id:'potion_light_agi',   name:'Light Agility Draught',   emoji:'⚗️', level:5,  price:300,  priceType:'gold', desc:'+3 Agility for 1 hour.',   effect:{ type:'temp_stat', stat:'agility',  value:3 }, consumable:true, category:'consumable' },
     { id:'potion_moderate_hp', name:'Health Potion',           emoji:'🧪', level:10, price:400,  priceType:'gold', desc:'Restores 200 HP.',          effect:{ type:'heal', value:200 }, consumable:true, category:'consumable' },
-    { id:'potion_moderate_str',name:'Strength Elixir',         emoji:'⚗️', level:10, price:250,  priceType:'gold', desc:'+5 Strength for 1 hour (1h cooldown).',  effect:{ type:'temp_stat', stat:'strength', value:5 }, consumable:true, category:'consumable' },
-    { id:'potion_moderate_mag',name:"Mage's Focus Tonic",      emoji:'🔮', level:10, price:500,  priceType:'gold', desc:'+5 Magic for 1 hour (1h cooldown).',     effect:{ type:'temp_stat', stat:'magic',    value:5 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_str',name:'Strength Elixir',         emoji:'⚗️', level:10, price:250,  priceType:'gold', desc:'+5 Strength for 1 hour.',  effect:{ type:'temp_stat', stat:'strength', value:5 }, consumable:true, category:'consumable' },
+    { id:'potion_moderate_mag',name:"Mage's Focus Tonic",      emoji:'🔮', level:10, price:500,  priceType:'gold', desc:'+5 Magic for 1 hour.',     effect:{ type:'temp_stat', stat:'magic',    value:5 }, consumable:true, category:'consumable' },
     { id:'potion_greater_hp',  name:'Greater Health Potion',   emoji:'🧪', level:20, price:600,  priceType:'gold', desc:'Restores 300 HP.',          effect:{ type:'heal', value:300 }, consumable:true, category:'consumable' },
-    { id:'potion_greater_def', name:'Greater Defense Tonic',   emoji:'🧴', level:20, price:400, priceType:'gold', desc:'+8 Defense for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'defense',  value:8 }, consumable:true, category:'consumable' },
-    { id:'potion_greater_agi', name:'Greater Agility Draught', emoji:'⚗️', level:20, price:800, priceType:'gold', desc:'+8 Agility for 1 hour (1h cooldown).',   effect:{ type:'temp_stat', stat:'agility',  value:8 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_def', name:'Greater Defense Tonic',   emoji:'🧴', level:20, price:400, priceType:'gold', desc:'+8 Defense for 1 hour.',   effect:{ type:'temp_stat', stat:'defense',  value:8 }, consumable:true, category:'consumable' },
+    { id:'potion_greater_agi', name:'Greater Agility Draught', emoji:'⚗️', level:20, price:800, priceType:'gold', desc:'+8 Agility for 1 hour.',   effect:{ type:'temp_stat', stat:'agility',  value:8 }, consumable:true, category:'consumable' },
     { id:'potion_superior_hp', name:'Superior Health Potion',  emoji:'🧪', level:35, price:1000, priceType:'gold', desc:'Restores 500 HP.',          effect:{ type:'heal', value:500 }, consumable:true, category:'consumable' },
     { id:'potion_major_hp',    name:'Major Health Potion',     emoji:'🧪', level:55, price:2000, priceType:'gold', desc:'Restores 1000 HP.',         effect:{ type:'heal', value:1000 }, consumable:true, category:'consumable' },
     { id:'potion_ultimate_hp', name:'Ultimate Health Potion',  emoji:'🧪', level:75, price:4000, priceType:'gold', desc:'Restores 2000 HP.',         effect:{ type:'heal', value:2000 }, consumable:true, category:'consumable' },
     { id:'potion_colossal_hp', name:'Colossal Health Potion',  emoji:'🧪', level:90, price:6000, priceType:'gold', desc:'Restores 3000 HP.',         effect:{ type:'heal', value:3000 }, consumable:true, category:'consumable' },
     { id:'potion_titan_hp',    name:'Titan Health Potion',     emoji:'🧪', level:100, price:10000, priceType:'gold', desc:'Restores 5000 HP.',         effect:{ type:'heal', value:5000 }, consumable:true, category:'consumable' },
-    { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:750, priceType:'gold', desc:'+15 Strength for 1 hour (1h cooldown).', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
-    { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:1500, priceType:'gold', desc:'+15 Magic for 1 hour (1h cooldown).',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_str',name:'Superior Strength Elixir',emoji:'⚗️', level:35, price:750, priceType:'gold', desc:'+15 Strength for 1 hour.', effect:{ type:'temp_stat', stat:'strength', value:15 }, consumable:true, category:'consumable' },
+    { id:'potion_superior_mag',name:"Superior Mage's Focus",   emoji:'🔮', level:35, price:1500, priceType:'gold', desc:'+15 Magic for 1 hour.',    effect:{ type:'temp_stat', stat:'magic',    value:15 }, consumable:true, category:'consumable' },
     { id:'potion_full_elixir', name:'Full Elixir',             emoji:'💊', level:1,  price:5,    priceType:'gems', desc:'Fully restores all HP.',    effect:{ type:'heal_full', value:1 }, consumable:true, category:'consumable' },
     { id:'potion_mana',        name:'Mana Potion',             emoji:'💧', level:1,  price:5,    priceType:'gems', desc:'Restores 100 MP.',          effect:{ type:'mp', value:100 }, consumable:true, category:'consumable' },
 ];
