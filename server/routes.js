@@ -6904,7 +6904,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             const blockCovers = autoBlockedHit || (!ignoreDefenderZones && !holyStrikeBurst && !pierceBlock && (blk.protects.includes(atkZone) || blk.protects.includes('any')));
             const rsBlockPen = getActiveCombatEffect(attacker, 'reckless_swing');
-            const randomBlockPen = Math.random() < 0.001 || (rsBlockPen && Math.random() < (rsBlockPen.block_penalty || 0.10));
+            const weaponBlockPen = (attacker.blockPen || 0) > 0 ? Math.random() < attacker.blockPen : false;
+            const randomBlockPen = Math.random() < 0.001 || (rsBlockPen && Math.random() < (rsBlockPen.block_penalty || 0.10)) || weaponBlockPen;
             const blockFails = rageActive || randomBlockPen;
 
             const elemDmgs = attacker.elem_dmg || {};
@@ -8000,7 +8001,7 @@ async function buildCombatFighter(db, char) {
     const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
-    return {
+    const fighter = {
         id: char.id,
         name: char.name,
         class: char.class,
@@ -8051,6 +8052,8 @@ async function buildCombatFighter(db, char) {
         })(),
         blockEffectiveness: skillPassives.block_effectiveness || 0,
     };
+    applyWeaponSkill(fighter);
+    return fighter;
 }
 
 const cfgNames = {
@@ -8584,6 +8587,55 @@ const ITEM_GENERATORS = {
     },
 };
 
+const WEAPON_SKILLS = Object.freeze([
+    { id: 'bulwark',       name: 'Bulwark',      kind: 'armor',       base: 40,  scale: 6,    desc: 'Grants increased armor.' },
+    { id: 'shieldbreaker', name: 'Shieldbreaker', kind: 'block_pen',  base: 0.10, scale: 0.004, desc: 'Chance to pierce through blocks.' },
+    { id: 'inferno_edge',  name: 'Inferno Edge', kind: 'elem_dmg',    elem: 'pyro',    base: 12, scale: 2, desc: 'Adds pyro elemental damage.' },
+    { id: 'tide_caller',   name: 'Tidecaller',   kind: 'elem_dmg',    elem: 'water',   base: 12, scale: 2, desc: 'Adds water elemental damage.' },
+    { id: 'storm_fang',    name: 'Stormfang',    kind: 'elem_dmg',    elem: 'electro', base: 12, scale: 2, desc: 'Adds electro elemental damage.' },
+    { id: 'gale_bite',     name: 'Galebite',     kind: 'elem_dmg',    elem: 'wind',    base: 12, scale: 2, desc: 'Adds wind elemental damage.' },
+    { id: 'elemental_ward', name: 'Elemental Ward', kind: 'elem_res', base: 8,  scale: 1.5, desc: 'Adds resistance against all elements.' },
+    { id: 'eagle_eye',     name: 'Eagle Eye',    kind: 'hit',         base: 5,  scale: 1.2, desc: 'Increases hit chance.' },
+]);
+
+function rollWeaponSkill(level) {
+    const def = WEAPON_SKILLS[Math.floor(Math.random() * WEAPON_SKILLS.length)];
+    return { id: def.id, name: def.name, desc: def.desc, level };
+}
+
+// Apply an equipped weapon's skill to a built fighter (mutates fighter).
+function applyWeaponSkill(fighter) {
+    const weapon = fighter && fighter.weapon;
+    const sk = weapon && weapon.skill;
+    if (!sk) return;
+    const def = WEAPON_SKILLS.find(d => d.id === sk.id);
+    if (!def) return;
+    const lvl = Number(sk.level) || Number(fighter.level) || 1;
+    switch (def.kind) {
+        case 'armor':
+            fighter.armor = (fighter.armor || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
+            break;
+        case 'block_pen':
+            fighter.blockPen = Math.min(0.45, def.base + lvl * def.scale);
+            break;
+        case 'elem_dmg':
+            if (!fighter.elem_dmg) fighter.elem_dmg = { pyro:0, water:0, wind:0, electro:0 };
+            fighter.elem_dmg[def.elem] = (fighter.elem_dmg[def.elem] || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
+            break;
+        case 'elem_res':
+            if (!fighter.elem_resist) fighter.elem_resist = { pyro:0, water:0, wind:0, electro:0 };
+            for (const e of ['pyro','water','wind','electro']) {
+                fighter.elem_resist[e] = (fighter.elem_resist[e] || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
+            }
+            break;
+        case 'hit':
+            fighter.hit_chance = (fighter.hit_chance || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
+            break;
+    }
+    if (!fighter._weaponSkills) fighter._weaponSkills = [];
+    fighter._weaponSkills.push(def.name);
+}
+
 function generateBackendRandomItem(level, type, forceQuality) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
@@ -8735,6 +8787,14 @@ function generateBackendRandomItem(level, type, forceQuality) {
     if (String(item.quality || '').toLowerCase() === 'legendary') {
         const legendaryGemFee = 5 + Math.floor(Math.random() * 6);
         item.gemCost = Number(item.gemCost || 0) + legendaryGemFee;
+    }
+
+    // Legendary weapons have a 20% chance to roll a special weapon skill.
+    if (type === 'weapon' && String(item.quality || '').toLowerCase() === 'legendary' && Math.random() < 0.20) {
+        item.skill = rollWeaponSkill(level);
+        item.desc = `${item.desc} ⚔️ Skill: ${item.skill.name} — ${WEAPON_SKILLS.find(d => d.id === item.skill.id).desc}`;
+        item.price = Math.max(1, Math.floor(item.price * 1.15));
+        item.original_price = item.price;
     }
 
     if (Math.random() < 0.06) {
@@ -11733,6 +11793,8 @@ router.post('/missions/collect', auth, async (req, res) => {
             };
         }
 
+        applyWeaponSkill(playerFighter);
+
         const isTutorial = isTutorialCharacter(freshChar);
 
         // Build NPC and override its name with the mission name
@@ -13634,6 +13696,9 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 hp: elemRowA.hp_current ?? elemStats.hpMax
             };
         }
+        applyWeaponSkill(fighterA);
+        applyWeaponSkill(fighterB);
+
         const elemRowB = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshD.id]);
         if (elemRowB) {
             const elemStats = calcElemStats(elemRowB);
@@ -20757,6 +20822,7 @@ module.exports = {
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
+    WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
     runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
     purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
     backfillWeeklyPerformance
