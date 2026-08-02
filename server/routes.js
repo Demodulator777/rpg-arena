@@ -7407,15 +7407,15 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
         // Elemental split damage: 3% of dmg dealt to player goes to elemental,
         // capped at 6% of the elemental's max HP so it can't be one-shot every round.
-        const splitCapA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
-        const splitCapB = Math.max(1, Math.floor((elemB.hpMax || 9999) * 0.06));
         if (elemA && elemAHp > 0 && dmgToA > 0) {
-            const splitDmg = Math.min(splitCapA, Math.max(1, Math.floor(dmgToA * 0.03)));
+            const capA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
+            const splitDmg = Math.min(capA, Math.max(1, Math.floor(dmgToA * 0.03)));
             elemAHp = Math.max(0, elemAHp - splitDmg);
             if (elemAHp <= 0) { resA.logLine += ` 🐉 ${elemA.name} is knocked out!`; }
         }
         if (elemB && elemBHp > 0 && dmgToB > 0) {
-            const splitDmg = Math.min(splitCapB, Math.max(1, Math.floor(dmgToB * 0.03)));
+            const capB = Math.max(1, Math.floor((elemB.hpMax || 9999) * 0.06));
+            const splitDmg = Math.min(capB, Math.max(1, Math.floor(dmgToB * 0.03)));
             elemBHp = Math.max(0, elemBHp - splitDmg);
             if (elemBHp <= 0) { resB.logLine += ` 🐉 ${elemB.name} is knocked out!`; }
         }
