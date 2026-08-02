@@ -8911,7 +8911,7 @@ function generateItemLore(name, type, prefix, suffix, quality) {
     const chosenPre   = prefixLore[Math.floor(Math.random() * prefixLore.length)];
     const chosenSuf   = suffixLore[Math.floor(Math.random() * suffixLore.length)];
 
-    const qualityTag = quality === 'legendary' ? ' A true legend.' : quality === 'rare' ? ' Rarely seen.' : '';
+    // const qualityTag = quality === 'legendary' ? ' A true legend.' : quality === 'rare' ? ' Rarely seen.' : '';
 
     const firstChar = name[0].toLowerCase();
     const vowels = ['a', 'e', 'i', 'o', 'u'];
@@ -8919,7 +8919,7 @@ function generateItemLore(name, type, prefix, suffix, quality) {
 
     const nameLower = name.toLowerCase();
 
-    return `${article} ${nameLower} ${chosenPre}, ${chosenSuf}.${qualityTag}`;
+    return `${article} ${nameLower} ${chosenPre}, ${chosenSuf}.`;
 }
 
 function calculateBackendItemPrice(item, level) {
