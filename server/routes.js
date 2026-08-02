@@ -8603,6 +8603,18 @@ function rollWeaponSkill(level) {
     return { id: def.id, name: def.name, desc: def.desc, level };
 }
 
+// Attach a weapon skill to an item that ended up as a legendary weapon, if it
+// doesn't already have one. Used wherever quality is forced to legendary AFTER
+// generation (e.g. loot boxes), which would otherwise bypass the skill roll.
+function ensureWeaponSkill(item, level) {
+    if (!item || item.skill) return;
+    const isWeapon = item.slot === 'weapon' || item.category === 'weapon' || item.type === 'weapon';
+    if (!isWeapon) return;
+    if (String(item.quality || '').toLowerCase() !== 'legendary') return;
+    item.skill = rollWeaponSkill(level);
+    item.desc = `${item.desc} ⚔️ Skill: ${item.skill.name} — ${WEAPON_SKILLS.find(d => d.id === item.skill.id).desc}`;
+}
+
 // Apply an equipped weapon's skill to a built fighter (mutates fighter).
 function applyWeaponSkill(fighter) {
     const weapon = fighter && fighter.weapon;
@@ -8789,10 +8801,9 @@ function generateBackendRandomItem(level, type, forceQuality) {
         item.gemCost = Number(item.gemCost || 0) + legendaryGemFee;
     }
 
-    // Legendary weapons have a 20% chance to roll a special weapon skill.
+    // Legendary weapons always roll a special weapon skill.
     if (type === 'weapon' && String(item.quality || '').toLowerCase() === 'legendary') {
-        item.skill = rollWeaponSkill(level);
-        item.desc = `${item.desc} ⚔️ Skill: ${item.skill.name} — ${WEAPON_SKILLS.find(d => d.id === item.skill.id).desc}`;
+        ensureWeaponSkill(item, level);
         item.price = Math.max(1, Math.floor(item.price * 1.15));
         item.original_price = item.price;
     }
@@ -19436,6 +19447,7 @@ function generateLootFromBox(boxType, playerLevel) {
             const item = generateBackendRandomItem(playerLevel, randomType);
             if (item) {
                 item.quality = selectedQuality;
+                if (selectedQuality === 'legendary') ensureWeaponSkill(item, playerLevel);
                 item.desc = `✨ ${item.desc}`;
                 result.items.push({
                     ...item,
@@ -19460,6 +19472,7 @@ function generateLootFromBox(boxType, playerLevel) {
             const legendaryItem = generateBackendRandomItem(playerLevel, randomType);
             if (legendaryItem) {
                 legendaryItem.quality = 'legendary';
+                ensureWeaponSkill(legendaryItem, playerLevel);
                 legendaryItem.desc = `👑 ${legendaryItem.desc}`;
 
                 const index = result.items.findIndex(i => i.quality !== 'legendary');
