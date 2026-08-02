@@ -6065,6 +6065,15 @@ async function runHourlyHpRegen(db) {
             if (!char) continue;
             const equipped = await getEquippedItemsArray(db, r.id);
             const trueHpMax = calcHpMax(char, equipped);
+            // Include the equipped spirit beast's HP contribution (defense/heal role),
+            // matching what buildCharacterResponse reports as the boosted max HP.
+            const elemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [r.id]).catch(() => null);
+            if (elemRow && (elemRow.hp_current ?? 0) > 0) {
+                const bes = calcElemStats(elemRow);
+                if ((bes.def || 0) >= (bes.str || 0)) {
+                    trueHpMax += (bes.vit || 0) * 25 + (bes.def || 0) * 2;
+                }
+            }
             const cur = char.hp_current ?? trueHpMax;
             if (cur >= trueHpMax) {
                 await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, r.id]);
@@ -8000,10 +8009,24 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
     return npc;
 }
 
+// Returns the extra max HP an equipped, alive spirit beast grants when it is in
+// defense/heal role (def > str). Mirrors buildCharacterResponse's boosted max HP.
+async function beastHpBonus(db, charId) {
+    try {
+        const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
+        if (!row || (row.hp_current ?? 0) <= 0) return 0;
+        const bes = calcElemStats(row);
+        if ((bes.def || 0) >= (bes.str || 0)) return (bes.vit || 0) * 25 + (bes.def || 0) * 2;
+        return 0;
+    } catch { return 0; }
+}
+
 async function buildCombatFighter(db, char) {
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const setBonuses = getEquippedSetBonuses(equippedArray);
-    const hpMax = calcHpMax(char, equippedArray);
+    // Include the equipped spirit beast's HP contribution (defense/heal role) so
+    // in-battle heals and the HP cap match the character sheet's boosted max HP.
+    const hpMax = calcHpMax(char, equippedArray) + await beastHpBonus(db, char.id);
     const hpCurrent = char.hp_current ?? hpMax;
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
@@ -11797,8 +11820,8 @@ router.post('/missions/collect', auth, async (req, res) => {
         const isEvent = eventHas('grand_festival');
         const activePremCollect = getActivePremium(freshChar);
         const hasUlt = hasUltimate(activePremCollect);
-        const equippedArray = await getEquippedItemsArray(db, freshChar.id);
-        const hpMax = calcHpMax(freshChar, equippedArray);
+const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+        const hpMax = calcHpMax(freshChar, equippedArray) + await beastHpBonus(db, freshChar.id);
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const setBonuses = getEquippedSetBonuses(equippedArray);
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
@@ -13642,8 +13665,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const equippedD = await getEquippedItemsArray(db, freshD.id);
         const { dmgMin:dmgMinA, dmgMax:dmgMaxA } = calcBaseDamage(freshA, equippedA);
         const { dmgMin:dmgMinD, dmgMax:dmgMaxD } = calcBaseDamage(freshD, equippedD);
-        const hpMaxA = calcHpMax(freshA, equippedA);
-        const hpMaxD = calcHpMax(freshD, equippedD);
+        const hpMaxA = calcHpMax(freshA, equippedA) + await beastHpBonus(db, freshA.id);
+        const hpMaxD = calcHpMax(freshD, equippedD) + await beastHpBonus(db, freshD.id);
         const premA = getActivePremium(freshA);
         const premD = getActivePremium(freshD);
         const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
