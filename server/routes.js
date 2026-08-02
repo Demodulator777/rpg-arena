@@ -6090,6 +6090,9 @@ function calcHpMax(char, equippedItems) {
             if (data?.stats?.hp_max) base += Number(data.stats.hp_max || 0);
             if (data?.stats?.defense) base += Number(data.stats.defense || 0) * 2;
             if (data?.stats?.vitality) base += Number(data.stats.vitality || 0) * 25;
+            if (data?.wp_stats?.hp_max) base += Number(data.wp_stats.hp_max || 0);
+            if (data?.wp_stats?.defense) base += Number(data.wp_stats.defense || 0) * 2;
+            if (data?.wp_stats?.vitality) base += Number(data.wp_stats.vitality || 0) * 25;
         } catch {}
     }
     return base;
@@ -6137,6 +6140,7 @@ function calcArmorValue(char, equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.stats?.defense) itemDef += Number(data.stats.defense || 0);
+            if (data?.wp_stats?.defense) itemDef += Number(data.wp_stats.defense || 0);
         } catch {}
     }
     let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 4);
