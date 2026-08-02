@@ -7518,7 +7518,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     log.push('---');
     if (winnerId === 0) {
         log.push(`After ${roundsCompleted} rounds: ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage, ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage`);
-        log.push(`Result: Draw — equal damage!`);
+        log.push(`Result: Draw!`);
     } else if (winnerId === fighterA.id) {
         log.push(`${roundEndedPrematurely ? `After ${roundsCompleted} rounds` : 'After 10 rounds'}: ${fighterA.name} dealt ${Math.round(totalDmgToB)} damage, ${fighterB.name} dealt ${Math.round(totalDmgToA)} damage`);
         log.push(`Winner: ${roundEndedPrematurely ? fighterA.name + ' wins!' : fighterA.name + ' wins by dealing more damage!'}`);
