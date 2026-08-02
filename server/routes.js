@@ -8790,7 +8790,7 @@ function generateBackendRandomItem(level, type, forceQuality) {
     }
 
     // Legendary weapons have a 20% chance to roll a special weapon skill.
-    if (type === 'weapon' && String(item.quality || '').toLowerCase() === 'legendary' && Math.random() < 0.20) {
+    if (type === 'weapon' && String(item.quality || '').toLowerCase() === 'legendary' && Math.random() < 0.75) {
         item.skill = rollWeaponSkill(level);
         item.desc = `${item.desc} ⚔️ Skill: ${item.skill.name} — ${WEAPON_SKILLS.find(d => d.id === item.skill.id).desc}`;
         item.price = Math.max(1, Math.floor(item.price * 1.15));
