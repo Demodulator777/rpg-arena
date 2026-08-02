@@ -6405,7 +6405,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const pct = Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
         soulcleaverBonus = Math.floor(totalHitStat * pct);
     }
-    const zoneAdjustedHitStat = (totalHitStat + soulcleaverBonus) * hit.hitChance;
+    // Eagle Eye (weapon skill): +5% of hit chance per round, caps at +25%
+    let eagleEyeHitBonus = 0;
+    const wsEagle = weaponSkillRamp(attacker, roundNum);
+    if (wsEagle.hitPct > 0) eagleEyeHitBonus = Math.floor(totalHitStat * wsEagle.hitPct);
+    const zoneAdjustedHitStat = (totalHitStat + soulcleaverBonus + eagleEyeHitBonus) * hit.hitChance;
     let atkHitChance = Math.max(0, Math.min(1.0, (zoneAdjustedHitStat - defAgi + 100) / 100));
     if (atkPenalty) atkHitChance = Math.max(0, atkHitChance * 0.85);
     if (hasSkill(atkSkills, 'war_cry') && roundNum <= 3) atkHitChance = 1.0;
@@ -6901,10 +6905,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const magicToElemental = attacker.class === 'mage';
             physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
 
-            const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
+const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
+            // Weapon-skill round ramps (attacker buffs / defender resist)
+            const rampA = weaponSkillRamp(attacker, roundNum);
+            const rampD = weaponSkillRamp(defender, roundNum);
             const blockCovers = autoBlockedHit || (!ignoreDefenderZones && !holyStrikeBurst && !pierceBlock && (blk.protects.includes(atkZone) || blk.protects.includes('any')));
             const rsBlockPen = getActiveCombatEffect(attacker, 'reckless_swing');
-            const weaponBlockPen = (attacker.blockPen || 0) > 0 ? Math.random() < attacker.blockPen : false;
+            const weaponBlockPen = (rampA.blockPen || 0) > 0 ? Math.random() < rampA.blockPen : false;
             const randomBlockPen = Math.random() < 0.001 || (rsBlockPen && Math.random() < (rsBlockPen.block_penalty || 0.10)) || weaponBlockPen;
             const blockFails = rageActive || randomBlockPen;
 
@@ -6935,7 +6942,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     ed = Math.floor(ed * holyFireMult);
                 }
                 if (magicToElemental) ed += damageBonus;
-                const elemResist = (defender.elem_resist || {})[elem] || 0;
+                if (rampA.dmgPct[elem] && rampA.dmgPct[elem] !== 1) ed = Math.floor(ed * rampA.dmgPct[elem]);
+                const elemResist = ((defender.elem_resist || {})[elem] || 0) + (rampD.resFlat[elem] || 0);
                 const magicResist = Math.floor((defender.magic || 0) * 0.05);
                 if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
                     ed = Math.max(0, ed);
@@ -6962,8 +6970,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             if (!blockCovers || blockFails) {
                 finalDmg = physicalDmg;
 
-            if (finalDmg > 0 && (defender.armor || 0) > 0) {
-                let effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
+            if (finalDmg > 0 && ((defender.armor || 0) + (rampD.armor || 0)) > 0) {
+                let effArmor = (defender.armor + (rampD.armor || 0)); if (isBackstab) effArmor = Math.floor(effArmor * 0.5);
                 const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
                 if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
                 const brArmourEff = getActiveCombatEffect(attacker, 'berserker_rage');
@@ -8588,31 +8596,72 @@ const ITEM_GENERATORS = {
 };
 
 const WEAPON_SKILLS = Object.freeze([
-    { id: 'bulwark',       name: 'Bulwark',      kind: 'armor',       base: 40,  scale: 6,    desc: 'Grants increased armor.' },
-    { id: 'shieldbreaker', name: 'Shieldbreaker', kind: 'block_pen',  base: 0.10, scale: 0.004, desc: 'Chance to pierce through blocks.' },
-    { id: 'inferno_edge',  name: 'Inferno Edge', kind: 'elem_dmg',    elem: 'pyro',    base: 12, scale: 2, desc: 'Adds pyro elemental damage.' },
-    { id: 'tide_caller',   name: 'Tidecaller',   kind: 'elem_dmg',    elem: 'water',   base: 12, scale: 2, desc: 'Adds water elemental damage.' },
-    { id: 'storm_fang',    name: 'Stormfang',    kind: 'elem_dmg',    elem: 'electro', base: 12, scale: 2, desc: 'Adds electro elemental damage.' },
-    { id: 'gale_bite',     name: 'Galebite',     kind: 'elem_dmg',    elem: 'wind',    base: 12, scale: 2, desc: 'Adds wind elemental damage.' },
-    { id: 'elemental_ward', name: 'Elemental Ward', kind: 'elem_res', base: 8,  scale: 1.5, desc: 'Adds resistance against all elements.' },
-    { id: 'eagle_eye',     name: 'Eagle Eye',    kind: 'hit',         base: 5,  scale: 1.2, desc: 'Increases hit chance.' },
+    // Single-element damage: +perRound% per round, capping at cap%.
+    { id: 'ember_ascend',  name: 'Ember Ascendant', kind: 'elem_dmg_ramp', elem: 'pyro',    perRound: 0.05, cap: 0.25, desc: '+5% pyro damage each round, up to +25%.' },
+    { id: 'rising_tide',   name: 'Rising Tide',     kind: 'elem_dmg_ramp', elem: 'water',   perRound: 0.05, cap: 0.25, desc: '+5% water damage each round, up to +25%.' },
+    { id: 'calling_storm', name: 'Calling Storm',   kind: 'elem_dmg_ramp', elem: 'electro', perRound: 0.05, cap: 0.25, desc: '+5% electro damage each round, up to +25%.' },
+    { id: 'gale_primal',   name: 'Gale Primal',     kind: 'elem_dmg_ramp', elem: 'wind',    perRound: 0.05, cap: 0.25, desc: '+5% wind damage each round, up to +25%.' },
+    // All-element damage: weaker per round, lower cap.
+    { id: 'element_cascade', name: 'Elemental Cascade', kind: 'elem_dmg_ramp', elem: 'all', perRound: 0.04, cap: 0.16, desc: '+4% to all elemental damage each round, up to +16%.' },
+    // Single-element resistance: +flat per round, capping at cap.
+    { id: 'pyro_aegis',  name: 'Pyro Aegis',  kind: 'elem_res_ramp', elem: 'pyro',    perRound: 4, cap: 25, desc: '+4 pyro resistance each round, up to +25.' },
+    { id: 'water_aegis', name: 'Water Aegis', kind: 'elem_res_ramp', elem: 'water',   perRound: 4, cap: 25, desc: '+4 water resistance each round, up to +25.' },
+    { id: 'storm_aegis', name: 'Storm Aegis', kind: 'elem_res_ramp', elem: 'electro', perRound: 4, cap: 25, desc: '+4 electro resistance each round, up to +25.' },
+    { id: 'gale_aegis',  name: 'Gale Aegis',  kind: 'elem_res_ramp', elem: 'wind',    perRound: 4, cap: 25, desc: '+4 wind resistance each round, up to +25.' },
+    // All-element resistance: less per round, lower cap.
+    { id: 'element_ward', name: 'Elemental Ward', kind: 'elem_res_ramp', elem: 'all', perRound: 3, cap: 15, desc: '+3 to all elemental resistance each round, up to +15.' },
+    // Ternary/utility ramps: armor +per round, block pen +% per round, hit +% per round.
+    { id: 'bulwark',       name: 'Bulwark',       kind: 'armor_ramp',    perRound: 10, cap: 50,  desc: '+10 armor each round, up to +50.' },
+    { id: 'shieldbreaker', name: 'Shieldbreaker', kind: 'block_pen_ramp', perRound: 0.05, cap: 0.25, desc: '+5% block penetration each round, up to +25%.' },
+    { id: 'eagle_eye',     name: 'Eagle Eye',     kind: 'hit_ramp',       perRound: 0.05, cap: 0.25, desc: '+5% hit chance each round, up to +25%.' },
 ]);
+
+// Compute the round-based bonuses from a fighter's weapon skill.
+// Returns { dmgPct: {elem:mult}, resFlat: {elem:amount}, armor, blockPen, hitPct }.
+function weaponSkillRamp(fighter, roundNum) {
+    const sk = fighter && fighter.weapon && fighter.weapon.skill;
+    const empty = { dmgPct: {}, resFlat: {}, armor: 0, blockPen: 0, hitPct: 0 };
+    if (!sk) return empty;
+    const def = WEAPON_SKILLS.find(d => d.id === sk.id);
+    if (!def) return empty;
+    const r = Math.max(1, roundNum);
+    const out = { dmgPct: {}, resFlat: {}, armor: 0, blockPen: 0, hitPct: 0 };
+    if (def.kind === 'elem_dmg_ramp') {
+        const mult = 1 + Math.min(def.cap, (r - 1) * def.perRound);
+        if (def.elem === 'all') { for (const e of ELEMENTS) out.dmgPct[e] = mult; }
+        else out.dmgPct[def.elem] = mult;
+    } else if (def.kind === 'elem_res_ramp') {
+        const add = Math.min(def.cap, Math.floor((r - 1) * def.perRound));
+        if (def.elem === 'all') { for (const e of ELEMENTS) out.resFlat[e] = add; }
+        else out.resFlat[def.elem] = add;
+    } else if (def.kind === 'armor_ramp') {
+        out.armor = Math.floor(Math.min(def.cap, (r - 1) * def.perRound));
+    } else if (def.kind === 'block_pen_ramp') {
+        out.blockPen = Math.min(def.cap, (r - 1) * def.perRound);
+    } else if (def.kind === 'hit_ramp') {
+        out.hitPct = Math.min(def.cap, (r - 1) * def.perRound);
+    }
+    return out;
+}
 
 function rollWeaponSkill(level) {
     const def = WEAPON_SKILLS[Math.floor(Math.random() * WEAPON_SKILLS.length)];
     return { id: def.id, name: def.name, desc: def.desc, level };
 }
 
-// Attach a weapon skill to an item that ended up as a legendary weapon, if it
-// doesn't already have one. Used wherever quality is forced to legendary AFTER
-// generation (e.g. loot boxes), which would otherwise bypass the skill roll.
+// Attach a weapon skill to a high-quality weapon with a per-quality chance.
+// Legendary 20%, rare/epic 5%. Returns true if a skill was rolled.
 function ensureWeaponSkill(item, level) {
-    if (!item || item.skill) return;
+    if (!item || item.skill) return false;
     const isWeapon = item.slot === 'weapon' || item.category === 'weapon' || item.type === 'weapon';
-    if (!isWeapon) return;
-    if (String(item.quality || '').toLowerCase() !== 'legendary') return;
+    if (!isWeapon) return false;
+    const q = String(item.quality || '').toLowerCase();
+    if (q !== 'legendary' && q !== 'rare' && q !== 'epic') return false;
+    const chance = q === 'legendary' ? 0.20 : 0.05;
+    if (Math.random() >= chance) return false;
     item.skill = rollWeaponSkill(level);
     item.desc = `${item.desc} ⚔️ Skill: ${item.skill.name} — ${WEAPON_SKILLS.find(d => d.id === item.skill.id).desc}`;
+    return true;
 }
 
 // Apply an equipped weapon's skill to a built fighter (mutates fighter).
@@ -8622,28 +8671,7 @@ function applyWeaponSkill(fighter) {
     if (!sk) return;
     const def = WEAPON_SKILLS.find(d => d.id === sk.id);
     if (!def) return;
-    const lvl = Number(sk.level) || Number(fighter.level) || 1;
-    switch (def.kind) {
-        case 'armor':
-            fighter.armor = (fighter.armor || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
-            break;
-        case 'block_pen':
-            fighter.blockPen = Math.min(0.45, def.base + lvl * def.scale);
-            break;
-        case 'elem_dmg':
-            if (!fighter.elem_dmg) fighter.elem_dmg = { pyro:0, water:0, wind:0, electro:0 };
-            fighter.elem_dmg[def.elem] = (fighter.elem_dmg[def.elem] || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
-            break;
-        case 'elem_res':
-            if (!fighter.elem_resist) fighter.elem_resist = { pyro:0, water:0, wind:0, electro:0 };
-            for (const e of ['pyro','water','wind','electro']) {
-                fighter.elem_resist[e] = (fighter.elem_resist[e] || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
-            }
-            break;
-        case 'hit':
-            fighter.hit_chance = (fighter.hit_chance || 0) + Math.floor(def.base + lvl * def.scale * 0.7);
-            break;
-    }
+    // All skill kinds are applied per-round by weaponSkillRamp().
     if (!fighter._weaponSkills) fighter._weaponSkills = [];
     fighter._weaponSkills.push(def.name);
 }
@@ -8801,11 +8829,12 @@ function generateBackendRandomItem(level, type, forceQuality) {
         item.gemCost = Number(item.gemCost || 0) + legendaryGemFee;
     }
 
-    // Legendary weapons always roll a special weapon skill.
-    if (type === 'weapon' && String(item.quality || '').toLowerCase() === 'legendary') {
-        ensureWeaponSkill(item, level);
-        item.price = Math.max(1, Math.floor(item.price * 1.15));
-        item.original_price = item.price;
+    // Weapon skills can roll on legendary (20%) and rare/epic (5%) weapons.
+    if (type === 'weapon' && ['legendary','rare','epic'].includes(String(item.quality || '').toLowerCase())) {
+        if (ensureWeaponSkill(item, level)) {
+            item.price = Math.max(1, Math.floor(item.price * 1.15));
+            item.original_price = item.price;
+        }
     }
 
     if (Math.random() < 0.06) {
