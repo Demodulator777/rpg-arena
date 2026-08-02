@@ -6078,6 +6078,34 @@ async function runHourlyHpRegen(db) {
     }
 }
 
+// ── Spirit Beast HP Regen ───────────────────────────────────────────────────
+// Mirrors the player hourly HP regen: every elemental that isn't at full HP
+// regenerates automatically each hour, regardless of whether it was used.
+async function runHourlyElementalRegen(db) {
+    const rows = await dbAll(db, 'SELECT id FROM elementals');
+    const now = Math.floor(Date.now() / 1000);
+    for (const r of rows) {
+        try {
+            const elem = await dbGet(db, 'SELECT * FROM elementals WHERE id = ?', [r.id]);
+            if (!elem) continue;
+            const trueHpMax = calcElemStats(elem).hpMax;
+            if (elem.hp_max !== trueHpMax) {
+                await dbRun(db, 'UPDATE elementals SET hp_max=? WHERE id=?', [trueHpMax, elem.id]);
+                elem.hp_max = trueHpMax;
+            }
+            const cur = elem.hp_current ?? trueHpMax;
+            if (cur >= trueHpMax) {
+                await dbRun(db, 'UPDATE elementals SET hp_current=?, hp_regen_at=? WHERE id=?', [trueHpMax, now, elem.id]);
+            } else {
+                const regen = Math.max(1, Math.floor(trueHpMax * HP_REGEN_RATE));
+                await dbRun(db, 'UPDATE elementals SET hp_current=?, hp_regen_at=? WHERE id=?', [Math.min(trueHpMax, cur + regen), now, elem.id]);
+            }
+        } catch (e) {
+            console.error(`Hourly elemental regen failed for elem ${r.id}: ${e.message}`);
+        }
+    }
+}
+
 function calcHpMax(char, equippedItems) {
     let base = 50 + ((char.vitality || 10) * 25) + ((char.defense || 0) * 2);
     const setBonuses = getEquippedSetBonuses(equippedItems);
@@ -7377,14 +7405,17 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
         hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
 
-        // Elemental split damage (5% of dmg dealt to player goes to elemental)
+        // Elemental split damage: 3% of dmg dealt to player goes to elemental,
+        // capped at 6% of the elemental's max HP so it can't be one-shot every round.
+        const splitCapA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
+        const splitCapB = Math.max(1, Math.floor((elemB.hpMax || 9999) * 0.06));
         if (elemA && elemAHp > 0 && dmgToA > 0) {
-            const splitDmg = Math.max(1, Math.floor(dmgToA * 0.05));
+            const splitDmg = Math.min(splitCapA, Math.max(1, Math.floor(dmgToA * 0.03)));
             elemAHp = Math.max(0, elemAHp - splitDmg);
             if (elemAHp <= 0) { resA.logLine += ` 🐉 ${elemA.name} is knocked out!`; }
         }
         if (elemB && elemBHp > 0 && dmgToB > 0) {
-            const splitDmg = Math.max(1, Math.floor(dmgToB * 0.05));
+            const splitDmg = Math.min(splitCapB, Math.max(1, Math.floor(dmgToB * 0.03)));
             elemBHp = Math.max(0, elemBHp - splitDmg);
             if (elemBHp <= 0) { resB.logLine += ` 🐉 ${elemB.name} is knocked out!`; }
         }
@@ -8052,8 +8083,8 @@ async function buildCombatFighter(db, char) {
         blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
         dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
         _elementalFighter: await (async () => {
-            const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
-            if (!er) return null;
+            const er = await ensureElemental(db, char.id);
+            if (!er || !er.is_equipped) return null;
             const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
             const bd = (er.defense || 5) + (er.stat_def || 0) * 2;
             const ba = (er.agility || 5) + (er.stat_agi || 0) * 2;
@@ -9316,7 +9347,7 @@ async function buildCharacterResponse(char, db) {
 
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
-    const elemental = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
+    const elemental = await ensureElemental(db, char.id);
     // Spirit Beast flat stat bonuses
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
     let beastRole = null;
@@ -13737,7 +13768,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         };
 
         // Attach elemental companions
-        const elemRowA = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshA.id]);
+        const elemRowA = await ensureElemental(db, freshA.id);
         if (elemRowA) {
             const elemStats = calcElemStats(elemRowA);
             fighterA._elementalFighter = {
@@ -13749,7 +13780,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         applyWeaponSkill(fighterA);
         applyWeaponSkill(fighterB);
 
-        const elemRowB = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [freshD.id]);
+        const elemRowB = await ensureElemental(db, freshD.id);
         if (elemRowB) {
             const elemStats = calcElemStats(elemRowB);
             fighterB._elementalFighter = {
@@ -20873,7 +20904,8 @@ module.exports = {
     getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
-    runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
+    runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
+    ensureElemental,
     purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
     backfillWeeklyPerformance
 };
