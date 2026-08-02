@@ -6414,14 +6414,15 @@ function showEqTooltip(event, itemJson) {
     const displayDesc = getDisplayItemDesc(item);
 
     const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
-    let statsHtml = Object.entries(item.stats||{})
-        .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
-        .filter(([,v]) => typeof v === 'number' && v !== 0)
-        .map(([k,v]) => {
+    const statKeys = new Set([...Object.keys(item.stats||{}), ...Object.keys(item.wp_stats||{})]);
+    let statsHtml = [...statKeys]
+        .filter(k => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
+        .map((k) => {
+            const total = (Number(item.stats?.[k]) || 0) + (Number(item.wp_stats?.[k]) || 0);
+            if (typeof total !== 'number' || total === 0) return '';
             const label = statLabelHtml(k);
-            const total = v + (item.wp_stats?.[k] || 0);
             return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${total>0?'#2ecc71':'#e74c3c'}">${total>0?'+':''}${total}</span></div>`;
-        }).join('');
+        }).filter(Boolean).join('');
 
     tooltip.innerHTML = `
         <div class="tt-preview">
