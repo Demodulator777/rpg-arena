@@ -9,7 +9,8 @@ const {
   getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
   getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
-  DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS
+  DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
+  applyWeaponSkill
 } = require('./routes');
 const {
   computePassiveBonusesWithProgress,
@@ -583,7 +584,7 @@ async function buildFighter(db, participant, participants, noEquip) {
   const weapon = getEquippedWeaponData(equippedArray);
   const shield = getEquippedShieldData(equippedArray);
 
-  return {
+  const result = {
     id: `char_${char.id}`,
     name: char.name,
     class: char.class,
@@ -625,6 +626,8 @@ async function buildFighter(db, participant, participants, noEquip) {
     dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
     blockEffectiveness: skillPassives.block_effectiveness || 0
   };
+  applyWeaponSkill(result);
+  return result;
 }
 
 function deathmatchBattle(fighterA, fighterB) {
