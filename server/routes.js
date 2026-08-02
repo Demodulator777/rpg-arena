@@ -8823,7 +8823,6 @@ function generateBackendRandomItem(level, type, forceQuality) {
         item.gemCost = gemCost;
         item.price   = Math.max(1, Math.floor(item.price * (1 - Math.min(0.20, gemCost / 150))));
         item.original_price = item.price;  // ← ADDED: Update original price after gem discount
-        item.desc    = `✨ ${item.desc}`;
     }
 
     // Legendary items always require an extra 5-10 gems on top of any existing cost.
@@ -9263,8 +9262,8 @@ async function buildCharacterResponse(char, db) {
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
-    const hpMax     = calcHpMax(char, equippedArray);
-    const hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
+    let hpMax     = calcHpMax(char, equippedArray);
+    let hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
     const squadDiscountPct = await getSquadStatDiscount(db, char.id);
     const withCosts = withUpgradeCosts({ ...char, hp_max: hpMax, hp_current: hpCurrent }, squadDiscountPct);
     const withTrain = withTrainingStatus(withCosts);
@@ -9337,6 +9336,13 @@ async function buildCharacterResponse(char, db) {
         console.log(`[DEBUG] buildCharacterResponse: Elemental ${elemental.id} has 0 HP, no stat bonus`);
     } else {
         console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
+    }
+
+    // Spirit beast vitality/defense boosts must also raise max HP to stay consistent
+    // with the boosted vitality/defense shown on the character sheet. (calcHpMax = 50 + vit*25 + def*2)
+    if (beastVitBonus || beastDefBonus) {
+        hpMax += beastVitBonus * 25 + beastDefBonus * 2;
+        hpCurrent = Math.min(hpCurrent, hpMax);
     }
 
     // Temp-stat potion buffs (1h), applied to stats and returned for display
@@ -19419,7 +19425,7 @@ function generateLootFromBox(boxType, playerLevel) {
                     sell_price_cap: 1000,
                     stackable: false,
                     qty: 1,
-                    desc: `🏭 Mythic Crafted: ${scaled.desc || recipe.desc || ''}`
+                    desc: `${scaled.desc || recipe.desc || ''}`
                 });
             }
         }
@@ -19481,7 +19487,6 @@ function generateLootFromBox(boxType, playerLevel) {
             if (item) {
                 item.quality = selectedQuality;
                 if (selectedQuality === 'legendary') ensureWeaponSkill(item, playerLevel);
-                item.desc = `✨ ${item.desc}`;
                 result.items.push({
                     ...item,
                     type: 'equipment',
@@ -19506,7 +19511,6 @@ function generateLootFromBox(boxType, playerLevel) {
             if (legendaryItem) {
                 legendaryItem.quality = 'legendary';
                 ensureWeaponSkill(legendaryItem, playerLevel);
-                legendaryItem.desc = `👑 ${legendaryItem.desc}`;
 
                 const index = result.items.findIndex(i => i.quality !== 'legendary');
                 if (index !== -1) {
@@ -19537,7 +19541,7 @@ function generateLootFromBox(boxType, playerLevel) {
                 sell_price_cap: 1000,
                 stackable: false,
                 qty: 1,
-                    desc: `🏭 ${scaled.desc || recipe.desc || ''}`
+                    desc: `${scaled.desc || recipe.desc || ''}`
                 });
             }
         }
