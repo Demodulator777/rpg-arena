@@ -715,6 +715,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN password_reset_expires_at INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN password_reset_requested_at INTEGER DEFAULT NULL',
             'ALTER TABLE shop_items ADD COLUMN char_id INTEGER DEFAULT NULL',
+            "ALTER TABLE shop_items ADD COLUMN location TEXT DEFAULT 'forest'",
             'ALTER TABLE character_weekly_state ADD COLUMN mission_fights_base INTEGER DEFAULT 0',
             'ALTER TABLE messages ADD COLUMN sender_label TEXT DEFAULT NULL',
             'ALTER TABLE messages ADD COLUMN reward_payload TEXT DEFAULT NULL',
@@ -8748,12 +8749,13 @@ function applyWeaponSkill(fighter) {
     fighter._weaponSkills.push(def.name);
 }
 
-function generateBackendRandomItem(level, type, forceQuality) {
+function generateBackendRandomItem(level, type, forceQuality, opts) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
     const tier = Math.min(5, Math.ceil(level / 20) + 1);
     const stats = {};
     let quality;
+    opts = opts || {};
 
     function rollStat(cfg, lvl) {
         const mn = Math.floor(cfg.min + lvl * cfg.scale * 0.4);
@@ -8761,6 +8763,7 @@ function generateBackendRandomItem(level, type, forceQuality) {
         let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
         v = Math.floor(v * (0.85 + Math.random() * 0.30));
         if (quality === 'legendary') v = Math.floor(v * 1.05);
+        if (opts.statBoost) v = Math.floor(v * opts.statBoost);
         return Math.max(cfg.min, v);
     }
 
@@ -8768,7 +8771,7 @@ function generateBackendRandomItem(level, type, forceQuality) {
         quality = forceQuality;
     } else {
         quality = (() => {
-            const legendaryChance = 0.05;
+            const legendaryChance = Number.isFinite(opts.legendaryChance) ? opts.legendaryChance : 0.05;
             if (Math.random() < legendaryChance) return 'legendary';
 
             let rareChance = 0;
@@ -13459,7 +13462,7 @@ router.post('/shop/buy', auth, async (req, res) => {
             await addStackableInventoryItem(db, character.id, 'consumable', shopConsumable, 1);
         } else {
             await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data,weapon_type) VALUES (?,'equipment',?,?)`, [character.id, JSON.stringify(item), item.weaponType || null]);
-            try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND json_extract(item_data,'$.id')=?`, [character.id, item.id]); } catch {}
+            try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND location=? AND json_extract(item_data,'$.id')=?`, [character.id, character.location || 'forest', item.id]); } catch {}
         }
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         res.json({ success:true, newGold:updatedChar.gold, newGems:updatedChar.gems, character:updatedChar, message:`Purchased ${item.name}!` });
@@ -13473,7 +13476,8 @@ router.get('/shop/items', auth, async (req, res) => {
         if (!character) return res.status(404).json({ error: 'Character not found' });
         const now = Math.floor(Date.now() / 1000);
         const charId = character.id;
-        const charLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE char_id=?', [charId]);
+        const location = character.location || 'forest';
+        const charLastGenRow = await dbGet(db, 'SELECT MAX(generation_date) as last_date FROM shop_items WHERE char_id=? AND location=?', [charId, location]);
         const lastDate = charLastGenRow?.last_date;
 
         const lootBoxes = LOOT_BOXES.filter(box => !box.isRewardOnly).map(box => ({
@@ -13484,21 +13488,22 @@ router.get('/shop/items', auth, async (req, res) => {
         let equipmentItems = [];
 
         if (!lastDate || shouldResetShop(lastDate)) {
-            await dbRun(db, 'DELETE FROM shop_items WHERE char_id=?', [charId]);
-            const newItems = generateBackendInventory(character.level);
+            await dbRun(db, 'DELETE FROM shop_items WHERE char_id=? AND location=?', [charId, location]);
+            const newItems = generateBackendInventory(character.level, location);
             const equipOnly = newItems.filter(i => !i.consumable);
             for (const item of equipOnly) {
-                await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,item_data,generation_date) VALUES (?,?,?,?)', [req.user.userId, charId, JSON.stringify(item), now]);
+                await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,location,item_data,generation_date) VALUES (?,?,?,?,?)', [req.user.userId, charId, location, JSON.stringify(item), now]);
             }
             equipmentItems = equipOnly;
         } else {
-            const rows = await dbAll(db, 'SELECT item_data,sold FROM shop_items WHERE char_id=? ORDER BY id', [charId]);
+            const rows = await dbAll(db, 'SELECT item_data,sold FROM shop_items WHERE char_id=? AND location=? ORDER BY id', [charId, location]);
             equipmentItems = rows.filter(r => !r.sold).map(row => JSON.parse(row.item_data));
         }
 
         const potions = getPotionsForLevel(character.level);
 
         res.json({
+            location: location,
             items: [...potions, ...lootBoxes, ...equipmentItems],
             resetTime: getNextMidnight(lastDate)
         });
@@ -13508,16 +13513,38 @@ router.get('/shop/items', auth, async (req, res) => {
     }
 });
 
-function generateBackendInventory(playerLevel) {
+const SHOP_LOCATION_BOOST = {
+    forest:    null,
+    swamp:     null,
+    mountains: { slots: ['armor'],                      legendary: 0.12, statBoost: 1.25 },
+    ruins:     { slots: ['helmet'],                     legendary: 0.14, statBoost: 1.30 },
+    dark_city: { slots: ['shield', 'boots'],            legendary: 0.16, statBoost: 1.35 },
+    shadowfen: { slots: ['weapon'],                     legendary: 0.18, statBoost: 1.40 },
+    crimson:   { slots: ['helmet'],                     legendary: 0.20, statBoost: 1.45 },
+    void:      null,
+    citadel:   { slots: ['ring', 'amulet', 'accessory'], legendary: 0.22, statBoost: 1.50 },
+    eternal_dark: { slots: ['ring', 'amulet', 'accessory'], legendary: 0.24, statBoost: 1.60 },
+};
+function getShopLocationBoost(location) {
+    return SHOP_LOCATION_BOOST[location] || null;
+}
+function optionFor(type, boost) {
+    if (!boost || !boost.slots.includes(type)) return undefined;
+    return { legendaryChance: boost.legendary, statBoost: boost.statBoost };
+}
+
+function generateBackendInventory(playerLevel, location) {
     const inventory = [];
+    const boost = getShopLocationBoost(location);
+    const boostedSlots = boost ? new Set(boost.slots) : new Set();
     const allTypes = ['weapon','armor','helmet','shield','boots','ring','amulet','accessory'];
     for (const type of allTypes) {
         for (let i = 0; i < 2; i++) {
-            const item = generateBackendRandomItem(playerLevel, type);
+            const item = generateBackendRandomItem(playerLevel, type, null, optionFor(type, boost));
             if (item) inventory.push(item);
         }
     }
-    const typeWeights = [
+    const baseWeights = [
         { type:'weapon',    w:0.20 },
         { type:'armor',     w:0.15 },
         { type:'helmet',    w:0.12 },
@@ -13527,12 +13554,14 @@ function generateBackendInventory(playerLevel) {
         { type:'ring',      w:0.10 },
         { type:'boots',     w:0.11 },
     ];
-    const extraCount = 16 + Math.floor(Math.random() * 8);
+    const typeWeights = baseWeights.map(tw => boostedSlots.has(tw.type) ? { ...tw, w: tw.w * 2.6 } : tw);
+    let extraCount = 16 + Math.floor(Math.random() * 8);
+    if (boost) extraCount += 4; // boosted slots get a richer pool
     for (let i = 0; i < extraCount; i++) {
         const rand = Math.random();
         let cum = 0, type = 'weapon';
         for (const { type: t, w } of typeWeights) { cum += w; if (rand < cum) { type = t; break; } }
-        const item = generateBackendRandomItem(playerLevel, type);
+        const item = generateBackendRandomItem(playerLevel, type, null, optionFor(type, boost));
         if (item) inventory.push(item);
     }
     inventory.push(...getPotionsForLevel(playerLevel));
@@ -18847,14 +18876,15 @@ router.post('/shop/reroll', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
         if ((char.gems || 0) < 1) return res.status(400).json({ error: 'Need 1 💎 gem to reroll the shop' });
+        const location = char.location || 'forest';
         await dbRun(db, 'UPDATE characters SET gems=gems-1 WHERE id=?', [char.id]);
-        await dbRun(db, 'DELETE FROM shop_items WHERE char_id=?', [char.id]);
+        await dbRun(db, 'DELETE FROM shop_items WHERE char_id=? AND location=?', [char.id, location]);
         const now = Math.floor(Date.now() / 1000);
-        const newItems = generateBackendInventory(char.level);
+        const newItems = generateBackendInventory(char.level, location);
         const equipOnly = newItems.filter(i => !i.consumable);
         for (const item of equipOnly) {
-            await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,item_data,generation_date) VALUES (?,?,?,?)',
-                [req.user.userId, char.id, JSON.stringify(item), now]);
+            await dbRun(db, 'INSERT INTO shop_items (user_id,char_id,location,item_data,generation_date) VALUES (?,?,?,?,?)',
+                [req.user.userId, char.id, location, JSON.stringify(item), now]);
         }
         const potions = getPotionsForLevel(char.level);
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
