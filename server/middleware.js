@@ -4,40 +4,8 @@ const { getDb } = require('./db');
 
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'rpg-arena-dev-secret');
 
-// Reduce to a network prefix for comparison: IPv4 /24, IPv6 /64 (best-effort).
-// Returns null when the address can't be parsed.
-function ipPrefix(ip) {
-    let s = String(ip || '').trim().replace(/^\[|\]$/g, '');
-    const m4 = s.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(:\d+)?$/);
-    if (m4) return 'v4:' + m4[1] + '.' + m4[2] + '.' + m4[3];
-    // IPv6 — expand '::' to full 8 hextets, then take the /64 (first 4).
-    s = s.split('%')[0];
-    const hasDouble = s.includes('::');
-    const parts = s.split(':');
-    const hextets = [];
-    let doubled = false;
-    for (const p of parts) {
-        if (p === '' && hasDouble && !doubled) {
-            doubled = true;
-            const zeros = 8 - (parts.length - 2);
-            for (let i = 0; i < zeros; i++) hextets.push('0');
-        } else if (p !== '') {
-            hextets.push(p);
-        }
-    }
-    if (!hextets.length) return null;
-    return 'v6:' + hextets.slice(0, 4).join(':');
-}
-
-// Two IPs are "the same network" if equal, or share a /24 (IPv4) /64 (IPv6).
-// Tolerates mobile/CGNAT IP churn within the same ISP range.
-function sameIpNetwork(ipA, ipB) {
-    if (ipA === ipB) return true;
-    const a = ipPrefix(ipA);
-    const b = ipPrefix(ipB);
-    if (!a || !b) return false;
-    return a === b;
-}
+// Per-user throttle for the log-only IP-change signal (avoids spammy inserts).
+const lastIpChangeLog = new Map(); // userId -> last logged ts
 
 module.exports = async (req, res, next) => {
     const header = req.headers.authorization;
@@ -94,17 +62,31 @@ module.exports = async (req, res, next) => {
         if (decoded.sessionId && sessionParsed && dbSessionId && decoded.sessionId !== dbSessionId) {
             return res.status(401).json({ error: 'Session expired' });
         }
-        // Bind the token to the network of the IP that issued it. Configurable:
-        //   unset / 'subnet' -> match /24 (IPv4) or /64 (IPv6), tolerates mobile/CGNAT churn
-        //   'strict'         -> exact IP match
-        //   0 / 'false' / 'off' -> disabled
-        const bindMode = String(process.env.BIND_TOKEN_TO_IP || 'subnet').toLowerCase();
-        if (bindMode !== '0' && bindMode !== 'false' && bindMode !== 'off' && decoded.ip) {
+        // IP-change detection (log-only). IP binding can't tell legit same-ISP
+        // churn from token theft, so we never reject — we only record the change
+        // as a signal for admin/bot-detection review. Strong session controls
+        // (logout invalidation + session-id re-login invalidation) do the real work.
+        if (decoded.ip && decoded.userId) {
             const curIp = String(req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0] || '').trim().slice(0, 45);
-            if (curIp) {
-                const ok = bindMode === 'strict' ? decoded.ip === curIp : sameIpNetwork(decoded.ip, curIp);
-                if (!ok) {
-                    return res.status(401).json({ error: 'Session bound to another network. Please log in again.' });
+            if (curIp && curIp !== decoded.ip) {
+                const now = Date.now();
+                const last = lastIpChangeLog.get(decoded.userId) || 0;
+                if (now - last > 10 * 60 * 1000) {
+                    lastIpChangeLog.set(decoded.userId, now);
+                    try {
+                        db.execute({ sql: `CREATE TABLE IF NOT EXISTS session_ip_changes (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            user_id INTEGER NOT NULL,
+                            issued_ip TEXT NOT NULL DEFAULT '',
+                            seen_ip TEXT NOT NULL DEFAULT '',
+                            created_at INTEGER NOT NULL
+                        )` });
+                        db.execute({
+                            sql: 'INSERT INTO session_ip_changes (user_id, issued_ip, seen_ip, created_at) VALUES (?,?,?,?)',
+                            args: [decoded.userId, decoded.ip, curIp, Math.floor(now / 1000)]
+                        }).catch(() => {});
+                    } catch {}
+                    console.warn(`[ip-change] user ${decoded.userId}: issued ${decoded.ip}, seen ${curIp}`);
                 }
             }
         }
