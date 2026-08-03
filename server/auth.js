@@ -9,7 +9,17 @@ const { getDb } = require('./db');
 const auth = require('./middleware');
 
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'rpg-arena-dev-secret');
+
+// Brute-force guard on login: 10 attempts / 15 min per IP.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => res.status(429).json({ error: 'Too many login attempts. Please try again later.' })
+});
 const MAX_REGISTERED_USERS = 500;
 const PASSWORD_RESET_TTL_SEC = 60 * 60; // 1 hour
 
@@ -184,7 +194,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   try {
     const db = await getDb();
     const { username, password } = req.body;
