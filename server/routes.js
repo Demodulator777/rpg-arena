@@ -8,6 +8,7 @@ const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 
 const SQUAD_IMG_DIR = path.join(__dirname, '../public/images/squads');
@@ -15,17 +16,49 @@ if (!fs.existsSync(SQUAD_IMG_DIR)) fs.mkdirSync(SQUAD_IMG_DIR, { recursive: true
 const DECAL_IMG_DIR = path.join(__dirname, '../public/images/decals');
 if (!fs.existsSync(DECAL_IMG_DIR)) fs.mkdirSync(DECAL_IMG_DIR, { recursive: true });
 
+const ALLOWED_IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+
+function safeImageExt(filename) {
+    const ext = (path.extname(String(filename || '')) || '').toLowerCase();
+    return ALLOWED_IMAGE_EXTS.includes(ext) ? ext : '.png';
+}
+
+// Verify a file on disk is a real image via magic bytes (MIME type is client-spoofable).
+function isRealImageFile(filePath) {
+    let buf;
+    try { buf = fs.readFileSync(filePath); } catch { return false; }
+    if (!buf || buf.length < 4) return false;
+    if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return true; // PNG
+    if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return true; // JPEG
+    if (buf.length >= 12 && buf.toString('ascii', 0, 4) === 'RIFF' && buf.toString('ascii', 8, 12) === 'WEBP') return true; // WEBP
+    if (buf.toString('ascii', 0, 6) === 'GIF87a' || buf.toString('ascii', 0, 6) === 'GIF89a') return true; // GIF
+    return false;
+}
+
+// Only real image extensions accepted (blocks .svg/.html/.php etc.). MIME type alone is unreliable.
+const imageFileFilter = (req, file, cb) => {
+    const ext = (path.extname(String(file.originalname || '')) || '').toLowerCase();
+    if (!ALLOWED_IMAGE_EXTS.includes(ext)) return cb(new Error('Only PNG, JPG, JPEG, WEBP or GIF images allowed'));
+    cb(null, true);
+};
+
+// Per-IP cap on image uploads (DoS / disk-fill tripwire).
+const uploadLimiter = rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => res.status(429).json({ error: 'Too many uploads. Try again later.' })
+});
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => cb(null, SQUAD_IMG_DIR),
-    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${path.extname(file.originalname)}`)
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}${safeImageExt(file.originalname)}`)
 });
 const uploadLogo = multer({
     storage,
     limits: { fileSize: 200 * 1024 },
-    fileFilter: (req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files allowed'));
-        cb(null, true);
-    }
+    fileFilter: imageFileFilter
 }).single('logo');
 
 const decalStorage = multer.diskStorage({
@@ -35,10 +68,7 @@ const decalStorage = multer.diskStorage({
 const uploadDecal = multer({
     storage: decalStorage,
     limits: { fileSize: 1024 * 1024 },
-    fileFilter: (req, file, cb) => {
-        if (!file.mimetype.startsWith('image/')) return cb(new Error('Only image files allowed'));
-        cb(null, true);
-    }
+    fileFilter: imageFileFilter
 }).single('image');
 
 // ── Weapon leveling constants ──────────────────────────────────────────────
@@ -10479,7 +10509,7 @@ router.post('/squads/reset-invite', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/squads/logo', auth, (req, res) => {
+router.post('/squads/logo', auth, uploadLimiter, (req, res) => {
     uploadLogo(req, res, async (err) => {
         try {
             if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
@@ -10489,6 +10519,10 @@ router.post('/squads/logo', auth, (req, res) => {
             const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
             if (!membership) return res.status(403).json({ error: 'Only the squad leader or co-leader can change the logo.' });
             if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+            if (!isRealImageFile(req.file.path)) {
+                try { fs.unlinkSync(req.file.path); } catch {}
+                return res.status(400).json({ error: 'Uploaded file is not a valid image.' });
+            }
 
             // Delete old logo file if exists
             const old = await dbGet(db, 'SELECT logo FROM squads WHERE id=?', [membership.squad_id]);
@@ -20893,10 +20927,14 @@ router.delete('/maps/:level', async (req, res) => {
 });
 
 // Decal image upload
-router.post('/maps/decal-upload', (req, res) => {
+router.post('/maps/decal-upload', auth, uploadLimiter, (req, res) => {
     uploadDecal(req, res, (err) => {
         if (err) return res.status(400).json({ error: err.message || 'Upload failed' });
         if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+        if (!isRealImageFile(req.file.path)) {
+            try { fs.unlinkSync(req.file.path); } catch {}
+            return res.status(400).json({ error: 'Uploaded file is not a valid image.' });
+        }
         res.json({ url: '/images/decals/' + req.file.filename });
     });
 });
