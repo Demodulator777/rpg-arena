@@ -14646,6 +14646,27 @@ function appendFlag(map, key, val) {
     map.set(key, prev ? prev + ' ||| ' + val : val);
 }
 
+// Longest wall-clock window (ms) during which log entries arrived continuously
+// (consecutive gaps <= gapMaxMs). A bot is active for hours on end; a human
+// logs in short bursts (minutes) separated by long idle gaps. This separates
+// the two even when a human's total call count / span / rate look bot-like.
+function longestActiveSpanMs(sortedTs, gapMaxMs) {
+    if (!sortedTs.length) return 0;
+    let best = 0;
+    let runStart = sortedTs[0];
+    let prev = sortedTs[0];
+    for (let i = 1; i < sortedTs.length; i++) {
+        const ts = sortedTs[i];
+        if (ts - prev > gapMaxMs) {
+            best = Math.max(best, prev - runStart);
+            runStart = ts;
+        }
+        prev = ts;
+    }
+    best = Math.max(best, prev - runStart);
+    return best;
+}
+
 // ── Bot Detection Engine ────────────────────────────────────────────
 async function runBotDetection(db) {
     const setting = await dbGet(db, 'SELECT value FROM server_settings WHERE key=?', ['bot_detection_enabled']);
@@ -14849,11 +14870,12 @@ async function runBotDetection(db) {
             const topPath = Object.entries(pathCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
             const botPollEndpoints = ['/character', '/missions/active', '/missions/ui-tick', '/inventory'];
             const isBotPoll = botPollEndpoints.some(e => topPath.includes(e));
-            if (['Vader','vader','Sanctus','En Peasant','en peasant','Forsaken','forsaken'].includes(name)) console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', paths.size, 'maxPathRatio:', (maxPathRatio*100).toFixed(0)+'%', 'topPath:', topPath, 'isBotPoll:', isBotPoll);
-            if (isBotPoll && maxPathRatio > 0.2) {
+            const activeSpan = longestActiveSpanMs(recent.map(e => e.ts), 150000);
+            if (['Vader','vader','Sanctus','En Peasant','en peasant','Forsaken','forsaken'].includes(name)) console.log('[bot-detect] bp debug:', name, 'entries:', recent.length, 'span:', Math.round(span/60)+'min', 'active:', Math.round(activeSpan/60000)+'min', 'rate:', reqPerMin.toFixed(1)+'/min', 'paths:', paths.size, 'maxPathRatio:', (maxPathRatio*100).toFixed(0)+'%', 'topPath:', topPath, 'isBotPoll:', isBotPoll);
+            if (isBotPoll && maxPathRatio > 0.2 && activeSpan >= 3600000) {
                 const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [name]);
                 const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
-                appendFlag(botPlayers, name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls${countNote}`);
+                appendFlag(botPlayers, name, `Bot pattern: ${recent.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls, active ${Math.round(activeSpan/60000)}min continuous${countNote}`);
             }
         }
     } catch (e) { console.error('[bot-detect] bot pattern error:', e.message); }
@@ -15016,10 +15038,11 @@ async function runSelectiveBotDetection(db, charName) {
                     const topPath = Object.entries(pathCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '';
                     const botPollEndpoints = ['/character', '/missions/active', '/missions/ui-tick', '/inventory'];
                     const isBotPoll = botPollEndpoints.some(e => topPath.includes(e));
-                    if (isBotPoll && maxPathRatio > 0.2) {
+                    const activeSpan = longestActiveSpanMs(entries.map(e => e.created_at), 150000);
+                    if (isBotPoll && maxPathRatio > 0.2 && activeSpan >= 3600000) {
                         const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [charName]);
                         const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
-                        appendFlag(botPlayers, charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls${countNote}`);
+                        appendFlag(botPlayers, charName, `Bot pattern: ${entries.length} calls, ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, top endpoint ${Math.round(maxPathRatio*100)}% of calls, active ${Math.round(activeSpan/60000)}min continuous${countNote}`);
                     }
                 }
             }
