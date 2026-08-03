@@ -9448,10 +9448,10 @@ async function openProfile(id) {
             const gc=p.globalCooldown||0, ptc=p.perTargetCooldown||0, hpLow=p.hpLow;
             const myAttackBlockReason=getMyAttackBlockReason();
             let blocked=false, reason='';
-            if(hpLow){blocked=true;reason='Too little HP';}
+            if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
-            else if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
+            else if(hpLow){blocked=true;reason='Too little HP';}
             const isBattleCdBlock = myAttackBlockReason && myAttackBlockReason.startsWith('Wait ');
             const hasOtherBlock = myAttackBlockReason && !isBattleCdBlock;
             // Only allow skipping if it's the personal battle cooldown AND there are no target-specific blocks (12h cd or 1h recovery)
