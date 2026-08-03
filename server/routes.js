@@ -7299,6 +7299,9 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         };
     }
     const log = [];
+    if (fighterA?.weapon || fighterB?.weapon) {
+        console.log(`[WPN-BATTLE] A#${fighterA?.id}(${fighterA?.name}) weapon=${JSON.stringify(fighterA?.weapon ? { id: fighterA.weapon.id, name: fighterA.weapon.name, skill: fighterA.weapon.skill } : null)} | B#${fighterB?.id}(${fighterB?.name}) weapon=${JSON.stringify(fighterB?.weapon ? { id: fighterB.weapon.id, name: fighterB.weapon.name, skill: fighterB.weapon.skill } : null)}`);
+    }
     let hpA = fighterA.hp, hpB = fighterB.hp;
     const newbieStartHpA = (fighterA.level || 99) <= 3 ? hpA : null;
     const newbieStartHpB = (fighterB.level || 99) <= 3 ? hpB : null;
@@ -8762,8 +8765,8 @@ function weaponElementDamageMultiplier(fighter, elem, roundNum, ramp = null) {
     }
     const r = ramp || weaponSkillRamp(fighter, roundNum);
     if (r.dmgPct?.[elem] && r.dmgPct[elem] !== 1) mult *= r.dmgPct[elem];
-    if ((elem === 'pyro' && fighter?.weapon?.id === 'first_scream_weapon') || (fighter?.weapon?.skill?.id && ['ember_ascend','rising_tide','calling_storm','gale_primal','element_cascade'].includes(fighter.weapon.skill.id))) {
-        console.log(`[WPN-RAMP] fighter=${fighter?.id} name=${fighter?.name || '?'} weapon.id=${fighter?.weapon?.id} weapon.skill=${JSON.stringify(fighter?.weapon?.skill || null)} elem=${elem} round=${roundNum} dmgPct=${JSON.stringify(r.dmgPct || {})} mult=${mult}`);
+    if ((elem === 'pyro' && fighter?.weapon?.id === 'first_scream_weapon') || (fighter?.weapon?.skill?.id && ['ember_ascend','rising_tide','calling_storm','gale_primal','element_cascade'].includes(fighter.weapon.skill.id)) || /scream/i.test(fighter?.weapon?.name || '')) {
+        console.log(`[WPN-RAMP] fighter=${fighter?.id} name=${fighter?.name || '?'} weapon.id=${JSON.stringify(fighter?.weapon?.id)} weapon.skill=${JSON.stringify(fighter?.weapon?.skill || null)} elem=${elem} round=${roundNum} dmgPct=${JSON.stringify(r.dmgPct || {})} mult=${mult}`);
     }
     return mult;
 }
