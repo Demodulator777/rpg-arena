@@ -1,10 +1,19 @@
-require('dotenv').config();
+require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const http = require('http');
 console.log('DB URL:', process.env.TURSO_DATABASE_URL ? 'SET' : 'MISSING');
 console.log('DB TOKEN:', process.env.TURSO_AUTH_TOKEN ? 'SET' : 'MISSING');
+if (process.env.NODE_ENV === 'production') {
+    const required = ['JWT_SECRET', 'ADMIN_PANEL_PASSWORD', 'ADMIN_KEY'];
+    const missing = required.filter(k => !process.env[k]);
+    if (missing.length) {
+        console.error(`FATAL: Missing required production env vars: ${missing.join(', ')}`);
+        console.error('Set them in your environment / .env before starting in production.');
+        process.exit(1);
+    }
+}
 const { getDb } = require('./db');
 
 const app = express();
@@ -42,7 +51,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance } = require('./routes');
+const { runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -153,7 +162,7 @@ getDb().then(async (db) => {
   });
   app.get('/api/game/admin/password', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin access required' });
-    res.json({ password: process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk' });
+    res.json({ password: process.env.ADMIN_PANEL_PASSWORD || '' });
   });
   const { router: bannerRouter, admin: adminRouter } = require('./banner');
   app.use('/banner', auth, bannerRouter);
@@ -208,8 +217,10 @@ getDb().then(async (db) => {
   const msUntilHour = (60 - new Date().getMinutes()) * 60000 - new Date().getSeconds() * 1000;
   setTimeout(() => {
     runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
+    runHourlyElementalRegen(db).catch(e => console.error('Elemental regen tick failed:', e.message));
     setInterval(() => {
       runHourlyHpRegen(db).catch(e => console.error('HP regen tick failed:', e.message));
+      runHourlyElementalRegen(db).catch(e => console.error('Elemental regen tick failed:', e.message));
     }, 3600000);
   }, msUntilHour);
 
