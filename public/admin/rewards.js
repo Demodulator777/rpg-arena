@@ -35,7 +35,9 @@
   function previewResend(batchId, btn) {
     btn.disabled = true;
     btn.textContent = 'Loading...';
-    fetch('/api/game/rewards/resend-preview?password=' + _pwd() + '&batchId=' + batchId)
+    fetch('/api/game/rewards/resend-preview?batchId=' + batchId, {
+      headers: { 'X-Admin-Password': _pwd() }
+    })
       .then(function(r) { return r.json(); })
       .then(function(data) {
         btn.disabled = false;
@@ -94,9 +96,9 @@
     var btn = document.getElementById('modal-send-btn');
     btn.disabled = true;
     btn.textContent = 'Sending...';
-    fetch('/api/game/rewards/resend?password=' + _pwd(), {
+    fetch('/api/game/rewards/resend', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': _pwd() },
       body: JSON.stringify({ batchId: _modalBatchId, charIds: ids })
     })
     .then(function(r) { return r.json(); })
