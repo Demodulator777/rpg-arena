@@ -19,7 +19,16 @@ const { getDb } = require('./db');
 const app = express();
 app.disable('x-powered-by');
 const server = http.createServer(app);
-app.use(cors());
+// Restrict CORS to explicitly configured origins. Same-origin clients don't
+// need CORS at all, so with no CORS_ORIGIN set we send no wildcard header.
+const corsOrigins = (process.env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+app.use(cors({
+    origin: corsOrigins.length ? corsOrigins : false,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Password', 'X-Tab-Session'],
+    maxAge: 86400
+}));
 app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -34,9 +43,13 @@ const cspDirectives = [
     "worker-src 'self'",
     "connect-src 'self'",
     "img-src 'self' data: blob:",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com data:",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self' data:",
     "object-src 'none'",
+    "media-src 'self'",
+    "frame-src 'none'",
+    "child-src 'none'",
+    "manifest-src 'self'",
     "base-uri 'self'",
     "frame-ancestors 'none'",
     "form-action 'self'",
