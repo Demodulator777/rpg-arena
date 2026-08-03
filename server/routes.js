@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const { getDb } = require('./db');
 const BotRunner = require('./bot-runner');
@@ -190,7 +191,7 @@ function normalizeRewardMaterialId(value) {
         .replace(/^_+|_+$/g, '');
 }
 
-const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || 'baisbetterthanbk';
+const ADMIN_PANEL_PASSWORD = process.env.ADMIN_PANEL_PASSWORD || (process.env.NODE_ENV === 'production' ? '' : 'baisbetterthanbk');
 const MESSAGE_RETENTION_SECONDS = 14 * 24 * 60 * 60;
 const CHAT_RETENTION_SECONDS = 12 * 60 * 60;
 const CHAT_MESSAGE_MAX_LENGTH = 280;
@@ -7305,9 +7306,6 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         };
     }
     const log = [];
-    if (fighterA?.weapon || fighterB?.weapon) {
-        console.log(`[WPN-BATTLE] A#${fighterA?.id}(${fighterA?.name}) weapon=${JSON.stringify(fighterA?.weapon ? { id: fighterA.weapon.id, name: fighterA.weapon.name, skill: fighterA.weapon.skill } : null)} | B#${fighterB?.id}(${fighterB?.name}) weapon=${JSON.stringify(fighterB?.weapon ? { id: fighterB.weapon.id, name: fighterB.weapon.name, skill: fighterB.weapon.skill } : null)}`);
-    }
     let hpA = fighterA.hp, hpB = fighterB.hp;
     const newbieStartHpA = (fighterA.level || 99) <= 3 ? hpA : null;
     const newbieStartHpB = (fighterB.level || 99) <= 3 ? hpB : null;
@@ -8772,9 +8770,6 @@ function weaponElementDamageMultiplier(fighter, elem, roundNum, ramp = null) {
     }
     const r = ramp || weaponSkillRamp(fighter, roundNum);
     if (r.dmgPct?.[elem] && r.dmgPct[elem] !== 1) mult *= r.dmgPct[elem];
-    if ((elem === 'pyro' && isLegacyWeapon(fighter?.weapon, 'first_scream_weapon')) || (fighter?.weapon?.skill?.id && ['ember_ascend','rising_tide','calling_storm','gale_primal','element_cascade'].includes(fighter.weapon.skill.id)) || /scream/i.test(fighter?.weapon?.name || '')) {
-        console.log(`[WPN-RAMP] fighter=${fighter?.id} name=${fighter?.name || '?'} weapon.id=${JSON.stringify(fighter?.weapon?.id)} weapon.skill=${JSON.stringify(fighter?.weapon?.skill || null)} elem=${elem} round=${roundNum} dmgPct=${JSON.stringify(r.dmgPct || {})} mult=${mult}`);
-    }
     return mult;
 }
 function generateBackendRandomItem(level, type, forceQuality, opts) {
@@ -19035,7 +19030,7 @@ router.get('/bug-reports/list', async (req, res) => {
         const db = await getDb();
 
         const password = req.query.password;
-        if (password !== 'baisbetterthanbk') {
+        if (password !== ADMIN_PANEL_PASSWORD) {
             return res.status(403).send(`
                 <!DOCTYPE html>
                 <html>
