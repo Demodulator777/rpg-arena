@@ -15702,6 +15702,19 @@ router.get('/admin/action-log', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/admin/session-ip-changes', auth, async (req, res) => {
+    if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const limit = Math.min(parseInt(req.query.limit) || 200, 1000);
+        const r = await db.execute({
+            sql: `SELECT s.*, u.username FROM session_ip_changes s LEFT JOIN users u ON s.user_id = u.id ORDER BY s.id DESC LIMIT ?`,
+            args: [limit]
+        });
+        res.json(r.rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/admin/banners', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
