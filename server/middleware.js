@@ -1,7 +1,8 @@
+require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const { getDb } = require('./db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'rpg-arena-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'rpg-arena-dev-secret');
 
 module.exports = async (req, res, next) => {
     const header = req.headers.authorization;
