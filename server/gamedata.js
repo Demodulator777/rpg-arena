@@ -901,116 +901,116 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
 const CRAFTING_SETS = {
     ironclad: {
         name:'Ironclad Set', emoji:'⚙️',
-        bonus3:{ defense:10, armor:5,  hp_max:50,  desc:'2/5: +10 DEF · +5 Armor · +50 HP' },
-        bonus5:{ defense:20, armor:12, hp_max:100, vitality:5, desc:'5/5: +20 DEF · +12 Armor · +100 HP · +5 VIT' },
+        bonus3:{ defense:100, armor:50,  hp_max:500,  desc:'2/5: +100 DEF · +50 Armor · +500 HP' },
+        bonus5:{ defense:200, armor:120, hp_max:1000, vitality:25, desc:'5/5: +200 DEF · +120 Armor · +1000 HP · +25 VIT' },
     },
     sentinel: {
         name:'Sentinel Set', emoji:'🔷',
-        bonus3:{ hit_chance:8,  crit_chance:5,  defense:8,  desc:'2/5: +8 Hit · +5 Crit · +8 DEF' },
-        bonus5:{ hit_chance:16, crit_chance:12, agility:10, defense:15, desc:'5/5: +16 Hit · +12 Crit · +10 AGI · +15 DEF' },
+        bonus3:{ hit_chance:80,  crit_chance:50,  defense:80,  desc:'2/5: +80 Hit · +50 Crit · +80 DEF' },
+        bonus5:{ hit_chance:160, crit_chance:120, agility:100, defense:150, desc:'5/5: +160 Hit · +120 Crit · +100 AGI · +150 DEF' },
     },
     voidborn: {
         name:'Voidborn Set', emoji:'🌑',
-        bonus3:{ magic:12, crit_chance:8,  desc:'2/5: +12 MAG · +8 Crit' },
+        bonus3:{ magic:120, crit_chance:80,  desc:'2/5: +120 MAG · +80 Crit' },
         bonus5:{
-            magic:25, crit_chance:18, hit_chance:12,
+            magic:250, crit_chance:180, hit_chance:120,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'5/5: +25 MAG · +18 Crit · +12 Hit · +20 all Elem Resist'
+            desc:'5/5: +250 MAG · +180 Crit · +120 Hit · +20 all Elem Resist'
         },
     },
     spiteforged: {
         name:'Spiteforged Set', emoji:'🔱',
-        bonus3:{ strength:12, crit_chance:10, hit_chance:6,
+        bonus3:{ strength:120, crit_chance:100, hit_chance:60,
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'2/5: +12 STR · +10 Crit · +6 Hit · +10 all Elem Resist' },
+            desc:'2/5: +120 STR · +100 Crit · +60 Hit · +10 all Elem Resist' },
         bonus5:{
-            strength:25, crit_chance:20, hit_chance:15,
+            strength:250, crit_chance:180, hit_chance:120,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'5/5: +25 STR · +20 Crit · +15 Hit · +20 all Elem Resist'
+            desc:'5/5: +250 STR · +180 Crit · +120 Hit · +20 all Elem Resist'
         },
     },
     shadewalker: {
         name:'Shadewalker Set', emoji:'🗡️',
-        bonus3:{ agility:15, crit_chance:10, hit_chance:8,
+        bonus3:{ agility:55, crit_chance:55, hit_chance:55,
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'2/5: +15 AGI · +10 Crit · +8 Hit · +10 all Elem Resist' },
+            desc:'2/5: +55 AGI · +55 Crit · +55 Hit · +10 all Elem Resist' },
         bonus5:{
-            agility:30, crit_chance:18, hit_chance:15,
+            agility:100, crit_chance:120, hit_chance:120,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'5/5: +30 AGI · +18 Crit · +15 Hit · +20 all Elem Resist'
+            desc:'5/5: +100 AGI · +120 Crit · +120 Hit · +20 all Elem Resist'
         },
     },
     abyssal: {
         name:'Abyssal Knight Set', emoji:'⚔️',
-        bonus3:{ strength:10, agility:10, defense:15, hp_max:80,
-            desc:'2/5: +10 STR · +10 AGI · +15 DEF · +80 HP' },
+        bonus3:{ strength:100, agility:45, defense:150, hp_max:800,
+            desc:'2/5: +100 STR · +45 AGI · +150 DEF · +800 HP' },
         bonus5:{
-            strength:22, agility:20, defense:30, hp_max:160, armor:10,
+            strength:220, agility:80, defense:300, hp_max:1600, armor:40,
             pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15,
-            desc:'5/5: +22 STR · +20 AGI · +30 DEF · +160 HP · +10 Armor · +15 all Elem Resist'
+            desc:'5/5: +220 STR · +80 AGI · +300 DEF · +1600 HP · +40 Armor · +15 all Elem Resist'
         },
     },
     eclipsed_seraph: {
         name:'Eclipsed Seraph Set', emoji:'👼',
         bonus3:{
-            defense:12, magic:10, strength:8,
+            defense:120, magic:100, strength:80,
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'2/5: +12 DEF · +10 MAG · +8 STR · +10 all Elem Resist'
+            desc:'2/5: +120 DEF · +100 MAG · +80 STR · +10 all Elem Resist'
         },
         bonus5:{
-            defense:25, magic:20, strength:16, hp_max:150, armor:8,
+            defense:250, magic:180, strength:160, hp_max:1500, armor:40,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'5/5: +25 DEF · +20 MAG · +16 STR · +150 HP · +8 Armor · +20 all Elem Resist'
+            desc:'5/5: +250 DEF · +180 MAG · +160 STR · +1500 HP · +40 Armor · +20 all Elem Resist'
         },
     },
     wyrmflame: {
         name:'Wyrmflame Regalia', emoji:'🐉',
         bonus3:{
-            hit_chance:14, strength:14, pyro_dmg:12, pyro_resist:12,
-            desc:'2/5: +14 Hit · +14 STR · +12 Pyro Dmg · +12 Pyro Resist'
+            hit_chance:100, strength:140, pyro_dmg:12, pyro_resist:12,
+            desc:'2/5: +100 Hit · +140 STR · +12 Pyro Dmg · +12 Pyro Resist'
         },
         bonus5:{
-            hit_chance:28, strength:26, dmg_min:8, dmg_max:12,
-            pyro_dmg:22, pyro_resist:22,
-            desc:'5/5: +28 Hit · +26 STR · +8-12 Dmg · +22 Pyro Dmg · +22 Pyro Resist'
+            hit_chance:200, strength:260, dmg_min:80, dmg_max:120,
+            pyro_dmg:25, pyro_resist:22,
+            desc:'5/5: +200 Hit · +260 STR · +80-120 Dmg · +25 Pyro Dmg · +22 Pyro Resist'
         },
     },
     marsh_reaper: {
         name:'Marsh Reaper Set', emoji:'🌿',
         bonus3:{
-            agility:12, magic:10, defense:12, hp_max:80,
+            agility:24, magic:100, defense:102, hp_max:800,
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'2/5: +12 AGI · +10 MAG · +12 DEF · +80 HP · +10 all Elem Resist'
+            desc:'2/5: +24 AGI · +100 MAG · +102 DEF · +800 HP · +10 all Elem Resist'
         },
         bonus5:{
-            agility:24, magic:20, defense:24, hp_max:160, armor:8,
-            strength:14, hit_chance:16, crit_chance:12,
+            agility:48, magic:150, defense:204, hp_max:1600, armor:8,
+            strength:44, hit_chance:66, crit_chance:42,
             pyro_resist:18, water_resist:18, wind_resist:18, electro_resist:18,
-            desc:'5/5: +24 AGI · +20 MAG · +24 DEF · +160 HP · +8 Armor · +14 STR · +16 Hit · +12 Crit · +18 all Elem Resist'
+            desc:'5/5: +48 AGI · +150 MAG · +204 DEF · +1600 HP · +8 Armor · +14 STR · +66 Hit · +42 Crit · +18 all Elem Resist'
         },
     },
     first_scream: {
         name:'First Scream Set', emoji:'🔥',
         bonus3:{
-            strength:16, hit_chance:14, pyro_dmg:18, pyro_resist:10,
-            desc:'2/5: +16 STR · +14 Hit · +18 Pyro Dmg · +10 Pyro Resist'
+            strength:160, hit_chance:100, pyro_dmg:18, pyro_resist:10,
+            desc:'2/5: +160 STR · +100 Hit · +18 Pyro Dmg · +10 Pyro Resist'
         },
         bonus5:{
-            strength:32, hit_chance:28, crit_chance:10, dmg_min:6, dmg_max:10,
-            pyro_dmg:35, pyro_resist:20, hp_max:80,
-            desc:'5/5: +32 STR · +28 Hit · +10 Crit · +6-10 Dmg · +35 Pyro Dmg · +20 Pyro Resist · +80 HP'
+            strength:320, hit_chance:200, crit_chance:40, dmg_min:6, dmg_max:10,
+            pyro_dmg:35, pyro_resist:20, hp_max:800,
+            desc:'5/5: +320 STR · +200 Hit · +40 Crit · +6-10 Dmg · +35 Pyro Dmg · +20 Pyro Resist · +800 HP'
         },
     },
     abyssal_void: {
         name:'Abyssal Void Set', emoji:'🕳️',
         bonus3:{
-            strength:14, defense:12, hp_max:90, electro_resist:12,
-            desc:'2/5: +14 STR · +12 DEF · +90 HP · +12 Electro Resist'
+            strength:140, defense:120, hp_max:900, electro_resist:12,
+            desc:'2/5: +140 STR · +120 DEF · +900 HP · +12 Electro Resist'
         },
         bonus5:{
-            strength:30, defense:24, armor:10, hp_max:170, vitality:5,
-            electro_dmg:16, pyro_resist:16, water_resist:16, wind_resist:16, electro_resist:16,
-            desc:'5/5: +30 STR · +24 DEF · +10 Armor · +170 HP · +5 VIT · +16 Electro Dmg · +16 all Elem Resist'
+            strength:300, defense:240, armor:100, hp_max:1700, vitality:50,
+            electro_dmg:26, pyro_resist:16, water_resist:16, wind_resist:16, electro_resist:16,
+            desc:'5/5: +300 STR · +240 DEF · +100 Armor · +1700 HP · +50 VIT · +26 Electro Dmg · +16 all Elem Resist'
         },
     },
 };
