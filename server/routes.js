@@ -71,6 +71,28 @@ const uploadDecal = multer({
     fileFilter: imageFileFilter
 }).single('image');
 
+// Sweep legacy/invalid files from upload dirs (e.g. .svg/.html uploaded before
+// hardening). Only real images in allowed dirs remain serveable.
+function cleanupUploadDirs() {
+    for (const dir of [SQUAD_IMG_DIR, DECAL_IMG_DIR]) {
+        let files;
+        try { files = fs.readdirSync(dir); } catch { continue; }
+        for (const f of files) {
+            const full = path.join(dir, f);
+            let stat; try { stat = fs.statSync(full); } catch { continue; }
+            if (!stat.isFile()) continue;
+            if (!ALLOWED_IMAGE_EXTS.includes((path.extname(f) || '').toLowerCase())) {
+                try { fs.unlinkSync(full); console.warn(`[img-sweep] removed invalid extension: ${f}`); } catch {}
+                continue;
+            }
+            if (!isRealImageFile(full)) {
+                try { fs.unlinkSync(full); console.warn(`[img-sweep] removed invalid content: ${f}`); } catch {}
+            }
+        }
+    }
+}
+cleanupUploadDirs();
+
 // ── Weapon leveling constants ──────────────────────────────────────────────
 const WEAPON_XP_PER_MISSION = 1;
 const WEAPON_XP_PER_PVP = 3;
@@ -266,8 +288,13 @@ router.use((req, res, next) => {
 });
 
 function parseAdminPassword(req) {
-    return String(req.query?.password || req.body?.password || '').trim();
+    const h = req.headers && req.headers['x-admin-password'];
+    if (h) return String(h).trim();
+    return String(req.body?.password || req.query?.password || '').trim();
 }
+
+// Avoid leaking the admin password in the URL via the Referer header.
+const noReferrer = (req, res, next) => { res.set('Referrer-Policy', 'no-referrer'); next(); };
 
 // ── Admin password brute-force protection (per-IP) ────────────────────────
 const ADMIN_FAIL_WINDOW_MS = 10 * 60 * 1000;   // failure counter window
@@ -16085,7 +16112,7 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.get('/rewards/list', async (req, res) => {
+router.get('/rewards/list', noReferrer, async (req, res) => {
     try {
         const password = parseAdminPassword(req);
         const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
@@ -16275,7 +16302,7 @@ router.get('/rewards/list', async (req, res) => {
     }
 });
 
-router.post('/rewards/send', async (req, res) => {
+router.post('/rewards/send', noReferrer, async (req, res) => {
     try {
         const password = parseAdminPassword(req);
         const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
@@ -16363,7 +16390,7 @@ router.post('/rewards/send', async (req, res) => {
     }
 });
 
-router.get('/rewards/resend-preview', async (req, res) => {
+router.get('/rewards/resend-preview', noReferrer, async (req, res) => {
     try {
         const password = parseAdminPassword(req);
         const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
@@ -16404,7 +16431,7 @@ router.get('/rewards/resend-preview', async (req, res) => {
     }
 });
 
-router.post('/rewards/resend', async (req, res) => {
+router.post('/rewards/resend', noReferrer, async (req, res) => {
     try {
         const password = parseAdminPassword(req);
         const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
@@ -19148,7 +19175,7 @@ router.get('/bug-report/screenshot/:bugReportId', async (req, res) => {
     }
 });
 
-router.get('/bug-reports/list', async (req, res) => {
+router.get('/bug-reports/list', noReferrer, async (req, res) => {
     try {
         const db = await getDb();
 
