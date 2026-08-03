@@ -19,6 +19,7 @@ const { getDb } = require('./db');
 const app = express();
 const server = http.createServer(app);
 app.use(cors());
+app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
