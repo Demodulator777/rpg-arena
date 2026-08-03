@@ -17,6 +17,7 @@ if (process.env.NODE_ENV === 'production') {
 const { getDb } = require('./db');
 
 const app = express();
+app.disable('x-powered-by');
 const server = http.createServer(app);
 app.use(cors());
 app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
@@ -44,6 +45,12 @@ const cspDirectives = [
   res.setHeader('Content-Security-Policy', cspDirectives.join('; '));
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  // Frame protection (belt-and-suspenders alongside CSP frame-ancestors 'none')
+  res.setHeader('X-Frame-Options', 'DENY');
+  // HSTS — only honored by browsers over HTTPS; harmless if served over HTTP.
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  // Disallow use of browser features we don't need (ZAP/Permissions-Policy scan)
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), speaker=(), vibrate=()');
   next();
 });
 
