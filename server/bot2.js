@@ -667,6 +667,11 @@ class TestBot {
   }
 
   async collectMission() {
+    const hp = this.character.hp_current || 0;
+    if (hp <= 0) {
+        log(this.name, 'HP 0 — skipping mission collect');
+        return false;
+    }
     try {
       const result = await api('POST', '/game/missions/collect', null, this.token);
       if (result) {
