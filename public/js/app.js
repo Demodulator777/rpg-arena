@@ -597,6 +597,10 @@ async function api(method, path, body=null) {
         fullUrl = `/api${path}`;
     }
 
+    if (method === 'GET') {
+        fullUrl += (fullUrl.includes('?') ? '&' : '?') + '_=' + Date.now();
+    }
+
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
     const storedToken = localStorage.getItem('rpg_token');
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
