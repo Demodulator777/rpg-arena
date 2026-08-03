@@ -6505,6 +6505,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     let holyFireMult = 1;
     const hfaMod = hasClassModifier(attacker, 'holy_fire_amplify');
     if (hfaMod) holyFireMult = 1 + (hfaMod.bonus || 0);
+    const attackerWeaponRamp = weaponSkillRamp(attacker, roundNum);
+    const defenderWeaponRamp = weaponSkillRamp(defender, roundNum);
     // darkness_debuff: enemy hit debuff
     if (hasSkill(defSkills, 'darkness_debuff')) {
         const dd = getActiveCombatEffect(defender, 'darkness_debuff');
@@ -6701,6 +6703,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 for (const elem of ELEMENTS) {
                     let ed = (eD[elem] || 0) + magicFlatBonus;
                     if (ed <= 0) continue;
+                    ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
                     ed = Math.floor(ed * magicElemMult);
                     if (hasSkill(atkSkills, 'arcane_surge')) ed = Math.floor(ed * 1.20);
                     if (hasSkill(atkSkills, 'hex')) ed = Math.floor(ed * 1.15);
@@ -6712,7 +6715,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const glanceElemMin = Math.floor(ed / 2);
                     ed = glanceElemMin + Math.floor(Math.random() * (ed - glanceElemMin + 1));
                     if (m2e) ed += dB;
-                    const eRes = (defender.elem_resist || {})[elem] || 0;
+                    const eRes = ((defender.elem_resist || {})[elem] || 0) + (defenderWeaponRamp.resFlat[elem] || 0);
                     const mRes = Math.floor((defender.magic || 0) * 0.05);
                     if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
                         ed = Math.max(0, ed);
@@ -6842,10 +6845,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     for (const elem of ELEMENTS) {
                         let ed = (attacker.elem_dmg || {})[elem] || 0;
                         if (ed <= 0) continue;
+                        ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
                         ed = Math.floor(ed * magicMult * magicElemMult);
                         if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
                         if (!ignoreResist) {
-                            const eRes = (defender.elem_resist || {})[elem] || 0;
+                            const eRes = ((defender.elem_resist || {})[elem] || 0) + (defenderWeaponRamp.resFlat[elem] || 0);
                             const mRes = Math.floor((defender.magic || 0) * 0.05);
                             ed = Math.max(0, ed - eRes - mRes);
                         }
@@ -6870,9 +6874,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     for (const elem of ELEMENTS) {
                         let ed = (attacker.elem_dmg || {})[elem] || 0;
                         if (ed <= 0) continue;
+                        ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
                         ed = Math.floor(ed * elemMult * magicElemMult);
                         if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
-                        const eRes = (defender.elem_resist || {})[elem] || 0;
+                        const eRes = ((defender.elem_resist || {})[elem] || 0) + (defenderWeaponRamp.resFlat[elem] || 0);
                         const mRes = Math.floor((defender.magic || 0) * 0.05);
                         ed = Math.max(0, ed - eRes - mRes);
                         totalTpDmg += ed;
@@ -6897,9 +6902,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 for (const elem of ELEMENTS) {
                     let ed = (attacker.elem_dmg || {})[elem] || 0;
                     if (ed <= 0) continue;
-                    ed = Math.floor(ed * magicMult * magicElemMult);
+                    ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
+                        ed = Math.floor(ed * magicMult * magicElemMult);
                     if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
-                    const eRes = (defender.elem_resist || {})[elem] || 0;
+                    const eRes = ((defender.elem_resist || {})[elem] || 0) + (defenderWeaponRamp.resFlat[elem] || 0);
                     const mRes = Math.floor((defender.magic || 0) * 0.05);
                     ed = Math.max(0, ed - eRes - mRes);
                     totalBzDmg += ed;
@@ -6912,7 +6918,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         }
         // Apply defender armor to all special attack damage
         if (specialAttackDmg > 0) {
-            const effArmor = Math.max(0, defender.armor || 0);
+            const effArmor = Math.max(0, (defender.armor || 0) + (defenderWeaponRamp.armor || 0));
             specialAttackDmg = Math.max(1, specialAttackDmg - effArmor);
             if (logLine) logLine = logLine.replace(/(—\s*)\d+/, `$1${specialAttackDmg}`);
         }
@@ -6948,8 +6954,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
 const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             // Weapon-skill round ramps (attacker buffs / defender resist)
-            const rampA = weaponSkillRamp(attacker, roundNum);
-            const rampD = weaponSkillRamp(defender, roundNum);
+            const rampA = attackerWeaponRamp;
+            const rampD = defenderWeaponRamp;
             const blockCovers = autoBlockedHit || (!ignoreDefenderZones && !holyStrikeBurst && !pierceBlock && (blk.protects.includes(atkZone) || blk.protects.includes('any')));
             const rsBlockPen = getActiveCombatEffect(attacker, 'reckless_swing');
             const weaponBlockPen = (rampA.blockPen || 0) > 0 ? Math.random() < rampA.blockPen : false;
@@ -6965,7 +6971,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             for (const elem of ELEMENTS) {
                 let ed = (elemDmgs[elem] || 0) + magicFlatBonus;
                 if (ed <= 0) continue;
-                if (elem === 'pyro') ed = Math.floor(ed * firstScreamPyroMult);
+                ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, rampA));
                 // Fang of the Worldpyre: flat pyro damage bonus
                 if (elem === 'pyro' && attacker._wyrmflamePyroBonus) {
                     ed += attacker._wyrmflamePyroBonus;
@@ -6983,7 +6989,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                     ed = Math.floor(ed * holyFireMult);
                 }
                 if (magicToElemental) ed += damageBonus;
-                if (rampA.dmgPct[elem] && rampA.dmgPct[elem] !== 1) ed = Math.floor(ed * rampA.dmgPct[elem]);
+                // Elemental weapon ramps are applied by weaponElementDamageMultiplier above.
                 const elemResist = ((defender.elem_resist || {})[elem] || 0) + (rampD.resFlat[elem] || 0);
                 const magicResist = Math.floor((defender.magic || 0) * 0.05);
                 if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
@@ -6998,7 +7004,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
 
             if (magicToElemental) {
                 const mageBaseElemRaw = Math.max(1, Math.floor((rawPhysicalDmg * zoneEffMult * atkBonusDmg) * 0.05));
-                const avgElemResist = Math.floor(ELEMENTS.reduce((sum, elem) => sum + ((defender.elem_resist || {})[elem] || 0), 0) / ELEMENTS.length);
+                const avgElemResist = Math.floor(ELEMENTS.reduce((sum, elem) => sum + (((defender.elem_resist || {})[elem] || 0) + (rampD.resFlat[elem] || 0)), 0) / ELEMENTS.length);
                 const magicResist = Math.floor((defender.magic || 0) * 0.05);
                 const mageBaseElemDmg = Math.max(0, mageBaseElemRaw - avgElemResist - magicResist);
                 totalElemDmg += mageBaseElemDmg;
@@ -7132,7 +7138,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 if (laEff && Math.random() < (laEff.proc_chance || 0.25)) {
                     const elemDmg = (attacker.elem_dmg || {}).electro || 0;
                     lightningArcDmg = Math.max(1, Math.floor((elemDmg + magicFlatBonus) * (laEff.bonus_pct || 0.75)));
-                    const eRes = (defender.elem_resist || {}).electro || 0;
+                    const eRes = ((defender.elem_resist || {}).electro || 0) + (defenderWeaponRamp.resFlat.electro || 0);
                     const mRes = Math.floor((defender.magic || 0) * 0.05);
                     lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
                     if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
@@ -8748,6 +8754,16 @@ function applyWeaponSkill(fighter) {
     fighter._weaponSkills.push(def.name);
 }
 
+function weaponElementDamageMultiplier(fighter, elem, roundNum, ramp = null) {
+    let mult = 1.0;
+    // Blade of the First Scream: legacy named weapon, +5% pyro damage per round, cap +25%.
+    if (elem === 'pyro' && fighter?.weapon?.id === 'first_scream_weapon') {
+        mult *= 1.0 + Math.min(0.25, Math.max(0, (Math.max(1, roundNum) - 1) * 0.05));
+    }
+    const r = ramp || weaponSkillRamp(fighter, roundNum);
+    if (r.dmgPct?.[elem] && r.dmgPct[elem] !== 1) mult *= r.dmgPct[elem];
+    return mult;
+}
 function generateBackendRandomItem(level, type, forceQuality, opts) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
@@ -9390,7 +9406,7 @@ async function buildCharacterResponse(char, db) {
     // Spirit Beast flat stat bonuses
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
     let beastRole = null;
-    if (elemental && (elemental.hp_current ?? 0) > 0) {
+    if (elemental && elemental.is_equipped === 1 && (elemental.hp_current ?? 0) > 0) {
         const beastStats = calcElemStats(elemental);
         if ((beastStats.str || 0) > (beastStats.def || 0)) {
             beastRole = 'attack';
@@ -9488,7 +9504,7 @@ async function buildCharacterResponse(char, db) {
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
         inbox_prune_missions: Number(userSettings?.inbox_prune_missions ?? 1) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
-        elemental: elemental ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
+        elemental: elemental && elemental.is_equipped === 1 ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
         profile_badges: (() => {
             try {
                 const raw = char.profile_badges;
@@ -14169,9 +14185,27 @@ router.get('/player/:id', auth, async (req, res) => {
             } catch {}
         }
         const equippedArray = await getEquippedItemsArray(db, player.id);
-        const hpMax = calcHpMax(player, equippedArray);
+        let hpMax = calcHpMax(player, equippedArray);
         const profileSetBonuses = getEquippedSetBonuses(equippedArray);
         const profileArmor = calcArmorValue(player, equippedArray);
+
+        // Spirit Beast flat stat bonuses (only when equipped), mirroring the character sheet
+        let pBeastStr = 0, pBeastDef = 0, pBeastMag = 0, pBeastVit = 0;
+        let pBeastRole = null;
+        const pElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id=? AND is_equipped=1', [player.id]).catch(() => null);
+        if (pElemRow && (pElemRow.hp_current ?? 0) > 0) {
+            const pBeast = calcElemStats(pElemRow);
+            if ((pBeast.str || 0) > (pBeast.def || 0)) {
+                pBeastRole = 'attack';
+                pBeastStr = pBeast.str || 0;
+                pBeastMag = pBeast.mag || 0;
+            } else {
+                pBeastRole = 'heal';
+                pBeastDef = pBeast.def || 0;
+                pBeastVit = pBeast.vit || 0;
+            }
+            hpMax += pBeastVit * 25 + pBeastDef * 2;
+        }
 
         const hpLow = (player.hp_current ?? hpMax) < 10;
 
@@ -14185,8 +14219,11 @@ router.get('/player/:id', auth, async (req, res) => {
             WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
         res.json({
             id:player.id, user_id: player.user_id, name:player.name, class:player.class, level:player.level,
-            strength:player.strength, defense:player.defense, agility:player.agility,
-            magic:player.magic, vitality:player.vitality||10,
+            strength:player.strength + pBeastStr, defense:player.defense + pBeastDef,
+            agility:player.agility,
+            magic:player.magic + pBeastMag, vitality:(player.vitality||10) + pBeastVit,
+            beast_role: pBeastRole,
+            beast_stat_bonus: { str: pBeastStr, def: pBeastDef, mag: pBeastMag, vit: pBeastVit },
             hit_chance:player.hit_chance||0, crit_chance:player.crit_chance||0,
             hp_max:hpMax,
             hp_current: player.hp_current ?? hpMax,
@@ -14201,7 +14238,7 @@ router.get('/player/:id', auth, async (req, res) => {
             equipped_set_bonuses: profileSetBonuses,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
             elemental: await (async () => {
-                const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ?', [player.id]).catch(() => null);
+                const er = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [player.id]).catch(() => null);
                 if (!er) return null;
                 const stats = calcElemStats(er);
                 return { ...er, ...stats };
