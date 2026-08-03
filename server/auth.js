@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -8,7 +9,7 @@ const { getDb } = require('./db');
 const auth = require('./middleware');
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'rpg-arena-secret-change-in-prod';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'rpg-arena-dev-secret');
 const MAX_REGISTERED_USERS = 500;
 const PASSWORD_RESET_TTL_SEC = 60 * 60; // 1 hour
 
