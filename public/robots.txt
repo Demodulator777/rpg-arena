@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin-panel
+Disallow: /admin/
+Disallow: /api/
+Disallow: /test/
+Disallow: /images/
+
+Sitemap: https://battle-online.com/sitemap.xml
