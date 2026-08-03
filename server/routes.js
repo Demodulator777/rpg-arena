@@ -8762,6 +8762,9 @@ function weaponElementDamageMultiplier(fighter, elem, roundNum, ramp = null) {
     }
     const r = ramp || weaponSkillRamp(fighter, roundNum);
     if (r.dmgPct?.[elem] && r.dmgPct[elem] !== 1) mult *= r.dmgPct[elem];
+    if ((elem === 'pyro' && fighter?.weapon?.id === 'first_scream_weapon') || (fighter?.weapon?.skill?.id && ['ember_ascend','rising_tide','calling_storm','gale_primal','element_cascade'].includes(fighter.weapon.skill.id))) {
+        console.log(`[WPN-RAMP] fighter=${fighter?.id} name=${fighter?.name || '?'} weapon.id=${fighter?.weapon?.id} weapon.skill=${JSON.stringify(fighter?.weapon?.skill || null)} elem=${elem} round=${roundNum} dmgPct=${JSON.stringify(r.dmgPct || {})} mult=${mult}`);
+    }
     return mult;
 }
 function generateBackendRandomItem(level, type, forceQuality, opts) {
