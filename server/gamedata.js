@@ -368,7 +368,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Warhammer', emoji:'🔨', quality:'epic',
         slot:'weapon',
         desc:'A heavy warhammer that shatters shields and bones alike.',
-        stats:{ dmg_min:12, dmg_max:28, strength:6, armor:9, defense:47, crit_chance:8 },
+        stats:{ dmg_min:22, dmg_max:38, strength:6, armor:9, defense:47, crit_chance:8 },
         components:{ iron_ingot:4, tanned_hide:2 }, goldCost:800,
     },
     {
@@ -376,7 +376,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Plate', emoji:'🛡️', quality:'epic',
         slot:'armor',
         desc:'Heavy iron plate armour, nearly impenetrable by physical blows.',
-        stats:{ defense:58, armor:34, hp_max:600, vitality:3,  hit_chance:-2, crit_chance:3},
+        stats:{ defense:58, armor:44, hp_max:600, vitality:3,  hit_chance:-2, crit_chance:3},
         components:{ iron_ingot:5, tanned_hide:2 }, goldCost:1000,
     },
     {
@@ -384,7 +384,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Greathelm', emoji:'⛑️', quality:'epic',
         slot:'helmet',
         desc:'Full-face iron helm with reinforced cheekguards.',
-        stats:{ defense:48, armor:28, hp_max:300, hit_chance:4, crit_chance:6 },
+        stats:{ defense:48, armor:38, hp_max:300, hit_chance:4, crit_chance:6 },
         components:{ iron_ingot:3, tanned_hide:2 }, goldCost:700,
     },
     {
@@ -392,7 +392,7 @@ const EQUIPMENT_RECIPES = [
         name:'Ironclad Tower Shield', emoji:'🔰', quality:'epic',
         slot:'shield',
         desc:'A massive iron tower shield — almost nothing gets through.',
-        stats:{ defense:56, armor:25, hp_max:400, hit_chance:-4, crit_chance:3},
+        stats:{ defense:56, armor:35, hp_max:400, hit_chance:-4, crit_chance:3},
         components:{ iron_ingot:6, hardwood_plank:2 }, goldCost:900,
     },
     {
@@ -413,7 +413,7 @@ const EQUIPMENT_RECIPES = [
         name:'Sentinel Spear', emoji:'⚔️', quality:'epic',
         slot:'weapon',
         desc:'A razor-sharp mithril spear etched with sentinel runes.',
-        stats:{ dmg_min:16, dmg_max:30, strength:8, hit_chance:48, crit_chance:25, wind_dmg:6, wind_resist:10 },
+        stats:{ dmg_min:26, dmg_max:39, strength:8, hit_chance:48, crit_chance:25, wind_dmg:6, wind_resist:10 },
         components:{ mithril_ingot:4, frost_core:1 }, goldCost:4000,
     },
     {
@@ -421,7 +421,7 @@ const EQUIPMENT_RECIPES = [
         name:'Sentinel Chainmail', emoji:'🧥', quality:'epic',
         slot:'armor',
         desc:'Mithril chain links woven tight — flexible yet impenetrable.',
-        stats:{ defense:20, armor:12, hp_max:90, vitality:5, hit_chance:41, crit_chance:12, water_resist:14 },
+        stats:{ defense:20, armor:22, hp_max:90, vitality:5, hit_chance:41, crit_chance:12, water_resist:14 },
         components:{ mithril_ingot:4, dragon_plate:1 }, goldCost:5000,
     },
     {
@@ -429,7 +429,7 @@ const EQUIPMENT_RECIPES = [
         name:'Sentinel Visor', emoji:'🪖', quality:'epic',
         slot:'helmet',
         desc:'A sleek mithril helm with a full visor. Clarity in combat.',
-        stats:{ defense:12, armor:7, hp_max:50, hit_chance:39, crit_chance:16 },
+        stats:{ defense:12, armor:17, hp_max:50, hit_chance:39, crit_chance:16 },
         components:{ mithril_ingot:3, arcane_shard:1 }, goldCost:3500,
     },
     {
@@ -437,7 +437,7 @@ const EQUIPMENT_RECIPES = [
         name:'Sentinel Aegis', emoji:'🛡️', quality:'epic',
         slot:'shield',
         desc:'Mithril shield engraved with sentinel ward runes.',
-        stats:{ defense:22, armor:14, hp_max:60, hit_chance:42, crit_chance:19, wind_resist:18, water_resist:12 },
+        stats:{ defense:22, armor:24, hp_max:60, hit_chance:42, crit_chance:19, wind_resist:18, water_resist:12 },
         components:{ mithril_ingot:5, dragon_plate:1 }, goldCost:5500,
     },
     {
@@ -445,7 +445,7 @@ const EQUIPMENT_RECIPES = [
         name:'Sentinel Greaves', emoji:'🥾', quality:'epic',
         slot:'boots',
         desc:'Light mithril greaves that boost footwork without slowing you.',
-        stats:{ defense:10, armor:6, agility:10, hit_chance:46, crit_chance:24 },
+        stats:{ defense:10, armor:16, agility:10, hit_chance:46, crit_chance:24 },
         components:{ mithril_ingot:2, frost_core:1, tanned_hide:1 }, goldCost:3000,
     },
 
