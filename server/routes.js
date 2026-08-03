@@ -239,6 +239,64 @@ function parseAdminPassword(req) {
     return String(req.query?.password || req.body?.password || '').trim();
 }
 
+// ── Admin password brute-force protection (per-IP) ────────────────────────
+const ADMIN_FAIL_WINDOW_MS = 10 * 60 * 1000;   // failure counter window
+const ADMIN_FAIL_MAX = 5;                      // wrong attempts before temp ban
+const ADMIN_BAN_MS = 15 * 60 * 1000;           // temp ban duration
+const adminPwFailures = new Map();             // ip -> { count, windowStart, bannedUntil }
+const adminPwBans = new Map();                 // ip -> bannedUntil (persistent manual bans)
+
+function getClientIp(req) {
+    return String(req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0] || 'unknown').slice(0, 45);
+}
+
+function adminIpStatus(ip) {
+    const now = Date.now();
+    const manual = adminPwBans.get(ip);
+    if (manual && manual > now) return { banned: true, until: manual };
+    const rec = adminPwFailures.get(ip);
+    if (rec && rec.bannedUntil && rec.bannedUntil > now) return { banned: true, until: rec.bannedUntil };
+    return { banned: false };
+}
+
+function recordAdminFailure(ip) {
+    const now = Date.now();
+    let rec = adminPwFailures.get(ip) || { count: 0, windowStart: now, bannedUntil: 0 };
+    if (now - rec.windowStart > ADMIN_FAIL_WINDOW_MS) rec = { count: 0, windowStart: now, bannedUntil: 0 };
+    rec.count += 1;
+    if (rec.count >= ADMIN_FAIL_MAX) {
+        rec.bannedUntil = now + ADMIN_BAN_MS;
+        rec.count = 0;
+        console.warn(`[admin-pw] IP ${ip} banned for ${Math.round(ADMIN_BAN_MS/60000)}min after too many attempts`);
+    }
+    adminPwFailures.set(ip, rec);
+}
+
+function clearAdminFailure(ip) { adminPwFailures.delete(ip); }
+
+function banAdminIp(ip, minutes) {
+    const until = Date.now() + minutes * 60 * 1000;
+    adminPwBans.set(ip, until);
+    console.warn(`[admin-pw] manual ban: ${ip} for ${minutes}min`);
+    return until;
+}
+
+// Evaluate an admin-password request. Returns null when allowed, or
+// { status, message } to short-circuit with an error (banned only — a plain
+// wrong password returns null so the route keeps its own response/redirect).
+function adminPasswordCheck(req, ok) {
+    const ip = getClientIp(req);
+    if (adminIpStatus(ip).banned) {
+        return { status: 429, message: 'Too many attempts. This IP is temporarily blocked.' };
+    }
+    if (ok) { clearAdminFailure(ip); return null; }
+    recordAdminFailure(ip);
+    if (adminIpStatus(ip).banned) {
+        return { status: 429, message: 'Too many attempts. This IP is temporarily blocked.' };
+    }
+    return null;
+}
+
 function escapeRegex(text) {
     return String(text || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
@@ -15996,6 +16054,8 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
 router.get('/rewards/list', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
+        const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
+        if (_pwBlock) return res.status(_pwBlock.status).json({ error: _pwBlock.message });
         if (password !== ADMIN_PANEL_PASSWORD) {
             return res.status(403).send(`
                 <!DOCTYPE html>
@@ -16184,6 +16244,8 @@ router.get('/rewards/list', async (req, res) => {
 router.post('/rewards/send', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
+        const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
+        if (_pwBlock) return res.status(_pwBlock.status).json({ error: _pwBlock.message });
         if (password !== ADMIN_PANEL_PASSWORD) {
             const wantsHtml = String(req.headers.accept || '').includes('text/html');
             if (wantsHtml) {
@@ -16270,6 +16332,8 @@ router.post('/rewards/send', async (req, res) => {
 router.get('/rewards/resend-preview', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
+        const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
+        if (_pwBlock) return res.status(_pwBlock.status).json({ error: _pwBlock.message });
         if (password !== ADMIN_PANEL_PASSWORD) return res.status(403).json({ error: 'Forbidden' });
 
         const db = await getDb();
@@ -16309,6 +16373,8 @@ router.get('/rewards/resend-preview', async (req, res) => {
 router.post('/rewards/resend', async (req, res) => {
     try {
         const password = parseAdminPassword(req);
+        const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
+        if (_pwBlock) return res.status(_pwBlock.status).json({ error: _pwBlock.message });
         if (password !== ADMIN_PANEL_PASSWORD) {
             return res.status(403).json({ error: 'Forbidden' });
         }
@@ -19053,6 +19119,8 @@ router.get('/bug-reports/list', async (req, res) => {
         const db = await getDb();
 
         const password = req.query.password;
+        const _pwBlock = adminPasswordCheck(req, password === ADMIN_PANEL_PASSWORD);
+        if (_pwBlock) return res.status(_pwBlock.status).json({ error: _pwBlock.message });
         if (password !== ADMIN_PANEL_PASSWORD) {
             return res.status(403).send(`
                 <!DOCTYPE html>
