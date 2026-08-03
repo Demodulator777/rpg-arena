@@ -43,6 +43,10 @@ function sha256Hex(value) {
   return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest('hex');
 }
 
+function getClientIp(req) {
+  return String(req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0] || '').trim().slice(0, 45);
+}
+
 function getPublicBaseUrl(req) {
   const configured = String(process.env.PUBLIC_BASE_URL || '').trim();
   if (configured) return configured.replace(/\/+$/, '');
@@ -221,9 +225,9 @@ router.post('/login', loginLimiter, async (req, res) => {
     const sessionId = crypto.randomBytes(16).toString('hex');
     const now = Date.now();
     
-    // Generate token with session ID
+    // Generate token with session ID (and the issuing IP, for device binding)
     const token = jwt.sign(
-      { userId: user.id, username: user.username, sessionId }, 
+      { userId: user.id, username: user.username, sessionId, ip: getClientIp(req) }, 
       JWT_SECRET, 
       { expiresIn: '7d' }
     );
