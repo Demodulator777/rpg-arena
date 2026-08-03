@@ -53,7 +53,6 @@ function initWeaponData(itemData) {
     if (!itemData.wp_level) itemData.wp_level = 1;
     if (!itemData.wp_xp) itemData.wp_xp = 0;
     if (!itemData.wp_feed) itemData.wp_feed = 0;
-    if (!itemData.wp_stats) itemData.wp_stats = {};
     if (itemData.wp_stat_points == null) itemData.wp_stat_points = 0;
     return itemData;
 }
