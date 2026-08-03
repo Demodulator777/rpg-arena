@@ -1,7 +1,7 @@
-require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', process.env.NODE_ENV === 'production' ? '.env.production' : '.env') });
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const http = require('http');
 console.log('DB URL:', process.env.TURSO_DATABASE_URL ? 'SET' : 'MISSING');
 console.log('DB TOKEN:', process.env.TURSO_AUTH_TOKEN ? 'SET' : 'MISSING');
