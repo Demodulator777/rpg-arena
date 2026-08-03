@@ -209,7 +209,13 @@ getDb().then(async (db) => {
     }
   }));
 
-
+  // Catch-all 404 — must be registered AFTER all routes so Express's built-in
+  // finalhandler never runs (finalhandler overwrites our CSP header with
+  // `default-src 'none'`, which ZAP flags as a directive with no fallback).
+  app.use((req, res) => {
+    if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+    res.status(404).send('404 Not Found');
+  });
 
   const PORT = process.env.PORT || 3009;
   // Start listening BEFORE heavy background work
