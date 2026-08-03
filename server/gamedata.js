@@ -509,8 +509,8 @@ const EQUIPMENT_RECIPES = [
         name:'Spiteforged Trident', emoji:'🔱', quality:'legendary',
         slot:'weapon', weaponType:'scythe',
         desc:'Three bladed vows of hatred, quenched in black surf and driven to pierce pride, plate, and prayer alike.',
-        stats:{ dmg_min:27, dmg_max:57, strength:24, crit_chance:12, hit_chance:38, agility:3,
-                pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10 },
+        stats:{ dmg_min:31, dmg_max:62, strength:54, crit_chance:22, hit_chance:38, agility:13,
+                pyro_resist:15, water_resist:15, wind_resist:15, electro_resist:15 },
         components:{ void_crystal:3, demon_alloy:2, tanned_hide:2 }, goldCost:18000,
     },
     {
