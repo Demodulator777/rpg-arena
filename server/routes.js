@@ -6049,6 +6049,12 @@ function mergeActiveSkills(baseSkills, skillEffects) {
     }
     return result;
 }
+// Legacy weapon ids are stored with a `_<timestamp>_<random>` suffix (e.g.
+// `first_scream_weapon_...`). Never compare with strict equality; match by prefix.
+function isLegacyWeapon(weapon, baseId) {
+    if (!weapon || typeof weapon.id !== 'string') return false;
+    return weapon.id.startsWith(baseId);
+}
 function skillPassiveBonus(baseValue, passiveValue) {
     if (!passiveValue) return 0;
     if (passiveValue > -1 && passiveValue < 1) return Math.floor(baseValue * passiveValue);
@@ -6390,7 +6396,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     }
 
     // Fang of the Worldpyre: consume 50 agility per round, +5 pyro/dmg_max per 50 consumed (max +50)
-    if (attacker.weapon?.id === 'wyrmflame_weapon') {
+    if (isLegacyWeapon(attacker.weapon, 'wyrmflame_weapon')) {
         const consume = Math.min(50, Math.max(0, attacker.agility || 0));
         if (consume > 0) {
             attacker.agility = (attacker.agility || 0) - consume;
@@ -6398,7 +6404,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             attacker._wyrmflameDmgBonus = Math.min(50, (attacker._wyrmflameDmgBonus || 0) + 5);
         }
     }
-    if (defender.weapon?.id === 'wyrmflame_weapon') {
+    if (isLegacyWeapon(defender.weapon, 'wyrmflame_weapon')) {
         const consume = Math.min(50, Math.max(0, defender.agility || 0));
         if (consume > 0) {
             defender.agility = (defender.agility || 0) - consume;
@@ -6410,13 +6416,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     // Applied to the defense stat itself (not just armor reduction) so defense-based
     // skills (Divine Judgment, Holy Crusade, etc.) use the boosted value.
     for (const f of [attacker, defender]) {
-        if (f.weapon?.id !== 'abyssal_void_weapon') continue;
+        if (!isLegacyWeapon(f.weapon, 'abyssal_void_weapon')) continue;
         if (f._avBaseDefense == null) f._avBaseDefense = f.defense || 0;
         const avMult = 1.0 + Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
         f.defense = Math.floor(f._avBaseDefense * avMult);
     }
     // Abyssal Blade: consume 50 crit chance per round, +5 dmg_min / +5 all resists per 50 consumed
-    if (attacker.weapon?.id === 'abyssal_weapon') {
+    if (isLegacyWeapon(attacker.weapon, 'abyssal_weapon')) {
         const consume = Math.min(50, Math.max(0, attacker.crit_chance || 0));
         if (consume > 0) {
             attacker.crit_chance = (attacker.crit_chance || 0) - consume;
@@ -6427,7 +6433,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
         }
     }
-    if (defender.weapon?.id === 'abyssal_weapon') {
+    if (isLegacyWeapon(defender.weapon, 'abyssal_weapon')) {
         const consume = Math.min(50, Math.max(0, defender.crit_chance || 0));
         if (consume > 0) {
             defender.crit_chance = (defender.crit_chance || 0) - consume;
@@ -6442,7 +6448,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const totalHitStat = Math.max(0, (attacker.hit_chance || 0) + (attacker.hit_bonus || 0));
     // Soulcleaver weapon: +5% of hit_chance per round, caps at +25%
     let soulcleaverBonus = 0;
-    if (attacker.weapon?.id === 'marsh_reaper_weapon') {
+    if (isLegacyWeapon(attacker.weapon, 'marsh_reaper_weapon')) {
         const pct = Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
         soulcleaverBonus = Math.floor(totalHitStat * pct);
     }
@@ -6965,7 +6971,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             const elemDmgs = attacker.elem_dmg || {};
             // Blade of the First Scream: +5% pyro damage per round, cap +25%
             let firstScreamPyroMult = 1.0;
-            if (attacker.weapon?.id === 'first_scream_weapon') {
+            if (attacker.weapon?.id?.startsWith && attacker.weapon.id.startsWith('first_scream_weapon')) {
                 firstScreamPyroMult = 1.0 + Math.min(0.25, Math.max(0, (roundNum - 1) * 0.05));
             }
             for (const elem of ELEMENTS) {
@@ -8760,12 +8766,13 @@ function applyWeaponSkill(fighter) {
 function weaponElementDamageMultiplier(fighter, elem, roundNum, ramp = null) {
     let mult = 1.0;
     // Blade of the First Scream: legacy named weapon, +5% pyro damage per round, cap +25%.
-    if (elem === 'pyro' && fighter?.weapon?.id === 'first_scream_weapon') {
+    // id carries a timestamp/random suffix, so match by prefix.
+    if (elem === 'pyro' && fighter?.weapon?.id?.startsWith && fighter.weapon.id.startsWith('first_scream_weapon')) {
         mult *= 1.0 + Math.min(0.25, Math.max(0, (Math.max(1, roundNum) - 1) * 0.05));
     }
     const r = ramp || weaponSkillRamp(fighter, roundNum);
     if (r.dmgPct?.[elem] && r.dmgPct[elem] !== 1) mult *= r.dmgPct[elem];
-    if ((elem === 'pyro' && fighter?.weapon?.id === 'first_scream_weapon') || (fighter?.weapon?.skill?.id && ['ember_ascend','rising_tide','calling_storm','gale_primal','element_cascade'].includes(fighter.weapon.skill.id)) || /scream/i.test(fighter?.weapon?.name || '')) {
+    if ((elem === 'pyro' && isLegacyWeapon(fighter?.weapon, 'first_scream_weapon')) || (fighter?.weapon?.skill?.id && ['ember_ascend','rising_tide','calling_storm','gale_primal','element_cascade'].includes(fighter.weapon.skill.id)) || /scream/i.test(fighter?.weapon?.name || '')) {
         console.log(`[WPN-RAMP] fighter=${fighter?.id} name=${fighter?.name || '?'} weapon.id=${JSON.stringify(fighter?.weapon?.id)} weapon.skill=${JSON.stringify(fighter?.weapon?.skill || null)} elem=${elem} round=${roundNum} dmgPct=${JSON.stringify(r.dmgPct || {})} mult=${mult}`);
     }
     return mult;
