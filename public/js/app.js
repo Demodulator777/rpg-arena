@@ -6188,16 +6188,16 @@ function showItemTooltip(event, itemId) {
         }
     }
 
-    const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
+    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...Object.keys(d.upgradedStats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getDisplayItemDesc(d);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
-    for (const stat of allStats) {
+    for (const stat of allKeys) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
-        const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
+        const nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0), ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0), diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
@@ -6343,16 +6343,16 @@ function showItemTooltip(event, itemId) {
         }
     }
 
-    const allStats = new Set([...Object.keys(d.stats||{}),...Object.keys(equippedItem?.stats||{})].filter(k=>!k.includes('type')));
+    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...Object.keys(d.upgradedStats||{})].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getCanonicalItemDesc(d.desc);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
-    for (const stat of allStats) {
+    for (const stat of allKeys) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
-        const nv = d.stats?.[stat]||0, ov = equippedItem?.stats?.[stat]||0, diff = nv - ov;
+        const nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0), ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0), diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
@@ -6471,14 +6471,16 @@ function showForgeItemTooltip(event, itemJson) {
 
     const allStats = new Set([
         ...Object.keys(item.stats || {}),
-        ...Object.keys(equippedItem?.stats || {})
+        ...Object.keys(item.wp_stats || {}),
+        ...Object.keys(equippedItem?.stats || {}),
+        ...Object.keys(equippedItem?.wp_stats || {})
     ].filter(k => !k.includes('type')));
 
     const statsHtml = Array.from(allStats)
         .filter(stat => stat !== 'elem_dmg' && stat !== 'elem_dmg_type' && stat !== 'elem_resist')
         .map(stat => {
-            const nv = item.stats?.[stat] || 0;
-            const ov = equippedItem?.stats?.[stat] || 0;
+            const nv = (item.stats?.[stat] || 0) + (item.wp_stats?.[stat] || 0);
+            const ov = ((equippedItem?.stats?.[stat]) || 0) + ((equippedItem?.wp_stats?.[stat]) || 0);
             const diff = nv - ov;
             const dc = diff > 0 ? '#2ecc71' : diff < 0 ? '#e74c3c' : 'rgba(255,255,255,0.3)';
             const ds = diff > 0 ? `▲${diff}` : diff < 0 ? `▼${Math.abs(diff)}` : '';
@@ -12067,14 +12069,16 @@ function showShopItemTooltip(event, itemJson) {
     let statsHtml = '';
     const allStats = new Set([
         ...Object.keys(item.stats || {}),
-        ...Object.keys(equippedItem?.stats || {})
+        ...Object.keys(item.wp_stats || {}),
+        ...Object.keys(equippedItem?.stats || {}),
+        ...Object.keys(equippedItem?.wp_stats || {})
     ].filter(k => !k.includes('type')));
 
     for (const stat of allStats) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
 
-        const nv = item.stats?.[stat] || 0;
-        const ov = equippedItem?.stats?.[stat] || 0;
+        const nv = (item.stats?.[stat] || 0) + (item.wp_stats?.[stat] || 0);
+        const ov = ((equippedItem?.stats?.[stat]) || 0) + ((equippedItem?.wp_stats?.[stat]) || 0);
         const diff = nv - ov;
 
         // Skip useless empty rows
