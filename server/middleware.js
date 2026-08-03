@@ -4,6 +4,41 @@ const { getDb } = require('./db');
 
 const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'rpg-arena-dev-secret');
 
+// Reduce to a network prefix for comparison: IPv4 /24, IPv6 /64 (best-effort).
+// Returns null when the address can't be parsed.
+function ipPrefix(ip) {
+    let s = String(ip || '').trim().replace(/^\[|\]$/g, '');
+    const m4 = s.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})(:\d+)?$/);
+    if (m4) return 'v4:' + m4[1] + '.' + m4[2] + '.' + m4[3];
+    // IPv6 — expand '::' to full 8 hextets, then take the /64 (first 4).
+    s = s.split('%')[0];
+    const hasDouble = s.includes('::');
+    const parts = s.split(':');
+    const hextets = [];
+    let doubled = false;
+    for (const p of parts) {
+        if (p === '' && hasDouble && !doubled) {
+            doubled = true;
+            const zeros = 8 - (parts.length - 2);
+            for (let i = 0; i < zeros; i++) hextets.push('0');
+        } else if (p !== '') {
+            hextets.push(p);
+        }
+    }
+    if (!hextets.length) return null;
+    return 'v6:' + hextets.slice(0, 4).join(':');
+}
+
+// Two IPs are "the same network" if equal, or share a /24 (IPv4) /64 (IPv6).
+// Tolerates mobile/CGNAT IP churn within the same ISP range.
+function sameIpNetwork(ipA, ipB) {
+    if (ipA === ipB) return true;
+    const a = ipPrefix(ipA);
+    const b = ipPrefix(ipB);
+    if (!a || !b) return false;
+    return a === b;
+}
+
 module.exports = async (req, res, next) => {
     const header = req.headers.authorization;
     if (!header) return res.status(401).json({ error: 'No token' });
@@ -59,13 +94,18 @@ module.exports = async (req, res, next) => {
         if (decoded.sessionId && sessionParsed && dbSessionId && decoded.sessionId !== dbSessionId) {
             return res.status(401).json({ error: 'Session expired' });
         }
-        // Bind the token to the IP that issued it. If it's used from a different
-        // IP, treat it as a stolen/moved session and reject. Can be disabled with
-        // BIND_TOKEN_TO_IP=0 if IP changes cause unwanted logouts.
-        if (process.env.BIND_TOKEN_TO_IP !== '0' && decoded.ip) {
+        // Bind the token to the network of the IP that issued it. Configurable:
+        //   unset / 'subnet' -> match /24 (IPv4) or /64 (IPv6), tolerates mobile/CGNAT churn
+        //   'strict'         -> exact IP match
+        //   0 / 'false' / 'off' -> disabled
+        const bindMode = String(process.env.BIND_TOKEN_TO_IP || 'subnet').toLowerCase();
+        if (bindMode !== '0' && bindMode !== 'false' && bindMode !== 'off' && decoded.ip) {
             const curIp = String(req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0] || '').trim().slice(0, 45);
-            if (curIp && decoded.ip !== curIp) {
-                return res.status(401).json({ error: 'Session bound to another IP. Please log in again.' });
+            if (curIp) {
+                const ok = bindMode === 'strict' ? decoded.ip === curIp : sameIpNetwork(decoded.ip, curIp);
+                if (!ok) {
+                    return res.status(401).json({ error: 'Session bound to another network. Please log in again.' });
+                }
             }
         }
         
