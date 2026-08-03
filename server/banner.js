@@ -1,5 +1,8 @@
 
 
+require('dotenv').config();
+
+
 const express = require('express');
 const { getDb } = require('./db');
 
@@ -579,7 +582,7 @@ const BANNER_MIGRATIONS = [
 const adminRouter = express.Router();
 
 // Use same API key as other admin endpoints
-const ADMIN_KEY = process.env.ADMIN_KEY || process.env.API_KEY || 'admin-secret-key';
+const ADMIN_KEY = process.env.ADMIN_KEY || process.env.API_KEY || (process.env.NODE_ENV === 'production' ? '' : 'admin-secret-key');
 
 function adminAuth(req, res, next) {
     const key = req.headers['x-admin-key'] || req.query.key;
