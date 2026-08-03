@@ -911,11 +911,11 @@ const CRAFTING_SETS = {
     },
     voidborn: {
         name:'Voidborn Set', emoji:'🌑',
-        bonus3:{ magic:120, crit_chance:80,  desc:'2/5: +120 MAG · +80 Crit' },
+        bonus3:{ magic:100, crit_chance:80,  desc:'2/5: +100 MAG · +80 Crit' },
         bonus5:{
-            magic:250, crit_chance:180, hit_chance:120,
+            magic:160, crit_chance:120, hit_chance:120,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'5/5: +250 MAG · +180 Crit · +120 Hit · +20 all Elem Resist'
+            desc:'5/5: +160 MAG · +120 Crit · +120 Hit · +20 all Elem Resist'
         },
     },
     spiteforged: {
@@ -924,9 +924,9 @@ const CRAFTING_SETS = {
             pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
             desc:'2/5: +120 STR · +100 Crit · +60 Hit · +10 all Elem Resist' },
         bonus5:{
-            strength:250, crit_chance:180, hit_chance:120,
+            strength:200, crit_chance:150, hit_chance:120,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'5/5: +250 STR · +180 Crit · +120 Hit · +20 all Elem Resist'
+            desc:'5/5: +200 STR · +150 Crit · +120 Hit · +20 all Elem Resist'
         },
     },
     shadewalker: {
