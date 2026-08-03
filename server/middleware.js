@@ -41,15 +41,32 @@ module.exports = async (req, res, next) => {
 
         // Check if session matches (logout when new login elsewhere)
         const currentSession = user.rows[0].user_session;
+        let dbSessionId = null;
+        let sessionParsed = false;
         if (currentSession) {
             try {
                 const sess = JSON.parse(currentSession);
-                // Compare session IDs - if they don't match, another login happened
-                const dbSessionId = sess.id || null;
-                if (decoded.sessionId && dbSessionId && decoded.sessionId !== dbSessionId) {
-                    return res.status(401).json({ error: 'Session expired' });
-                }
+                dbSessionId = sess.id || null;
+                sessionParsed = true;
             } catch {}
+        }
+        // If the token carries a session but the DB has none, the user logged out
+        // (or the session was cleared) -> reject so the old token stops working.
+        if (decoded.sessionId && !currentSession) {
+            return res.status(401).json({ error: 'Session expired' });
+        }
+        // If the session id changed, another login happened elsewhere -> reject.
+        if (decoded.sessionId && sessionParsed && dbSessionId && decoded.sessionId !== dbSessionId) {
+            return res.status(401).json({ error: 'Session expired' });
+        }
+        // Bind the token to the IP that issued it. If it's used from a different
+        // IP, treat it as a stolen/moved session and reject. Can be disabled with
+        // BIND_TOKEN_TO_IP=0 if IP changes cause unwanted logouts.
+        if (process.env.BIND_TOKEN_TO_IP !== '0' && decoded.ip) {
+            const curIp = String(req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0] || '').trim().slice(0, 45);
+            if (curIp && decoded.ip !== curIp) {
+                return res.status(401).json({ error: 'Session bound to another IP. Please log in again.' });
+            }
         }
         
         // Set req.user with userId, username, and tabSession for dungeon tracking
