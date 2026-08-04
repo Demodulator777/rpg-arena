@@ -966,13 +966,13 @@ const CRAFTING_SETS = {
     wyrmflame: {
         name:'Wyrmflame Regalia', emoji:'🐉',
         bonus3:{
-            hit_chance:100, strength:140, pyro_dmg:12, pyro_resist:12,
-            desc:'2/5: +100 Hit · +140 STR · +12 Pyro Dmg · +12 Pyro Resist'
+            hit_chance:70, strength:70, pyro_dmg:12, pyro_resist:12,
+            desc:'2/5: +100 Hit · +70 STR · +12 Pyro Dmg · +12 Pyro Resist'
         },
         bonus5:{
-            hit_chance:200, strength:260, dmg_min:80, dmg_max:120,
+            hit_chance:150, strength:125, dmg_min:30, dmg_max:60,
             pyro_dmg:25, pyro_resist:22,
-            desc:'5/5: +200 Hit · +260 STR · +80-120 Dmg · +25 Pyro Dmg · +22 Pyro Resist'
+            desc:'5/5: +150 Hit · +125 STR · +30-60 Dmg · +25 Pyro Dmg · +22 Pyro Resist'
         },
     },
     marsh_reaper: {
