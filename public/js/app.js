@@ -6192,7 +6192,7 @@ function showItemTooltip(event, itemId) {
         }
     }
 
-    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...Object.keys(d.upgradedStats||{})].filter(k=>!k.includes('type')));
+    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...(Array.isArray(d.upgradedStats) ? d.upgradedStats : Object.keys(d.upgradedStats||{}))].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getDisplayItemDesc(d);
@@ -6347,7 +6347,7 @@ function showItemTooltip(event, itemId) {
         }
     }
 
-    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...Object.keys(d.upgradedStats||{})].filter(k=>!k.includes('type')));
+    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...(Array.isArray(d.upgradedStats) ? d.upgradedStats : Object.keys(d.upgradedStats||{}))].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getCanonicalItemDesc(d.desc);
