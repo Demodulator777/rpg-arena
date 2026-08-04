@@ -8108,36 +8108,15 @@ async function activatePremium(featureId) {
         character = d.character;
         renderTopBar();
         showMsg('premium-msg', d.message);
-        updatePremiumCard(featureId);
+        // Re-fetch fresh feature data so the day count reflects the new expiry
+        // (fixes stale badge that never updated when activating/renewing).
+        const data = await api('GET', '/game/premium/features');
+        renderPremium(data);
     } catch(e) { showMsg('premium-msg', e.message, true); }
 }
 
 function updatePremiumCard(featureId) {
-    const btn = [...document.querySelectorAll('button[data-action="activatePremium"]')].find(b => parseActionArgs(b)?.[0] === featureId);
-    if (!btn) return;
-    const card = btn.closest('.premium-feature-card');
-    if (!card || card.classList.contains('is-active')) return;
-    card.classList.add('is-active');
-    card.style.background = 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))';
-    card.style.borderColor = 'rgba(241,196,15,0.5)';
-    card.querySelectorAll('.premium-feature-art-wrap').forEach(wrap => {
-        if (!wrap.querySelector('.premium-feature-days')) {
-            const badge = document.createElement('div');
-            badge.className = 'premium-feature-days';
-            badge.style.cssText = 'position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700';
-            badge.textContent = '30d left';
-            wrap.appendChild(badge);
-        }
-    });
-    const match = btn.textContent.match(/([\d,]+)\s*💎/);
-    const cost = match ? match[1] : '500';
-    btn.textContent = `✅ Active · Renew for ${cost} 💎`;
-    btn.style.borderColor = 'rgba(241,196,15,0.4)';
-    btn.style.background = 'rgba(241,196,15,0.1)';
-    btn.style.color = 'var(--gold)';
-    btn.disabled = false;
-    const gemEl = document.querySelector('#premium-content > div:first-child span:last-child');
-    if (gemEl) gemEl.textContent = `💎 ${(character.gems || 0).toLocaleString()}`;
+    // No-op retained for safety; day counts are refreshed via renderPremium() after activation.
 }
 
 // ── Shop Reroll ────────────────────────────────────────────────────────────
@@ -8677,7 +8656,7 @@ async function openWarPanel(warId) {
                     return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
                     <span>Outpost ${i + 1}</span>
                     ${info}
-                    <span>${o.winner ? (o.winner === 'attacker' ? '✅ Won' : '❌ Lost') : '⏳ Pending'}</span>
+                    <span>${o.winner ? (o.winner === 'attacker' ? '✅ Won' : '❌ Lost') : '⏳ Pending'}${o.battle_log && o.battle_log.length ? ` <button class="btn-secondary btn-sm" style="margin-left:6px" ${actionAttrs('viewOutpostLog', w.id, i)}>📜 Log</button>` : ''}</span>
                 </div>`;
                 }).join('')}
             </div>
@@ -8692,6 +8671,28 @@ async function openWarPanel(warId) {
     }
 }
 window.openWarPanel = openWarPanel;
+
+async function viewOutpostLog(warId, outpostIndex) {
+    try {
+        const res = await api('GET', `/game/squads/wars/${warId}`);
+        const w = res.war;
+        if (!w) return;
+        const op = w.outposts.find(o => o.outpost_index === outpostIndex);
+        if (!op || !Array.isArray(op.battle_log) || !op.battle_log.length) {
+            openGameNoticeDialog({ title: `Outpost ${outpostIndex + 1} — Battle Log`, message: 'No battle log recorded for this outpost.', confirmLabel: 'Close' });
+            return;
+        }
+        const lines = op.battle_log.map(l => `<div style="padding:1px 0;font-size:0.72rem;${l.startsWith('  ') ? 'color:var(--text-dim);padding-left:14px' : 'color:#e8e8e8;font-weight:700'}">${escHtml(l)}</div>`).join('');
+        openGameNoticeDialog({
+            title: `Outpost ${outpostIndex + 1} — Battle Log`,
+            message: `<div style="max-height:60vh;overflow-y:auto;border:1px solid #ffffff22;border-radius:8px;padding:8px 10px;background:rgba(0,0,0,0.25)">${lines}</div>`,
+            confirmLabel: 'Close'
+        });
+    } catch (e) {
+        openGameNoticeDialog({ title: 'Battle Log', message: e.message || String(e), confirmLabel: 'Close' });
+    }
+}
+window.viewOutpostLog = viewOutpostLog;
 
 async function scoutOutpost(warId) {
     const res = await api('GET', `/game/squads/wars/${warId}`);
