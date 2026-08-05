@@ -36,6 +36,12 @@ async function load() {
     ]);
     myCharId = charData.id;
     render(charData, tournamentData);
+    // Keep the app's top bar in sync (joining deducts gold/gems that the global
+    // `character` object wouldn't otherwise know about).
+    try {
+      if (typeof character !== 'undefined' && character) character = charData;
+      if (typeof renderTopBar === 'function') renderTopBar();
+    } catch {}
   } catch (e) {
     const c = _tContainer();
     if (c) c.innerHTML = `<div class="no-tournament">Error loading: ${e.message}</div>`;
