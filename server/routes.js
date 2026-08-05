@@ -107,6 +107,7 @@ function initWeaponData(itemData) {
     if (!itemData.wp_xp) itemData.wp_xp = 0;
     if (!itemData.wp_feed) itemData.wp_feed = 0;
     if (itemData.wp_stat_points == null) itemData.wp_stat_points = 0;
+    if (!itemData.wp_stats) itemData.wp_stats = {};
     return itemData;
 }
 
@@ -1426,7 +1427,8 @@ const WEEKLY_TASKS = [
             outpost_index INTEGER NOT NULL,
             attacker_power REAL NOT NULL DEFAULT 0,
             defender_power REAL NOT NULL DEFAULT 0,
-            winner TEXT DEFAULT NULL
+            winner TEXT DEFAULT NULL,
+            battle_log TEXT DEFAULT NULL
         )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_war_assignments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1464,6 +1466,7 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN intent TEXT NOT NULL DEFAULT 'capture'`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_power REAL DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_count INTEGER DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN battle_log TEXT DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `UPDATE clan_wars SET phase='defense' WHERE phase='scout'`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_level INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_expires_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
@@ -11039,41 +11042,164 @@ async function autoAdvanceWar(db, war) {
     return changed;
 }
 
+// Server-side tick: auto-advance / auto-resolve any pending wars so the global
+// report is posted without requiring a user to open the war panel.
+async function processPendingWars(db) {
+    try {
+        const rows = await dbAll(db, "SELECT * FROM clan_wars WHERE status='preparation'");
+        for (const war of rows) {
+            try {
+                const changed = await autoAdvanceWar(db, war);
+                if (changed) console.log(`[War] auto-advanced war #${war.id}`);
+            } catch (e) {
+                console.error(`[War] auto-advance error for war #${war.id}:`, e.message);
+            }
+        }
+    } catch (e) {
+        console.error('[War] processPendingWars error:', e.message);
+    }
+}
+
+// Build a fight where each side targets only the opposing side (no friendly fire),
+// round by round, until only one side is left standing. Mirrors the tournament's
+// all-vs-all logic but restricts targets to the enemy team.
+async function runSquadBattle(db, attackerChars, defenderChars, attackerName, defenderName) {
+    const log = [`👥 ${attackerName} (${attackerChars.length}) vs ${defenderName} (${defenderChars.length}) — battle begins!`];
+    log.push('---');
+    const fighters = [];
+    for (const c of attackerChars) {
+        const f = await buildCombatFighter(db, c);
+        f._team = 'attacker';
+        f._dead = false;
+        f.hp = f.hpMax; // fresh HP for the fight
+        fighters.push(f);
+    }
+    for (const c of defenderChars) {
+        const f = await buildCombatFighter(db, c);
+        f._team = 'defender';
+        f._dead = false;
+        f.hp = f.hpMax;
+        fighters.push(f);
+    }
+
+    let round = 0;
+    const MAX_ROUNDS = 300;
+    while (round < MAX_ROUNDS) {
+        const aliveA = fighters.filter(f => f._team === 'attacker' && f.hp > 0);
+        const aliveD = fighters.filter(f => f._team === 'defender' && f.hp > 0);
+        if (aliveA.length === 0 || aliveD.length === 0) break;
+        round++;
+        log.push(`🌀 Round ${round} — ${aliveA.length} attacker(s) / ${aliveD.length} defender(s)`);
+        const idx = (round - 1) % 10;
+        const atkZone = DEFAULT_ATTACK_ZONES[idx];
+        const blkZone = DEFAULT_BLOCK_ZONES[idx];
+
+        // Attackers strike defenders
+        for (const attacker of aliveA) {
+            const targets = aliveD.filter(t => t.hp > 0);
+            if (!targets.length) break;
+            const target = targets[Math.floor(Math.random() * targets.length)];
+            const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
+            const dealt = res.damageDealt || 0;
+            target.hp = Math.max(0, target.hp - dealt);
+            if (dealt > 0) log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
+        }
+        // Defenders strike attackers
+        for (const attacker of aliveD) {
+            const targets = aliveA.filter(t => t.hp > 0);
+            if (!targets.length) break;
+            const target = targets[Math.floor(Math.random() * targets.length)];
+            const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
+            const dealt = res.damageDealt || 0;
+            target.hp = Math.max(0, target.hp - dealt);
+            if (dealt > 0) log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
+        }
+        let anyDied = false;
+        for (const f of fighters) {
+            if (f.hp <= 0 && !f._dead) { f._dead = true; log.push(`💀 ${f.name} is eliminated!`); anyDied = true; }
+        }
+        if (anyDied) log.push('---');
+        if (fighters.filter(f => f.hp > 0).length <= 1) break;
+    }
+
+    const aliveA = fighters.filter(f => f._team === 'attacker' && f.hp > 0).length;
+    const aliveD = fighters.filter(f => f._team === 'defender' && f.hp > 0).length;
+    let winner;
+    if (aliveA > 0) winner = 'attacker';
+    else if (aliveD > 0) winner = 'defender';
+    else winner = 'defender'; // simultaneous wipe — defender holds ground
+    log.push(`🏁 ${winner === 'attacker' ? attackerName : defenderName} holds the outpost!`);
+    return { winner, log };
+}
+
 async function resolveWarBattle(db, war) {
     const warId = war.id;
     const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? ORDER BY outpost_index ASC', [warId]);
     let attackerWins = 0, defenderWins = 0;
     let carryOver = 0;
     const isLootRaid = war.intent === 'loot';
+    const isNpcWar = Number(war.is_npc_war || 0) === 1;
+    const [attSquad, defSquad, baseRow] = await Promise.all([
+        dbGet(db, 'SELECT name FROM squads WHERE id=?', [war.attacker_squad_id]),
+        war.defender_squad_id ? dbGet(db, 'SELECT name FROM squads WHERE id=?', [war.defender_squad_id]) : Promise.resolve(null),
+        dbGet(db, 'SELECT name FROM clan_bases WHERE id=?', [war.base_id])
+    ]);
+    const attName = attSquad?.name || 'Unknown';
+    const defName = war.defender_squad_id ? (defSquad?.name || 'NPC Defenders') : 'NPC Defenders';
 
     for (const op of outposts) {
         // Loot raid ends early once attacker hits 3 wins
         if (isLootRaid && attackerWins >= 3) break;
 
-        const defPower = Number(op.defender_power || 0);
-        const assignedPower = Number(op.attacker_power || 0);
-        const totalAtkPower = assignedPower + carryOver;
         let winner;
-        if (totalAtkPower <= 0 && defPower <= 0) {
-            winner = 'defender';
-        } else if (totalAtkPower <= 0) {
-            winner = 'defender';
-        } else if (defPower <= 0) {
-            winner = 'attacker';
+        let battleLog = null;
+        if (isNpcWar) {
+            // NPC wars keep the fast aggregate power roll
+            const defPower = Number(op.defender_power || 0);
+            const assignedPower = Number(op.attacker_power || 0);
+            const totalAtkPower = assignedPower + carryOver;
+            if (totalAtkPower <= 0 && defPower <= 0) {
+                winner = 'defender';
+            } else if (totalAtkPower <= 0) {
+                winner = 'defender';
+            } else if (defPower <= 0) {
+                winner = 'attacker';
+            } else {
+                const atkRoll = totalAtkPower * (0.8 + Math.random() * 0.4);
+                const defRoll = defPower * (0.8 + Math.random() * 0.4);
+                winner = atkRoll >= defRoll ? 'attacker' : 'defender';
+            }
+            if (winner === 'attacker') {
+                const consumedRatio = Math.min(1, defPower / Math.max(1, totalAtkPower)) * (0.6 + Math.random() * 0.4);
+                carryOver = Math.floor(totalAtkPower * (1 - consumedRatio));
+                attackerWins++;
+            } else {
+                carryOver = 0;
+                defenderWins++;
+            }
+            battleLog = [
+                `🏰 Outpost ${op.outpost_index + 1} — ${attName} (${Number(op.attacker_power || 0).toLocaleString()} power) assaults NPC defenders (${Number(defPower).toLocaleString()} power).`,
+                winner === 'attacker' ? `✅ ${attName} overwhelms the defenders and takes the outpost!` : `❌ The NPC defenders repulse ${attName}!`
+            ];
         } else {
-            const atkRoll = totalAtkPower * (0.8 + Math.random() * 0.4);
-            const defRoll = defPower * (0.8 + Math.random() * 0.4);
-            winner = atkRoll >= defRoll ? 'attacker' : 'defender';
+            // PvP: real all-vs-all between the assigned fighters
+            const aChars = await dbAll(db, `SELECT c.* FROM characters c JOIN clan_war_assignments wa ON wa.char_id=c.id WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='attacker'`, [warId, op.id]);
+            const dChars = await dbAll(db, `SELECT c.* FROM characters c JOIN clan_war_assignments wa ON wa.char_id=c.id WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='defender'`, [warId, op.id]);
+            if (!aChars.length) {
+                winner = 'defender';
+                battleLog = [`🛡️ Outpost ${op.outpost_index + 1} — no attackers were assigned; ${defName} holds it without a fight.`];
+            } else if (!dChars.length) {
+                winner = 'attacker';
+                battleLog = [`⚔️ Outpost ${op.outpost_index + 1} — ${attName} found no defenders and seized it uncontested.`];
+            } else {
+                const result = await runSquadBattle(db, aChars, dChars, attName, defName);
+                winner = result.winner;
+                battleLog = result.log;
+            }
+            if (winner === 'attacker') attackerWins++;
+            else defenderWins++;
         }
-        if (winner === 'attacker') {
-            const consumedRatio = Math.min(1, defPower / Math.max(1, totalAtkPower)) * (0.6 + Math.random() * 0.4);
-            carryOver = Math.floor(totalAtkPower * (1 - consumedRatio));
-            attackerWins++;
-        } else {
-            carryOver = 0;
-            defenderWins++;
-        }
-        await dbRun(db, 'UPDATE clan_war_outposts SET winner=? WHERE id=?', [winner, op.id]);
+        await dbRun(db, 'UPDATE clan_war_outposts SET winner=?, battle_log=? WHERE id=?', [winner, battleLog ? JSON.stringify(battleLog) : null, op.id]);
     }
 
     // ---- Loot Raid resolution ----
@@ -11159,7 +11285,6 @@ async function resolveWarBattle(db, war) {
     const attNameC = attSquadC?.name || 'Unknown';
     const defNameC = war.defender_squad_id ? (defSquadC?.name || 'Unknown') : 'NPC Defenders';
     const baseNameC = baseC?.name || 'Unknown';
-    const isNpcWar = Number(war.is_npc_war || 0) === 1;
     // Notify attacker squad
     if (capturedBase) {
         await notifySquadWarEnd(db, war.attacker_squad_id, warId,
@@ -11375,6 +11500,7 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
                     scouted_count: o.scouted_count != null ? Number(o.scouted_count) : null,
                     defender_count: defCountMap[Number(o.id)] || 0,
                     winner: o.winner,
+                    battle_log: o.battle_log ? (() => { try { return JSON.parse(o.battle_log); } catch { return null; } })() : null,
                 })),
                 scouts: scouts.map(s => ({
                     id: Number(s.id), char_id: Number(s.char_id), outpost_index: Number(s.outpost_index), status: s.status,
@@ -21268,6 +21394,7 @@ module.exports = {
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
     runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
+    processPendingWars,
     ensureElemental,
     purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
     backfillWeeklyPerformance
