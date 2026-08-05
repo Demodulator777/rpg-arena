@@ -10,7 +10,7 @@ const {
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
   getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
   DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-  applyWeaponSkill
+  applyWeaponSkill, ensureElemental
 } = require('./routes');
 const {
   computePassiveBonusesWithProgress,
@@ -515,8 +515,8 @@ async function buildFighter(db, participant, participants, noEquip) {
 
   // Shared elemental loader
   const loadElem = async () => {
-    const er = await dbGet_t(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [char.id]).catch(() => null);
-    if (!er) return null;
+    const er = await ensureElemental(db, char.id);
+    if (!er || er.is_equipped !== 1) return null;
     const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
     const bd = (er.defense || 5) + (er.stat_def || 0) * 2;
     const ba = (er.agility || 5) + (er.stat_agi || 0) * 2;
@@ -716,11 +716,13 @@ function deathmatchBattle(fighterA, fighterB) {
     hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
 
     if (elemA && elemAHp > 0 && dmgToA > 0) {
-      elemAHp = Math.max(0, elemAHp - Math.max(1, Math.floor(dmgToA * 0.05)));
+      const capA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
+      elemAHp = Math.max(0, elemAHp - Math.min(capA, Math.max(1, Math.floor(dmgToA * 0.03))));
       if (elemAHp <= 0) { resA.logLine += ` 🐉 ${elemA.name} is knocked out!`; }
     }
     if (elemB && elemBHp > 0 && dmgToB > 0) {
-      elemBHp = Math.max(0, elemBHp - Math.max(1, Math.floor(dmgToB * 0.05)));
+      const capB = Math.max(1, Math.floor((elemB.hpMax || 9999) * 0.06));
+      elemBHp = Math.max(0, elemBHp - Math.min(capB, Math.max(1, Math.floor(dmgToB * 0.03))));
       if (elemBHp <= 0) { resB.logLine += ` 🐉 ${elemB.name} is knocked out!`; }
     }
 
@@ -916,11 +918,13 @@ function normalBattle(fighterA, fighterB) {
     hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
 
     if (elemA && elemAHp > 0 && dmgToA > 0) {
-      elemAHp = Math.max(0, elemAHp - Math.max(1, Math.floor(dmgToA * 0.05)));
+      const capA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
+      elemAHp = Math.max(0, elemAHp - Math.min(capA, Math.max(1, Math.floor(dmgToA * 0.03))));
       if (elemAHp <= 0) { resA.logLine += ` 🐉 ${elemA.name} is knocked out!`; }
     }
     if (elemB && elemBHp > 0 && dmgToB > 0) {
-      elemBHp = Math.max(0, elemBHp - Math.max(1, Math.floor(dmgToB * 0.05)));
+      const capB = Math.max(1, Math.floor((elemB.hpMax || 9999) * 0.06));
+      elemBHp = Math.max(0, elemBHp - Math.min(capB, Math.max(1, Math.floor(dmgToB * 0.03))));
       if (elemBHp <= 0) { resB.logLine += ` 🐉 ${elemB.name} is knocked out!`; }
     }
 
@@ -1118,7 +1122,12 @@ async function sendMatchReport(db, mm, participants, pid) {
 
 async function finalizeTournament(db, tournamentId) {
   const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [tournamentId]);
-  const mode = t ? t.mode : 'deathmatch';
+  if (!t) return;
+  // Fix hp_start for participants with 0/NULL hp_start (e.g. joined while dead)
+  // so they are included in the DSQ scan for least_damage mode instead of being
+  // silently excluded from the standings (which let them dodge disqualification).
+  await dbRun_t(db, "UPDATE tournament_participants SET hp_start = hp_max WHERE tournament_id = ? AND (hp_start IS NULL OR hp_start = 0)", [tournamentId]);
+  const mode = t.mode;
   let orderSQL, pointsField;
   if (mode === 'damage') {
     orderSQL = 'total_damage_dealt DESC';
