@@ -5523,7 +5523,7 @@ function renderDialogStatGrid(weap) {
     const pending = window._pendingWeaponStats || {};
     const totalUsed = Object.values(pending).reduce((s,v) => s+v, 0);
     container.innerHTML = validStats.map(s => {
-        const base = weap.wp_stats[s] || 0;
+        const base = (weap.wp_stats || {})[s] || 0;
         const add = pending[s] || 0;
         return `<div style="display:grid;grid-template-columns:1fr 35px 35px auto;align-items:center;gap:6px;padding:4px 8px;background:rgba(255,255,255,0.04);border-radius:6px;font-size:0.7rem">
             <span>${labels[s]||s}</span>
