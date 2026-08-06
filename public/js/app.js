@@ -1921,6 +1921,10 @@ function logout() {
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
     chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatSeenGlobalId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
+    // Reset one-shot ban/warning modal flags so the modal re-shows after any re-login
+    // or subsequent banned request instead of only on the first 403 after load.
+    window.__banLockShown = false;
+    window.__banWarningShown = false;
     localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
