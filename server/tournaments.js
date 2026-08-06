@@ -657,9 +657,23 @@ function deathmatchBattle(fighterA, fighterB) {
 
   let winnerId = null, roundsCompleted = 0;
   let maxHitToA = 0, maxHitToB = 0;
+  let warriorPrevDmgA = 0, warriorPrevDmgB = 0;
 
   const MAX_ROUNDS = 100;
   for (let round = 1; round <= MAX_ROUNDS; round++) {
+    // Warrior shield: base armor + 20% of last round's damage taken, fully refreshed
+    if (fighterA.class === 'warrior') {
+      const baseArmorA = fighterA.shield?.stats?.armor || 0;
+      const carryoverA = Math.floor((warriorPrevDmgA || 0) * 0.2);
+      const totalShieldA = baseArmorA + carryoverA;
+      shieldA = { active: totalShieldA > 0, value: totalShieldA, remaining: totalShieldA };
+    }
+    if (fighterB.class === 'warrior') {
+      const baseArmorB = fighterB.shield?.stats?.armor || 0;
+      const carryoverB = Math.floor((warriorPrevDmgB || 0) * 0.2);
+      const totalShieldB = baseArmorB + carryoverB;
+      shieldB = { active: totalShieldB > 0, value: totalShieldB, remaining: totalShieldB };
+    }
     const idx = (round - 1) % 10;
     const atkZoneA = (fighterA.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
     const blkZoneA = (fighterA.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
@@ -732,6 +746,9 @@ function deathmatchBattle(fighterA, fighterB) {
     if (burnToB > 0) { hpB = Math.max(0, hpB - burnToB); log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`); }
 
     fighterA.hp = hpA; fighterB.hp = hpB;
+
+    if (fighterA.class === 'warrior') warriorPrevDmgA = dmgToA + elemDmgToA + burnToA;
+    if (fighterB.class === 'warrior') warriorPrevDmgB = dmgToB + elemDmgToB + burnToB;
 
     log.push(resA.logLine);
     log.push(resB.logLine);
@@ -862,8 +879,22 @@ function normalBattle(fighterA, fighterB) {
   log.push('---');
 
   let winnerId = null, roundsCompleted = 0;
+  let warriorPrevDmgA = 0, warriorPrevDmgB = 0;
 
   for (let round = 1; round <= NORMAL_ROUNDS; round++) {
+    // Warrior shield: base armor + 20% of last round's damage taken, fully refreshed
+    if (fighterA.class === 'warrior') {
+      const baseArmorA = fighterA.shield?.stats?.armor || 0;
+      const carryoverA = Math.floor((warriorPrevDmgA || 0) * 0.2);
+      const totalShieldA = baseArmorA + carryoverA;
+      shieldA = { active: totalShieldA > 0, value: totalShieldA, remaining: totalShieldA };
+    }
+    if (fighterB.class === 'warrior') {
+      const baseArmorB = fighterB.shield?.stats?.armor || 0;
+      const carryoverB = Math.floor((warriorPrevDmgB || 0) * 0.2);
+      const totalShieldB = baseArmorB + carryoverB;
+      shieldB = { active: totalShieldB > 0, value: totalShieldB, remaining: totalShieldB };
+    }
     const idx = (round - 1) % 10;
     const atkZoneA = (fighterA.attackZones || DEFAULT_ATTACK_ZONES)[idx] || 'chest';
     const blkZoneA = (fighterA.blockZones || DEFAULT_BLOCK_ZONES)[idx] || 'cross_guard';
@@ -934,6 +965,9 @@ function normalBattle(fighterA, fighterB) {
     if (burnToB > 0) { hpB = Math.max(0, hpB - burnToB); log.push(`🔥 ${fighterB.name} takes ${burnToB} burn damage`); }
 
     fighterA.hp = hpA; fighterB.hp = hpB;
+
+    if (fighterA.class === 'warrior') warriorPrevDmgA = dmgToA + elemDmgToA + burnToA;
+    if (fighterB.class === 'warrior') warriorPrevDmgB = dmgToB + elemDmgToB + burnToB;
 
     log.push(resA.logLine);
     log.push(resB.logLine);
