@@ -7116,8 +7116,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             zoneEffMult = (zMult - 0.1) + Math.random() * 0.2;
         }
         if (!specialAttackFired) {
-            // Roll base damage with variance between dmgMin and dmgMax
-            const dmgRoll = dmgMinConfigured + Math.floor(Math.random() * (dmgMaxConfigured - dmgMinConfigured + 1));
+            // Roll base damage with variance between dmgMin and dmgMax.
+            // Guard: if dmg_min > dmg_max (possible via weapon stat allocation), the
+            // naive range (dmgMax-dmgMin+1) goes negative and would roll BELOW dmg_min.
+            // Clamp the roll so it can never deal less than the configured min.
+            const lo = Math.min(dmgMinConfigured, dmgMaxConfigured);
+            const hi = Math.max(dmgMinConfigured, dmgMaxConfigured);
+            const dmgRoll = lo + Math.floor(Math.random() * (hi - lo + 1));
             rawPhysicalDmg = dmgRoll;
             rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
             let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
