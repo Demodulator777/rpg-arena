@@ -895,6 +895,58 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
                 electro_dmg:6, electro_resist:12, pyro_resist:-14, wind_resist:-16 },
         components:{ void_crystal:3, shadowsteel_bar:2, abyss_weave:1 }, goldCost:18000, requiredZone:'void',
     },
+
+    // ══════════════════════════════════════════════
+    //  SET 11 — VOIDFORGED SOVEREIGN  (Citadel set)
+    //  Sovereign void lord — extra hit mechanic via quickness
+    // ══════════════════════════════════════════════
+    {
+        id:'voidforged_weapon', setId:'voidforged', setPiece:'weapon',
+        name:'Voidforged Scepter-Blade', emoji:'🗡️', quality:'legendary',
+        slot:'weapon', weaponType:'scythe',
+        skill: { id: 'voidforged_cleave', name: 'Voidforged Cleave', desc: 'Grants +1 extra hit this battle. +5 electro damage each round, up to +25.' },
+        desc:'Forged in the abyssal core of the Citadel, this blade channels raw dark energy to sever both physical flesh and ethereal souls. ⚔️ Skill: Voidforged Cleave — Grants +1 extra hit this battle. +5 electro damage each round, up to +25.',
+        stats:{ dmg_min:43, dmg_max:43, strength:30, magic:35, agility:8, hit_chance:26, crit_chance:10,
+                electro_dmg:34, electro_resist:12, water_dmg:6, water_resist:8,
+                pyro_resist:10, wind_resist:22 },
+        components:{ void_plate:4, abyss_weave:3, citadel_obsidian_heart:1 }, goldCost:25000, requiredZone:'citadel',
+    },
+    {
+        id:'voidforged_armor', setId:'voidforged', setPiece:'armor',
+        name:'Carapace of the Endless Void', emoji:'🥼', quality:'legendary',
+        slot:'armor',
+        desc:'A monolithic breastplate of heavy obsidian steel, built to swallow incoming impacts into an unyielding abyss.',
+        stats:{ dmg_min:2, dmg_max:2, defense:68, armor:30, hp_max:140, strength:14, magic:28, vitality:8,
+                hit_chance:42, crit_chance:6, electro_resist:22, pyro_resist:16, wind_resist:10, water_resist:6 },
+        components:{ void_plate:4, abyss_weave:3, citadel_obsidian_heart:1 }, goldCost:29000, requiredZone:'citadel',
+    },
+    {
+        id:'voidforged_helmet', setId:'voidforged', setPiece:'helmet',
+        name:'Sovereign Winged Crest', emoji:'👑', quality:'legendary',
+        slot:'helmet',
+        desc:'Imbued with imperial authority, this terrifying helm strikes dread into enemies while shielding the wearer\'s mind from the corruption of the void.',
+        stats:{ strength:20, magic:40, defense:60, armor:16, hp_max:60, hit_chance:44, crit_chance:9,
+                electro_dmg:12, electro_resist:16, pyro_resist:12, wind_dmg:5, wind_resist:16, water_resist:8 },
+        components:{ void_plate:3, shadowsteel_bar:3, citadel_obsidian_heart:1 }, goldCost:22000, requiredZone:'citadel',
+    },
+    {
+        id:'voidforged_shield', setId:'voidforged', setPiece:'shield',
+        name:'Eclipse Bulwark', emoji:'🛡️', quality:'legendary',
+        slot:'shield',
+        desc:'Darkened by the shadow of the Citadel itself, this massive shield turns the force of cataclysmic strikes into harmless ripples of cosmic dust.',
+        stats:{ defense:24, armor:34, strength:24, magic:30, hit_chance:42, crit_chance:7, agility:-10,
+                electro_dmg:8, electro_resist:26, pyro_resist:18, wind_resist:18, water_resist:12 },
+        components:{ void_plate:4, abyss_weave:3, citadel_obsidian_heart:1 }, goldCost:28000, requiredZone:'citadel',
+    },
+    {
+        id:'voidforged_boots', setId:'voidforged', setPiece:'boots',
+        name:'Striders of the Event Horizon', emoji:'👟', quality:'legendary',
+        slot:'boots',
+        desc:'Treads that warp the surrounding space with every stride, granting the wearer terrifying speed across any battlefield.',
+        stats:{ armor:10, agility:18, strength:14, defense:56, magic:28, hit_chance:46, crit_chance:8,
+                electro_dmg:6, electro_resist:14, pyro_resist:14, wind_resist:14, water_resist:8 },
+        components:{ void_crystal:4, shadowsteel_bar:3, citadel_obsidian_heart:1 }, goldCost:20000, requiredZone:'citadel',
+    },
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
@@ -1011,6 +1063,19 @@ const CRAFTING_SETS = {
             strength:300, defense:240, armor:100, hp_max:1700, vitality:50,
             electro_dmg:26, pyro_resist:16, water_resist:16, wind_resist:16, electro_resist:16,
             desc:'5/5: +300 STR · +240 DEF · +100 Armor · +1700 HP · +50 VIT · +26 Electro Dmg · +16 all Elem Resist'
+        },
+    },
+    voidforged: {
+        name:'Voidforged Sovereign Set', emoji:'👑',
+        bonus3:{
+            strength:50, magic:70, defense:80, hp_max:900, hit_chance:30, electro_resist:12,
+            desc:'2/5: +50 STR · +70 MAG · +80 DEF · +900 HP · +30 Hit · +12 Electro Resist'
+        },
+        bonus5:{
+            strength:100, magic:130, defense:120, armor:30, hp_max:1700, vitality:40,
+            hit_chance:150, crit_chance:80, extra_hits:1,
+            electro_dmg:36, electro_resist:24, pyro_resist:16, water_resist:16, wind_resist:16,
+            desc:'5/5: +100 STR · +130 MAG · +120 DEF · +30 Armor · +1700 HP · +40 VIT · +150 Hit · +80 Crit · +1 Extra Hit · +36 Electro Dmg · +16 all Elem Resist'
         },
     },
 };
