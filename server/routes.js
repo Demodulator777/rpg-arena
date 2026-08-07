@@ -6448,6 +6448,18 @@ function getEquippedSetBonuses(equippedItems) {
     return total;
 }
 
+// Return total bonus "extra hits" from the fighter's equipped set bonus (5/5),
+// any quickness skill effect, and equipped weapon skill that grants additional
+// attacks beyond round 10.
+function getFighterExtraHits(fighter) {
+    let extra = Number(fighter?.extra_hits || 0);
+    const q = getActiveCombatEffect(fighter, 'quickness');
+    if (q && Number(q.extra_hits) > 0) extra += Number(q.extra_hits);
+    const ws = weaponSkillRamp(fighter, 1);
+    if (Number(ws.extraHits) > 0) extra += Number(ws.extraHits);
+    return Math.max(0, extra || 0);
+}
+
 function getEquippedWeaponData(equippedItems) {
     for (const item of equippedItems) {
         try {
@@ -7156,6 +7168,10 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 if (elem === 'pyro' && attacker._wyrmflamePyroBonus) {
                     ed += attacker._wyrmflamePyroBonus;
                 }
+                // Voidforged Cleave (weapon skill): flat electro damage ramp
+                if (elem === 'electro' && rampA.elemFlat?.electro) {
+                    ed += rampA.elemFlat.electro;
+                }
                 ed = Math.floor(ed * magicElemMult);
                 if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
                     const critElemMult = magicToElemental ? 1.2 : 1.1;
@@ -7519,7 +7535,16 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let roundsCompleted = 0;
     let warriorPrevDmgA = 0, warriorPrevDmgB = 0;
 
-    for (let round = 1; round <= 10; round++) {
+    // Extra hits: fighter attacks beyond round 10 (zone list wraps, so 11th hit = zone 1, 12th = zone 2, ...).
+    // Only the bonus owner gets the extra attacks.
+    const extraHitsA = getFighterExtraHits(fighterA);
+    const extraHitsB = getFighterExtraHits(fighterB);
+    const maxRounds = 10 + Math.max(extraHitsA, extraHitsB);
+
+    for (let round = 1; round <= maxRounds; round++) {
+        const aActs = round <= 10 + extraHitsA;
+        const bActs = round <= 10 + extraHitsB;
+        const zoneIdx = (round - 1) % 10;
         // Warrior shield: base armor + 20% of last round's damage taken, fully refreshed
         if (fighterA.class === 'warrior') {
             const baseArmorA = fighterA.shield?.stats?.armor || 0;
@@ -7534,10 +7559,10 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             shieldB = { active: totalShieldB > 0, value: totalShieldB, remaining: totalShieldB };
         }
 
-        const atkZoneA = fighterA.attackZones[round-1] || 'chest';
-        const blkZoneA = fighterA.blockZones[round-1]  || 'cross_guard';
-        const atkZoneB = fighterB.attackZones[round-1] || 'chest';
-        const blkZoneB = fighterB.blockZones[round-1]  || 'cross_guard';
+        const atkZoneA = fighterA.attackZones[zoneIdx] || 'chest';
+        const blkZoneA = fighterA.blockZones[zoneIdx]  || 'cross_guard';
+        const atkZoneB = fighterB.attackZones[zoneIdx] || 'chest';
+        const blkZoneB = fighterB.blockZones[zoneIdx]  || 'cross_guard';
 
         // Elemental companion action (before main combat)
         // Role determined by dominant stat: str > def → attack, def >= str → heal
@@ -7570,11 +7595,20 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             }
         }
 
-        const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
-        const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+        const noOpRes = () => ({
+            logLine: '', damageDealt: 0, damageCounter: 0, nextAtkPenalty: false,
+            healBack: 0, totalElemDmg: 0, attackerBurnDmg: 0, defenderBurnDmg: 0,
+            roundStartHeal: 0, postDmgHeal: 0, postDmgHealDefender: 0
+        });
+        const resA = aActs ? simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB) : noOpRes();
+        const resB = bActs ? simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA) : noOpRes();
 
-        if (elemALog) resA.logLine += ` | ${elemALog}`;
-        if (elemBLog) resB.logLine += ` | ${elemBLog}`;
+        if (aActs && elemALog) resA.logLine += ` | ${elemALog}`;
+        if (bActs && elemBLog) resB.logLine += ` | ${elemBLog}`;
+        if (!aActs && elemALog) log.push(`🐉 ${elemALog}`);
+        if (!bActs && elemBLog) log.push(`🐉 ${elemBLog}`);
+        if (!aActs) log.push(`⏳ ${fighterA.name} has no attack this round`);
+        if (!bActs) log.push(`⏳ ${fighterB.name} has no attack this round`);
 
         // Apply round-start heals BEFORE damage so a fighter can die when HP reaches 0
         // (radiance, divine_light, phoenix_soul, holy_regen, battle_start_heal)
@@ -7671,7 +7705,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                 }
             }
             if (resurrected) {
-                if (round < 10) log.push('---');
+                if (round < maxRounds) log.push('---');
                 continue;
             }
             roundEndedPrematurely = true;
@@ -7708,7 +7742,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         }
         fighterA.hp = hpA; fighterB.hp = hpB;
 
-        if (round < 10) log.push('---');
+        if (round < maxRounds) log.push('---');
     }
 
     // Handle tutorial/forced wins
@@ -8285,6 +8319,7 @@ async function buildCombatFighter(db, char) {
         defense: (char.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(char.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense') + _beastStats.def,
         hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
         crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+        extra_hits: Number(setBonuses.extra_hits || 0),
         armor: calcArmorValue(char, equippedArray) + skillPassiveBonus(calcArmorValue(char, equippedArray), skillPassives.armor),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
@@ -8872,18 +8907,20 @@ const WEAPON_SKILLS = Object.freeze([
     { id: 'bulwark',       name: 'Bulwark',       kind: 'armor_ramp',    perRound: 10, cap: 50,  desc: '+10 armor each round, up to +50.' },
     { id: 'shieldbreaker', name: 'Shieldbreaker', kind: 'block_pen_ramp', perRound: 0.05, cap: 0.25, desc: '+5% block penetration each round, up to +25%.' },
     { id: 'eagle_eye',     name: 'Eagle Eye',     kind: 'hit_ramp',       perRound: 0.05, cap: 0.25, desc: '+5% hit chance each round, up to +25%.' },
+    // Voidforged Sovereign: +1 extra hit for the battle + flat elemental damage ramp.
+    { id: 'voidforged_cleave', name: 'Voidforged Cleave', kind: 'extra_hit_electro_ramp', elem: 'electro', extraHits: 1, perRound: 5, cap: 25, desc: 'Grants +1 extra hit this battle. +5 electro damage each round, up to +25.' },
 ]);
 
 // Compute the round-based bonuses from a fighter's weapon skill.
-// Returns { dmgPct: {elem:mult}, resFlat: {elem:amount}, armor, blockPen, hitPct }.
+// Returns { dmgPct: {elem:mult}, resFlat: {elem:amount}, armor, blockPen, hitPct, extraHits, elemFlat }.
 function weaponSkillRamp(fighter, roundNum) {
     const sk = fighter && fighter.weapon && fighter.weapon.skill;
-    const empty = { dmgPct: {}, resFlat: {}, armor: 0, blockPen: 0, hitPct: 0 };
+    const empty = { dmgPct: {}, resFlat: {}, armor: 0, blockPen: 0, hitPct: 0, extraHits: 0, elemFlat: {} };
     if (!sk) return empty;
     const def = WEAPON_SKILLS.find(d => d.id === sk.id);
     if (!def) return empty;
     const r = Math.max(1, roundNum);
-    const out = { dmgPct: {}, resFlat: {}, armor: 0, blockPen: 0, hitPct: 0 };
+    const out = { dmgPct: {}, resFlat: {}, armor: 0, blockPen: 0, hitPct: 0, extraHits: 0, elemFlat: {} };
     if (def.kind === 'elem_dmg_ramp') {
         const mult = 1 + Math.min(def.cap, (r - 1) * def.perRound);
         if (def.elem === 'all') { for (const e of ELEMENTS) out.dmgPct[e] = mult; }
@@ -8898,6 +8935,9 @@ function weaponSkillRamp(fighter, roundNum) {
         out.blockPen = Math.min(def.cap, (r - 1) * def.perRound);
     } else if (def.kind === 'hit_ramp') {
         out.hitPct = Math.min(def.cap, (r - 1) * def.perRound);
+    } else if (def.kind === 'extra_hit_electro_ramp') {
+        out.extraHits = Number(def.extraHits || 0);
+        out.elemFlat[def.elem] = Math.floor(Math.min(def.cap, (r - 1) * def.perRound));
     }
     return out;
 }
@@ -21396,6 +21436,7 @@ module.exports = {
     getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
+    getFighterExtraHits,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
     runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
