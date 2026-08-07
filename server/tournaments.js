@@ -8,6 +8,7 @@ const {
   calcElemAttackValue, calcElemHealValue,
   getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
+  getFighterExtraHits,
   getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
   DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
   applyWeaponSkill, ensureElemental
@@ -602,6 +603,7 @@ async function buildFighter(db, participant, participants, noEquip) {
     defense: (char.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(char.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense'),
     hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
     crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
+    extra_hits: Number(setBonuses.extra_hits || 0),
     armor: armor + skillPassiveBonus(armor, skillPassives.armor),
     agility_bonus: 0,
     dmg_bonus: skillPassives.dmg_bonus || 0,
@@ -881,7 +883,15 @@ function normalBattle(fighterA, fighterB) {
   let winnerId = null, roundsCompleted = 0;
   let warriorPrevDmgA = 0, warriorPrevDmgB = 0;
 
-  for (let round = 1; round <= NORMAL_ROUNDS; round++) {
+  // Extra hits: fighter attacks beyond round 10 (zone list wraps, so 11th hit = zone 1, ...).
+  // Only the bonus owner gets the extra attacks.
+  const extraHitsA = getFighterExtraHits(fighterA);
+  const extraHitsB = getFighterExtraHits(fighterB);
+  const maxRounds = NORMAL_ROUNDS + Math.max(extraHitsA, extraHitsB);
+
+  for (let round = 1; round <= maxRounds; round++) {
+    const aActs = round <= NORMAL_ROUNDS + extraHitsA;
+    const bActs = round <= NORMAL_ROUNDS + extraHitsB;
     // Warrior shield: base armor + 20% of last round's damage taken, fully refreshed
     if (fighterA.class === 'warrior') {
       const baseArmorA = fighterA.shield?.stats?.armor || 0;
@@ -928,11 +938,20 @@ function normalBattle(fighterA, fighterB) {
       }
     }
 
-    const resA = simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB);
-    const resB = simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA);
+    const noOpRes = () => ({
+      logLine: '', damageDealt: 0, damageCounter: 0, nextAtkPenalty: false,
+      healBack: 0, totalElemDmg: 0, attackerBurnDmg: 0, defenderBurnDmg: 0,
+      roundStartHeal: 0, postDmgHeal: 0, postDmgHealDefender: 0
+    });
+    const resA = aActs ? simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB) : noOpRes();
+    const resB = bActs ? simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA) : noOpRes();
 
-    if (elemALog) resA.logLine += ` | ${elemALog}`;
-    if (elemBLog) resB.logLine += ` | ${elemBLog}`;
+    if (aActs && elemALog) resA.logLine += ` | ${elemALog}`;
+    if (bActs && elemBLog) resB.logLine += ` | ${elemBLog}`;
+    if (!aActs && elemALog) log.push(`🐉 ${elemALog}`);
+    if (!bActs && elemBLog) log.push(`🐉 ${elemBLog}`);
+    if (!aActs) log.push(`⏳ ${fighterA.name} has no attack this round`);
+    if (!bActs) log.push(`⏳ ${fighterB.name} has no attack this round`);
 
     // Apply round-start heals BEFORE damage so a fighter can die when HP reaches 0
     if (resA.roundStartHeal > 0) hpA = Math.min(fighterA.hpMax || 9999, hpA + resA.roundStartHeal);
