@@ -508,6 +508,17 @@ const SKILL_TREES = {
                             10: {}, 25: { legendary_fragment: 3 }, 50: { legendary_fragment: 5 }, 75: { demon_alloy: 2 }, 100: { shadow_weave: 2 }
                         }),
                     },
+                    quickness: {
+                        id: 'quickness', tier: 5, name: 'Quickness', emoji: '⚡',
+                        type: 'progressive',
+                        desc: 'Strike faster than time itself — grants +1 extra hit per battle (attacks beyond the 10th round).',
+                        effects: [{ type: 'active_combat', id: 'quickness', extra_hits: 1 }],
+                        requires: ['champion'],
+                        unlockCondition: 'wins_500',
+                        thresholds: createThresholds({
+                            10: {}, 25: { legendary_fragment: 4 }, 50: { legendary_fragment: 6 }, 75: { demon_alloy: 2 }, 100: { shadow_weave: 3 }
+                        }),
+                    },
                 },
             },
         },
