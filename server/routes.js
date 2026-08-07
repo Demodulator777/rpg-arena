@@ -6341,6 +6341,13 @@ function calcBaseDamage(char, equippedItems) {
             if (data?.wp_stats?.dmg_max) dmgMax += data.wp_stats.dmg_max;
         } catch {}
     }
+    // Guard: dmg_min is the floor AND the ceiling for this build style — the
+    // gear aims for consistent damage that always lands dmg_min (no crit reliance).
+    // If stat allocation left dmg_min higher than dmg_max, collapse the range so the
+    // roll lands exactly on dmg_min, rendering the legacy dmg_max out of scope.
+    if (dmgMax < dmgMin) {
+        dmgMax = dmgMin;
+    }
     return { dmgMin, dmgMax };
 }
 
