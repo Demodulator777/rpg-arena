@@ -9988,6 +9988,7 @@ router.get('/character', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character found' });
         await applyMpRegen(db, char.id);
+        await applyHpRegen(db, char.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
         res.json(await buildCharacterResponse(freshChar, db));
     } catch (e) { res.status(500).json({ error: e.message }); }
