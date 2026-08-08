@@ -6181,6 +6181,49 @@ async function applyMpRegen(db, characterId) {
     await dbRun(db, 'UPDATE characters SET mission_points=?, mp_last_regen_at=? WHERE id=?', [currentMp + gained, currentHourStart, characterId]);
 }
 
+// ── HP Regen (on-demand) ────────────────────────────────────────────────
+// Mirrors the client's getLiveCharacterSnapshot so the DB never drifts from what
+// the UI shows. The hourly cron only heals 10%/tick and only while the process is
+// up; if it missed hours (server down / drift), the stored hp_current can lag far
+// behind what the client simulates — causing battles to start at 0 HP. Calling this
+// before any battle/read catches the stored HP up to the true cumulative value.
+async function applyHpRegen(db, characterId) {
+    const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [characterId]);
+    if (!char) return char;
+    const now = Math.floor(Date.now() / 1000);
+    const equipped = await getEquippedItemsArray(db, characterId);
+    let trueHpMax = calcHpMax(char, equipped);
+    // Include the equipped spirit beast's HP contribution (defense/heal role),
+    // matching buildCharacterResponse's boosted max HP.
+    const elemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [characterId]).catch(() => null);
+    if (elemRow && (elemRow.hp_current ?? 0) > 0) {
+        const bes = calcElemStats(elemRow);
+        if ((bes.def || 0) >= (bes.str || 0)) {
+            trueHpMax += (bes.vit || 0) * 25 + (bes.def || 0) * 2;
+        }
+    }
+    const cur = char.hp_current ?? trueHpMax;
+    if (cur >= trueHpMax) {
+        await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [trueHpMax, now, characterId]);
+        char.hp_current = trueHpMax;
+        char.last_regen_at = now;
+        return char;
+    }
+    const lastRegen = char.last_regen_at || 0;
+    if (lastRegen > 0) {
+        const hoursElapsed = Math.floor((now - lastRegen) / 3600);
+        if (hoursElapsed > 0) {
+            const gained = Math.floor(trueHpMax * HP_REGEN_RATE * hoursElapsed);
+            const newHp = Math.min(trueHpMax, cur + gained);
+            await dbRun(db, 'UPDATE characters SET hp_current=?, last_regen_at=? WHERE id=?', [newHp, now, characterId]);
+            char.hp_current = newHp;
+            char.last_regen_at = now;
+            return char;
+        }
+    }
+    return char;
+}
+
 function getActiveSkills(char) {
     if (!char.active_skills) return {};
     try {
@@ -12124,6 +12167,7 @@ router.post('/missions/collect', auth, async (req, res) => {
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         await applyMpRegen(db, character.id);
+        await applyHpRegen(db, character.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
         if (!mission) return res.status(400).json({ error: 'No active mission' });
@@ -14068,8 +14112,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             const mins = Math.ceil((defGlobalCooldown - now) / 60);
             return res.status(400).json({ error: `That player is in recovery. ${mins < 60 ? mins+'m' : Math.ceil(mins/60)+'h'} remaining.` });
         }
-        const freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
-        const freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
+        let freshA = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [attacker.id]);
+        let freshD = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [defender.id]);
+        freshA = await applyHpRegen(db, attacker.id);
+        freshD = await applyHpRegen(db, defender.id);
         const hpA = freshA.hp_current ?? freshA.hp_max;
         if (hpA <= 0) return res.status(400).json({ error: 'You are out of HP. Wait for regen.' });
         const equippedD0 = await getEquippedItemsArray(db, freshD.id);
