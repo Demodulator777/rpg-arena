@@ -2395,17 +2395,13 @@ function getLiveCharacterSnapshot(baseCharacter) {
     const live = { ...baseCharacter };
 
     const hpMax = Number(live.hp_max || 0);
+    // Server is the single source of truth for HP: buildCharacterResponse (and the
+    // /character poll) run applyHpRegen to catch hp_current up to the true value and
+    // refresh last_regen_at. Never fabricate HP client-side from a stale timestamp,
+    // or a dead character could be shown as full while the DB (and battles) read 0.
     const hpCurrent = Number(live.hp_current ?? hpMax);
-    const hpLastRegenAt = Number(live.last_regen_at || 0);
     // While inside the dungeon we intentionally keep HP "locked" to prevent regen/potion
     // edge-cases during boss / room combat. Topbar should match dungeon HP, so skip regen here.
-    if (!window.__dungeonActive && hpMax > 0 && hpCurrent < hpMax && hpLastRegenAt > 0) {
-        const hpHoursElapsed = Math.floor((now - hpLastRegenAt) / 3600);
-        if (hpHoursElapsed > 0) {
-            const hpGain = Math.floor(hpMax * 0.10 * hpHoursElapsed);
-            live.hp_current = Math.min(hpMax, hpCurrent + hpGain);
-        }
-    }
 
     const mpMax = Number(live.mp_max || 120);
     const mpCurrent = Number(live.mission_points ?? 0);
