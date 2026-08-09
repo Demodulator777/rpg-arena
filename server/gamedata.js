@@ -950,6 +950,16 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
 ];
 
 // ── Set bonus definitions ─────────────────────────────────────────────────
+// Random-item prefixes. Each equippable random item's name starts with one of
+// these prefixes; all items sharing a prefix across different slots count as a
+// set (piece-matching). tier 1-5 = rarity group; higher tier ⇒ stronger bonuses.
+const PREFIX_TIERS = {
+    iron:      1, steel: 1, bronze: 1, leather: 1, wooden: 1, tower: 1, bone: 1,
+    battle:    2, chain:  2, plate:  2, scale:   2, swift: 2,
+    silver:    3, golden: 3, shadow: 3, ruby:    3, sapphire: 3, emerald: 3, cursed: 3,
+    obsidian:  4, crystal:4, diamond:4, blessed: 4, holy: 4, arcane: 4,
+    dragon:    5, mythril:5, adamant:5, void:    5, enchanted: 5, ancient: 5,
+};
 const CRAFTING_SETS = {
     ironclad: {
         name:'Ironclad Set', emoji:'⚙️',
@@ -1245,6 +1255,6 @@ function generateMission(zoneId, spotId, charLevel) {
 }
 
 module.exports = {
-    ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS,
+    ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS,
     generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES
 };
