@@ -4,7 +4,7 @@ const { getDb } = require('./db');
 const BotRunner = require('./bot-runner');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -6476,10 +6476,71 @@ function getEquippedSetCounts(equippedItems) {
     return counts;
 }
 
+// Numeric 2pc / 4pc bonus stat maps per prefix rarity tier. Higher tier (rarer)
+// sets grant strictly stronger bonuses. Values are scaled further by the highest
+// item quality among the equipped pieces of that set (genItemQualityScale).
+const PREFIX_SET_TIERS = {
+    1: { // common (iron, steel, leather, ...)
+        bonus3:{ hp_max:80,   defense:8 },
+        bonus4:{ hp_max:180,  defense:18, armor:4 },
+    },
+    2: { // uncommon (battle, chain, plate, scale, swift)
+        bonus3:{ hp_max:120,  defense:12, strength:5 },
+        bonus4:{ hp_max:260,  defense:28, strength:12, armor:8 },
+    },
+    3: { // rare (silver, golden, shadow, ruby, ...)
+        bonus3:{ hp_max:180,  defense:18, strength:10, hit_chance:6 },
+        bonus4:{ hp_max:400,  defense:42, strength:22, hit_chance:14, armor:12 },
+    },
+    4: { // epic (obsidian, crystal, diamond, blessed, holy, arcane)
+        bonus3:{ hp_max:260,  defense:26, strength:16, magic:8, hit_chance:10 },
+        bonus4:{ hp_max:580,  defense:60, strength:36, magic:20, hit_chance:22, crit_chance:12 },
+    },
+    5: { // legendary (dragon, mythril, adamant, void, enchanted, ancient)
+        bonus3:{ hp_max:380,  defense:40, strength:26, magic:18, hit_chance:14, crit_chance:8 },
+        bonus4:{ hp_max:850,  defense:90, strength:60, magic:40, hit_chance:32, crit_chance:20, armor:20, vitality:10 },
+    },
+};
+const QUALITY_SCALE = { common:1.0, rare:1.15, legendary:1.3 };
+function genQualityScale(quality) { return QUALITY_SCALE[quality] || 1.0; }
+
+// Highest item quality among the equipped pieces of a given setId ('' if none).
+function getSetMaxQuality(equippedItems, setId) {
+    let best = '';
+    for (const item of equippedItems) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            if (data?.setId !== setId) continue;
+            const q = data?.quality;
+            if (!best || (QUALITY_SCALE[q] || 1) > (QUALITY_SCALE[best] || 1)) best = q;
+        } catch {}
+    }
+    return best;
+}
+
+function isPrefixSet(setId) { return Object.prototype.hasOwnProperty.call(PREFIX_TIERS, setId); }
+
 function getEquippedSetBonuses(equippedItems) {
     const counts = getEquippedSetCounts(equippedItems);
     const total = {};
     for (const [setId, count] of Object.entries(counts)) {
+        if (isPrefixSet(setId)) {
+            const tier = PREFIX_TIERS[setId];
+            const def = PREFIX_SET_TIERS[tier];
+            if (!def) continue;
+            const scale = genQualityScale(getSetMaxQuality(equippedItems, setId));
+            if (count >= 2) {
+                for (const [key, value] of Object.entries(def.bonus3)) {
+                    total[key] = (total[key] || 0) + Math.round(value * scale);
+                }
+            }
+            if (count >= 4) {
+                for (const [key, value] of Object.entries(def.bonus4)) {
+                    total[key] = (total[key] || 0) + Math.round(value * scale);
+                }
+            }
+            continue;
+        }
         const def = CRAFTING_SETS[setId];
         if (!def) continue;
         if (count >= 2 && def.bonus3) {
@@ -6496,6 +6557,25 @@ function getEquippedSetBonuses(equippedItems) {
         }
     }
     return total;
+}
+
+// Build a display description for a prefix set, matching the craft-set desc style.
+function describePrefixSet(setId, count, scale) {
+    const tier = PREFIX_TIERS[setId];
+    const def = PREFIX_SET_TIERS[tier];
+    if (!def) return '';
+    const emoji = { 1:'⚪', 2:'🟢', 3:'🟣', 4:'🔮', 5:'🌟' }[tier] || '⚒️';
+    const name = setId.charAt(0).toUpperCase() + setId.slice(1) + ' Set';
+    const rows = [];
+    if (count >= 2) {
+        const pieces = Object.entries(def.bonus3).map(([k, v]) => `${v > 0 ? '+' : ''}${Math.round(v * scale)} ${k.toUpperCase()}`).join(' · ');
+        rows.push({ label: '2/5', desc: `2/5: ${pieces}`, active: count >= 2 });
+    }
+    if (count >= 4) {
+        const pieces = Object.entries(def.bonus4).map(([k, v]) => `${v > 0 ? '+' : ''}${Math.round(v * scale)} ${k.toUpperCase()}`).join(' · ');
+        rows.push({ label: '4/5', desc: `4/5: ${pieces}`, active: count >= 4 });
+    }
+    return { emoji, name, rows };
 }
 
 // Return total bonus "extra hits" from the fighter's equipped set bonus (5/5),
@@ -9160,6 +9240,10 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
 
     const slotMap = { weapon:'weapon', armor:'armor', helmet:'helmet', shield:'shield', accessory:'accessory', jewelry:'amulet', ring:'ring', amulet:'amulet', boots:'boots' };
 
+    // Random items form sets by prefix. All items sharing a prefix across slots
+    // count as one set; the prefix's rarity tier scales the set bonus strength.
+    const prefixKey = String(prefix || '').toLowerCase();
+    const hasPrefixTier = Object.prototype.hasOwnProperty.call(PREFIX_TIERS, prefixKey);
     const item = {
         id:      `${type}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
         name, emoji, tier, level,
@@ -9170,6 +9254,7 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
         category: type,
         price:   0,
         quality,
+        ...(hasPrefixTier ? { setId: prefixKey } : {}),
     };
     item.price = calculateBackendItemPrice(item, level);
     item.original_price = item.price;  // ← ADDED: Store original price
@@ -9620,8 +9705,23 @@ async function buildCharacterResponse(char, db) {
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const setDetails = Object.entries(setCounts)
-        .filter(([setId]) => CRAFTING_SETS[setId])
+        .filter(([setId]) => CRAFTING_SETS[setId] || isPrefixSet(setId))
         .map(([setId, count]) => {
+            if (isPrefixSet(setId)) {
+                const scale = genQualityScale(getSetMaxQuality(equippedArray, setId));
+                const info = describePrefixSet(setId, count, scale);
+                return {
+                    id: setId,
+                    name: info.name,
+                    emoji: info.emoji,
+                    count,
+                    size: 5,
+                    active: count >= 2,
+                    prefixSet: true,
+                    bonus3: info.rows[0] || null,
+                    bonus4: info.rows[1] || null,
+                };
+            }
             const def = CRAFTING_SETS[setId];
             return {
                 id: setId,
@@ -18234,8 +18334,15 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
                     const hp = Math.max(1, Number(m.maxHp || m.hp || 100));
                     return { id: id || 'unknown', name: String(m.name || id || 'Unknown'), icon: String(m.icon || '👾'), hp, maxHp: hp, currentHp: hp, atk: Math.max(1, Number(m.atk || 10)), def: Math.max(0, Number(m.def || 0)), steal: !!m.steal };
                 }
-                // Preserve lastKilled state semantics: if dead, keep at 0 HP.
-                const currentHp = m.lastKilled ? 0 : built.currentHp;
+                // Preserve lastKilled state semantics: if dead AND still within the respawn
+                // window, keep at 0 HP. If the respawn window elapsed, it's alive again.
+                let lastKilled = m.lastKilled;
+                if (typeof lastKilled === 'number' && lastKilled > 0 && lastKilled < 1000000000000) {
+                    lastKilled = lastKilled * 1000; // seconds -> ms
+                }
+                const respawnMs = 48 * 3600000;
+                const respawned = typeof lastKilled === 'number' && lastKilled > 0 && (Date.now() - lastKilled) >= respawnMs;
+                const currentHp = (m.lastKilled && !respawned) ? 0 : built.currentHp;
                 return { ...built, currentHp, maxHp: built.maxHp || built.hp };
             });
         }
