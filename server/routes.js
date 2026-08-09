@@ -6566,13 +6566,20 @@ function describePrefixSet(setId, count, scale) {
     if (!def) return '';
     const emoji = { 1:'⚪', 2:'🟢', 3:'🟣', 4:'🔮', 5:'🌟' }[tier] || '⚒️';
     const name = setId.charAt(0).toUpperCase() + setId.slice(1) + ' Set';
+    const pretty = {
+        hp_max:'HP', defense:'DEF', strength:'STR', magic:'MAG', agility:'AGI', vitality:'VIT',
+        armor:'Armor', hit_chance:'Hit', crit_chance:'Crit', dmg_min:'Min DMG', dmg_max:'Max DMG',
+        pyro_dmg:'🔥 Dmg', water_dmg:'💧 Dmg', wind_dmg:'🌪️ Dmg', electro_dmg:'⚡ Dmg',
+        pyro_resist:'🔥 Res', water_resist:'💧 Res', wind_resist:'🌪️ Res', electro_resist:'⚡ Res',
+    };
+    const fmt = (k, v) => `${v > 0 ? '+' : ''}${Math.round(v * scale)} ${pretty[k] || k.toUpperCase()}`;
     const rows = [];
     if (count >= 2) {
-        const pieces = Object.entries(def.bonus3).map(([k, v]) => `${v > 0 ? '+' : ''}${Math.round(v * scale)} ${k.toUpperCase()}`).join(' · ');
+        const pieces = Object.entries(def.bonus3).map(([k, v]) => fmt(k, v)).join(' · ');
         rows.push({ label: '2/5', desc: `2/5: ${pieces}`, active: count >= 2 });
     }
     if (count >= 4) {
-        const pieces = Object.entries(def.bonus4).map(([k, v]) => `${v > 0 ? '+' : ''}${Math.round(v * scale)} ${k.toUpperCase()}`).join(' · ');
+        const pieces = Object.entries(def.bonus4).map(([k, v]) => fmt(k, v)).join(' · ');
         rows.push({ label: '4/5', desc: `4/5: ${pieces}`, active: count >= 4 });
     }
     return { emoji, name, rows };
