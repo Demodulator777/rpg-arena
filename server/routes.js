@@ -6488,8 +6488,8 @@ function getEquippedSetBonuses(equippedItems) {
                 total[key] = (total[key] || 0) + value;
             }
         }
-        if (count >= 5 && def.bonus5) {
-            for (const [key, value] of Object.entries(def.bonus5)) {
+        if (count >= 4 && def.bonus4) {
+            for (const [key, value] of Object.entries(def.bonus4)) {
                 if (key === 'desc' || typeof value !== 'number') continue;
                 total[key] = (total[key] || 0) + value;
             }
@@ -9619,6 +9619,22 @@ async function buildCharacterResponse(char, db) {
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
+    const setDetails = Object.entries(setCounts)
+        .filter(([setId]) => CRAFTING_SETS[setId])
+        .map(([setId, count]) => {
+            const def = CRAFTING_SETS[setId];
+            return {
+                id: setId,
+                name: def.name || setId,
+                emoji: def.emoji || '⚒️',
+                count,
+                size: (def.pieces || 5),
+                active: count >= 2,
+                bonus3: def.bonus3 || null,
+                bonus4: def.bonus4 || null,
+            };
+        })
+        .sort((a, b) => b.count - a.count);
     let hpMax     = calcHpMax(char, equippedArray);
     let hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
     const squadDiscountPct = await getSquadStatDiscount(db, char.id);
@@ -9756,6 +9772,7 @@ async function buildCharacterResponse(char, db) {
         no_shield_agi_bonus: noShieldAgiBonus,
         equipped_set_counts: setCounts,
         equipped_set_bonuses: setBonuses,
+        equipped_set_details: setDetails,
         weekly_claimable_count: weeklyClaimableCount,
         assistant_enabled: Number(userSettings?.assistant_enabled ?? 1) !== 0,
         skip_battle_animations: Number(userSettings?.skip_battle_animations ?? 0) !== 0,
