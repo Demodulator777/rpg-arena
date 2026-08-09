@@ -2887,6 +2887,28 @@ function renderCharacter() {
         <div class="char-panel char-panel-equipment">
           <h3>EQUIPMENT</h3>
           ${eqGrid}
+          ${(Array.isArray(c.equipped_set_details) ? c.equipped_set_details : []).filter(set => set.count > 0).map(set => {
+              const qColor = 'var(--gold)';
+              const rows = [];
+              if (set.bonus3 && set.count >= 2) rows.push({ label:'2/'+(set.size||5), desc:set.bonus3.desc, active:true, cls:'bonus-3' });
+              else if (set.bonus3) rows.push({ label:'2/'+(set.size||5), desc:set.bonus3.desc, active:false, cls:'bonus-3' });
+              if (set.bonus4 && set.count >= 4) rows.push({ label:'4/'+(set.size||5), desc:set.bonus4.desc, active:true, cls:'bonus-4' });
+              else if (set.bonus4) rows.push({ label:'4/'+(set.size||5), desc:set.bonus4.desc, active:false, cls:'bonus-4' });
+              const fillPct = Math.round(set.count / (set.size||5) * 100);
+              return `<div style="margin-top:12px;padding:10px 12px;background:rgba(241,196,15,0.05);border:1px solid rgba(241,196,15,0.18);border-radius:10px">
+                <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:0.8rem;color:var(--gold)">
+                  <span>${set.emoji||'⚒️'}</span><span>${escHtml(set.name||set.id)}</span>
+                  <span style="margin-left:auto;font-size:0.7rem;color:var(--text-dim)">${set.count}/${set.size||5} equipped</span>
+                </div>
+                <div style="margin:6px 0;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+                  <div style="height:100%;width:${fillPct}%;background:${qColor};border-radius:3px"></div>
+                </div>
+                ${rows.map(r=>`<div style="margin-top:4px;font-size:0.7rem;color:${r.active?'var(--green)':'var(--text-dim)'}"><span style="font-weight:700">✦ ${r.label}:</span> ${r.desc}</div>`).join('')}
+              </div>`;
+          }).join('') || (
+              Object.keys(c.equipped_set_counts || {}).length ? '' :
+              '<div style="margin-top:10px;font-size:0.7rem;color:var(--text-dim)">🔗 No set bonuses equipped</div>'
+          )}
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
             <div class="record-row">
               <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
@@ -5366,7 +5388,7 @@ function renderForge() {
         </button>` : '';
 
     el.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">💡 Tip: Hover the item header to preview stats</div>` + weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
-        const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus5:{desc:''} };
+        const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus4:{desc:''} };
         const equippedCount = pieces.filter(p => p.equipped).length;
         const equippedPct = Math.round(equippedCount / pieces.length * 100);
 
@@ -5383,8 +5405,8 @@ function renderForge() {
                 <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=2?'var(--green)':'var(--text-dim)'}">
                     ✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}
                 </div>
-                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=5?'var(--gold)':'var(--text-dim)'}">
-                    ✦ 5/5: ${setDef.bonus5?.desc||'Full set bonus'}
+                <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=4?'var(--gold)':'var(--text-dim)'}">
+                    ✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}
                 </div>
             </div>`;
 
