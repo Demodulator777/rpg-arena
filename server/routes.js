@@ -13430,7 +13430,7 @@ function scaleItemToLevel(recipe, playerLevel) {
             scaledValue = Math.min(Math.max(200, Math.floor(level * 2.4)), scaledValue);
         } else if (stat === 'armor') {
             scaledValue = Math.floor(value + (level * 0.42 * qualityScale));
-            scaledValue = Math.min(Math.max(150, Math.floor(level * 1.4)), scaledValue);
+            scaledValue = Math.min(Math.max(250, Math.floor(level * 1.4)), scaledValue);
         } else if (stat === 'hp_max') {
             scaledValue = Math.floor(value + (level * 2.0 * qualityScale));
             scaledValue = Math.min(Math.max(480, Math.floor(level * 4.0)), scaledValue);
