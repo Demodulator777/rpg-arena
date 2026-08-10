@@ -251,9 +251,11 @@ let chatPmTarget = '';
 let chatWidgetCollapsed = true;
 let chatExpanded = false;
 let chatActiveView = 'global';
+let chatSquadId = null;
 let chatActivePmThread = '';
 let chatUnreadPmIds = new Set();
 let chatSeenGlobalId = 0;
+let chatSeenSquadId = 0;
 let chatSeenPmThreadIds = {};
 let chatHighlightedGlobalIds = new Set();
 let chatHighlightedPmIds = new Set();
@@ -1920,7 +1922,7 @@ function logout() {
 
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
-    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatSeenGlobalId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatSquadId=null; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatSeenGlobalId = 0; chatSeenSquadId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
     // Reset one-shot ban/warning modal flags so the modal re-shows after any re-login
     // or subsequent banned request instead of only on the first 403 after load.
     window.__banLockShown = false;
@@ -10532,6 +10534,7 @@ function persistChatReadState() {
     try {
         localStorage.setItem(key, JSON.stringify({
             global: Number(chatSeenGlobalId || 0),
+            squad: Number(chatSeenSquadId || 0),
             pm: chatSeenPmThreadIds || {}
         }));
     } catch {}
@@ -10543,6 +10546,7 @@ function ensureChatReadStateLoaded() {
     if (chatReadStateForCharId === charId) return chatReadStateLoadedFromStorage;
     chatReadStateForCharId = charId;
     chatSeenGlobalId = 0;
+    chatSeenSquadId = 0;
     chatSeenPmThreadIds = {};
     chatHighlightedGlobalIds = new Set();
     chatHighlightedPmIds = new Set();
@@ -10554,6 +10558,7 @@ function ensureChatReadStateLoaded() {
         if (!raw) return false;
         const parsed = JSON.parse(raw);
         chatSeenGlobalId = Number(parsed?.global || 0);
+        chatSeenSquadId = Number(parsed?.squad || 0);
         chatSeenPmThreadIds = parsed?.pm && typeof parsed.pm === 'object' ? parsed.pm : {};
         chatReadStateLoadedFromStorage = true;
         return true;
@@ -10565,7 +10570,14 @@ function ensureChatReadStateLoaded() {
 function getUnreadGlobalMessageIds() {
     ensureChatReadStateLoaded();
     return trimChatMessages(chatMessages)
-        .filter(msg => !msg?.is_private && !msg?.is_outgoing && Number(msg?.id || 0) > Number(chatSeenGlobalId || 0))
+        .filter(msg => !msg?.is_private && !msg?.squad_id && !msg?.is_outgoing && Number(msg?.id || 0) > Number(chatSeenGlobalId || 0))
+        .map(msg => Number(msg.id || 0));
+}
+
+function getUnreadSquadMessageIds() {
+    ensureChatReadStateLoaded();
+    return trimChatMessages(chatMessages)
+        .filter(msg => !msg?.is_private && msg?.squad_id && !msg?.is_outgoing && Number(msg?.id || 0) > Number(chatSeenSquadId || 0))
         .map(msg => Number(msg.id || 0));
 }
 
@@ -10588,10 +10600,22 @@ function markGlobalMessagesRead(highlight = true) {
     const unreadIds = getUnreadGlobalMessageIds();
     chatHighlightedGlobalIds = highlight ? new Set(unreadIds) : new Set();
     const latestGlobalId = trimChatMessages(chatMessages)
-        .filter(msg => !msg?.is_private && !msg?.is_outgoing)
+        .filter(msg => !msg?.is_private && !msg?.squad_id && !msg?.is_outgoing)
         .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), Number(chatSeenGlobalId || 0));
     if (latestGlobalId > Number(chatSeenGlobalId || 0)) {
         chatSeenGlobalId = latestGlobalId;
+        persistChatReadState();
+    }
+}
+
+function markSquadRead(highlight = true) {
+    ensureChatReadStateLoaded();
+    const unreadIds = getUnreadSquadMessageIds();
+    const latestSquadId = trimChatMessages(chatMessages)
+        .filter(msg => !msg?.is_private && msg?.squad_id && !msg?.is_outgoing)
+        .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), Number(chatSeenSquadId || 0));
+    if (latestSquadId > Number(chatSeenSquadId || 0)) {
+        chatSeenSquadId = latestSquadId;
         persistChatReadState();
     }
 }
@@ -10649,7 +10673,10 @@ function getFilteredChatMessages() {
         if (!threadKey) return [];
         return safeMessages.filter(msg => msg?.is_private && getChatPrivateThreadKey(msg) === threadKey);
     }
-    return safeMessages.filter(msg => !msg?.is_private);
+    if (chatActiveView === 'squad') {
+        return safeMessages.filter(msg => !msg?.is_private && msg?.squad_id);
+    }
+    return safeMessages.filter(msg => !msg?.is_private && !msg?.squad_id);
 }
 
 function getVisibleChatMessages() {
@@ -10681,7 +10708,14 @@ function appendChatMessages(messages = []) {
                     readStateChanged = true;
                 }
             }
-        } else if (!msg?.is_private && !msg?.is_outgoing) {
+        } else if (!msg?.is_private && msg?.squad_id && !msg?.is_outgoing) {
+            if (!chatWidgetCollapsed && chatActiveView === 'squad') {
+                if (id > Number(chatSeenSquadId || 0)) {
+                    chatSeenSquadId = id;
+                    readStateChanged = true;
+                }
+            }
+        } else if (!msg?.is_private && !msg?.squad_id && !msg?.is_outgoing) {
             if (!chatWidgetCollapsed && chatActiveView === 'global') {
                 chatHighlightedGlobalIds.add(id);
                 if (id > Number(chatSeenGlobalId || 0)) {
@@ -10744,12 +10778,16 @@ async function loadChatHistory() {
         const recipientInput = document.getElementById('chat-recipient-input');
         const recipientValue = recipientInput?.value || '';
         const data = await api('GET', '/game/chat/history');
+        chatSquadId = data?.squadId || null;
         const hadStoredReadState = ensureChatReadStateLoaded();
         chatMessages = trimChatMessages(data?.messages || []);
         chatLatestId = chatMessages.reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
         if (!hadStoredReadState) {
             chatSeenGlobalId = trimChatMessages(chatMessages)
-                .filter(msg => !msg?.is_private && !msg?.is_outgoing)
+                .filter(msg => !msg?.is_private && !msg?.squad_id && !msg?.is_outgoing)
+                .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
+            chatSeenSquadId = trimChatMessages(chatMessages)
+                .filter(msg => !msg?.is_private && msg?.squad_id && !msg?.is_outgoing)
                 .reduce((max, msg) => Math.max(max, Number(msg?.id || 0)), 0);
             chatSeenPmThreadIds = {};
             for (const msg of trimChatMessages(chatMessages)) {
@@ -10774,6 +10812,7 @@ async function pollChat() {
     if (!isChatWidgetAvailable()) return;
     try {
         const data = await api('GET', `/game/chat/history?since=${chatLatestId || 0}`);
+        if (data?.squadId != null) chatSquadId = data.squadId;
         const incoming = data?.messages || [];
         if (!incoming.length) return;
         appendChatMessages(incoming);
@@ -11327,7 +11366,7 @@ function bindChatWidgetEvents() {
 function syncTopbarChatAlert() {
     const btn = document.getElementById('topbar-chat-btn');
     if (!btn) return;
-    const hasUnread = getUnreadGlobalMessageIds().length > 0 || hasUnreadPrivateThreads();
+    const hasUnread = getUnreadGlobalMessageIds().length > 0 || getUnreadSquadMessageIds().length > 0 || hasUnreadPrivateThreads();
     btn.classList.toggle('has-alert', hasUnread);
 }
 
@@ -11370,10 +11409,13 @@ function renderChatWidget() {
     const filteredMessages = getFilteredChatMessages();
     const hiddenCount = Math.max(0, filteredMessages.length - visibleMessages.length);
     const remainingChars = Math.max(0, 280 - prevMessage.length);
-    const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
+    const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private && !msg?.squad_id).length;
+    const squadCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private && msg?.squad_id).length;
     const privateCount = privateThreads.length;
+    const inSquad = !!chatSquadId;
     const unreadGlobalIds = getUnreadGlobalMessageIds();
     const hasUnreadGlobal = unreadGlobalIds.length > 0;
+    const hasUnreadSquad = getUnreadSquadMessageIds().length > 0;
     const hasUnreadPrivate = privateThreads.some(thread => thread.unread);
     const threadTabsHtml = privateThreads.length
         ? privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
@@ -11392,7 +11434,7 @@ function renderChatWidget() {
             <div class="chat-widget-header">
                 <div class="chat-widget-title-wrap">
                     <div class="chat-widget-title">Global Chat</div>
-                    <div class="chat-widget-subtitle">${chatActiveView === 'private' ? (canSendPm ? `Private with ${escHtml(activePrivateTarget)}` : 'Choose a private thread') : 'World channel'}</div>
+                    <div class="chat-widget-subtitle">${chatActiveView === 'private' ? (canSendPm ? `Private with ${escHtml(activePrivateTarget)}` : 'Choose a private thread') : chatActiveView === 'squad' ? 'Squad channel' : 'World channel'}</div>
                 </div>
                 <button class="chat-widget-collapse" title="Close chat" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
                     X
@@ -11401,6 +11443,7 @@ function renderChatWidget() {
             <div class="chat-widget-body">
                 <div class="chat-widget-view-tabs">
                     <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})${hasUnreadGlobal ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
+                    ${inSquad ? `<button class="chat-view-tab ${chatActiveView === 'squad' ? 'active' : ''}" ${actionAttrs('switchChatView', 'squad')} data-no-action-lock="true">Squad (${squadCount})${hasUnreadSquad ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>` : ''}
                     <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})${hasUnreadPrivate ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
                 </div>
                 ${chatActiveView === 'private' ? `
@@ -11415,9 +11458,9 @@ function renderChatWidget() {
                 ` : ''}
                 <div class="chat-widget-messages" id="chat-widget-messages">
                     ${visibleMessages.length ? visibleMessages.map(msg => {
-        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
+        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : (msg.squad_id ? 'Squad' : 'Global');
         const isOwn = msg.is_outgoing;
-        const isUnreadHighlight = !isOwn && ((!msg.is_private && chatHighlightedGlobalIds.has(Number(msg.id || 0))) || (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0))));
+        const isUnreadHighlight = !isOwn && ((!msg.is_private && !msg.squad_id && chatHighlightedGlobalIds.has(Number(msg.id || 0))) || (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0))));
         const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
         const actionBtns = [];
         if (!isOwn) {
@@ -11449,7 +11492,7 @@ function renderChatWidget() {
                     </div>
                 ` : ''}
                 <div class="chat-widget-compose">
-                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...') : 'Send global message...'}" value="${escHtml(prevMessage)}">
+                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...') : chatActiveView === 'squad' ? 'Send squad message...' : 'Send global message...'}" value="${escHtml(prevMessage)}">
                     <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
                 </div>
                 <div id="chat-mention-suggestions" class="chat-suggest-list hidden"></div>
@@ -11475,7 +11518,7 @@ function renderChatWidget() {
 }
 
 function switchChatView(view = 'global') {
-    chatActiveView = view === 'private' ? 'private' : 'global';
+    chatActiveView = view === 'private' ? 'private' : view === 'squad' ? 'squad' : 'global';
     if (chatActiveView === 'private') {
         const threads = getPrivateChatThreads();
         if (!chatActivePmThread && threads.length) {
@@ -11488,6 +11531,8 @@ function switchChatView(view = 'global') {
         chatPmTarget = '';
         chatActivePmThread = '';
     }
+    if (chatActiveView === 'global') markGlobalMessagesRead();
+    if (chatActiveView === 'squad') markSquadRead();
     clearChatSuggestions();
     renderChatWidget();
 }
@@ -11549,6 +11594,7 @@ async function sendChatMessage() {
     const recipientName = chatActiveView === 'private'
         ? String(recipientInput?.value || chatActivePmThread || chatPmTarget || '').trim()
         : '';
+    const channel = chatActiveView === 'squad' ? 'squad' : chatActiveView === 'private' ? 'private' : 'global';
     // Check multiple sources for editing ID
     let editingId = input?.dataset?.editingId || localStorage.getItem('rpg_chat_editing_id') || window._chatEditingId;
     // Validate editing ID still exists in loaded messages — if not, it's stale
@@ -11581,7 +11627,8 @@ async function sendChatMessage() {
         } else {
             const result = await api('POST', '/game/chat/send', {
                 message,
-                recipientName: recipientName || null
+                recipientName: recipientName || null,
+                channel
             });
             if (input) input.value = '';
             appendChatMessages(result?.message ? [result.message] : []);
@@ -11590,7 +11637,7 @@ async function sendChatMessage() {
                 chatActivePmThread = recipientName;
                 chatPmTarget = recipientName;
             }
-            setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : 'Message sent.');
+            setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : channel === 'squad' ? 'Sent to squad.' : 'Message sent.');
         }
         renderChatWidget();
     } catch (e) {
