@@ -6400,7 +6400,7 @@ function calcBaseDamage(char, equippedItems) {
 }
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
-function calcArmorValue(char, equippedItems, additionalDefense = 0) {
+function calcArmorValue(char, equippedItems) {
     const setBonuses = getEquippedSetBonuses(equippedItems);
     let itemDef = 0;
     for (const item of equippedItems) {
@@ -6410,7 +6410,7 @@ function calcArmorValue(char, equippedItems, additionalDefense = 0) {
             if (data?.wp_stats?.defense) itemDef += Number(data.wp_stats.defense || 0);
         } catch {}
     }
-    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef + additionalDefense) / 2);
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 2);
     if (setBonuses.armor) armor += setBonuses.armor;
     for (const item of equippedItems) {
         try {
@@ -8462,7 +8462,7 @@ async function buildCombatFighter(db, char) {
         hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
         crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
         extra_hits: Number(setBonuses.extra_hits || 0),
-        armor: calcArmorValue(char, equippedArray, _beastStats.def) + skillPassiveBonus(calcArmorValue(char, equippedArray, _beastStats.def), skillPassives.armor),
+        armor: calcArmorValue(char, equippedArray) + skillPassiveBonus(calcArmorValue(char, equippedArray), skillPassives.armor),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
             water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
@@ -9786,7 +9786,7 @@ async function buildCharacterResponse(char, db) {
         }
     } catch (e) { console.error('banner check:', e); }
 
-    const armorValue = calcArmorValue(char, equippedArray, beastDefBonus + tempBonus('defense'));
+    const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
