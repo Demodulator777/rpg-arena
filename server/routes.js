@@ -6400,7 +6400,7 @@ function calcBaseDamage(char, equippedItems) {
 }
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
-function calcArmorValue(char, equippedItems) {
+function calcArmorValue(char, equippedItems, additionalDefense = 0) {
     const setBonuses = getEquippedSetBonuses(equippedItems);
     let itemDef = 0;
     for (const item of equippedItems) {
@@ -6410,7 +6410,7 @@ function calcArmorValue(char, equippedItems) {
             if (data?.wp_stats?.defense) itemDef += Number(data.wp_stats.defense || 0);
         } catch {}
     }
-    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 2);
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef + additionalDefense) / 2);
     if (setBonuses.armor) armor += setBonuses.armor;
     for (const item of equippedItems) {
         try {
@@ -8462,7 +8462,7 @@ async function buildCombatFighter(db, char) {
         hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
         crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
         extra_hits: Number(setBonuses.extra_hits || 0),
-        armor: calcArmorValue(char, equippedArray) + skillPassiveBonus(calcArmorValue(char, equippedArray), skillPassives.armor),
+        armor: calcArmorValue(char, equippedArray, _beastStats.def) + skillPassiveBonus(calcArmorValue(char, equippedArray, _beastStats.def), skillPassives.armor),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
             water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
@@ -9786,19 +9786,6 @@ async function buildCharacterResponse(char, db) {
         }
     } catch (e) { console.error('banner check:', e); }
 
-    const armorValue = calcArmorValue(char, equippedArray);
-    const elemDmg    = calcElemDmg(equippedArray);
-    const elemResist = calcElemResist(char, equippedArray);
-
-    // Rogue no-shield agility bonus
-    let noShieldAgiBonus = 0;
-    if (char.class === 'rogue') {
-        const hasShield = !!equippedObj.shield && equippedObj.shield.rogueOffhand !== true;
-        if (!hasShield) {
-            noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
-        }
-    }
-
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
     const elemental = await ensureElemental(db, char.id);
@@ -9823,13 +9810,6 @@ async function buildCharacterResponse(char, db) {
         console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
     }
 
-    // Spirit beast vitality/defense boosts must also raise max HP to stay consistent
-    // with the boosted vitality/defense shown on the character sheet. (calcHpMax = 50 + vit*25 + def*2)
-    if (beastVitBonus || beastDefBonus) {
-        hpMax += beastVitBonus * 25 + beastDefBonus * 2;
-        hpCurrent = Math.min(hpCurrent, hpMax);
-    }
-
     // Temp-stat potion buffs (1h), applied to stats and returned for display
     const tempStatBuffs = {};
     try { tempStatBuffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
@@ -9838,6 +9818,20 @@ async function buildCharacterResponse(char, db) {
         if (buff && Number(buff.exp) > now) activeTempBuffs[stat] = buff;
     }
     const tempBonus = (stat) => Number(activeTempBuffs[stat]?.value || 0);
+
+    // Rogue no-shield agility bonus
+    let noShieldAgiBonus = 0;
+    if (char.class === 'rogue') {
+        const hasShield = !!equippedObj.shield && equippedObj.shield.rogueOffhand !== true;
+        if (!hasShield) {
+            noShieldAgiBonus = Math.floor((char.agility || 0) * 0.05);
+        }
+    }
+
+    const armorValue = calcArmorValue(char, equippedArray, beastDefBonus + tempBonus('defense'));
+    const elemDmg    = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
+
 
     return {
         ...withTrain,
