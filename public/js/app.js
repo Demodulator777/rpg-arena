@@ -5870,7 +5870,6 @@ function showRaidGearTooltip(event, declJson) {
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${escHtml(equippedItem.name)}</strong></div>` : ''}
             <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">Cost: ${cost} 💎 Raid Tokens (have ${tokens.toLocaleString()})</div>
-            ${bonusHtml}
         </div>`;
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
