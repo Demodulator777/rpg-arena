@@ -8391,8 +8391,8 @@ async function beastStatBonus(db, charId) {
         const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
         if (!row || (row.hp_current ?? 0) <= 0) return { str: 0, def: 0, mag: 0 };
         const bes = calcElemStats(row);
-        if ((bes.def || 0) >= (bes.str || 0)) return { str: 0, def: bes.def || 0, mag: 0 };
-        return { str: bes.str || 0, def: 0, mag: bes.mag || 0 };
+        if ((bes.def || 0) >= (bes.str || 0)) return { str: 0, def: bes.def || 0, mag: 0, vit: bes.vit || 0 };
+        return { str: bes.str || 0, def: 0, mag: bes.mag || 0, vit: 0 };
     } catch { return { str: 0, def: 0, mag: 0 }; }
 }
 
@@ -9828,7 +9828,7 @@ async function buildCharacterResponse(char, db) {
         }
     }
 
-    const armorValue = calcArmorValue(char, equippedArray, beastDefBonus + tempBonus('defense'));
+    const armorValue = calcArmorValue(char, equippedArray);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
