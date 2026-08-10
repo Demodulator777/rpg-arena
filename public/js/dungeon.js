@@ -2971,6 +2971,9 @@ function claimGuildRaidReward(raidId) {
         .then(response => {
             if (response?.success) {
                 log(response.message || 'Raid reward claimed.', 'log-success');
+                if (typeof window.refreshRaidTokens === 'function' && response.raidTokens != null) {
+                    window.refreshRaidTokens(response.raidTokens);
+                }
                 refreshRaidUi();
                 refreshCharacter();
             }
