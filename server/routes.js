@@ -11246,6 +11246,17 @@ async function postGlobalWarReport(db, attackerSquadName, defenderSquadName, bas
         [0, 0, '🏛️ War Report', msgText, now]);
 }
 
+async function postGlobalRaidChat(db, msgText) {
+    const now = Math.floor(Date.now() / 1000);
+    try {
+        await dbRun(db,
+            'INSERT INTO chat_messages (sender_user_id, sender_char_id, sender_name, recipient_char_id, message_text, created_at) VALUES (?,?,?,NULL,?,?)',
+            [0, 0, '⚔️ Raid Lobby', msgText, now]);
+    } catch (e) {
+        console.error('postGlobalRaidChat failed:', e);
+    }
+}
+
 async function autoAdvanceWar(db, war) {
     const now = Math.floor(Date.now() / 1000);
     const scoutEnds = Number(war.scout_ends_at || 0);
@@ -18966,6 +18977,12 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
         const raidId = Number(created.lastInsertRowid);
         await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
       VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
+        try {
+            const createdRaid = await getGuildRaidById(db, raidId);
+            const createThreshold = getGuildRaidAutoStartThreshold(createdRaid);
+            const neededText = createThreshold > 0 ? ` Waiting for ${createThreshold - 1} more player${createThreshold - 1 === 1 ? '' : 's'} to start.` : ' Waiting for players to start.';
+            await postGlobalRaidChat(db, `${char.name} created a Floor ${requestedFloor} raid (levels ${requestedMinLevel}-${requestedMaxLevel}).${neededText}`);
+        } catch (e) { console.error('Raid create chat failed:', e); }
         await tryStartGuildRaidIfReady(db, raidId);
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
         res.json({
@@ -19032,6 +19049,19 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
         );
         const joined = joinResult?.rowsAffected ?? joinResult?.changes ?? 0;
         if (!joined) return res.status(409).json({ error: 'Raid started before you could join.' });
+        try {
+            const joinMembers = await getGuildRaidMembers(db, raidId);
+            const joinThreshold = getGuildRaidAutoStartThreshold(raid);
+            const joinCount = joinMembers.length;
+            const needed = joinThreshold > 0 ? Math.max(0, joinThreshold - joinCount) : 0;
+            let joinMsg = `${char.name} (Lv ${char.level}) joined the Floor ${raid.floor} raid (${joinCount}/${GUILD_RAID_MAX_MEMBERS}).`;
+            if (needed > 0) {
+                joinMsg += ` ${needed} more player${needed === 1 ? '' : 's'} needed to start.`;
+            } else if (joinThreshold > 0) {
+                joinMsg += ' Party is full and ready to start!';
+            }
+            await postGlobalRaidChat(db, joinMsg);
+        } catch (e) { console.error('Raid join chat failed:', e); }
         await tryStartGuildRaidIfReady(db, raidId);
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
         res.json({ success: true, message: 'Joined the raid party.', raids });
