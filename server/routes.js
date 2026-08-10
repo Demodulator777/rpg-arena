@@ -19231,9 +19231,10 @@ router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
         if (payload.gems) {
             await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [payload.gems, payload.gems, char.id]);
         }
-        if (payload.raidTokens) {
-            await dbRun(db, 'UPDATE characters SET raid_tokens = COALESCE(raid_tokens, 0) + ? WHERE id = ?', [payload.raidTokens, char.id]);
-        }
+        // Raid tokens are granted fresh at claim time, independent of any
+        // stale/baked reward_payload, so every completed raid pays out.
+        const claimTokens = 10 + Number(raid.floor || 1) * 2;
+        await dbRun(db, 'UPDATE characters SET raid_tokens = COALESCE(raid_tokens, 0) + ? WHERE id = ?', [claimTokens, char.id]);
         if (payload.lootbox?.id) {
             const lootBox = LOOT_BOXES.find(box => box.id === payload.lootbox.id);
             if (lootBox) {
