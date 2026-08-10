@@ -5830,7 +5830,6 @@ function showRaidGearTooltip(event, declJson) {
     const gear = forgeData?.raidGear || {};
     const gs = gear[decl.setId];
     const piece = gs?.pieces?.[decl.slot];
-    const setDef = (forgeData?.sets || {})[decl.setId];
     if (!piece) return;
     const qColor = '#ffd700';
     const cost = forgeData?.raidItemCost || 30;
@@ -5862,11 +5861,6 @@ function showRaidGearTooltip(event, declJson) {
             const label = statLabelHtml(stat);
             return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv > 0 ? '+' : ''}${nv}</span>${equippedItem && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
         }).join('');
-    const bonusHtml = setDef
-        ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">
-              ✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}<br>✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}
-          </div>`
-        : '';
     tooltip.innerHTML = `
         <div class="tt-preview">${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${piece.emoji||'🎖️'}</span>` : `<span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span>`}</div>
         <div class="tt-body">
