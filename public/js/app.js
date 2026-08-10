@@ -5358,7 +5358,7 @@ function renderForge() {
         return;
     }
 
-    const sets = forgeData.sets || {};
+const sets = forgeData.sets || {};
     const bySet = {};
     for (const r of forgeData.equipment) {
         if (!bySet[r.setId]) bySet[r.setId] = [];
@@ -5367,6 +5367,57 @@ function renderForge() {
 
     const rarityColor = { epic:'#e67e22', legendary:'#f1c40f', rare:'#9b59b6', common:'#aaa' };
     const slotIcon = { weapon:'⚔️', armor:'🛡️', helmet:'⛑️', shield:'🔰', boots:'👢' };
+
+    if (forgeTab==='raid') {
+        const cost = forgeData.raidItemCost || 30;
+        const tokens = forgeData.raidTokens || 0;
+        const slotOrder = ['weapon','armor','helmet','shield','boots'];
+        const gearSetDefs = forgeData.raidGear || {};
+        el.innerHTML = `
+            <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                <span>💎 Raid Tokens: <strong style="color:var(--gold)">${tokens.toLocaleString()}</strong></span>
+                <span style="font-size:0.72rem">Each piece costs <strong>${cost} tokens</strong> · earned by completing guild raids (10 + 2 per floor)</span>
+            </div>
+            ${Object.entries(gearSetDefs).map(([setId, gs])=>{
+                const setDef = sets[setId] || { name: gs.bossName, emoji:'🎖️', bonus3:{desc:''}, bonus4:{desc:''} };
+                const pieces = slotOrder.map(slot => gs.pieces[slot]).filter(Boolean).map(piece => ({ slot: slotOrder.find(s=>gs.pieces[s]===piece), piece }));
+                const bonusHtml = `
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px">
+                        <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:var(--text-dim)">✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}</div>
+                        <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:var(--text-dim)">✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}</div>
+                    </div>`;
+                const cardHtml = pieces.map(({slot, piece})=>{
+                    const canBuy = tokens >= cost;
+                    const forgeDecl = escHtml(JSON.stringify({ setId, slot, name: piece.name }));
+                    return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:250px;border-color:rgba(241,196,15,0.15)">
+                        <div class="forge-card-header" data-hover-action="hoverRaidGearTooltip" data-leave-action="scheduleHideTooltip" data-raidgear="${forgeDecl}" style="cursor:help">
+                            <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${piece.emoji||slotIcon[slot]||'🎖️'}</span>
+                            <div>
+                                <div style="display:flex;align-items:center;gap:6px">
+                                    <span class="forge-card-name">${escHtml(piece.name)}</span>
+                                </div>
+                                <div style="font-size:0.68rem;color:var(--text-dim)">${(slot||'piece').toUpperCase()} · legendary · level-scaled</div>
+                            </div>
+                        </div>
+                        <div style="font-size:0.72rem;color:var(--text-dim);margin:4px 0">Part of the <strong style="color:var(--gold)">${escHtml(gs.bossName)}</strong> set</div>
+                        <div class="forge-cost" style="color:${canBuy?'var(--gold)':'var(--red-light)'}">${cost} 💎 Raid Tokens</div>
+                        <button class="btn-forge" style="margin-top:auto" ${actionAttrs('buyRaidGear', setId, slot)} ${canBuy?'':'disabled'}>${tokens<cost?`Need ${(cost-tokens).toLocaleString()} more tokens`:`Exchange ${cost} tokens`}</button>
+                    </div>`;
+                }).join('');
+                return `<div style="margin-bottom:32px">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                        <span style="font-size:1.4rem">${setDef.emoji||'🎖️'}</span>
+                        <div>
+                            <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${escHtml(gs.bossName)} — ${setDef.name||setId}</div>
+                            <div style="font-size:0.72rem;color:var(--text-dim)">Exchange raid tokens to collect all 5 pieces and unlock the set bonus</div>
+                        </div>
+                    </div>
+                    ${bonusHtml}
+                    <div class="forge-grid">${cardHtml}</div>
+                </div>`;
+            }).join('')}`;
+        return;
+    }
 
     const weap = forgeData.weapon;
     const weaponHtml = weap ? `
@@ -5752,6 +5803,65 @@ async function craftItem(recipeId) {
     } catch(e) {
         showMsg('forge-msg',e.message,true);
     }
+}
+async function buyRaidGear(setId, slot) {
+    try {
+        const d = await api('POST','/game/dungeon/guild/raid-gear/exchange',{setId, slot});
+        character = await api('GET','/game/character');
+        renderTopBar();
+        renderCharacter();
+        await loadForge();
+        await loadInventory();
+        showMsg('forge-msg', d.message);
+    } catch(e) {
+        showMsg('forge-msg',e.message,true);
+    }
+}
+function hoverRaidGearTooltip(el, event) {
+    if (!el?.dataset?.raidgear) return;
+    showRaidGearTooltip(withCurrentTarget(event, el), el.dataset.raidgear);
+}
+function showRaidGearTooltip(event, declJson) {
+    cancelHideTooltip();
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    let decl;
+    try { decl = JSON.parse(declJson); } catch { return; }
+    const gear = forgeData?.raidGear || {};
+    const gs = gear[decl.setId];
+    const piece = gs?.pieces?.[decl.slot];
+    const setDef = (forgeData?.sets || {})[decl.setId];
+    if (!piece) return;
+    const qColor = '#ffd700';
+    const cost = forgeData?.raidItemCost || 30;
+    const tokens = forgeData?.raidTokens || 0;
+    const slotLabel = String(decl.slot || 'piece').toUpperCase();
+    const bonusHtml = setDef
+        ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">
+              ✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}<br>✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}
+          </div>`
+        : '';
+    tooltip.innerHTML = `
+        <div class="tt-preview"><span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span></div>
+        <div class="tt-body">
+            <div class="tt-name" style="color:${qColor}">${escHtml(piece.name)}</div>
+            <div class="tt-meta">${slotLabel} · <span style="color:${qColor}">legendary</span> · level-scaled</div>
+            <div class="tt-desc">Set piece of <strong>${escHtml(gs.bossName)}</strong>. Generated at your current level when exchanged, with stats tailored to your progression.</div>
+            <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">Cost: ${cost} 💎 Raid Tokens ${tokens>=cost?`(have ${tokens.toLocaleString()})`:`(have ${tokens.toLocaleString()})`}</div>
+            ${bonusHtml}
+        </div>`;
+    tooltip.classList.remove('hidden');
+    const r = event.currentTarget.getBoundingClientRect();
+    tooltip.style.left = '-9999px';
+    tooltip.style.top = '-9999px';
+    const tw = tooltip.offsetWidth || 240;
+    const th = tooltip.offsetHeight || 220;
+    let left = r.right + 12;
+    let top = r.top;
+    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
+    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
+    tooltip.style.left = Math.max(8, left) + 'px';
+    tooltip.style.top = Math.max(8, top) + 'px';
 }
 
 // ── Inventory ─────────────────────────────────────────────────────────────
