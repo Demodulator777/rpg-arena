@@ -13427,10 +13427,10 @@ function scaleItemToLevel(recipe, playerLevel) {
             scaledValue = Math.min(Math.max(45, Math.floor(level * 0.4)), scaledValue);
         } else if (stat === 'defense') {
             scaledValue = Math.floor(value + (level * 0.68 * qualityScale));
-            scaledValue = Math.min(Math.max(140, Math.floor(level * 1.2)), scaledValue);
+            scaledValue = Math.min(Math.max(200, Math.floor(level * 2.4)), scaledValue);
         } else if (stat === 'armor') {
             scaledValue = Math.floor(value + (level * 0.42 * qualityScale));
-            scaledValue = Math.min(Math.max(70, Math.floor(level * 0.6)), scaledValue);
+            scaledValue = Math.min(Math.max(100, Math.floor(level * 1.2)), scaledValue);
         } else if (stat === 'hp_max') {
             scaledValue = Math.floor(value + (level * 2.0 * qualityScale));
             scaledValue = Math.min(Math.max(480, Math.floor(level * 4.0)), scaledValue);
