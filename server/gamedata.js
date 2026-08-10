@@ -1296,88 +1296,143 @@ function generateMission(zoneId, spotId, charLevel) {
 }
 
 // ── Guild Raid boss gear catalog (tokens exchange) ─────────────────────────
-// Each entry maps a GUILD_RAID_BOSS_POOL boss setId to its 5 set pieces. Stats
-// are generated at the character's level at exchange time; this only defines
-// identity (name/emoji/slot/weaponType).
+// Each entry maps a GUILD_RAID_BOSS_POOL boss setId to its 5 set pieces with
+// deterministic base stats (mirroring EQUIPMENT_RECIPES). Base stats are scaled
+// to the character's level at exchange time via scaleItemToLevel(). Each boss
+// set has a unique, extreme build identity so players choose which to collect.
 const RAID_BOSS_GEAR = {
+    // Death Knight — pure physical glass cannon: max damage, huge STR, no defense.
     malachar: {
         bossName: 'Death Knight Malachar',
         pieces: {
-            weapon: { name: "Malachar's Reaper Blade", emoji: '💀', weaponType: 'scythe' },
-            armor:  { name: "Malachar's Deathplate",   emoji: '🦴' },
-            helmet: { name: "Malachar's Skullveil",    emoji: '👑' },
-            shield: { name: "Malachar's Soulward",     emoji: '🛡️' },
-            boots:  { name: "Malachar's Bone Striders",emoji: '👢' },
+            weapon: { name: "Malachar's Reaper Blade", emoji: '💀', weaponType: 'scythe', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:34, dmg_max:52, strength:22, hit_chance:10, crit_chance:12, agility:-6 } },
+            armor:  { name: "Malachar's Deathplate",   emoji: '🦴', slot: 'armor', quality: 'legendary',
+                stats:{ defense:28, armor:12, hp_max:400, strength:18, agility:-4 } },
+            helmet: { name: "Malachar's Skullveil",    emoji: '👑', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:24, armor:10, hp_max:220, strength:16, crit_chance:10 } },
+            shield: { name: "Malachar's Soulward",     emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:32, armor:14, hp_max:300, strength:12, hit_chance:8 } },
+            boots:  { name: "Malachar's Bone Striders",emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:20, armor:8, strength:14, agility:-8, hp_max:180 } },
         },
     },
+    // Ignarath — fire juggernaut: high physical + heavy pyro damage, fire resist,
+    // vulnerable to water.
     ignarath: {
         bossName: 'Ignarath the Eternal',
         pieces: {
-            weapon: { name: "Ignarath's Inferno Fang",  emoji: '🔥', weaponType: 'sword' },
-            armor:  { name: "Ignarath's Cinderplate",   emoji: '🔥' },
-            helmet: { name: "Ignarath's Ember Crown",   emoji: '👑' },
-            shield: { name: "Ignarath's Magma Bulwark", emoji: '🛡️' },
-            boots:  { name: "Ignarath's Ash Striders",  emoji: '👢' },
+            weapon: { name: "Ignarath's Inferno Fang",  emoji: '🔥', weaponType: 'sword', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:30, dmg_max:52, strength:12, pyro_dmg:24, hit_chance:8, water_resist:-12 } },
+            armor:  { name: "Ignarath's Cinderplate",   emoji: '🔥', slot: 'armor', quality: 'legendary',
+                stats:{ defense:40, armor:30, hp_max:500, strength:8, pyro_dmg:14, pyro_resist:20, water_resist:-10 } },
+            helmet: { name: "Ignarath's Ember Crown",   emoji: '👑', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:32, armor:24, hp_max:280, pyro_dmg:18, crit_chance:8 } },
+            shield: { name: "Ignarath's Magma Bulwark", emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:44, armor:32, hp_max:350, pyro_resist:24, pyro_dmg:10 } },
+            boots:  { name: "Ignarath's Ash Striders",  emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:28, armor:16, agility:5, pyro_dmg:12, hit_chance:6 } },
         },
     },
+    // Nyxaroth — speed blitz assassin: insane AGI + crit, spiky damage (huge max,
+    // tiny min), almost no armor/defense.
     nyxaroth: {
         bossName: 'Nyxaroth the Devourer',
         pieces: {
-            weapon: { name: "Nyxaroth's Maw Cleaver",   emoji: '🌪️', weaponType: 'axe' },
-            armor:  { name: "Nyxaroth's Stormhide",     emoji: '🌪️' },
-            helmet: { name: "Nyxaroth's Razor Helm",    emoji: '💀' },
-            shield: { name: "Nyxaroth's Windward",      emoji: '🛡️' },
-            boots:  { name: "Nyxaroth's Tempest Treads",emoji: '👢' },
+            weapon: { name: "Nyxaroth's Maw Cleaver",   emoji: '🌪️', weaponType: 'axe', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:12, dmg_max:59, agility:28, crit_chance:26, hit_chance:18, defense:-8 } },
+            armor:  { name: "Nyxaroth's Stormhide",     emoji: '🌪️', slot: 'armor', quality: 'legendary',
+                stats:{ defense:16, armor:6, hp_max:280, agility:22, crit_chance:18 } },
+            helmet: { name: "Nyxaroth's Razor Helm",    emoji: '💀', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:12, armor:4, hp_max:160, agility:20, crit_chance:22 } },
+            shield: { name: "Nyxaroth's Windward",      emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:18, armor:8, hp_max:200, agility:14, crit_chance:16 } },
+            boots:  { name: "Nyxaroth's Tempest Treads",emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:-6, armor:2, agility:34, crit_chance:20 } },
         },
     },
+    // Vizorax — arcane all-elemental nuker: very high magic, deals every element,
+    // resists every element; weak physical output.
     vizorax: {
         bossName: 'Vizorax the Unholy',
         pieces: {
-            weapon: { name: "Vizorax's Unholy Scepter", emoji: '👹', weaponType: 'staff' },
-            armor:  { name: "Vizorax's Living Plate",   emoji: '👹' },
-            helmet: { name: "Vizorax's Corrupt Crown",  emoji: '👑' },
-            shield: { name: "Vizorax's Sinward",        emoji: '🛡️' },
-            boots:  { name: "Vizorax's Damned Treads",  emoji: '👢' },
+            weapon: { name: "Vizorax's Unholy Scepter", emoji: '👹', weaponType: 'staff', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:28, dmg_max:42, magic:30, hit_chance:10, pyro_dmg:14, water_dmg:14, wind_dmg:14, electro_dmg:14 } },
+            armor:  { name: "Vizorax's Living Plate",   emoji: '👹', slot: 'armor', quality: 'legendary',
+                stats:{ defense:34, magic:22, hp_max:380, pyro_resist:18, water_resist:18, wind_resist:18, electro_resist:18 } },
+            helmet: { name: "Vizorax's Corrupt Crown",  emoji: '👑', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:28, magic:20, hp_max:240, pyro_dmg:10, water_dmg:10, wind_dmg:10, electro_dmg:10 } },
+            shield: { name: "Vizorax's Sinward",        emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:40, magic:18, hp_max:320, pyro_resist:22, water_resist:22, wind_resist:22, electro_resist:22 } },
+            boots:  { name: "Vizorax's Damned Treads",  emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:24, magic:18, agility:6, hit_chance:8, hp_max:160 } },
         },
     },
+    // Hollow King — water warden: tanky caster with heavy defense/HP and water damage,
+    // sluggish (negative AGI).
     hollow_king: {
         bossName: 'The Hollow King',
         pieces: {
-            weapon: { name: "Hollow King's Vow Blade",  emoji: '👑', weaponType: 'sword' },
-            armor:  { name: "Hollow King's Regalia",    emoji: '👑' },
-            helmet: { name: "Hollow King's Empty Crown",emoji: '💀' },
-            shield: { name: "Hollow King's Crown Ward", emoji: '🛡️' },
-            boots:  { name: "Hollow King's Dust Treads",emoji: '👢' },
+            weapon: { name: "Hollow King's Vow Blade",  emoji: '👑', weaponType: 'sword', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:30, dmg_max:46, magic:20, water_dmg:22, hit_chance:8, agility:-4 } },
+            armor:  { name: "Hollow King's Regalia",    emoji: '👑', slot: 'armor', quality: 'legendary',
+                stats:{ defense:56, armor:30, hp_max:800, magic:14, water_dmg:12, water_resist:20, vitality:6 } },
+            helmet: { name: "Hollow King's Empty Crown",emoji: '💀', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:46, armor:24, hp_max:420, magic:16, water_dmg:14 } },
+            shield: { name: "Hollow King's Crown Ward", emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:58, armor:34, hp_max:500, water_resist:26 } },
+            boots:  { name: "Hollow King's Dust Treads",emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:42, armor:18, magic:12, water_dmg:10, hp_max:260, agility:-6 } },
         },
     },
+    // Voidborn Colossus — pure tank wall: extreme DEF/armor/HP/vitality, weak damage.
     voidborn_colossus: {
         bossName: 'Voidborn Colossus',
         pieces: {
-            weapon: { name: "Colossus' Void Maul",      emoji: '🗿', weaponType: 'hammer' },
-            armor:  { name: "Colossus' Totemic Plate",  emoji: '🗿' },
-            helmet: { name: "Colossus' Monolith Helm",  emoji: '🗿' },
-            shield: { name: "Colossus' Stone Bastion",  emoji: '🛡️' },
-            boots:  { name: "Colossus' Earth Striders", emoji: '👢' },
+            weapon: { name: "Colossus' Void Maul",      emoji: '🗿', weaponType: 'hammer', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:34, dmg_max:52, strength:6, defense:40, armor:36, vitality:10 } },
+            armor:  { name: "Colossus' Totemic Plate",  emoji: '🗿', slot: 'armor', quality: 'legendary',
+                stats:{ defense:80, armor:70, hp_max:1400, vitality:18 } },
+            helmet: { name: "Colossus' Monolith Helm",  emoji: '🗿', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:66, armor:56, hp_max:700, vitality:10 } },
+            shield: { name: "Colossus' Stone Bastion",  emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:78, armor:64, hp_max:800, vitality:12 } },
+            boots:  { name: "Colossus' Earth Striders", emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:62, armor:46, hp_max:480, vitality:8, strength:6 } },
         },
     },
+    // Undying Empress — balanced hybrid: strong physical AND electro, solid crit,
+    // moderate everything. The well-rounded fighter.
     empress: {
         bossName: 'The Undying Empress',
         pieces: {
-            weapon: { name: "Empress' Eternal Blade",   emoji: '🌙', weaponType: 'sword' },
-            armor:  { name: "Empress' Twilight Garb",   emoji: '🌙' },
-            helmet: { name: "Empress' Crescent Diadem", emoji: '👑' },
-            shield: { name: "Empress' Moonlight Ward",  emoji: '🛡️' },
-            boots:  { name: "Empress' Shadow Slippers", emoji: '👢' },
+            weapon: { name: "Empress' Eternal Blade",   emoji: '🌙', weaponType: 'sword', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:26, dmg_max:42, strength:10, magic:10, electro_dmg:16, crit_chance:14, hit_chance:10 } },
+            armor:  { name: "Empress' Twilight Garb",   emoji: '🌙', slot: 'armor', quality: 'legendary',
+                stats:{ defense:44, armor:28, hp_max:600, strength:8, magic:8, electro_dmg:10, electro_resist:16, crit_chance:8 } },
+            helmet: { name: "Empress' Crescent Diadem", emoji: '👑', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:36, armor:22, hp_max:340, electro_dmg:14, crit_chance:14, hit_chance:8 } },
+            shield: { name: "Empress' Moonlight Ward",  emoji: '🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:48, armor:30, hp_max:420, electro_resist:20, crit_chance:8 } },
+            boots:  { name: "Empress' Shadow Slippers", emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:34, armor:16, agility:10, electro_dmg:12, hit_chance:12 } },
         },
     },
+    // Abyssal Sovereign — reverse reliable striker: very HIGH dmg_min with a low,
+    // narrow dmg_max (consistent heavy hits), massive hit_chance, moderate magic.
     abyssal_sovereign: {
         bossName: 'Abyssal Sovereign',
         pieces: {
-            weapon: { name: "Sovereign's Abyss Fang",   emoji: '☄️', weaponType: 'spear' },
-            armor:  { name: "Sovereign's Void Casque",  emoji: '☄️' },
-            helmet: { name: "Sovereign's Chthonic Crown",emoji: '☄️' },
-            shield: { name: "Sovereign's Genesis Warden",emoji:'🛡️' },
-            boots:  { name: "Sovereign's Abyss Treads", emoji: '👢' },
+            weapon: { name: "Sovereign's Abyss Fang",   emoji: '☄️', weaponType: 'spear', slot: 'weapon', quality: 'legendary',
+                stats:{ dmg_min:44, dmg_max:48, magic:12, hit_chance:28, crit_chance:8, agility:6 } },
+            armor:  { name: "Sovereign's Void Casque",  emoji: '☄️', slot: 'armor', quality: 'legendary',
+                stats:{ defense:40, magic:10, armor:26, hp_max:520, hit_chance:18 } },
+            helmet: { name: "Sovereign's Chthonic Crown",emoji: '☄️', slot: 'helmet', quality: 'legendary',
+                stats:{ defense:32, magic:12, armor:20, hp_max:300, hit_chance:22 } },
+            shield: { name: "Sovereign's Genesis Warden",emoji:'🛡️', slot: 'shield', quality: 'legendary',
+                stats:{ defense:46, armor:30, hp_max:360, hit_chance:16 } },
+            boots:  { name: "Sovereign's Abyss Treads", emoji: '👢', slot: 'boots', quality: 'legendary',
+                stats:{ defense:30, magic:8, armor:14, agility:14, hit_chance:20 } },
         },
     },
 };
