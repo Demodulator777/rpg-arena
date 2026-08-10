@@ -5391,7 +5391,7 @@ const sets = forgeData.sets || {};
                     const forgeDecl = escHtml(JSON.stringify({ setId, slot, name: piece.name }));
                     return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:250px;border-color:rgba(241,196,15,0.15)">
                         <div class="forge-card-header" data-hover-action="hoverRaidGearTooltip" data-leave-action="scheduleHideTooltip" data-raidgear="${forgeDecl}" style="cursor:help">
-                            <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${piece.emoji||slotIcon[slot]||'🎖️'}</span>
+                            <span style="display:flex;align-items:center;justify-content:center;min-width:34px"><img src="${getAssetImagePath(piece.name)}" data-error-hide="true" data-error-next-display="inline" style="display:inline;width:34px;height:34px;object-fit:contain"><span style="font-size:1.3rem;display:none">${piece.emoji||slotIcon[slot]||'🎖️'}</span></span>
                             <div>
                                 <div style="display:flex;align-items:center;gap:6px">
                                     <span class="forge-card-name">${escHtml(piece.name)}</span>
