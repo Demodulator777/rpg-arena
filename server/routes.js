@@ -498,6 +498,7 @@ function describeAdminRewardPayload(payload) {
     if (payload.gold) parts.push(`${Number(payload.gold).toLocaleString()} gold`);
     if (payload.gems) parts.push(`${Number(payload.gems).toLocaleString()} gems`);
     if (payload.xp) parts.push(`${Number(payload.xp).toLocaleString()} XP`);
+    if (payload.raidTokens) parts.push(`${Number(payload.raidTokens).toLocaleString()} Raid Tokens`);
     if (payload.material?.id && payload.material?.qty) parts.push(`${Number(payload.material.qty).toLocaleString()}x ${payload.material.id}`);
     return parts.length ? parts.join(' + ') : 'Message only';
 }
@@ -15132,6 +15133,12 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
             const gems = Math.max(0, Number(reward.gems || 0));
             if (gems > 0) {
                 await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, char.id]);
+            }
+        }
+        if (reward.raidTokens) {
+            const raidTokens = Math.max(0, Number(reward.raidTokens || 0));
+            if (raidTokens > 0) {
+                await dbRun(db, 'UPDATE characters SET raid_tokens = COALESCE(raid_tokens, 0) + ? WHERE id = ?', [raidTokens, char.id]);
             }
         }
         if (reward.xp) {
