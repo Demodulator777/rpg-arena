@@ -4,7 +4,7 @@ const { getDb } = require('./db');
 const BotRunner = require('./bot-runner');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -847,6 +847,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN global_cooldown_until INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN temp_stat_buffs TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN raid_cooldown_until INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN raid_tokens INTEGER DEFAULT 0',
             'ALTER TABLE guild_raids ADD COLUMN mercenary_pool TEXT DEFAULT NULL',
             'ALTER TABLE guild_raid_members ADD COLUMN is_npc INTEGER DEFAULT 0',
             'ALTER TABLE guild_raid_members ADD COLUMN member_name TEXT DEFAULT NULL',
@@ -5734,7 +5735,8 @@ function buildRaidRewardPayload(floor, includeItem = false) {
     const safeFloor = Math.max(1, Number(floor) || 1);
     const gold = (900 + safeFloor * 220) * 4;
     const gems = 1;
-    const payload = { gold, gems };
+    const raidTokens = 10 + safeFloor * 2;
+    const payload = { gold, gems, raidTokens };
     if (includeItem) {
         payload.lootbox = { id: 'lootbox_rare', qty: 1 };
     }
@@ -9910,6 +9912,7 @@ async function buildCharacterResponse(char, db) {
             }
         })(),
         squad_discount_pct: squadDiscountPct,
+        raid_tokens: char.raid_tokens || 0,
     };
 }
 // ── Character creation ────────────────────────────────────────────────────
@@ -13140,7 +13143,7 @@ router.get('/forge/recipes', auth, async (req, res) => {
             mat.rarity = def?.rarity || mat.rarity || 'common';
             mat.type = RAW_MATERIALS[id] ? 'raw_mat' : (COMPONENTS[id] ? 'component' : 'unknown');
         }
-        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData });
+        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData, raidTokens: char.raid_tokens || 0, raidGear: RAID_BOSS_GEAR, raidItemCost: RAID_TOKENS_PER_ITEM });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -18882,7 +18885,7 @@ router.get('/dungeon/gold', auth, async (req, res) => {
 router.get('/dungeon/guild', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, level, dungeon_gold, guild_reputation, dungeon_highest_floor, raid_cooldown_until');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, level, dungeon_gold, guild_reputation, dungeon_highest_floor, raid_cooldown_until, raid_tokens');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const bounty = await ensureActiveGuildBounty(db, char.id);
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
@@ -18903,6 +18906,7 @@ router.get('/dungeon/guild', auth, async (req, res) => {
             bounty,
             raids,
             elemInventory: elemInv,
+            raidTokens: char?.raid_tokens || 0,
             level: charLevel
         });
     } catch (e) {
@@ -19215,6 +19219,9 @@ router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
         if (payload.gems) {
             await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [payload.gems, payload.gems, char.id]);
         }
+        if (payload.raidTokens) {
+            await dbRun(db, 'UPDATE characters SET raid_tokens = COALESCE(raid_tokens, 0) + ? WHERE id = ?', [payload.raidTokens, char.id]);
+        }
         if (payload.lootbox?.id) {
             const lootBox = LOOT_BOXES.find(box => box.id === payload.lootbox.id);
             if (lootBox) {
@@ -19237,9 +19244,73 @@ router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
             await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [char.id, payload.item.itemType, JSON.stringify(payload.item.itemData)]);
         }
         await dbRun(db, 'UPDATE guild_raid_members SET claimed_at = ? WHERE raid_id = ? AND char_id = ?', [Math.floor(Date.now() / 1000), raidId, char.id]);
-        const updated = await getCurrentCharacter(db, req.user.userId, 'gold, gems');
+        const updated = await getCurrentCharacter(db, req.user.userId, 'gold, gems, raid_tokens');
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
-        res.json({ success: true, message: 'Raid reward claimed.', gold: updated?.gold || 0, gems: updated?.gems || 0, raids });
+        res.json({ success: true, message: 'Raid reward claimed.', gold: updated?.gold || 0, gems: updated?.gems || 0, raidTokens: updated?.raid_tokens || 0, raids });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// RAID_TOKENS_PER_ITEM: fixed token cost per raid boss piece.
+const RAID_TOKENS_PER_ITEM = 300;
+
+// Builds a raid boss set piece at the character's current level, forcing its
+// setId so equipped pieces count toward the matching CRAFTING_SETS set.
+function buildRaidBossItem(setId, slot, level) {
+    const gearSet = RAID_BOSS_GEAR[setId];
+    const piece = gearSet && gearSet.pieces && gearSet.pieces[slot];
+    if (!piece) return null;
+    const itemType = slot === 'boots' ? 'boots' : slot; // weapon/armor/helmet/shield/boots all valid generators
+    const item = generateBackendRandomItem(level, itemType, 'legendary');
+    if (!item) return null;
+    item.setId = setId;
+    item.name = piece.name;
+    item.emoji = piece.emoji;
+    item.slot = slot;
+    if (slot === 'weapon' && piece.weaponType) item.weaponType = piece.weaponType;
+    item.raidGear = true;
+    return item;
+}
+
+router.post('/dungeon/guild/raid-gear/exchange', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { setId, slot } = req.body;
+        if (!setId || !slot) return res.status(400).json({ error: 'Missing setId or slot' });
+        const gearSet = RAID_BOSS_GEAR[setId];
+        if (!gearSet || !gearSet.pieces || !gearSet.pieces[slot]) {
+            return res.status(400).json({ error: 'Invalid raid gear piece' });
+        }
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id, level, raid_tokens');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        // Atomic raid token deduction
+        const cost = RAID_TOKENS_PER_ITEM;
+        const deduct = await db.execute({
+            sql: `UPDATE characters SET raid_tokens = raid_tokens - ? WHERE id = ? AND COALESCE(raid_tokens, 0) >= ? RETURNING raid_tokens`,
+            args: [cost, char.id, cost]
+        });
+        if (!deduct?.rows || deduct.rows.length === 0) {
+            return res.status(400).json({ error: `Need ${cost} raid tokens` });
+        }
+
+        const item = buildRaidBossItem(setId, slot, Number(char.level || 1));
+        if (!item) {
+            // Refund tokens if generation failed
+            await dbRun(db, 'UPDATE characters SET raid_tokens = COALESCE(raid_tokens, 0) + ? WHERE id = ?', [cost, char.id]);
+            return res.status(500).json({ error: 'Could not generate item' });
+        }
+        await dbRun(db, `INSERT INTO inventory (char_id, item_type, item_data, weapon_type) VALUES (?, 'equipment', ?, ?)`,
+            [char.id, JSON.stringify(item), item.weaponType || null]);
+
+        const updated = await getCurrentCharacter(db, req.user.userId, 'raid_tokens');
+        res.json({
+            success: true,
+            message: `Acquired ${item.name}!`,
+            raidTokens: updated?.raid_tokens || 0,
+            item
+        });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
