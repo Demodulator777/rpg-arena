@@ -1088,6 +1088,47 @@ const CRAFTING_SETS = {
             desc:'4/5: +60 STR · +80 MAG · +90 DEF · +15 Armor · +950 HP · +20 VIT · +100 Hit · +50 Crit · +1 Extra Hit · +22 Electro Dmg · +16 all Elem Resist'
         },
     },
+    // ── Guild Raid Boss sets (tokens exchange). Each maps to a GUILD_RAID_BOSS_POOL boss.
+    malachar: {
+        name:'Malachar Death Knight Set', emoji:'💀',
+        bonus3:{ strength:28, hit_chance:30, armor:22, hp_max:420, desc:'2/5: +28 STR · +30 Hit · +22 Armor · +420 HP' },
+        bonus4:{ strength:70, hit_chance:80, armor:60, crit_chance:40, hp_max:900, pyro_resist:14, water_resist:14, wind_resist:14, electro_resist:14, desc:'4/5: +70 STR · +80 Hit · +60 Armor · +40 Crit · +900 HP · +14 all Elem Resist' },
+    },
+    ignarath: {
+        name:'Ignarath Eternal Set', emoji:'🔥',
+        bonus3:{ strength:24, magic:30, pyro_dmg:9, hit_chance:34, desc:'2/5: +24 STR · +30 MAG · +9 Pyro Dmg · +34 Hit' },
+        bonus4:{ strength:60, magic:75, pyro_dmg:20, pyro_resist:24, hit_chance:85, crit_chance:35, dmg_min:6, dmg_max:12, desc:'4/5: +60 STR · +75 MAG · +20 Pyro Dmg · +24 Pyro Resist · +85 Hit · +35 Crit · +6-12 Dmg' },
+    },
+    nyxaroth: {
+        name:'Nyxaroth Devourer Set', emoji:'🌪️',
+        bonus3:{ agility:30, crit_chance:30, dmg_min:8, dmg_max:16, desc:'2/5: +30 AGI · +30 Crit · +8-16 Dmg' },
+        bonus4:{ agility:70, crit_chance:75, dmg_min:18, dmg_max:36, hit_chance:70, wind_dmg:18, wind_resist:20, desc:'4/5: +70 AGI · +75 Crit · +18-36 Dmg · +70 Hit · +18 Wind Dmg · +20 Wind Resist' },
+    },
+    vizorax: {
+        name:'Vizorax Unholy Set', emoji:'👹',
+        bonus3:{ magic:32, hit_chance:36, pyro_resist:14, water_resist:14, wind_resist:14, electro_resist:14, desc:'2/5: +32 MAG · +36 Hit · +14 all Elem Resist' },
+        bonus4:{ magic:85, hit_chance:90, armor:35, hp_max:800, crit_chance:30, pyro_dmg:14, pyro_resist:28, water_resist:28, wind_resist:28, electro_resist:28, desc:'4/5: +85 MAG · +90 Hit · +35 Armor · +800 HP · +30 Crit · +14 Pyro Dmg · +28 all Elem Resist' },
+    },
+    hollow_king: {
+        name:'Hollow King Set', emoji:'👑',
+        bonus3:{ magic:28, defense:32, hp_max:500, water_dmg:9, desc:'2/5: +28 MAG · +32 DEF · +500 HP · +9 Water Dmg' },
+        bonus4:{ magic:70, defense:85, hp_max:1050, armor:30, vitality:20, water_dmg:20, water_resist:24, desc:'4/5: +70 MAG · +85 DEF · +1050 HP · +30 Armor · +20 VIT · +20 Water Dmg · +24 Water Resist' },
+    },
+    voidborn_colossus: {
+        name:'Voidborn Colossus Set', emoji:'🗿',
+        bonus3:{ defense:40, armor:20, hp_max:650, vitality:16, desc:'2/5: +40 DEF · +20 Armor · +650 HP · +16 VIT' },
+        bonus4:{ defense:95, armor:65, hp_max:1400, vitality:45, electro_resist:32, wind_resist:32, extra_hits:1, desc:'4/5: +95 DEF · +65 Armor · +1400 HP · +45 VIT · +32 Electro/Wind Resist · +1 Extra Hit' },
+    },
+    empress: {
+        name:'Undying Empress Set', emoji:'🌙',
+        bonus3:{ magic:38, hit_chance:34, hp_max:520, crit_chance:18, desc:'2/5: +38 MAG · +34 Hit · +520 HP · +18 Crit' },
+        bonus4:{ magic:90, hit_chance:90, crit_chance:55, hp_max:1100, vitality:24, armor:25, electro_dmg:18, electro_resist:24, desc:'4/5: +90 MAG · +90 Hit · +55 Crit · +1100 HP · +24 VIT · +25 Armor · +18 Electro Dmg · +24 Electro Resist' },
+    },
+    abyssal_sovereign: {
+        name:'Abyssal Sovereign Set', emoji:'☄️',
+        bonus3:{ strength:26, magic:26, defense:26, agility:12, hit_chance:40, desc:'2/5: +26 STR · +26 MAG · +26 DEF · +12 AGI · +40 Hit' },
+        bonus4:{ strength:70, magic:70, defense:70, agility:32, hit_chance:95, crit_chance:45, armor:30, hp_max:1000, extra_hits:1, dmg_min:12, dmg_max:24, desc:'4/5: +70 STR/MAG/DEF · +32 AGI · +95 Hit · +45 Crit · +30 Armor · +1000 HP · +1 Extra Hit · +12-24 Dmg' },
+    },
 };
 
 const LOOT_BOXES = [
@@ -1254,7 +1295,95 @@ function generateMission(zoneId, spotId, charLevel) {
     };
 }
 
+// ── Guild Raid boss gear catalog (tokens exchange) ─────────────────────────
+// Each entry maps a GUILD_RAID_BOSS_POOL boss setId to its 5 set pieces. Stats
+// are generated at the character's level at exchange time; this only defines
+// identity (name/emoji/slot/weaponType).
+const RAID_BOSS_GEAR = {
+    malachar: {
+        bossName: 'Death Knight Malachar',
+        pieces: {
+            weapon: { name: "Malachar's Reaper Blade", emoji: '💀', weaponType: 'scythe' },
+            armor:  { name: "Malachar's Deathplate",   emoji: '🦴' },
+            helmet: { name: "Malachar's Skullveil",    emoji: '👑' },
+            shield: { name: "Malachar's Soulward",     emoji: '🛡️' },
+            boots:  { name: "Malachar's Bone Striders",emoji: '👢' },
+        },
+    },
+    ignarath: {
+        bossName: 'Ignarath the Eternal',
+        pieces: {
+            weapon: { name: "Ignarath's Inferno Fang",  emoji: '🔥', weaponType: 'sword' },
+            armor:  { name: "Ignarath's Cinderplate",   emoji: '🔥' },
+            helmet: { name: "Ignarath's Ember Crown",   emoji: '👑' },
+            shield: { name: "Ignarath's Magma Bulwark", emoji: '🛡️' },
+            boots:  { name: "Ignarath's Ash Striders",  emoji: '👢' },
+        },
+    },
+    nyxaroth: {
+        bossName: 'Nyxaroth the Devourer',
+        pieces: {
+            weapon: { name: "Nyxaroth's Maw Cleaver",   emoji: '🌪️', weaponType: 'axe' },
+            armor:  { name: "Nyxaroth's Stormhide",     emoji: '🌪️' },
+            helmet: { name: "Nyxaroth's Razor Helm",    emoji: '💀' },
+            shield: { name: "Nyxaroth's Windward",      emoji: '🛡️' },
+            boots:  { name: "Nyxaroth's Tempest Treads",emoji: '👢' },
+        },
+    },
+    vizorax: {
+        bossName: 'Vizorax the Unholy',
+        pieces: {
+            weapon: { name: "Vizorax's Unholy Scepter", emoji: '👹', weaponType: 'staff' },
+            armor:  { name: "Vizorax's Living Plate",   emoji: '👹' },
+            helmet: { name: "Vizorax's Corrupt Crown",  emoji: '👑' },
+            shield: { name: "Vizorax's Sinward",        emoji: '🛡️' },
+            boots:  { name: "Vizorax's Damned Treads",  emoji: '👢' },
+        },
+    },
+    hollow_king: {
+        bossName: 'The Hollow King',
+        pieces: {
+            weapon: { name: "Hollow King's Vow Blade",  emoji: '👑', weaponType: 'sword' },
+            armor:  { name: "Hollow King's Regalia",    emoji: '👑' },
+            helmet: { name: "Hollow King's Empty Crown",emoji: '💀' },
+            shield: { name: "Hollow King's Crown Ward", emoji: '🛡️' },
+            boots:  { name: "Hollow King's Dust Treads",emoji: '👢' },
+        },
+    },
+    voidborn_colossus: {
+        bossName: 'Voidborn Colossus',
+        pieces: {
+            weapon: { name: "Colossus' Void Maul",      emoji: '🗿', weaponType: 'hammer' },
+            armor:  { name: "Colossus' Totemic Plate",  emoji: '🗿' },
+            helmet: { name: "Colossus' Monolith Helm",  emoji: '🗿' },
+            shield: { name: "Colossus' Stone Bastion",  emoji: '🛡️' },
+            boots:  { name: "Colossus' Earth Striders", emoji: '👢' },
+        },
+    },
+    empress: {
+        bossName: 'The Undying Empress',
+        pieces: {
+            weapon: { name: "Empress' Eternal Blade",   emoji: '🌙', weaponType: 'sword' },
+            armor:  { name: "Empress' Twilight Garb",   emoji: '🌙' },
+            helmet: { name: "Empress' Crescent Diadem", emoji: '👑' },
+            shield: { name: "Empress' Moonlight Ward",  emoji: '🛡️' },
+            boots:  { name: "Empress' Shadow Slippers", emoji: '👢' },
+        },
+    },
+    abyssal_sovereign: {
+        bossName: 'Abyssal Sovereign',
+        pieces: {
+            weapon: { name: "Sovereign's Abyss Fang",   emoji: '☄️', weaponType: 'spear' },
+            armor:  { name: "Sovereign's Void Casque",  emoji: '☄️' },
+            helmet: { name: "Sovereign's Chthonic Crown",emoji: '☄️' },
+            shield: { name: "Sovereign's Genesis Warden",emoji:'🛡️' },
+            boots:  { name: "Sovereign's Abyss Treads", emoji: '👢' },
+        },
+    },
+};
+
 module.exports = {
     ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS,
+    RAID_BOSS_GEAR,
     generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES
 };
