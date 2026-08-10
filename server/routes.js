@@ -19061,7 +19061,7 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
             const joinThreshold = getGuildRaidAutoStartThreshold(raid);
             const joinCount = joinMembers.length;
             const needed = joinThreshold > 0 ? Math.max(0, joinThreshold - joinCount) : 0;
-            let joinMsg = `A player joined the Floor ${raid.floor} raid (${joinCount}/${GUILD_RAID_MAX_MEMBERS}).`;
+            let joinMsg = `A player joined the Floor ${raid.floor} raid (levels ${raid.min_level}-${raid.max_level}, ${joinCount}/${GUILD_RAID_MAX_MEMBERS}).`;
             if (needed > 0) {
                 joinMsg += ` ${needed} more player${needed === 1 ? '' : 's'} needed to start.`;
             } else if (joinThreshold > 0) {
