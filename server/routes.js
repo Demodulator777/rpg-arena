@@ -459,6 +459,7 @@ function serializeChatMessage(row, currentCharId) {
         edited: !!row.edited,
         edited_at: row.edited_at ? Number(row.edited_at) : null,
         is_private: !!row.recipient_char_id,
+        squad_id: row.squad_id ? Number(row.squad_id) : null,
         is_outgoing: Number(row.sender_char_id || 0) === Number(currentCharId || 0)
     };
 }
@@ -913,6 +914,7 @@ const WEEKLY_TASKS = [
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_nocase ON users(email COLLATE NOCASE)',
             'ALTER TABLE chat_messages ADD COLUMN edited INTEGER DEFAULT 0',
             'ALTER TABLE chat_messages ADD COLUMN edited_at INTEGER',
+            'ALTER TABLE chat_messages ADD COLUMN squad_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN is_moderator INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN wins_without_weapon INTEGER DEFAULT 0',
@@ -14882,6 +14884,8 @@ router.get('/chat/history', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id,name');
         if (!char) return res.status(404).json({ error: 'No character' });
         const sinceId = Math.max(0, Number(req.query?.since || 0));
+        const squadRow = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        const squadId = squadRow?.squad_id ? Number(squadRow.squad_id) : null;
         let rows = [];
         if (sinceId > 0) {
             rows = await dbAll(
@@ -14889,8 +14893,9 @@ router.get('/chat/history', auth, async (req, res) => {
                 `SELECT *
                  FROM chat_messages
                  WHERE (
-                        recipient_char_id IS NULL
+                        (recipient_char_id IS NULL AND squad_id IS NULL)
                         OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
+                        ${squadId ? `OR (squad_id = ${squadId} AND recipient_char_id IS NULL)` : ''}
                     )
                    AND id > ?
                  ORDER BY id ASC
@@ -14903,15 +14908,16 @@ router.get('/chat/history', auth, async (req, res) => {
                 `SELECT *
                  FROM chat_messages
                  WHERE
-                    recipient_char_id IS NULL
+                    (recipient_char_id IS NULL AND squad_id IS NULL)
                     OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
+                    ${squadId ? `OR (squad_id = ${squadId} AND recipient_char_id IS NULL)` : ''}
                  ORDER BY id DESC
                  LIMIT 60`,
                 [char.id, char.id]
             );
             rows.reverse();
         }
-        res.json({ messages: rows.map(row => serializeChatMessage(row, char.id)) });
+        res.json({ messages: rows.map(row => serializeChatMessage(row, char.id)), squadId });
     } catch (e) {
         console.error('Chat history failed:', e);
         res.status(500).json({ error: e.message });
@@ -14980,8 +14986,16 @@ router.post('/chat/send', auth, async (req, res) => {
         if (!messageText) return res.status(400).json({ error: 'Message required.' });
 
         const recipientInput = String(req.body?.recipientName || '').trim();
+        const channel = String(req.body?.channel || 'global').trim();
+
         let recipient = null;
-        if (recipientInput) {
+        let squadId = null;
+
+        if (channel === 'squad') {
+            const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [sender.id]);
+            if (!membership?.squad_id) return res.status(403).json({ error: 'You are not in a squad.' });
+            squadId = Number(membership.squad_id);
+        } else if (recipientInput) {
             recipient = await dbGet(
                 db,
                 'SELECT id, name FROM characters WHERE lower(name) = lower(?) LIMIT 1',
@@ -14997,8 +15011,8 @@ router.post('/chat/send', auth, async (req, res) => {
         await dbRun(
             db,
             `INSERT INTO chat_messages
-                (sender_user_id, sender_char_id, sender_name, recipient_char_id, recipient_name, message_text, created_at)
-             VALUES (?,?,?,?,?,?,?)`,
+                (sender_user_id, sender_char_id, sender_name, recipient_char_id, recipient_name, message_text, created_at, squad_id)
+             VALUES (?,?,?,?,?,?,?,?)`,
             [
                 req.user.userId,
                 sender.id,
@@ -15006,7 +15020,8 @@ router.post('/chat/send', auth, async (req, res) => {
                 recipient?.id || null,
                 recipient?.name || null,
                 messageText,
-                createdAt
+                createdAt,
+                squadId
             ]
         );
 
