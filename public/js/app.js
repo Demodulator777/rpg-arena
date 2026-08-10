@@ -5836,6 +5836,10 @@ function showRaidGearTooltip(event, declJson) {
     const cost = forgeData?.raidItemCost || 30;
     const tokens = forgeData?.raidTokens || 0;
     const slotLabel = String(decl.slot || 'piece').toUpperCase();
+    const previewStats = piece.previewStats || {};
+    const statsHtml = Object.entries(previewStats).map(([stat, val]) =>
+        `<div class="tt-stat"><span class="tt-stat-name">${statLabelHtml(stat)}</span><span class="tt-stat-val">${val>0?'+':''}${escHtml(String(val))}</span></div>`
+    ).join('');
     const bonusHtml = setDef
         ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)">
               ✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}<br>✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}
@@ -5847,7 +5851,8 @@ function showRaidGearTooltip(event, declJson) {
             <div class="tt-name" style="color:${qColor}">${escHtml(piece.name)}</div>
             <div class="tt-meta">${slotLabel} · <span style="color:${qColor}">legendary</span> · level-scaled</div>
             <div class="tt-desc">Set piece of <strong>${escHtml(gs.bossName)}</strong>. Generated at your current level when exchanged, with stats tailored to your progression.</div>
-            <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">Cost: ${cost} 💎 Raid Tokens ${tokens>=cost?`(have ${tokens.toLocaleString()})`:`(have ${tokens.toLocaleString()})`}</div>
+            <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+            <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">Cost: ${cost} 💎 Raid Tokens (have ${tokens.toLocaleString()})</div>
             ${bonusHtml}
         </div>`;
     tooltip.classList.remove('hidden');
