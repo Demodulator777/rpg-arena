@@ -18988,7 +18988,7 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
             const createdRaid = await getGuildRaidById(db, raidId);
             const createThreshold = getGuildRaidAutoStartThreshold(createdRaid);
             const neededText = createThreshold > 0 ? ` Waiting for ${createThreshold - 1} more player${createThreshold - 1 === 1 ? '' : 's'} to start.` : ' Waiting for players to start.';
-            await postGlobalRaidChat(db, `${char.name} created a Floor ${requestedFloor} raid (levels ${requestedMinLevel}-${requestedMaxLevel}).${neededText}`);
+            await postGlobalRaidChat(db, `A Floor ${requestedFloor} raid was created (levels ${requestedMinLevel}-${requestedMaxLevel}).${neededText}`);
         } catch (e) { console.error('Raid create chat failed:', e); }
         await tryStartGuildRaidIfReady(db, raidId);
         const raids = await getGuildRaidList(db, char.id, req.user.userId);
@@ -19061,7 +19061,7 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
             const joinThreshold = getGuildRaidAutoStartThreshold(raid);
             const joinCount = joinMembers.length;
             const needed = joinThreshold > 0 ? Math.max(0, joinThreshold - joinCount) : 0;
-            let joinMsg = `${char.name} (Lv ${char.level}) joined the Floor ${raid.floor} raid (${joinCount}/${GUILD_RAID_MAX_MEMBERS}).`;
+            let joinMsg = `A player joined the Floor ${raid.floor} raid (${joinCount}/${GUILD_RAID_MAX_MEMBERS}).`;
             if (needed > 0) {
                 joinMsg += ` ${needed} more player${needed === 1 ? '' : 's'} needed to start.`;
             } else if (joinThreshold > 0) {
