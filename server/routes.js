@@ -6410,7 +6410,7 @@ function calcArmorValue(char, equippedItems) {
             if (data?.wp_stats?.defense) itemDef += Number(data.wp_stats.defense || 0);
         } catch {}
     }
-    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 4);
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 2);
     if (setBonuses.armor) armor += setBonuses.armor;
     for (const item of equippedItems) {
         try {
@@ -13233,7 +13233,7 @@ router.post('/forge/craft', auth, async (req, res) => {
         }
 
         for (const [comp, qty] of Object.entries(recipe.components)) {
-            const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
+            const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type IN ('component', 'raw_mat') AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
             if (inv) {
                 const d = JSON.parse(inv.item_data);
                 d.qty = (d.qty || 1) - qty;
