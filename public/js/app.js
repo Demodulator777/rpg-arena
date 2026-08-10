@@ -5396,7 +5396,7 @@ const sets = forgeData.sets || {};
                                 <div style="display:flex;align-items:center;gap:6px">
                                     <span class="forge-card-name">${escHtml(piece.name)}</span>
                                 </div>
-                                <div style="font-size:0.68rem;color:var(--text-dim)">${(slot||'piece').toUpperCase()} · legendary · level-scaled</div>
+                                <div style="font-size:0.68rem;color:var(--text-dim)">${capitalize(slot||'piece')} · legendary · Lv.${character?.level||1}</div>
                             </div>
                         </div>
                         <div style="font-size:0.72rem;color:var(--text-dim);margin:4px 0">Part of the <strong style="color:var(--gold)">${escHtml(gs.bossName)}</strong> set</div>
@@ -5835,7 +5835,9 @@ function showRaidGearTooltip(event, declJson) {
     const qColor = '#ffd700';
     const cost = forgeData?.raidItemCost || 30;
     const tokens = forgeData?.raidTokens || 0;
-    const slotLabel = String(decl.slot || 'piece').toUpperCase();
+    const slotLabel = String(decl.slot || 'piece');
+    const itemLevel = Number(character?.level || 1);
+    const imgSrc = piece.img || getAssetImagePath(piece.name);
     const previewStats = piece.previewStats || {};
 
     // Compare against the currently equipped item in the same slot.
@@ -5866,10 +5868,10 @@ function showRaidGearTooltip(event, declJson) {
           </div>`
         : '';
     tooltip.innerHTML = `
-        <div class="tt-preview"><span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span></div>
+        <div class="tt-preview">${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${piece.emoji||'🎖️'}</span>` : `<span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span>`}</div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${escHtml(piece.name)}</div>
-            <div class="tt-meta">${slotLabel} · <span style="color:${qColor}">legendary</span> · level-scaled</div>
+            <div class="tt-meta">${capitalize(slotLabel||'piece')} · <span style="color:${qColor}">legendary</span> · Lv.${itemLevel}</div>
             <div class="tt-desc">Set piece of <strong>${escHtml(gs.bossName)}</strong>. Generated at your current level when exchanged, with stats tailored to your progression.</div>
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${escHtml(equippedItem.name)}</strong></div>` : ''}
