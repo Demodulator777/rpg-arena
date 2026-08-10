@@ -10152,6 +10152,7 @@ function renderInboxFilter(filter) {
         if (reward.xp) parts.push(`⭐ ${Number(reward.xp).toLocaleString()} XP`);
         if (reward.lootbox?.id) parts.push(`📦 ${Number(reward.lootbox.qty || 1)}x ${reward.lootbox.id.replace(/_/g, ' ')}`);
         if (reward.material?.id && reward.material?.qty) parts.push(`🧱 ${Number(reward.material.qty).toLocaleString()}x ${reward.material.id.replace(/_/g, ' ')}`);
+        if (reward.raidTokens) parts.push(`💎 ${Number(reward.raidTokens).toLocaleString()} Raid Tokens`);
         return parts.join(' · ');
     };
 
