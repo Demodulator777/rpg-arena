@@ -5335,6 +5335,12 @@ async function loadForge() {
     try { forgeData=await api('GET','/game/forge/recipes'); renderForge(); }
     catch(e) { document.getElementById('forge-content').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
+window.refreshRaidTokens = async function(newTokens) {
+    if (newTokens != null && forgeData) {
+        forgeData.raidTokens = Number(newTokens);
+        renderForge();
+    }
+};
 function setForgeTab(tab,btn) { forgeTab=tab; document.querySelectorAll('.forge-tabs .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderForge(); }
 function renderForge() {
     if (!forgeData) return;
