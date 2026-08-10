@@ -2757,7 +2757,7 @@ function renderCharacter() {
         finalDmgMax += strBonus;
     }
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
-    const baseArmor = Math.floor(totalDef / 4);
+    const baseArmor = Math.floor(totalDef / 2);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
     function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey, hasBeast) {
@@ -9505,7 +9505,7 @@ async function openProfile(id) {
             finalDmgMin += strBonus;
             finalDmgMax += strBonus;
         }
-        const profileArmor = p.armor_value ?? (Math.floor(totalDef / 4) + (itemBonus.armor || 0) + (setBonus.armor || 0));
+        const profileArmor = p.armor_value ?? (Math.floor(totalDef / 2) + (itemBonus.armor || 0) + (setBonus.armor || 0));
         const profileElemDmg = p.elem_dmg || {};
         const profileElemRes = p.elem_resist || {};
 
