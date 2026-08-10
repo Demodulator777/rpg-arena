@@ -5872,7 +5872,7 @@ function showRaidGearTooltip(event, declJson) {
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${escHtml(piece.name)}</div>
             <div class="tt-meta">${capitalize(slotLabel||'piece')} · <span style="color:${qColor}">legendary</span> · Lv.${itemLevel}</div>
-            <div class="tt-desc">Set piece of <strong>${escHtml(gs.bossName)}</strong>. Generated at your current level when exchanged, with stats tailored to your progression.</div>
+            <div class="tt-desc">${piece.desc || ''}</div>
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${escHtml(equippedItem.name)}</strong></div>` : ''}
             <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">Cost: ${cost} 💎 Raid Tokens (have ${tokens.toLocaleString()})</div>
