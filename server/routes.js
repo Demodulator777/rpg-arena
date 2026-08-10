@@ -13143,7 +13143,19 @@ router.get('/forge/recipes', auth, async (req, res) => {
             mat.rarity = def?.rarity || mat.rarity || 'common';
             mat.type = RAW_MATERIALS[id] ? 'raw_mat' : (COMPONENTS[id] ? 'component' : 'unknown');
         }
-        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData, raidTokens: char.raid_tokens || 0, raidGear: RAID_BOSS_GEAR, raidItemCost: RAID_TOKENS_PER_ITEM });
+        res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData, raidTokens: char.raid_tokens || 0, raidGear: (() => {
+            const scaled = {};
+            for (const [setId, gs] of Object.entries(RAID_BOSS_GEAR)) {
+                scaled[setId] = { ...gs, pieces: {} };
+                for (const [slot, piece] of Object.entries(gs.pieces || {})) {
+                    scaled[setId].pieces[slot] = {
+                        ...piece,
+                        previewStats: scaleItemToLevel({ ...piece, setId, minLevel: 1, goldCost: 0, desc: piece.desc || '' }, char.level || 1).stats || {},
+                    };
+                }
+            }
+            return scaled;
+        })(), raidItemCost: RAID_TOKENS_PER_ITEM });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -19256,21 +19268,24 @@ router.post('/dungeon/guild/raid/claim', auth, async (req, res) => {
 const RAID_TOKENS_PER_ITEM = 300;
 
 // Builds a raid boss set piece at the character's current level, forcing its
-// setId so equipped pieces count toward the matching CRAFTING_SETS set.
+// setId so equipped pieces count toward the matching CRAFTING_SETS set. Uses
+// the deterministic base stats from RAID_BOSS_GEAR, scaled via the same
+// scaleItemToLevel() logic used by crafted EQUIPMENT_RECIPES.
 function buildRaidBossItem(setId, slot, level) {
     const gearSet = RAID_BOSS_GEAR[setId];
     const piece = gearSet && gearSet.pieces && gearSet.pieces[slot];
     if (!piece) return null;
-    const itemType = slot === 'boots' ? 'boots' : slot; // weapon/armor/helmet/shield/boots all valid generators
-    const item = generateBackendRandomItem(level, itemType, 'legendary');
-    if (!item) return null;
-    item.setId = setId;
-    item.name = piece.name;
-    item.emoji = piece.emoji;
-    item.slot = slot;
-    if (slot === 'weapon' && piece.weaponType) item.weaponType = piece.weaponType;
-    item.raidGear = true;
-    return item;
+    const scaled = scaleItemToLevel({
+        ...piece,
+        setId,
+        minLevel: 1,
+        goldCost: 0,
+        desc: piece.desc || '',
+    }, level);
+    if (!scaled) return null;
+    scaled.id = `raid_${setId}_${slot}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    scaled.raidGear = true;
+    return scaled;
 }
 
 router.post('/dungeon/guild/raid-gear/exchange', auth, async (req, res) => {
