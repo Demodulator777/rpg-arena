@@ -6412,6 +6412,10 @@ function calcArmorValue(char, equippedItems, additionalDefense = 0) {
     }
     let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef + additionalDefense) / 2);
     if (setBonuses.armor) armor += setBonuses.armor;
+    
+    // Add debug logging
+    console.log(`[DEBUG] calcArmorValue: char_defense=${char.defense}, setDefBonus=${setBonuses.defense}, itemDef=${itemDef}, additionalDef=${additionalDefense}, setArmorBonus=${setBonuses.armor}, result=${armor}`);
+    
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
