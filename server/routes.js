@@ -8408,9 +8408,14 @@ async function beastHpBonus(db, charId) {
 async function buildCombatFighter(db, char) {
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const setBonuses = getEquippedSetBonuses(equippedArray);
-    // Include the equipped spirit beast's HP contribution (defense/heal role) so
+    // Include the equipped spirit beast's HP contribution (vitality bonus) so
     // in-battle heals and the HP cap match the character sheet's boosted max HP.
-    const hpMax = calcHpMax(char, equippedArray) + await beastHpBonus(db, char.id);
+    const beastBonus = await getBeastStatBonus(db, char.id);
+    const hpBoost = beastBonus.role === 'heal' ? (beastBonus.vit * 25 + beastBonus.def * 2) : 0;
+    
+    // Apply beast vitality to HP calc only (don't add to char.vitality itself)
+    const boostedVitality = (char.vitality || 10) + beastBonus.vit;
+    const hpMax = calcHpMax({ ...char, vitality: boostedVitality }, equippedArray) + (beastBonus.role === 'heal' ? (beastBonus.def * 2) : 0);
     const hpCurrent = char.hp_current ?? hpMax;
 
     let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
@@ -9846,16 +9851,21 @@ async function buildCharacterResponse(char, db) {
     const elemResist = calcElemResist(char, equippedArray);
 
 
+    // Compute boosted HP: use raw vitality + beast vit bonus
+    const boostedVitality = (char.vitality || 10) + beastVitBonus;
+    const hpMaxBoosted = calcHpMax({ ...char, vitality: boostedVitality }, equippedArray) + (beastRole === 'heal' ? (beastDefBonus * 2) : 0);
+    const finalHpCurrent = char.hp_current ?? hpMaxBoosted;
+
     return {
         ...withTrain,
         tutorial_skipped: char.tutorial_skipped || 0,
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
         draws:        (char.draws       || 0),
-        vitality:     (char.vitality    || 10) + beastVitBonus + tempBonus('vitality'),
+        vitality:     (char.vitality    || 10) + tempBonus('vitality'),
         gems:         char.gems        || 0,
-        hp_max:       hpMax,
-        hp_current:   hpCurrent,
+        hp_max:       hpMaxBoosted,
+        hp_current:   finalHpCurrent,
         strength:     (char.strength    || 0) + beastStrBonus + tempBonus('strength'),
         defense:      (char.defense     || 0) + beastDefBonus + tempBonus('defense'),
         agility:      (char.agility     || 0) + tempBonus('agility'),
