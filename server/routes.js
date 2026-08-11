@@ -8403,6 +8403,11 @@ async function buildCombatFighter(db, char) {
     // in-battle heals and the HP cap match the character sheet's boosted max HP.
     const hpMax = calcHpMax(char, equippedArray) + await beastHpBonus(db, char.id);
     const hpCurrent = char.hp_current ?? hpMax;
+    const now = Math.floor(Date.now() / 1000);
+    const tempStatBuffs = {};
+    try { tempStatBuffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
+    const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
+
     const _beastStats = await beastStatBonus(db, char.id);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
@@ -8462,7 +8467,7 @@ async function buildCombatFighter(db, char) {
         hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
         crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
         extra_hits: Number(setBonuses.extra_hits || 0),
-        armor: calcArmorValue(char, equippedArray, _beastStats.def) + skillPassiveBonus(calcArmorValue(char, equippedArray, _beastStats.def), skillPassives.armor),
+        armor: calcArmorValue(char, equippedArray, _beastStats.def + tempDef) + skillPassiveBonus(calcArmorValue(char, equippedArray, _beastStats.def + tempDef), skillPassives.armor),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
             water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
