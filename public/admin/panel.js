@@ -44,6 +44,7 @@ function renderLayout() {
             { id: 'db', label: 'Database' },
             { id: 'tournaments', label: 'Tournaments' },
             { id: 'bots', label: 'Bots' },
+            { id: 'settings', label: 'Settings' },
             { id: 'console', label: 'Console' },
             { id: 'moderators', label: 'Moderators' }
         );
@@ -84,6 +85,33 @@ function loadTab(name) {
     else if (name === 'moderators') loadModerators();
     else if (name === 'weekly') loadWeekly();
     else if (name === 'bans') loadBans();
+    else if (name === 'settings') loadSettings();
+}
+
+function loadSettings() {
+    var el = document.getElementById('tab-settings');
+    el.innerHTML = '<div class="loading">Loading settings...</div>';
+    fetch('/api/game/admin/settings', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
+        .then(function(r) { return r.json(); })
+        .then(function(settings) {
+            el.innerHTML = '<h2>Feature Toggles</h2>' +
+                '<div class="card-compact">' +
+                    '<div class="row">' +
+                        '<span class="lbl">Spirit Beast</span>' +
+                        '<button class="db-btn ' + (settings.spirit_beast_enabled ? 'db-btn-del' : 'db-btn-apply') + '" onclick="toggleFeature(\'spirit-beast\', ' + !settings.spirit_beast_enabled + ')">' +
+                            (settings.spirit_beast_enabled ? 'Disable' : 'Enable') +
+                        '</button>' +
+                    '</div>' +
+                '</div>';
+        });
+}
+
+function toggleFeature(feature, enabled) {
+    fetch('/api/game/admin/settings/' + feature, {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token'), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: enabled })
+    }).then(function() { loadSettings(); });
 }
 
 function loadDbAdmin() {
