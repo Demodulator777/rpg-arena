@@ -121,7 +121,10 @@ function loadSettings() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
             body: JSON.stringify({ enabled: !currentlyOn })
-        }).then(function() { refreshSettings(); });
+        }).then(function(r) {
+            if (!r.ok) { sbTimer.textContent = '❌ write failed'; sbTimer.style.color = '#e06060'; return; }
+            refreshSettings();
+        }).catch(function() { sbTimer.textContent = '❌ network error'; sbTimer.style.color = '#e06060'; });
     });
 }
 
