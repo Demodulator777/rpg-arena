@@ -26,7 +26,7 @@ app.use(cors({
     origin: corsOrigins.length ? corsOrigins : false,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Password', 'X-Tab-Session', 'X-Build-Version'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Password', 'X-Tab-Session'],
     maxAge: 86400
 }));
 app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
@@ -72,7 +72,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance } = require('./routes');
+const { runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance, processPendingWars, processAutoMissions } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -175,9 +175,6 @@ getDb().then(async (db) => {
   // Additional routes (must be before app.listen)
   app.use('/api', auth, tournamentModule.router);
   app.use('/skills', auth, skillsModule.router);
-  app.get('/tournaments', (req, res) => {
-    res.sendFile(path.join(__dirname, '../public/tournaments.html'));
-  });
   app.get('/admin/banner', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/admin/banner.html'));
   });
@@ -256,6 +253,20 @@ getDb().then(async (db) => {
     autoProcessUpkeep(db).catch(e => console.error('[Upkeep] tick failed:', e.message));
   }, 60000);
   autoProcessUpkeep(db).catch(e => console.error('[Upkeep] init failed:', e.message));
+
+  // Clan wars — auto-advance/resolve pending wars so the global report posts
+  // even when no one is viewing the war panel. Tick every 30s.
+  setInterval(() => {
+    processPendingWars(db).catch(e => console.error('[War] tick failed:', e.message));
+  }, 30000);
+  processPendingWars(db).catch(e => console.error('[War] init failed:', e.message));
+
+  // Auto-complete missions (Arcane Reservoir premium) — runs server-side so it
+  // keeps farming even while the account is logged off. Tick every 10s.
+  setInterval(() => {
+    processAutoMissions(db).catch(e => console.error('[AutoMission] tick failed:', e.message));
+  }, 10000);
+  processAutoMissions(db).catch(e => console.error('[AutoMission] init failed:', e.message));
 
   // Weekly leaderboard — check every 10 minutes if a new week needs awarding
   setInterval(() => {
