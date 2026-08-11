@@ -6394,6 +6394,7 @@ function calcBaseDamage(char, equippedItems) {
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
 function calcArmorValue(char, equippedItems, additionalDefense = 0) {
+    console.error(`[DEBUG ARMOR] additionalDefense=${additionalDefense}`);
     const setBonuses = getEquippedSetBonuses(equippedItems);
     let itemDef = 0;
     for (const item of equippedItems) {
