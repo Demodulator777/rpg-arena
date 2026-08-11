@@ -8408,14 +8408,11 @@ async function buildCombatFighter(db, char) {
     // in-battle heals and the HP cap match the character sheet's boosted max HP.
     const hpMax = calcHpMax(char, equippedArray) + await beastHpBonus(db, char.id);
     const hpCurrent = char.hp_current ?? hpMax;
-    const now = Math.floor(Date.now() / 1000);
-    const tempStatBuffs = {};
-    try { tempStatBuffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
-    const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
 
     const _beastStats = await beastStatBonus(db, char.id);
     console.log(`[DEBUG] buildCombatFighter: char_id=${char.id}, beastStats=`, _beastStats);
-    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);    const charActiveSkills = getActiveSkills(char);
+    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
+    const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
     const learnedIds = learnedRows.map(r => r.skill_id);
     const skillPassives = await computePassiveBonusesWithProgress(db, char.class, learnedIds, char.id);
