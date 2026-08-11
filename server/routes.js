@@ -13040,7 +13040,7 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         if (!hasPremium(activePrem, 'arcane_reservoir')) {
             return res.status(403).json({ error: 'Auto-complete requires the Arcane Reservoir premium. Activate it to access auto-complete.' });
         }
-        const { zone, spot, missionIdx, size, potionIds } = req.body || {};
+        const { zone, spot, missionIdx, size, potionIds, potions } = req.body || {};
         const now = Math.floor(Date.now() / 1000);
         const currentMap = char.current_map || 'overworld';
         const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[zone] || ZONES[zone]) : ZONES[zone];
@@ -13055,26 +13055,33 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         if (existing) return res.status(400).json({ error: 'Finish your active mission before enabling auto-complete.' });
 
         // Convert selected MP-restoring potions into the private pool (max 10,
-        // honoring stacked item quantities). Each stacked potion counts as one.
+        // honoring stacked item quantities and explicit per-stack quantities).
         let loadedMp = 0, loadedCount = 0;
-        const ids = Array.isArray(potionIds) ? potionIds : [];
-        for (const invId of ids) {
-            if (loadedCount >= AUTO_MISSION_MAX_POTIONS) break;
-            const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [invId, char.id]);
+        let picks;
+        if (Array.isArray(potions) && potions.length) {
+            picks = potions.map(p => ({ invId: String(p?.inventoryId ?? p?.id ?? ''), qty: Math.max(0, Math.floor(Number(p?.qty) || 0)) }));
+        } else {
+            picks = (Array.isArray(potionIds) ? potionIds : []).map(invId => ({ invId: String(invId), qty: 0 }));
+        }
+        for (const pick of picks) {
+            if (!pick.invId || loadedCount >= AUTO_MISSION_MAX_POTIONS) break;
+            const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [pick.invId, char.id]);
             if (!item) continue;
             let d; try { d = JSON.parse(item.item_data); } catch { continue; }
             const perMp = Number(d.effect?.value || 0);
             if (d.effect?.type !== 'mp' || perMp <= 0) continue;
             const qty = Number(d.qty ?? 1);
-            const take = Math.min(qty, AUTO_MISSION_MAX_POTIONS - loadedCount);
+            // Legacy potionIds list consumes the whole stack; explicit picks use the requested count.
+            const wanted = pick.qty > 0 ? Math.min(pick.qty, qty) : qty;
+            const take = Math.min(wanted, AUTO_MISSION_MAX_POTIONS - loadedCount);
             if (take <= 0) break;
             loadedMp += take * perMp;
             loadedCount += take;
             if (take >= qty) {
-                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invId]);
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [pick.invId]);
             } else {
                 d.qty = qty - take;
-                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), invId]);
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), pick.invId]);
             }
         }
 
