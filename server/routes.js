@@ -2529,10 +2529,12 @@ ACHIEVEMENTS.push(
 );
 
 function buildExtendedAchievements() {
+    console.log('[DEBUG] buildExtendedAchievements called, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
     const extras = [];
     const addFromBase = (base, overrides) => extras.push({ ...base, ...overrides });
 
     const battlesBase = ACHIEVEMENTS.find((a) => a.id === 'battles_500');
+    console.log('[DEBUG] battlesBase found:', !!battlesBase);
     addFromBase(battlesBase, {
         id: 'battles_1000',
         name: 'Battleforged',
@@ -4678,7 +4680,10 @@ function buildExtendedAchievements() {
 }
 
 const extended = buildExtendedAchievements();
+console.log('[DEBUG] Extended achievements count:', extended.length);
+console.log('[DEBUG] ACHIEVEMENTS length after push:', ACHIEVEMENTS.length);
 ACHIEVEMENTS.push(...extended);
+console.log('[DEBUG] Final ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 // Add new progression achievements
 ACHIEVEMENTS.push(
@@ -5098,6 +5103,8 @@ ACHIEVEMENTS.push(
     { id: 'elem_resist_175', chain: 'elem_resist', category: 'progression', name: 'Elemental Bulwark', desc: 'Reach 175 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 175, rewards: { gold: 320000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     { id: 'elem_resist_200', chain: 'elem_resist', category: 'progression', name: 'Elemental Immunity', desc: 'Reach 200 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 200, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 );
+
+console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 async function buildAchievementMetricSnapshot(db, char) {
     const now = Math.floor(Date.now() / 1000);
@@ -6393,7 +6400,7 @@ function calcBaseDamage(char, equippedItems) {
 }
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
-function calcArmorValue(char, equippedItems, additionalDefense = 0) {
+function calcArmorValue(char, equippedItems) {
     const setBonuses = getEquippedSetBonuses(equippedItems);
     let itemDef = 0;
     for (const item of equippedItems) {
@@ -6403,9 +6410,8 @@ function calcArmorValue(char, equippedItems, additionalDefense = 0) {
             if (data?.wp_stats?.defense) itemDef += Number(data.wp_stats.defense || 0);
         } catch {}
     }
-    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef + additionalDefense) / 2);
+    let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef) / 4);
     if (setBonuses.armor) armor += setBonuses.armor;
-
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -8367,42 +8373,27 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
 
 // Returns the extra max HP an equipped, alive spirit beast grants when it is in
 // defense/heal role (def > str). Mirrors buildCharacterResponse's boosted max HP.
-// Single source of truth for the equipped spirit beast's flat stat bonus.
-// Alive check = equipped + hp_current > 0 at the time the check runs
-// (hp_current is the authoritative life state, updated on heal/potion).
-// attack role (str > def) grants STR+MAG; heal role (def >= str) grants DEF+VIT.
-// AGILITY is never boosted by the beast.
-function beastBonusFromRow(row) {
-    if (!row || row.is_equipped !== 1 || (row.hp_current ?? 0) <= 0) {
-        return { str: 0, def: 0, mag: 0, vit: 0, role: null };
-    }
-    const bes = calcElemStats(row);
-    if ((bes.def || 0) >= (bes.str || 0)) {
-        return { str: 0, def: bes.def || 0, mag: 0, vit: bes.vit || 0, role: 'heal' };
-    }
-    return { str: bes.str || 0, def: 0, mag: bes.mag || 0, vit: 0, role: 'attack' };
-}
-
-async function getBeastStatBonus(db, charId) {
+async function beastHpBonus(db, charId) {
     try {
         const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
-        return beastBonusFromRow(row);
-    } catch { return { str: 0, def: 0, mag: 0, vit: 0, role: null }; }
+        if (!row || (row.hp_current ?? 0) <= 0) return 0;
+        const bes = calcElemStats(row);
+        if ((bes.def || 0) >= (bes.str || 0)) return (bes.vit || 0) * 25 + (bes.def || 0) * 2;
+        return 0;
+    } catch { return 0; }
 }
 
 // Returns the spirit beast's flat stat bonus applied to the character in battle,
 // matching buildCharacterResponse: attack role (str>def) grants STR+atMAG;
 // heal role (def>=str) grants DEF. AGILITY is never boosted by the beast.
 async function beastStatBonus(db, charId) {
-    const b = await getBeastStatBonus(db, charId);
-    return { str: b.str, def: b.def, mag: b.mag, vit: b.vit };
-}
-
-// Returns the extra max HP an equipped, alive spirit beast grants when it is in
-// defense/heal role (def >= str). Mirrors buildCharacterResponse's boosted max HP.
-async function beastHpBonus(db, charId) {
-    const b = await getBeastStatBonus(db, charId);
-    return b.role === 'heal' ? (b.vit * 25 + b.def * 2) : 0;
+    try {
+        const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
+        if (!row || (row.hp_current ?? 0) <= 0) return { str: 0, def: 0, mag: 0 };
+        const bes = calcElemStats(row);
+        if ((bes.def || 0) >= (bes.str || 0)) return { str: 0, def: bes.def || 0, mag: 0 };
+        return { str: bes.str || 0, def: 0, mag: bes.mag || 0 };
+    } catch { return { str: 0, def: 0, mag: 0 }; }
 }
 
 async function buildCombatFighter(db, char) {
@@ -8412,11 +8403,7 @@ async function buildCombatFighter(db, char) {
     // in-battle heals and the HP cap match the character sheet's boosted max HP.
     const hpMax = calcHpMax(char, equippedArray) + await beastHpBonus(db, char.id);
     const hpCurrent = char.hp_current ?? hpMax;
-
-    let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
-    if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
-        _beastStats = await beastStatBonus(db, char.id);
-    }
+    const _beastStats = await beastStatBonus(db, char.id);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -8456,15 +8443,6 @@ async function buildCombatFighter(db, char) {
     const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
-    const now = Math.floor(Date.now() / 1000);
-    let tempStatBuffs = {};
-    if (typeof char.temp_stat_buffs === 'string') {
-        try { tempStatBuffs = JSON.parse(char.temp_stat_buffs); } catch (e) { console.error('Error parsing temp_stat_buffs:', e); }
-    } else if (char.temp_stat_buffs) {
-        tempStatBuffs = char.temp_stat_buffs;
-    }
-    const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
-
     const fighter = {
         id: char.id,
         name: char.name,
@@ -8484,7 +8462,7 @@ async function buildCombatFighter(db, char) {
         hit_chance: (char.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(char.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
         crit_chance: (char.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(char.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
         extra_hits: Number(setBonuses.extra_hits || 0),
-        armor: calcArmorValue(char, equippedArray, _beastStats.def + tempDef) + skillPassiveBonus(calcArmorValue(char, equippedArray, _beastStats.def + tempDef), skillPassives.armor),
+        armor: calcArmorValue(char, equippedArray) + skillPassiveBonus(calcArmorValue(char, equippedArray), skillPassives.armor),
         elem_dmg: {
             pyro: (elemDmg.pyro || 0) + (skillPassives.pyro_dmg || 0),
             water: (elemDmg.water || 0) + (skillPassives.water_dmg || 0),
@@ -8505,7 +8483,6 @@ async function buildCombatFighter(db, char) {
         blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
         dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
         _elementalFighter: await (async () => {
-            if (!(await isFeatureEnabled(db, 'spirit_beast_enabled'))) return null;
             const er = await ensureElemental(db, char.id);
             if (!er || !er.is_equipped) return null;
             const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
@@ -9669,6 +9646,8 @@ async function grantAchievementRewards(db, char, rewards) {
 }
 
 async function getCharacterAchievements(db, char) {
+    console.log('[DEBUG] getCharacterAchievements - ACHIEVEMENTS length:', ACHIEVEMENTS.length);
+    console.log('[DEBUG] Sample IDs:', ACHIEVEMENTS.slice(-10).map(a=>a.id));
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
     const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
@@ -9807,29 +9786,9 @@ async function buildCharacterResponse(char, db) {
         }
     } catch (e) { console.error('banner check:', e); }
 
-    const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
-
-    let elemental = null;
-    if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
-        elemental = await ensureElemental(db, char.id);
-    }
-    // Spirit Beast flat stat bonuses (single source of truth: beastBonusFromRow)
-    let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
-    let beastRole = null;
-    if (elemental) {
-        const bb = beastBonusFromRow(elemental);
-        beastStrBonus = bb.str; beastDefBonus = bb.def; beastMagBonus = bb.mag; beastVitBonus = bb.vit;
-        beastRole = bb.role;
-    }
-
-    // Temp-stat potion buffs (1h), applied to stats and returned for display
-    const tempStatBuffs = {};
-    try { tempStatBuffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
-    const activeTempBuffs = {};
-    for (const [stat, buff] of Object.entries(tempStatBuffs)) {
-        if (buff && Number(buff.exp) > now) activeTempBuffs[stat] = buff;
-    }
-    const tempBonus = (stat) => Number(activeTempBuffs[stat]?.value || 0);
+    const armorValue = calcArmorValue(char, equippedArray);
+    const elemDmg    = calcElemDmg(equippedArray);
+    const elemResist = calcElemResist(char, equippedArray);
 
     // Rogue no-shield agility bonus
     let noShieldAgiBonus = 0;
@@ -9840,11 +9799,45 @@ async function buildCharacterResponse(char, db) {
         }
     }
 
-    const beastBonusValue = beastDefBonus + tempBonus('defense');
-    const armorValue = calcArmorValue(char, equippedArray, beastBonusValue);
-    const elemDmg    = calcElemDmg(equippedArray);
-    const elemResist = calcElemResist(char, equippedArray);
+    const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
+    const elemental = await ensureElemental(db, char.id);
+    // Spirit Beast flat stat bonuses
+    let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
+    let beastRole = null;
+    if (elemental && elemental.is_equipped === 1 && (elemental.hp_current ?? 0) > 0) {
+        const beastStats = calcElemStats(elemental);
+        if ((beastStats.str || 0) > (beastStats.def || 0)) {
+            beastRole = 'attack';
+            beastStrBonus = beastStats.str || 0;
+            beastMagBonus = beastStats.mag || 0;
+        } else {
+            beastRole = 'heal';
+            beastDefBonus = beastStats.def || 0;
+            beastVitBonus = beastStats.vit || 0;
+        }
+        console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, role: ${beastRole}`);
+    } else if (elemental) {
+        console.log(`[DEBUG] buildCharacterResponse: Elemental ${elemental.id} has 0 HP, no stat bonus`);
+    } else {
+        console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
+    }
+
+    // Spirit beast vitality/defense boosts must also raise max HP to stay consistent
+    // with the boosted vitality/defense shown on the character sheet. (calcHpMax = 50 + vit*25 + def*2)
+    if (beastVitBonus || beastDefBonus) {
+        hpMax += beastVitBonus * 25 + beastDefBonus * 2;
+        hpCurrent = Math.min(hpCurrent, hpMax);
+    }
+
+    // Temp-stat potion buffs (1h), applied to stats and returned for display
+    const tempStatBuffs = {};
+    try { tempStatBuffs = JSON.parse(char.temp_stat_buffs || '{}'); } catch {}
+    const activeTempBuffs = {};
+    for (const [stat, buff] of Object.entries(tempStatBuffs)) {
+        if (buff && Number(buff.exp) > now) activeTempBuffs[stat] = buff;
+    }
+    const tempBonus = (stat) => Number(activeTempBuffs[stat]?.value || 0);
 
     return {
         ...withTrain,
@@ -13240,7 +13233,7 @@ router.post('/forge/craft', auth, async (req, res) => {
         }
 
         for (const [comp, qty] of Object.entries(recipe.components)) {
-            const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type IN ('component', 'raw_mat') AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
+            const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, comp]);
             if (inv) {
                 const d = JSON.parse(inv.item_data);
                 d.qty = (d.qty || 1) - qty;
@@ -14165,8 +14158,7 @@ router.get('/matchmaking', auth, async (req, res) => {
         if (!me) return res.status(404).json({ error: 'No character' });
         const direction = req.query.direction || 'similar';
         const now = Math.floor(Date.now() / 1000);
-        const myBeast = await beastStatBonus(db, me.id);
-        const myPower = (me.strength||0) + myBeast.str + (me.defense||0) + myBeast.def + (me.agility||0) + (me.magic||0) + myBeast.mag + me.level * 5;
+        const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
 
         let candidates = await dbAll(db, `
             SELECT c.*, u.username,
@@ -14186,17 +14178,6 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
         `, [me.id, req.user.userId, now]);
-
-        // Include each candidate's equipped spirit beast stats in their power
-        if (candidates.length) {
-            const beastRows = await dbAll(db, `SELECT * FROM elementals WHERE is_equipped = 1 AND char_id IN (${candidates.map(() => '?').join(',')})`, candidates.map(c => c.id));
-            const beastByChar = new Map();
-            for (const row of beastRows) beastByChar.set(Number(row.char_id), beastBonusFromRow(row));
-            for (const c of candidates) {
-                const bb = beastByChar.get(Number(c.id)) || { str: 0, def: 0, mag: 0 };
-                c.power = Number(c.power) + (bb.str || 0) + (bb.def || 0) + (bb.mag || 0);
-            }
-        }
 
         const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM character_attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
         const myCooldowns = new Set(myCooldownRows.map(r => r.defender_id));
@@ -14306,10 +14287,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const premD = getActivePremium(freshD);
         const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
         const veteranD = hasPremium(premD, 'warlord') && hasPremium(premD, 'iron_fortress');
-        const tempDefA = Number(JSON.parse(freshA.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshA.temp_stat_buffs || '{}').defense.value || 0 : 0);
-        const tempDefD = Number(JSON.parse(freshD.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshD.temp_stat_buffs || '{}').defense.value || 0 : 0);
-        const armorA = calcArmorValue(freshA, equippedA, _beastStatsA.def + tempDefA);
-        const armorD = calcArmorValue(freshD, equippedD, _beastStatsD.def + tempDefD);
+        const armorA = calcArmorValue(freshA, equippedA);
+        const armorD = calcArmorValue(freshD, equippedD);
 
         // ── Skill tree passive bonuses for attacker ─────────────────────────
         const learnedRowsA = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshA.id]);
@@ -14606,18 +14585,6 @@ router.get('/leaderboard', auth, async (req, res) => {
             LEFT JOIN squads sq ON sq.id = sm.squad_id
             ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
-        // Include each player's equipped spirit beast stats in their shown stats
-        if (players.length) {
-            const beastRows = await dbAll(db, `SELECT * FROM elementals WHERE is_equipped = 1 AND char_id IN (${players.map(() => '?').join(',')})`, players.map(p => p.id));
-            const beastByChar = new Map();
-            for (const row of beastRows) beastByChar.set(Number(row.char_id), beastBonusFromRow(row));
-            for (const p of players) {
-                const bb = beastByChar.get(Number(p.id)) || { str: 0, def: 0, mag: 0, vit: 0 };
-                p.strength = Number(p.strength || 0) + (bb.str || 0);
-                p.defense = Number(p.defense || 0) + (bb.def || 0);
-                p.magic = Number(p.magic || 0) + (bb.mag || 0);
-            }
-        }
         res.json(players.map((p,i) => {
             let ids = [];
             try {
@@ -14781,11 +14748,18 @@ router.get('/player/:id', auth, async (req, res) => {
         let pBeastStr = 0, pBeastDef = 0, pBeastMag = 0, pBeastVit = 0;
         let pBeastRole = null;
         const pElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id=? AND is_equipped=1', [player.id]).catch(() => null);
-        if (pElemRow) {
-            const pBeast = beastBonusFromRow(pElemRow);
-            pBeastStr = pBeast.str; pBeastDef = pBeast.def; pBeastMag = pBeast.mag; pBeastVit = pBeast.vit;
-            pBeastRole = pBeast.role;
-            if (pBeast.role === 'heal') hpMax += pBeastVit * 25 + pBeastDef * 2;
+        if (pElemRow && (pElemRow.hp_current ?? 0) > 0) {
+            const pBeast = calcElemStats(pElemRow);
+            if ((pBeast.str || 0) > (pBeast.def || 0)) {
+                pBeastRole = 'attack';
+                pBeastStr = pBeast.str || 0;
+                pBeastMag = pBeast.mag || 0;
+            } else {
+                pBeastRole = 'heal';
+                pBeastDef = pBeast.def || 0;
+                pBeastVit = pBeast.vit || 0;
+            }
+            hpMax += pBeastVit * 25 + pBeastDef * 2;
         }
 
         const hpLow = (player.hp_current ?? hpMax) < 10;
@@ -15702,44 +15676,18 @@ async function persistBotFlags(db, botPlayers) {
     } catch (e) { console.error('[persistBotFlags]', e.message); }
 }
 
-// Admin settings toggle for bot detection
-// Get global settings
+// Get all server settings
 router.get('/admin/settings', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
-        const settingsRows = await db.execute({ sql: 'SELECT key, value FROM server_settings', args: [] });
-        const settings = {
-            spirit_beast_enabled: true // Default
-        };
-        for (const row of settingsRows.rows) {
-            if (row.key === 'sw_enabled') {
-                settings[row.key] = row.value === '1' || row.value === 'true';
-            } else {
-                settings[row.key] = row.value === 'true';
-            }
-        }
-        res.json(settings);
+        const settings = await dbAll(db, 'SELECT * FROM server_settings', []);
+        const settingsMap = settings.reduce((acc, s) => { acc[s.key] = s.value; return acc; }, {});
+        res.json(settingsMap);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-async function isFeatureEnabled(db, key) {
-    const row = await dbGet(db, 'SELECT value FROM server_settings WHERE key = ?', [key]);
-    return row ? row.value === 'true' : true; // Default true if not found
-}
-router.post('/admin/settings/spirit-beast', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
-    try {
-        const db = await getDb();
-        const { enabled } = req.body;
-        await db.execute({
-            sql: 'INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)',
-            args: ['spirit_beast_enabled', enabled ? 'true' : 'false']
-        });
-        res.json({ success: true, enabled });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
+// Admin settings toggle for bot detection
 router.post('/admin/settings/bot-detection', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
