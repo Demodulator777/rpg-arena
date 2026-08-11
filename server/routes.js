@@ -2529,12 +2529,10 @@ ACHIEVEMENTS.push(
 );
 
 function buildExtendedAchievements() {
-    console.log('[DEBUG] buildExtendedAchievements called, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
     const extras = [];
     const addFromBase = (base, overrides) => extras.push({ ...base, ...overrides });
 
     const battlesBase = ACHIEVEMENTS.find((a) => a.id === 'battles_500');
-    console.log('[DEBUG] battlesBase found:', !!battlesBase);
     addFromBase(battlesBase, {
         id: 'battles_1000',
         name: 'Battleforged',
@@ -4680,10 +4678,7 @@ function buildExtendedAchievements() {
 }
 
 const extended = buildExtendedAchievements();
-console.log('[DEBUG] Extended achievements count:', extended.length);
-console.log('[DEBUG] ACHIEVEMENTS length after push:', ACHIEVEMENTS.length);
 ACHIEVEMENTS.push(...extended);
-console.log('[DEBUG] Final ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 // Add new progression achievements
 ACHIEVEMENTS.push(
@@ -5103,8 +5098,6 @@ ACHIEVEMENTS.push(
     { id: 'elem_resist_175', chain: 'elem_resist', category: 'progression', name: 'Elemental Bulwark', desc: 'Reach 175 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 175, rewards: { gold: 320000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
     { id: 'elem_resist_200', chain: 'elem_resist', category: 'progression', name: 'Elemental Immunity', desc: 'Reach 200 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 200, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 );
-
-console.log('[DEBUG] After new achievements push, ACHIEVEMENTS length:', ACHIEVEMENTS.length);
 
 async function buildAchievementMetricSnapshot(db, char) {
     const now = Math.floor(Date.now() / 1000);
@@ -6412,10 +6405,7 @@ function calcArmorValue(char, equippedItems, additionalDefense = 0) {
     }
     let armor = Math.floor(((char.defense || 0) + (setBonuses.defense || 0) + itemDef + additionalDefense) / 2);
     if (setBonuses.armor) armor += setBonuses.armor;
-    
-    // Add debug logging
-    console.log(`[DEBUG] calcArmorValue: char_defense=${char.defense}, setDefBonus=${setBonuses.defense}, itemDef=${itemDef}, additionalDef=${additionalDefense}, setArmorBonus=${setBonuses.armor}, result=${armor}`);
-    
+
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
@@ -8377,28 +8367,42 @@ function buildNpc(difficulty, playerLevel, zoneLevel = 1, playerStats = null) {
 
 // Returns the extra max HP an equipped, alive spirit beast grants when it is in
 // defense/heal role (def > str). Mirrors buildCharacterResponse's boosted max HP.
-async function beastHpBonus(db, charId) {
+// Single source of truth for the equipped spirit beast's flat stat bonus.
+// Alive check = equipped + hp_current > 0 at the time the check runs
+// (hp_current is the authoritative life state, updated on heal/potion).
+// attack role (str > def) grants STR+MAG; heal role (def >= str) grants DEF+VIT.
+// AGILITY is never boosted by the beast.
+function beastBonusFromRow(row) {
+    if (!row || row.is_equipped !== 1 || (row.hp_current ?? 0) <= 0) {
+        return { str: 0, def: 0, mag: 0, vit: 0, role: null };
+    }
+    const bes = calcElemStats(row);
+    if ((bes.def || 0) >= (bes.str || 0)) {
+        return { str: 0, def: bes.def || 0, mag: 0, vit: bes.vit || 0, role: 'heal' };
+    }
+    return { str: bes.str || 0, def: 0, mag: bes.mag || 0, vit: 0, role: 'attack' };
+}
+
+async function getBeastStatBonus(db, charId) {
     try {
         const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
-        if (!row || (row.hp_current ?? 0) <= 0) return 0;
-        const bes = calcElemStats(row);
-        if ((bes.def || 0) >= (bes.str || 0)) return (bes.vit || 0) * 25 + (bes.def || 0) * 2;
-        return 0;
-    } catch { return 0; }
+        return beastBonusFromRow(row);
+    } catch { return { str: 0, def: 0, mag: 0, vit: 0, role: null }; }
 }
 
 // Returns the spirit beast's flat stat bonus applied to the character in battle,
 // matching buildCharacterResponse: attack role (str>def) grants STR+atMAG;
 // heal role (def>=str) grants DEF. AGILITY is never boosted by the beast.
 async function beastStatBonus(db, charId) {
-    try {
-        const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
-        if (!row || (row.hp_current ?? 0) <= 0) return { str: 0, def: 0, mag: 0, vit: 0 };
-        const bes = calcElemStats(row);
-        console.log(`[DEBUG] beastStatBonus: char_id=${charId}, bes=`, bes);
-        if ((bes.def || 0) >= (bes.str || 0)) return { str: 0, def: bes.def || 0, mag: 0, vit: bes.vit || 0 };
-        return { str: bes.str || 0, def: 0, mag: bes.mag || 0, vit: 0 };
-    } catch { return { str: 0, def: 0, mag: 0, vit: 0 }; }
+    const b = await getBeastStatBonus(db, charId);
+    return { str: b.str, def: b.def, mag: b.mag, vit: b.vit };
+}
+
+// Returns the extra max HP an equipped, alive spirit beast grants when it is in
+// defense/heal role (def >= str). Mirrors buildCharacterResponse's boosted max HP.
+async function beastHpBonus(db, charId) {
+    const b = await getBeastStatBonus(db, charId);
+    return b.role === 'heal' ? (b.vit * 25 + b.def * 2) : 0;
 }
 
 async function buildCombatFighter(db, char) {
@@ -8413,7 +8417,6 @@ async function buildCombatFighter(db, char) {
     if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
         _beastStats = await beastStatBonus(db, char.id);
     }
-    console.log(`[DEBUG] buildCombatFighter: char_id=${char.id}, beastStats=`, _beastStats);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -8461,7 +8464,6 @@ async function buildCombatFighter(db, char) {
         tempStatBuffs = char.temp_stat_buffs;
     }
     const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
-    console.log(`[DEBUG] buildCombatFighter: charId=${char.id}, tempStatBuffs=`, tempStatBuffs, `tempDef=${tempDef}`);
 
     const fighter = {
         id: char.id,
@@ -9667,8 +9669,6 @@ async function grantAchievementRewards(db, char, rewards) {
 }
 
 async function getCharacterAchievements(db, char) {
-    console.log('[DEBUG] getCharacterAchievements - ACHIEVEMENTS length:', ACHIEVEMENTS.length);
-    console.log('[DEBUG] Sample IDs:', ACHIEVEMENTS.slice(-10).map(a=>a.id));
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
     const metricSnapshot = await buildAchievementMetricSnapshot(db, char);
@@ -9813,25 +9813,13 @@ async function buildCharacterResponse(char, db) {
     if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
         elemental = await ensureElemental(db, char.id);
     }
-    // Spirit Beast flat stat bonuses
+    // Spirit Beast flat stat bonuses (single source of truth: beastBonusFromRow)
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
     let beastRole = null;
-    if (elemental && elemental.is_equipped === 1 && (elemental.hp_current ?? 0) > 0) {
-        const beastStats = calcElemStats(elemental);
-        if ((beastStats.str || 0) > (beastStats.def || 0)) {
-            beastRole = 'attack';
-            beastStrBonus = beastStats.str || 0;
-            beastMagBonus = beastStats.mag || 0;
-        } else {
-            beastRole = 'heal';
-            beastDefBonus = beastStats.def || 0;
-            beastVitBonus = beastStats.vit || 0;
-        }
-        console.log(`[DEBUG] buildCharacterResponse: Found equipped elemental: ${elemental.id}, role: ${beastRole}`);
-    } else if (elemental) {
-        console.log(`[DEBUG] buildCharacterResponse: Elemental ${elemental.id} has 0 HP, no stat bonus`);
-    } else {
-        console.log(`[DEBUG] buildCharacterResponse: No equipped elemental found for char_id: ${char.id}`);
+    if (elemental) {
+        const bb = beastBonusFromRow(elemental);
+        beastStrBonus = bb.str; beastDefBonus = bb.def; beastMagBonus = bb.mag; beastVitBonus = bb.vit;
+        beastRole = bb.role;
     }
 
     // Temp-stat potion buffs (1h), applied to stats and returned for display
@@ -9853,7 +9841,6 @@ async function buildCharacterResponse(char, db) {
     }
 
     const beastBonusValue = beastDefBonus + tempBonus('defense');
-    console.log(`[DEBUG] buildCharacterResponse: charId=${char.id}, beastDefBonus=${beastDefBonus}, tempDef=${tempBonus('defense')}, finalBeastBonusValue=${beastBonusValue}`);
     const armorValue = calcArmorValue(char, equippedArray, beastBonusValue);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
@@ -14178,7 +14165,8 @@ router.get('/matchmaking', auth, async (req, res) => {
         if (!me) return res.status(404).json({ error: 'No character' });
         const direction = req.query.direction || 'similar';
         const now = Math.floor(Date.now() / 1000);
-        const myPower = (me.strength||0) + (me.defense||0) + (me.agility||0) + (me.magic||0) + me.level * 5;
+        const myBeast = await beastStatBonus(db, me.id);
+        const myPower = (me.strength||0) + myBeast.str + (me.defense||0) + myBeast.def + (me.agility||0) + (me.magic||0) + myBeast.mag + me.level * 5;
 
         let candidates = await dbAll(db, `
             SELECT c.*, u.username,
@@ -14198,6 +14186,17 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
         `, [me.id, req.user.userId, now]);
+
+        // Include each candidate's equipped spirit beast stats in their power
+        if (candidates.length) {
+            const beastRows = await dbAll(db, `SELECT * FROM elementals WHERE is_equipped = 1 AND char_id IN (${candidates.map(() => '?').join(',')})`, candidates.map(c => c.id));
+            const beastByChar = new Map();
+            for (const row of beastRows) beastByChar.set(Number(row.char_id), beastBonusFromRow(row));
+            for (const c of candidates) {
+                const bb = beastByChar.get(Number(c.id)) || { str: 0, def: 0, mag: 0 };
+                c.power = Number(c.power) + (bb.str || 0) + (bb.def || 0) + (bb.mag || 0);
+            }
+        }
 
         const myCooldownRows = await dbAll(db, 'SELECT defender_id FROM character_attack_cooldowns WHERE attacker_id=? AND expires_at>?', [me.id, now]);
         const myCooldowns = new Set(myCooldownRows.map(r => r.defender_id));
@@ -14605,6 +14604,18 @@ router.get('/leaderboard', auth, async (req, res) => {
             LEFT JOIN squads sq ON sq.id = sm.squad_id
             ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
+        // Include each player's equipped spirit beast stats in their shown stats
+        if (players.length) {
+            const beastRows = await dbAll(db, `SELECT * FROM elementals WHERE is_equipped = 1 AND char_id IN (${players.map(() => '?').join(',')})`, players.map(p => p.id));
+            const beastByChar = new Map();
+            for (const row of beastRows) beastByChar.set(Number(row.char_id), beastBonusFromRow(row));
+            for (const p of players) {
+                const bb = beastByChar.get(Number(p.id)) || { str: 0, def: 0, mag: 0, vit: 0 };
+                p.strength = Number(p.strength || 0) + (bb.str || 0);
+                p.defense = Number(p.defense || 0) + (bb.def || 0);
+                p.magic = Number(p.magic || 0) + (bb.mag || 0);
+            }
+        }
         res.json(players.map((p,i) => {
             let ids = [];
             try {
