@@ -1503,6 +1503,7 @@ async function selectCharacter(characterId) {
         await loadCharacterRoster();
         closeCharacterSwitcher();
         renderTopBar();
+        renderChatWidget(); // Refresh chat on character switch
         const activeTab = TAB_ORDER.find(name => document.getElementById(`tab-${name}`)?.classList.contains('active')) || 'character';
         showTab(activeTab);
     } catch (e) {
