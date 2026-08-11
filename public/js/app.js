@@ -2727,17 +2727,15 @@ function renderCharacter() {
     const beastDef = beastBonus.def || 0;
     const beastMag = beastBonus.mag || 0;
     const beastVit = beastBonus.vit || 0;
-    const tempBuffs = c.temp_stat_buffs || {};
-    const tempDef = Number(tempBuffs.defense?.value || 0);
     const baseStr  = (c.strength    || 0) - beastStr;
-    const baseDef  = (c.defense     || 0) - beastDef - tempDef;
+    const baseDef  = (c.defense     || 0) - beastDef;
     const baseAgi  = c.agility     || 0;
     const baseMag  = (c.magic       || 0) - beastMag;
     const baseVit  = (c.vitality    || 10) - beastVit;
     const baseHit  = c.hit_chance  || 0;
     const baseCrit = c.crit_chance || 0;
     const bonusStr  = (itemBonus.strength || 0) + (setBonus.strength || 0) + beastStr;
-    const bonusDef  = (itemBonus.defense || 0) + (setBonus.defense || 0) + beastDef + tempDef;
+    const bonusDef  = (itemBonus.defense || 0) + (setBonus.defense || 0) + beastDef;
     const bonusAgi  = (itemBonus.agility || 0) + (setBonus.agility || 0) + (c.no_shield_agi_bonus || 0);
     const bonusMag  = (itemBonus.magic || 0) + (setBonus.magic || 0) + beastMag;
     const bonusVit  = (itemBonus.vitality || 0) + (setBonus.vitality || 0) + beastVit;
@@ -2759,7 +2757,7 @@ function renderCharacter() {
         finalDmgMax += strBonus;
     }
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
-    const baseArmor = Math.floor(totalDef / 2);
+    const baseArmor = Math.floor(totalDef / 4);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
     function statRowBreakdown(icon, label, base, bonus, max, cls, cost, statKey, hasBeast) {
@@ -9507,7 +9505,7 @@ async function openProfile(id) {
             finalDmgMin += strBonus;
             finalDmgMax += strBonus;
         }
-        const profileArmor = p.armor_value ?? (Math.floor(totalDef / 2) + (itemBonus.armor || 0) + (setBonus.armor || 0));
+        const profileArmor = p.armor_value ?? (Math.floor(totalDef / 4) + (itemBonus.armor || 0) + (setBonus.armor || 0));
         const profileElemDmg = p.elem_dmg || {};
         const profileElemRes = p.elem_resist || {};
 
