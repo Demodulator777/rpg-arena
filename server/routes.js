@@ -13150,7 +13150,12 @@ async function processOneAutoChar(db, state) {
 
     // Start next mission.
     const size = ['small', 'medium', 'large'].includes(state.size) ? state.size : 'small';
-    const cost = MISSION_SIZES[size].mpCost;
+    let cost = MISSION_SIZES[size].mpCost;
+    const midasFlow = PREMIUM_SYNERGIES.find(s => s.requires.includes('arcane_reservoir') && s.requires.includes('fortune_hunter'));
+    const activePrem = getActivePremium(fresh);
+    if (midasFlow && hasPremium(activePrem, 'arcane_reservoir') && hasPremium(activePrem, 'fortune_hunter')) {
+        cost = Math.max(0, cost - midasFlow.effect.mp_cost_reduction);
+    }
     const available = (fresh.mission_points || 0) + (state.auto_mp || 0);
     if (available < cost) {
         await shutoff('MP pool depleted — cycle ended');
@@ -13165,7 +13170,6 @@ async function processOneAutoChar(db, state) {
     // Respect skill-training and the PvP cooldown, mirroring /missions/start.
     const activeTraining = await dbGet(db, 'SELECT id FROM skill_training WHERE char_id=? AND ends_at>?', [state.char_id, now]);
     if (activeTraining) return;
-    const activePrem = getActivePremium(fresh);
     const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
     const effectivePvpCooldown = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
     if (Number(fresh.last_battle_at || 0) + effectivePvpCooldown > now) return;
