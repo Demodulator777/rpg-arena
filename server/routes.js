@@ -8409,7 +8409,10 @@ async function buildCombatFighter(db, char) {
     const hpMax = calcHpMax(char, equippedArray) + await beastHpBonus(db, char.id);
     const hpCurrent = char.hp_current ?? hpMax;
 
-    const _beastStats = await beastStatBonus(db, char.id);
+    let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
+    if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
+        _beastStats = await beastStatBonus(db, char.id);
+    }
     console.log(`[DEBUG] buildCombatFighter: char_id=${char.id}, beastStats=`, _beastStats);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
@@ -8500,6 +8503,7 @@ async function buildCombatFighter(db, char) {
         blockZones: JSON.parse(char.block_zones || 'null') || DEFAULT_BLOCK_ZONES,
         dualWield: char.class === 'rogue' && rogueHasDualWield(learnedIds),
         _elementalFighter: await (async () => {
+            if (!(await isFeatureEnabled(db, 'spirit_beast_enabled'))) return null;
             const er = await ensureElemental(db, char.id);
             if (!er || !er.is_equipped) return null;
             const bs = (er.strength || 5) + (er.stat_str || 0) * 2;
@@ -9805,7 +9809,10 @@ async function buildCharacterResponse(char, db) {
 
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
 
-    const elemental = await ensureElemental(db, char.id);
+    let elemental = null;
+    if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
+        elemental = await ensureElemental(db, char.id);
+    }
     // Spirit Beast flat stat bonuses
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
     let beastRole = null;
@@ -15701,6 +15708,37 @@ router.get('/admin/settings', auth, async (req, res) => {
 });
 
 // Admin settings toggle for bot detection
+// Get global settings
+router.get('/admin/settings', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const settingsRows = await db.execute({ sql: 'SELECT key, value FROM server_settings', args: [] });
+        const settings = {};
+        for (const row of settingsRows.rows) {
+            settings[row.key] = row.value === 'true';
+        }
+        res.json(settings);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+async function isFeatureEnabled(db, key) {
+    const row = await dbGet(db, 'SELECT value FROM server_settings WHERE key = ?', [key]);
+    return row ? row.value === 'true' : true; // Default true if not found
+}
+router.post('/admin/settings/spirit-beast', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const { enabled } = req.body;
+        await db.execute({
+            sql: 'INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)',
+            args: ['spirit_beast_enabled', enabled ? 'true' : 'false']
+        });
+        res.json({ success: true, enabled });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/admin/settings/bot-detection', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
