@@ -4603,6 +4603,8 @@ function openLocationModal(zoneId) {
         </div>`;
 
     activeEl.innerHTML = '';
+    const autoPanel = document.getElementById('auto-complete-panel');
+    if (autoPanel) autoPanel.innerHTML = '';
     modal.classList.remove('hidden');
 }
 
@@ -4685,6 +4687,10 @@ function openSpotMissions(zoneId, spotId) {
     activeEl.dataset.spotId = spotId;
     activeEl.dataset.selectedSize = '';
 
+    _autoSelSize = 'small';
+    _autoSelMission = 0;
+    renderAutoCompletePanel(zoneId, spotId);
+
     queueMobileMissionModalScroll(activeEl);
 }
 
@@ -4731,6 +4737,9 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
     const activeEl = document.getElementById('mission-location-active');
     activeEl.dataset.selectedSize = sizeKey;
 
+    _autoSelSize = sizeKey;
+    renderAutoCompletePanel(zoneId, spotId);
+
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
     const mults = { small: 1.0, medium: 1.8, large: 2.5 };
     const mult = mults[sizeKey] || 1;
@@ -4764,6 +4773,158 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
     });
 
     queueMobileMissionModalScroll('#spot-missions-list');
+}
+
+// ── Auto-Complete missions (Premium: Arcane Reservoir) ─────────────────────
+let _autoSelSize = 'small';
+let _autoSelMission = 0;
+let _autoSelectedPotions = new Set();
+
+async function renderAutoCompletePanel(zoneId, spotId) {
+    const panel = document.getElementById('auto-complete-panel');
+    if (!panel) return;
+    const currentMap = character?.current_map || 'overworld';
+    const zone = currentMap === 'abyss' && abyssData ? abyssData.zones[zoneId] : ZONES[zoneId];
+    const spot = zone?.spots.find(s => s.id === spotId);
+    if (!zone || !spot) { panel.innerHTML = ''; return; }
+
+    let status = null;
+    try { status = await api('GET', '/game/missions/auto-status'); } catch (e) { }
+
+    const isHere = String(character?.location) === String(zoneId);
+    const premium = status?.premium === true;
+    const running = status?.enabled === true && String(status?.zone) === String(zoneId) && String(status?.spot) === String(spotId);
+    const potions = (status?.potions || []).filter(p => p.mp > 0);
+
+    panel.innerHTML = `
+        <div class="mz-section-label" style="margin-top:24px">⚡ Auto-Complete <span style="color:#9b59b6;font-weight:700">(🔮 Arcane Reservoir)</span></div>
+        ${!premium ? `
+            <div style="background:rgba(155,89,182,0.12);border:1px solid rgba(155,89,182,0.35);border-radius:10px;padding:14px;font-size:0.85rem;color:#dcd0ff">
+                Auto-Complete keeps farming missions in ${escHtml(spot.name)} automatically — even while you're logged off.
+                <div style="margin-top:8px;font-weight:700;color:#fff">Activate <strong>Arcane Reservoir</strong> to access auto-complete.</div>
+            </div>`
+        : !isHere ? `
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;font-size:0.85rem;color:var(--text-dim)">
+                Travel to <strong>${escHtml(spot.name)}</strong> first — auto-complete only runs on your current location.
+            </div>`
+        : running ? `
+            <div style="background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.35);border-radius:10px;padding:14px;font-size:0.85rem">
+                <div style="font-weight:700;color:#2ecc71;margin-bottom:6px">● Auto-complete is running for ${escHtml(spot.name)}</div>
+                <div style="color:var(--text-dim);line-height:1.7">
+                    ${status.autoMp > 0 ? `<div>🔮 Pool MP: <strong style="color:#dcd0ff">${status.autoMp}</strong></div>` : ''}
+                    <div>✅ Missions completed: <strong style="color:#fff">${status.runs || 0}</strong></div>
+                    ${status.lastResult ? `<div>📝 Last: ${escHtml(status.lastResult)}</div>` : ''}
+                </div>
+                <button id="auto-disable-btn" class="btn-secondary" style="margin-top:12px;width:100%">Stop Auto-Complete</button>
+            </div>`
+        : `
+            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:14px;font-size:0.85rem">
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                    <label style="color:var(--text-dim);align-self:center">Mission</label>
+                    <select id="auto-mission-sel" style="flex:1;min-width:120px;background:#0f1820;color:#fff;border:1px solid rgba(155,89,182,0.4);border-radius:8px;padding:7px 8px">${spot.missions.map((m, idx) => {
+                        const name = typeof m === 'string' ? m : (m.name || `Mission ${idx + 1}`);
+                        return `<option value="${idx}" ${String(_autoSelMission) === String(idx) ? 'selected' : ''}>${escHtml(name)}</option>`;
+                    }).join('')}</select>
+                    <label style="color:var(--text-dim);align-self:center">Size</label>
+                    <select id="auto-size-sel" style="background:#0f1820;color:#fff;border:1px solid rgba(155,89,182,0.4);border-radius:8px;padding:7px 8px">
+                        ${['small', 'medium', 'large'].map(sz => `<option value="${sz}" ${_autoSelSize === sz ? 'selected' : ''}>${sz.charAt(0).toUpperCase() + sz.slice(1)} (${sz === 'small' ? 20 : sz === 'medium' ? 40 : 60} MP)</option>`).join('')}
+                    </select>
+                </div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+                    <label style="color:var(--text-dim);align-self:center">Your MP</label>
+                    <input id="auto-mp-in" type="text" value="${status.mp || 0}" style="width:80px;background:#0f1820;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 8px" disabled>
+                    <span id="auto-mp-hint" style="color:var(--text-dim);align-self:center;font-size:0.75rem">Needs ${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP per mission · uses your MP first</span>
+                </div>
+                <div style="color:var(--text-dim);margin-bottom:6px">Load MP potions into the pool (up to ${status?.maxPotions ?? 10})</div>
+                ${potions.length === 0
+                    ? `<div style="color:#8e44ad;font-size:0.78rem;margin-bottom:10px">No MP potions in inventory. Convert MP into Special Mana Potions, or use your Mission Points above.</div>`
+                    : `<div id="auto-pot-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px">
+                        ${potions.map((p, i) => {
+                            const picked = _autoSelectedPotions.has(String(p.inventoryId));
+                            const limitReached = _autoSelectedPotions.size >= (status?.maxPotions ?? 10) && !picked;
+                            return `<div class="${picked ? 'auto-potion-picked' : ''}" data-inv="${p.inventoryId}" data-mp="${p.mp}" style="position:relative;border:1px solid ${picked ? 'rgba(155,89,182,0.7)' : 'rgba(255,255,255,0.12)'};${picked ? 'background:rgba(155,89,182,0.15)' : ''};border-radius:8px;padding:8px;text-align:center;cursor:${limitReached ? 'not-allowed' : 'pointer'};opacity:${limitReached ? 0.45 : 1}">
+                                <div>${p.emoji || '💧'} ${escHtml(p.name)}</div>
+                                <div style="color:#9b59b6;font-weight:700">+${p.mp} MP</div>
+                                <div style="color:var(--text-dim);font-size:0.7rem;">${p.qty} owned</div>
+                            </div>`;
+                        }).join('')}
+                     </div>`}
+                <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+                    <div style="color:var(--text-dim)">Pool total: <strong id="auto-pool-total" style="color:#dcd0ff">0</strong> MP</div>
+                    <div style="color:var(--text-dim);font-size:0.72rem">Note: spends your Mission Points first, then this pool</div>
+                </div>
+                <button id="auto-enable-btn" class="btn-primary" style="width:100%">Start Auto-Complete</button>
+            </div>`
+        }
+    `;
+
+    if (!premium || !isHere || running) {
+        const stopBtn = document.getElementById('auto-disable-btn');
+        if (stopBtn) stopBtn.addEventListener('click', async () => {
+            try {
+                await api('POST', '/game/missions/auto-disable');
+                _autoSelectedPotions = new Set();
+            } catch (e) { showMsg('missions-msg', e.message, true); }
+            renderAutoCompletePanel(zoneId, spotId);
+        });
+        return;
+    }
+
+    const missionSel = document.getElementById('auto-mission-sel');
+    const sizeSel = document.getElementById('auto-size-sel');
+    if (missionSel) missionSel.addEventListener('change', () => { _autoSelMission = Number(missionSel.value) || 0; });
+    if (sizeSel) sizeSel.addEventListener('change', () => {
+        _autoSelSize = sizeSel.value;
+        const cost = { small: 20, medium: 40, large: 60 }[_autoSelSize] || 20;
+        const hint = document.getElementById('auto-mp-hint');
+        if (hint) hint.textContent = `Needs ${cost} MP per mission · uses your MP first`;
+    });
+
+    const potionEls = panel.querySelectorAll('[data-inv]');
+    potionEls.forEach(el => {
+        el.addEventListener('click', () => {
+            const invId = String(el.getAttribute('data-inv'));
+            const max = status?.maxPotions ?? 10;
+            if (_autoSelectedPotions.has(invId)) {
+                _autoSelectedPotions.delete(invId);
+            } else {
+                if (_autoSelectedPotions.size >= max) return;
+                _autoSelectedPotions.add(invId);
+            }
+            updateAutoPoolTotal(panel, potions);
+            renderAutoCompletePanel(zoneId, spotId);
+        });
+    });
+
+    updateAutoPoolTotal(panel, potions);
+
+    const enableBtn = document.getElementById('auto-enable-btn');
+    if (enableBtn) enableBtn.addEventListener('click', async () => {
+        const selected = [..._autoSelectedPotions];
+        try {
+            showMsg('missions-msg', 'Starting auto-complete...', false, 0);
+            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potionIds: selected });
+            _autoSelectedPotions = new Set();
+            showMsg('missions-msg', 'Auto-complete is now running. It will keep farming even while you are logged off.', false, 0);
+        } catch (e) {
+            showMsg('missions-msg', e.message, true);
+        }
+        renderAutoCompletePanel(zoneId, spotId);
+    });
+}
+
+function updateAutoPoolTotal(panel, potions) {
+    let total = 0;
+    for (const p of potions) {
+        if (_autoSelectedPotions.has(String(p.inventoryId))) total += p.mp;
+    }
+    const el = document.getElementById('auto-pool-total');
+    if (el) el.textContent = String(total);
+}
+
+function refreshAutoCompletePanelForZone(zoneId, spotId) {
+    const panel = document.getElementById('auto-complete-panel');
+    if (panel && !panel.classList.contains('hidden')) renderAutoCompletePanel(zoneId, spotId);
 }
 
 let _missionStarting = false;
