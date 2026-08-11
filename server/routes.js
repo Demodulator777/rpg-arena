@@ -14306,8 +14306,10 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const premD = getActivePremium(freshD);
         const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
         const veteranD = hasPremium(premD, 'warlord') && hasPremium(premD, 'iron_fortress');
-        const armorA = calcArmorValue(freshA, equippedA);
-        const armorD = calcArmorValue(freshD, equippedD);
+        const tempDefA = Number(JSON.parse(freshA.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshA.temp_stat_buffs || '{}').defense.value || 0 : 0);
+        const tempDefD = Number(JSON.parse(freshD.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshD.temp_stat_buffs || '{}').defense.value || 0 : 0);
+        const armorA = calcArmorValue(freshA, equippedA, _beastStatsA.def + tempDefA);
+        const armorD = calcArmorValue(freshD, equippedD, _beastStatsD.def + tempDefD);
 
         // ── Skill tree passive bonuses for attacker ─────────────────────────
         const learnedRowsA = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [freshA.id]);
@@ -14779,18 +14781,11 @@ router.get('/player/:id', auth, async (req, res) => {
         let pBeastStr = 0, pBeastDef = 0, pBeastMag = 0, pBeastVit = 0;
         let pBeastRole = null;
         const pElemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id=? AND is_equipped=1', [player.id]).catch(() => null);
-        if (pElemRow && (pElemRow.hp_current ?? 0) > 0) {
-            const pBeast = calcElemStats(pElemRow);
-            if ((pBeast.str || 0) > (pBeast.def || 0)) {
-                pBeastRole = 'attack';
-                pBeastStr = pBeast.str || 0;
-                pBeastMag = pBeast.mag || 0;
-            } else {
-                pBeastRole = 'heal';
-                pBeastDef = pBeast.def || 0;
-                pBeastVit = pBeast.vit || 0;
-            }
-            hpMax += pBeastVit * 25 + pBeastDef * 2;
+        if (pElemRow) {
+            const pBeast = beastBonusFromRow(pElemRow);
+            pBeastStr = pBeast.str; pBeastDef = pBeast.def; pBeastMag = pBeast.mag; pBeastVit = pBeast.vit;
+            pBeastRole = pBeast.role;
+            if (pBeast.role === 'heal') hpMax += pBeastVit * 25 + pBeastDef * 2;
         }
 
         const hpLow = (player.hp_current ?? hpMax) < 10;
