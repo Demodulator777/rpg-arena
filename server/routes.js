@@ -9816,7 +9816,6 @@ async function buildCharacterResponse(char, db) {
     let elemental = null;
     if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
         _beastStats = await beastStatBonus(db, char.id);
-        console.error(`[DEBUG MISSION] charId=${char.id}, _beastStats=`, _beastStats);
     }
     // Spirit Beast flat stat bonuses (single source of truth: beastBonusFromRow)
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
