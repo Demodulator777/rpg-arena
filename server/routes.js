@@ -15696,17 +15696,6 @@ async function persistBotFlags(db, botPlayers) {
     } catch (e) { console.error('[persistBotFlags]', e.message); }
 }
 
-// Get all server settings
-router.get('/admin/settings', auth, async (req, res) => {
-    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
-    try {
-        const db = await getDb();
-        const settings = await dbAll(db, 'SELECT * FROM server_settings', []);
-        const settingsMap = settings.reduce((acc, s) => { acc[s.key] = s.value; return acc; }, {});
-        res.json(settingsMap);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
 // Admin settings toggle for bot detection
 // Get global settings
 router.get('/admin/settings', auth, async (req, res) => {
@@ -15718,7 +15707,11 @@ router.get('/admin/settings', auth, async (req, res) => {
             spirit_beast_enabled: true // Default
         };
         for (const row of settingsRows.rows) {
-            settings[row.key] = row.value === 'true';
+            if (row.key === 'sw_enabled') {
+                settings[row.key] = row.value === '1' || row.value === 'true';
+            } else {
+                settings[row.key] = row.value === 'true';
+            }
         }
         res.json(settings);
     } catch (e) { res.status(500).json({ error: e.message }); }
