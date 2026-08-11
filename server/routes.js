@@ -8426,7 +8426,6 @@ async function buildCombatFighter(db, char) {
 
     let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
     _beastStats = await beastStatBonus(db, char.id);
-    console.error(`[DEBUG MISSION] charId=${char.id}, _beastStats=`, _beastStats);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -8474,11 +8473,9 @@ async function buildCombatFighter(db, char) {
         tempStatBuffs = char.temp_stat_buffs;
     }
     const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
-    console.error(`[DEBUG MISSION] charId=${char.id}, tempDef=${tempDef}`);
 
     const rawArmor = calcArmorValue(char, equippedArray, _beastStats.def + tempDef);
     const finalArmor = rawArmor + skillPassiveBonus(rawArmor, skillPassives.armor);
-    console.error(`[DEBUG MISSION] charId=${char.id}, finalArmor=${finalArmor}`);
 
     const fighter = {
         id: char.id,
@@ -12424,6 +12421,7 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax = calcHpMax(freshChar, equippedArray) + await beastHpBonus(db, freshChar.id);
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const _beastStats = await beastStatBonus(db, freshChar.id);
+        const tempDef = Number(JSON.parse(freshChar.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshChar.temp_stat_buffs || '{}').defense.value || 0 : 0);
         const setBonuses = getEquippedSetBonuses(equippedArray);
         const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
         const charActiveSkills = getActiveSkills(freshChar);
@@ -12464,7 +12462,7 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
             defense: (freshChar.defense || 0) + (setBonuses.defense || 0) + skillPassiveBonus(freshChar.defense || 0, skillPassives.defense) + getEquippedStatTotal(equippedArray, 'defense') + _beastStats.def,
             hit_chance: (freshChar.hit_chance || 0) + (setBonuses.hit_chance || 0) + skillPassiveBonus(freshChar.hit_chance || 0, skillPassives.hit_chance) + getEquippedStatTotal(equippedArray, 'hit_chance'),
             crit_chance: (freshChar.crit_chance || 0) + (setBonuses.crit_chance || 0) + skillPassiveBonus(freshChar.crit_chance || 0, skillPassives.crit_chance) + getEquippedStatTotal(equippedArray, 'crit_chance'),
-            armor: calcArmorValue(freshChar, equippedArray) + skillPassiveBonus(calcArmorValue(freshChar, equippedArray), skillPassives.armor),
+            armor: calcArmorValue(freshChar, equippedArray, _beastStats.def + tempDef) + skillPassiveBonus(calcArmorValue(freshChar, equippedArray, _beastStats.def + tempDef), skillPassives.armor),
             elem_dmg: {
                 pyro:    (calcElemDmg(equippedArray).pyro    || 0) + (skillPassives.pyro_dmg    || 0),
                 water:   (calcElemDmg(equippedArray).water   || 0) + (skillPassives.water_dmg   || 0),
