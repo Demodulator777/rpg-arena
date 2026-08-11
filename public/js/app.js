@@ -4689,7 +4689,7 @@ function openSpotMissions(zoneId, spotId) {
 
     _autoSelSize = 'small';
     _autoSelMission = 0;
-    _autoSelectedPotions = new Set();
+    _autoSelectedPotions = new Map();
     renderAutoCompletePanel(zoneId, spotId);
 
     queueMobileMissionModalScroll(activeEl);
@@ -4779,7 +4779,7 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
 // ── Auto-Complete missions (Premium: Arcane Reservoir) ─────────────────────
 let _autoSelSize = 'small';
 let _autoSelMission = 0;
-let _autoSelectedPotions = new Set();
+let _autoSelectedPotions = new Map();
 
 async function renderAutoCompletePanel(zoneId, spotId) {
     const panel = document.getElementById('auto-complete-panel');
@@ -4841,12 +4841,19 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                     ? `<div style="color:#8e44ad;font-size:0.78rem;margin-bottom:10px">No MP potions in inventory. Convert MP into Special Mana Potions, or use your Mission Points above.</div>`
                     : `<div id="auto-pot-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px">
                         ${potions.map((p, i) => {
-                            const picked = _autoSelectedPotions.has(String(p.inventoryId));
-                            const limitReached = autoPotionCount(potions) >= (status?.maxPotions ?? 10) && !picked;
-                            return `<div class="${picked ? 'auto-potion-picked' : ''}" data-inv="${p.inventoryId}" data-mp="${p.totalMp}" style="position:relative;border:1px solid ${picked ? 'rgba(155,89,182,0.7)' : 'rgba(255,255,255,0.12)'};${picked ? 'background:rgba(155,89,182,0.15)' : ''};border-radius:8px;padding:8px;text-align:center;cursor:${limitReached ? 'not-allowed' : 'pointer'};opacity:${limitReached ? 0.45 : 1}">
+                            const selectedQty = _autoSelectedPotions.get(String(p.inventoryId)) || 0;
+                            const selCount = autoPotionCount(potions);
+                            const remaining = (status?.maxPotions ?? 10) - selCount;
+                            const canAdd = selectedQty < Number(p.qty) && remaining > 0;
+                            return `<div data-inv="${p.inventoryId}" style="position:relative;border:1px solid ${selectedQty ? 'rgba(155,89,182,0.7)' : 'rgba(255,255,255,0.12)'};${selectedQty ? 'background:rgba(155,89,182,0.15)' : ''};border-radius:8px;padding:8px;text-align:center">
                                 <div>${p.emoji || '💧'} ${escHtml(p.name)}</div>
-                                <div style="color:#9b59b6;font-weight:700">+${p.totalMp} MP</div>
-                                <div style="color:var(--text-dim);font-size:0.7rem;">${p.qty} potion${p.qty > 1 ? 's' : ''} · ${p.mp} MP each</div>
+                                <div style="color:#9b59b6;font-weight:700">${p.mp} MP each</div>
+                                <div style="color:var(--text-dim);font-size:0.7rem;">${p.qty} in stock</div>
+                                <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:7px">
+                                    <button type="button" class="qp-btn" data-inv="${p.inventoryId}" data-dir="-1" style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:#fff;font-weight:700;cursor:pointer" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
+                                    <span style="color:#fff;font-weight:700;min-width:18px">${selectedQty}</span>
+                                    <button type="button" class="qp-btn" data-inv="${p.inventoryId}" data-dir="1" style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(155,89,182,0.5);background:rgba(155,89,182,0.2);color:#fff;font-weight:700;cursor:${canAdd ? 'pointer' : 'not-allowed'};opacity:${canAdd ? 1 : 0.45}" ${canAdd ? '' : 'disabled'} data-inv2="${p.inventoryId}">+</button>
+                                </div>
                             </div>`;
                         }).join('')}
                      </div>`}
@@ -4864,7 +4871,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         if (stopBtn) stopBtn.addEventListener('click', async () => {
             try {
                 await api('POST', '/game/missions/auto-disable');
-                _autoSelectedPotions = new Set();
+                _autoSelectedPotions = new Map();
             } catch (e) { showMsg('missions-msg', e.message, true); }
             renderAutoCompletePanel(zoneId, spotId);
         });
@@ -4881,16 +4888,25 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         if (hint) hint.textContent = `Needs ${cost} MP per mission · uses your MP first`;
     });
 
-    const potionEls = panel.querySelectorAll('[data-inv]');
-    potionEls.forEach(el => {
-        el.addEventListener('click', () => {
-            const invId = String(el.getAttribute('data-inv'));
+    const qpBtns = panel.querySelectorAll('.qp-btn');
+    qpBtns.forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const invId = String(btn.getAttribute('data-inv'));
+            const dir = Number(btn.getAttribute('data-dir'));
+            const p = potions.find(x => String(x.inventoryId) === invId);
+            if (!p) return;
             const max = status?.maxPotions ?? 10;
-            if (_autoSelectedPotions.has(invId)) {
+            const cur = _autoSelectedPotions.get(invId) || 0;
+            const next = cur + dir;
+            if (next <= 0) {
                 _autoSelectedPotions.delete(invId);
+            } else if (next > Number(p.qty)) {
+                return;
+            } else if (dir > 0 && autoPotionCount(potions) >= max) {
+                return;
             } else {
-                if (autoPotionCount(potions) >= max) return;
-                _autoSelectedPotions.add(invId);
+                _autoSelectedPotions.set(invId, Math.min(next, max));
             }
             updateAutoPoolTotal(panel, potions);
             renderAutoCompletePanel(zoneId, spotId);
@@ -4901,11 +4917,11 @@ async function renderAutoCompletePanel(zoneId, spotId) {
 
     const enableBtn = document.getElementById('auto-enable-btn');
     if (enableBtn) enableBtn.addEventListener('click', async () => {
-        const selected = [..._autoSelectedPotions];
+        const selected = [..._autoSelectedPotions].map(([invId, qty]) => ({ inventoryId: invId, qty }));
         try {
             showMsg('missions-msg', 'Starting auto-complete...', false);
-            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potionIds: selected });
-            _autoSelectedPotions = new Set();
+            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected });
+            _autoSelectedPotions = new Map();
             showMsg('missions-msg', 'Auto-complete is now running. It will keep farming even while you are logged off.', false);
             // The first mission starts server-side within a few seconds; poll for
             // it so the mission countdown overlay appears automatically.
@@ -4926,14 +4942,15 @@ async function renderAutoCompletePanel(zoneId, spotId) {
 
 function autoPotionCount(potions) {
     let c = 0;
-    for (const p of potions) if (_autoSelectedPotions.has(String(p.inventoryId))) c += p.qty;
+    for (const v of _autoSelectedPotions.values()) c += (Number(v) || 0);
     return Math.min(c, 999);
 }
 
 function updateAutoPoolTotal(panel, potions) {
     let total = 0;
     for (const p of potions) {
-        if (_autoSelectedPotions.has(String(p.inventoryId))) total += p.totalMp;
+        const q = _autoSelectedPotions.get(String(p.inventoryId)) || 0;
+        if (q > 0) total += p.mp * q;
     }
     const el = document.getElementById('auto-pool-total');
     if (el) el.textContent = String(total);
