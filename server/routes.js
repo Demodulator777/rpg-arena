@@ -9828,7 +9828,7 @@ async function buildCharacterResponse(char, db) {
         }
     }
 
-    const armorValue = calcArmorValue(char, equippedArray);
+    const armorValue = calcArmorValue(char, equippedArray, beastDefBonus + tempBonus('defense'));
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
