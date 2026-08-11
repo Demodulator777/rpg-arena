@@ -8389,11 +8389,12 @@ async function beastHpBonus(db, charId) {
 async function beastStatBonus(db, charId) {
     try {
         const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
-        if (!row || (row.hp_current ?? 0) <= 0) return { str: 0, def: 0, mag: 0 };
+        if (!row || (row.hp_current ?? 0) <= 0) return { str: 0, def: 0, mag: 0, vit: 0 };
         const bes = calcElemStats(row);
+        console.log(`[DEBUG] beastStatBonus: char_id=${charId}, bes=`, bes);
         if ((bes.def || 0) >= (bes.str || 0)) return { str: 0, def: bes.def || 0, mag: 0, vit: bes.vit || 0 };
         return { str: bes.str || 0, def: 0, mag: bes.mag || 0, vit: 0 };
-    } catch { return { str: 0, def: 0, mag: 0 }; }
+    } catch { return { str: 0, def: 0, mag: 0, vit: 0 }; }
 }
 
 async function buildCombatFighter(db, char) {
@@ -8409,8 +8410,8 @@ async function buildCombatFighter(db, char) {
     const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
 
     const _beastStats = await beastStatBonus(db, char.id);
-    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
-    const charActiveSkills = getActiveSkills(char);
+    console.log(`[DEBUG] buildCombatFighter: char_id=${char.id}, beastStats=`, _beastStats);
+    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);    const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
     const learnedIds = learnedRows.map(r => r.skill_id);
     const skillPassives = await computePassiveBonusesWithProgress(db, char.class, learnedIds, char.id);
