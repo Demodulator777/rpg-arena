@@ -12958,14 +12958,17 @@ async function listAutoPotions(db, charId) {
     const out = [];
     for (const r of rows) {
         let d; try { d = JSON.parse(r.item_data); } catch { continue; }
-        if (d.effect && d.effect.type === 'mp' && Number(d.qty ?? 1) > 0) {
+        const qty = Number(d.qty ?? 1);
+        const perMp = Number(d.effect?.value || 0);
+        if (d.effect && d.effect.type === 'mp' && qty > 0 && perMp > 0) {
             out.push({
                 inventoryId: r.id,
                 id: d.id || 'mana_potion',
                 name: d.name || 'Mana Potion',
                 emoji: d.emoji || '💧',
-                mp: Number(d.effect.value || 0),
-                qty: Number(d.qty || 1),
+                mp: perMp,
+                qty,
+                totalMp: perMp * qty,
             });
         }
     }
@@ -13051,19 +13054,28 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         const existing = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [char.id]);
         if (existing) return res.status(400).json({ error: 'Finish your active mission before enabling auto-complete.' });
 
-        // Convert selected MP-restoring potions into the private pool (max 10)
+        // Convert selected MP-restoring potions into the private pool (max 10,
+        // honoring stacked item quantities). Each stacked potion counts as one.
         let loadedMp = 0, loadedCount = 0;
-        const ids = Array.isArray(potionIds) ? potionIds.slice(0, AUTO_MISSION_MAX_POTIONS) : [];
+        const ids = Array.isArray(potionIds) ? potionIds : [];
         for (const invId of ids) {
             if (loadedCount >= AUTO_MISSION_MAX_POTIONS) break;
             const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [invId, char.id]);
             if (!item) continue;
             let d; try { d = JSON.parse(item.item_data); } catch { continue; }
-            const mpVal = Number(d.effect?.value || 0);
-            if (d.effect?.type !== 'mp' || mpVal <= 0) continue;
-            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invId]);
-            loadedMp += mpVal;
-            loadedCount++;
+            const perMp = Number(d.effect?.value || 0);
+            if (d.effect?.type !== 'mp' || perMp <= 0) continue;
+            const qty = Number(d.qty ?? 1);
+            const take = Math.min(qty, AUTO_MISSION_MAX_POTIONS - loadedCount);
+            if (take <= 0) break;
+            loadedMp += take * perMp;
+            loadedCount += take;
+            if (take >= qty) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invId]);
+            } else {
+                d.qty = qty - take;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), invId]);
+            }
         }
 
         await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, updated_at)
