@@ -1621,6 +1621,7 @@ const MISSION_SIZES = {
     medium: { mpCost: 40, duration: 1200, label: 'Medium', rewardMult: 1.8 },
     large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 2.5 },
 };
+const AUTO_MISSION_MAX_POTIONS = 10; // Max potions converted into the auto-mission MP pool per session
 const SKILL_DURATION = 5 * 3600;
 const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
 const HEALTH_POTION_COOLDOWN = 30 * 60;
@@ -12327,16 +12328,15 @@ router.post('/missions/start', auth, async (req, res) => {
 });
 
 // ── Missions Collect (UPDATED with skill tree passive bonuses) ────────────
-router.post('/missions/collect', auth, async (req, res) => {
+async function collectMissionForCharacter(db, characterId) {
     try {
-        const db = await getDb();
-        const character = await getCurrentCharacter(db, req.user.userId);
-        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const character = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [characterId]);
+        if (!character) return { __error: 'Character not found', __status: 404 };
         await applyMpRegen(db, character.id);
         await applyHpRegen(db, character.id);
         const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
         const mission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id = ?', [character.id]);
-        if (!mission) return res.status(400).json({ error: 'No active mission' });
+        if (!mission) return { __error: 'No active mission', __status: 400 };
         let zoneLevel = 1;
         if (mission.map_type === 'abyss') {
             const zone = ABYSS_ZONES[mission.zone];
@@ -12346,7 +12346,7 @@ router.post('/missions/collect', auth, async (req, res) => {
             zoneLevel = zone?.minLevel || 1;
         }
         const now = Math.floor(Date.now() / 1000);
-        if (now < mission.ends_at) return res.status(400).json({ error: 'Mission not yet complete' });
+        if (now < mission.ends_at) return { __error: 'Mission not yet complete', __status: 400 };
         let playerStats = null;
         if (mission.difficulty === 'nightmare' || mission.map_type === 'abyss') {
             const glvl = (freshChar.level || 1);
@@ -12712,7 +12712,7 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         );
         const claimedMission = missionClaimResult?.rowsAffected ?? missionClaimResult?.changes ?? 0;
         if (!claimedMission) {
-            return res.status(409).json({ error: 'Mission rewards already collected.' });
+            return { __error: 'Mission rewards already collected.', __status: 409 };
         }
 
         await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
@@ -12885,7 +12885,7 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         } catch {}
 
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
-        res.json({
+        return {
             success: true, won: playerWon, battleLog: battle.log,
             message: `${playerWon ? 'Victory' : (isDraw ? 'Draw' : 'Defeated')} — ${goldEarned} gold${gemsFound ? `, 💎 ${gemsFound} gem found!` : ''}, ${xpEarned} XP`,
             goldEarned, xpEarned, gemsFound, leveledUp, newLevel: leveledUp ? newLevel : undefined,
@@ -12899,12 +12899,301 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
             battleStats,
             missionName: mission.mission_name,
             npcLevel: missionEffectiveLevel,
-        });
+        };
+    } catch (e) {
+        console.error('Mission collect error:', e);
+        throw e;
+    }
+}
+
+// ── Missions Collect (thin HTTP wrapper) ───────────────────────────────────
+router.post('/missions/collect', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const result = await collectMissionForCharacter(db, character.id);
+        if (result && result.__error) return res.status(result.__status || 400).json({ error: result.__error });
+        res.json(result);
     } catch (e) {
         console.error('Mission collect error:', e);
         res.status(500).json({ error: e.message });
     }
 });
+
+// ── Auto-Complete missions (Premium: Arcane Reservoir) ─────────────────────
+// Runs server-side so it keeps farming even while the account is logged off.
+// A private MP pool is funded by converting up to 10 MP potions from
+// inventory. Each started mission pays from global MP first, then the pool,
+// and the cycle ends once the pool can't fund the next mission or the
+// character turns it off. All activity uses dedicated /missions/auto-* markers
+// so the anti-cheat recognizes it as intended behavior (never /missions/start
+// or /missions/collect HTTP calls).
+
+async function ensureAutoMissionTable(db) {
+    await dbRun(db, `CREATE TABLE IF NOT EXISTS auto_mission_state (
+        char_id INTEGER PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        current_map TEXT NOT NULL DEFAULT 'overworld',
+        zone TEXT NOT NULL DEFAULT 'forest',
+        spot TEXT NOT NULL DEFAULT '',
+        mission_idx INTEGER NOT NULL DEFAULT 0,
+        size TEXT NOT NULL DEFAULT 'small',
+        auto_mp INTEGER NOT NULL DEFAULT 0,
+        potions_loaded INTEGER NOT NULL DEFAULT 0,
+        runs_completed INTEGER NOT NULL DEFAULT 0,
+        last_result TEXT,
+        updated_at INTEGER NOT NULL DEFAULT 0
+    )`);
+}
+
+async function ensureAutoMissionState(db, charId) {
+    await ensureAutoMissionTable(db);
+    await dbRun(db, 'INSERT OR IGNORE INTO auto_mission_state (char_id) VALUES (?)', [charId]);
+    return dbGet(db, 'SELECT * FROM auto_mission_state WHERE char_id=?', [charId]);
+}
+
+async function listAutoPotions(db, charId) {
+    const rows = await dbAll(db, "SELECT * FROM inventory WHERE char_id=? AND item_type='consumable'", [charId]);
+    const out = [];
+    for (const r of rows) {
+        let d; try { d = JSON.parse(r.item_data); } catch { continue; }
+        if (d.effect && d.effect.type === 'mp' && Number(d.qty ?? 1) > 0) {
+            out.push({
+                inventoryId: r.id,
+                id: d.id || 'mana_potion',
+                name: d.name || 'Mana Potion',
+                emoji: d.emoji || '💧',
+                mp: Number(d.effect.value || 0),
+                qty: Number(d.qty || 1),
+            });
+        }
+    }
+    return out;
+}
+
+// Records a generic "intended behavior" marker in api_log under a dedicated
+// auto path (never /missions/start or /missions/collect) for the anti-cheat.
+async function markAutoIntended(db, charId, action) {
+    try {
+        const char = await dbGet(db, 'SELECT name FROM characters WHERE id=?', [charId]);
+        if (!char || !char.name) return;
+        const now = Math.floor(Date.now() / 1000);
+        const path = `/missions/auto-${action}`;
+        await dbRun(db, `INSERT INTO api_log (user_id, username, char_name, method, path, status, req_body, tab_viewed, created_at)
+            VALUES (0, ?, ?, 'POST', ?, 200, NULL, 0, ?)`,
+            ['system', char.name, path, now]);
+    } catch (e) { console.error('[AutoMission] marker error:', e.message); }
+}
+
+function autoRewardGold(zoneDef, difficulty, size) {
+    const payout = (zoneDef && zoneDef.payoutBase && zoneDef.payoutBase[difficulty]) || [5, 10];
+    const [minGold, maxGold] = payout;
+    const baseGoldRoll = Math.floor(Math.random() * (maxGold - minGold + 1)) + minGold;
+    const sizeConf = MISSION_SIZES[size] || MISSION_SIZES.small;
+    return Math.floor(baseGoldRoll * MISSION_BASE_GOLD_MULT * sizeConf.rewardMult);
+}
+
+function autoRewardXp(size) {
+    const map = { small: 6, medium: 9, large: 12 };
+    const maxXp = map[size] || 6;
+    return Math.max(0, Math.floor(Math.random() * (maxXp + 1)));
+}
+
+router.get('/missions/auto-status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const state = await ensureAutoMissionState(db, char.id);
+        const activePrem = getActivePremium(char);
+        const hasReservoir = hasPremium(activePrem, 'arcane_reservoir');
+        res.json({
+            enabled: state.enabled === 1,
+            premium: hasReservoir,
+            zone: state.zone,
+            spot: state.spot,
+            missionIdx: state.mission_idx,
+            size: state.size,
+            currentMap: state.current_map,
+            autoMp: state.auto_mp || 0,
+            potionsLoaded: state.potions_loaded || 0,
+            runs: state.runs_completed || 0,
+            lastResult: state.last_result || '',
+            mp: char.mission_points || 0,
+            mpMax: hasReservoir ? MP_MAX * 2 : MP_MAX,
+            maxPotions: AUTO_MISSION_MAX_POTIONS,
+            potions: await listAutoPotions(db, char.id),
+        });
+    } catch (e) { console.error('[AutoMission] status error:', e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/missions/auto-enable', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const activePrem = getActivePremium(char);
+        if (!hasPremium(activePrem, 'arcane_reservoir')) {
+            return res.status(403).json({ error: 'Auto-complete requires the Arcane Reservoir premium. Activate it to access auto-complete.' });
+        }
+        const { zone, spot, missionIdx, size, potionIds } = req.body || {};
+        const now = Math.floor(Date.now() / 1000);
+        const currentMap = char.current_map || 'overworld';
+        const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[zone] || ZONES[zone]) : ZONES[zone];
+        if (!zoneDef) return res.status(400).json({ error: 'Zone not found' });
+        const spotDef = zoneDef.spots.find(s => String(s.id) === String(spot));
+        if (!spotDef) return res.status(400).json({ error: 'Spot not found' });
+        if (!['small', 'medium', 'large'].includes(size)) return res.status(400).json({ error: 'Invalid mission size' });
+        if (String(char.location) !== String(zone)) {
+            return res.status(400).json({ error: 'You must be located in this zone to auto-complete missions there.' });
+        }
+        const existing = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [char.id]);
+        if (existing) return res.status(400).json({ error: 'Finish your active mission before enabling auto-complete.' });
+
+        // Convert selected MP-restoring potions into the private pool (max 10)
+        let loadedMp = 0, loadedCount = 0;
+        const ids = Array.isArray(potionIds) ? potionIds.slice(0, AUTO_MISSION_MAX_POTIONS) : [];
+        for (const invId of ids) {
+            if (loadedCount >= AUTO_MISSION_MAX_POTIONS) break;
+            const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [invId, char.id]);
+            if (!item) continue;
+            let d; try { d = JSON.parse(item.item_data); } catch { continue; }
+            const mpVal = Number(d.effect?.value || 0);
+            if (d.effect?.type !== 'mp' || mpVal <= 0) continue;
+            await dbRun(db, 'DELETE FROM inventory WHERE id=?', [invId]);
+            loadedMp += mpVal;
+            loadedCount++;
+        }
+
+        await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, updated_at)
+            VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(char_id) DO UPDATE SET
+                enabled=1, current_map=excluded.current_map, zone=excluded.zone, spot=excluded.spot,
+                mission_idx=excluded.mission_idx, size=excluded.size,
+                auto_mp=auto_mp+excluded.auto_mp, potions_loaded=potions_loaded+excluded.potions_loaded,
+                last_result=NULL, updated_at=excluded.updated_at`,
+            [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, now]);
+
+        await markAutoIntended(db, char.id, 'enable');
+        const state = await ensureAutoMissionState(db, char.id);
+        res.json({
+            success: true,
+            autoMp: state.auto_mp || 0,
+            message: `Auto-complete enabled for ${spotDef.name}. ${loadedCount} potion(s) loaded (+${loadedMp} MP into pool).`,
+        });
+    } catch (e) { console.error('[AutoMission] enable error:', e); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/missions/auto-disable', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=? WHERE char_id=?', ['Stopped by player', char.id]);
+        await markAutoIntended(db, char.id, 'disable');
+        res.json({ success: true, message: 'Auto-complete disabled.' });
+    } catch (e) { console.error('[AutoMission] disable error:', e); res.status(500).json({ error: e.message }); }
+});
+
+const _autoProcessing = new Set();
+
+// One processing pass for a single enabled character (idempotent, guarded by set).
+async function processOneAutoChar(db, state) {
+    const now = Math.floor(Date.now() / 1000);
+    const shutoff = async (reason) => {
+        await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=?, updated_at=? WHERE char_id=?', [reason, now, state.char_id]);
+    };
+
+    const char = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [state.char_id]);
+    if (!char) { await shutoff('Character no longer exists'); return; }
+
+    await applyMpRegen(db, state.char_id);
+    await applyHpRegen(db, state.char_id);
+    const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [state.char_id]);
+
+    const currentMission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id=?', [state.char_id]);
+
+    // Collect any finished mission, then fall through to start the next one.
+    if (currentMission) {
+        if (now < currentMission.ends_at) return; // still running — wait
+        const result = await collectMissionForCharacter(db, state.char_id);
+        const outcome = result && result.__error
+            ? `collect: ${result.__error}`
+            : (result?.won ? 'Won' : 'Lost');
+        await dbRun(db, 'UPDATE auto_mission_state SET runs_completed=runs_completed+1, last_result=?, updated_at=? WHERE char_id=?', [outcome, now, state.char_id]);
+        await markAutoIntended(db, state.char_id, 'collect');
+        // If the mission row is still present (collect returned an error without
+        // clearing it, e.g. transient), don't start a fresh one this tick.
+        const stillActive = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [state.char_id]);
+        if (stillActive) return;
+    }
+
+    // Start next mission.
+    const size = ['small', 'medium', 'large'].includes(state.size) ? state.size : 'small';
+    const cost = MISSION_SIZES[size].mpCost;
+    const available = (fresh.mission_points || 0) + (state.auto_mp || 0);
+    if (available < cost) {
+        await shutoff('MP pool depleted — cycle ended');
+        await markAutoIntended(db, state.char_id, 'end');
+        return;
+    }
+    // HP is the player's responsibility — wait if at 0 rather than starting.
+    if ((fresh.hp_current ?? fresh.hp_max) <= 0) return;
+    // Current-zone only (no auto-travel) — pause if the character left the zone.
+    const currentMap = fresh.current_map || 'overworld';
+    if (String(fresh.location) !== String(state.zone) || String(state.current_map || 'overworld') !== currentMap) return;
+    // Respect skill-training and the PvP cooldown, mirroring /missions/start.
+    const activeTraining = await dbGet(db, 'SELECT id FROM skill_training WHERE char_id=? AND ends_at>?', [state.char_id, now]);
+    if (activeTraining) return;
+    const activePrem = getActivePremium(fresh);
+    const pvpCooldown = eventHas('discount_duels') ? 120 : 600;
+    const effectivePvpCooldown = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
+    if (Number(fresh.last_battle_at || 0) + effectivePvpCooldown > now) return;
+
+    const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[state.zone] || ZONES[state.zone]) : ZONES[state.zone];
+    if (!zoneDef) { await shutoff('Zone not found'); return; }
+    const spotDef = zoneDef.spots.find(s => String(s.id) === String(state.spot));
+    if (!spotDef) { await shutoff('Spot not found'); return; }
+    const missionIdx = Number(state.mission_idx) || 0;
+    const missionDef = spotDef.missions[missionIdx] || spotDef.missions[0];
+    const missionName = typeof missionDef === 'string' ? missionDef : (missionDef?.name || '');
+
+    // Pay global MP first, then draw from the private pool.
+    const wantGlobal = Math.min(fresh.mission_points || 0, cost);
+    const wantPool = cost - wantGlobal;
+
+    const todayStart = Math.floor(now / 86400) * 86400;
+    if ((fresh.daily_mp_reset_at || 0) < todayStart) {
+        await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, state.char_id]);
+    }
+    const duration = MISSION_SIZES[size].duration;
+
+    await dbRun(db, `INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
+        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+        WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)`,
+        [state.char_id, state.zone, state.spot, spotDef.name, missionName, spotDef.difficulty,
+            autoRewardGold(zoneDef, spotDef.difficulty, size), autoRewardXp(size),
+            now, now + duration, currentMap, size, state.char_id]);
+    await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?', [wantGlobal, wantGlobal, state.char_id]);
+    await dbRun(db, 'UPDATE auto_mission_state SET auto_mp=auto_mp-?, last_result=?, updated_at=? WHERE char_id=?', [wantPool, `Restarted ${size} mission in ${spotDef.name}`, now, state.char_id]);
+    await markAutoIntended(db, state.char_id, 'start');
+}
+
+// Background pass over every enabled auto-mission character.
+async function processAutoMissions(db) {
+    try {
+        await ensureAutoMissionTable(db);
+        const rows = await dbAll(db, 'SELECT * FROM auto_mission_state WHERE enabled=1');
+        for (const state of rows) {
+            if (_autoProcessing.has(state.char_id)) continue;
+            _autoProcessing.add(state.char_id);
+            try { await processOneAutoChar(db, state); }
+            catch (e) { console.error(`[AutoMission] char ${state.char_id}:`, e.message); }
+            finally { _autoProcessing.delete(state.char_id); }
+        }
+    } catch (e) { console.error('[AutoMission] tick error:', e.message); }
+}
 
 router.get('/missions/active', auth, async (req, res) => {
     try {
@@ -21824,6 +22113,7 @@ module.exports = {
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
     runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
     processPendingWars,
+    processAutoMissions, collectMissionForCharacter,
     ensureElemental,
     purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
     backfillWeeklyPerformance
