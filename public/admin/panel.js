@@ -1103,10 +1103,12 @@ function loadConsole() {
 
     function refreshSettings() {
         fetch('/api/game/admin/settings', { headers: { 'Authorization': 'Bearer ' + tok() } }).then(function(r) { return r.json(); }).then(function(s) {
-            swText.textContent = s.sw_enabled === 'true' ? '✅ ON' : '❌ OFF';
-            swText.style.color = s.sw_enabled === 'true' ? '#50c878' : '#e06060';
-            botText.textContent = s.bot_detection_enabled === 'true' ? '✅ ON' : '❌ OFF';
-            botText.style.color = s.bot_detection_enabled === 'true' ? '#50c878' : '#e06060';
+            var swOn = s.sw_enabled === true || s.sw_enabled === 'true' || s.sw_enabled === '1';
+            var botOn = s.bot_detection_enabled === true || s.bot_detection_enabled === 'true';
+            swText.textContent = swOn ? '✅ ON' : '❌ OFF';
+            swText.style.color = swOn ? '#50c878' : '#e06060';
+            botText.textContent = botOn ? '✅ ON' : '❌ OFF';
+            botText.style.color = botOn ? '#50c878' : '#e06060';
         }).catch(function() { swText.textContent = '?'; botText.textContent = '?'; });
     }
     refreshSettings();
