@@ -4689,6 +4689,7 @@ function openSpotMissions(zoneId, spotId) {
 
     _autoSelSize = 'small';
     _autoSelMission = 0;
+    _autoSelectedPotions = new Set();
     renderAutoCompletePanel(zoneId, spotId);
 
     queueMobileMissionModalScroll(activeEl);
