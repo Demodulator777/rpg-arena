@@ -13083,7 +13083,7 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
             ON CONFLICT(char_id) DO UPDATE SET
                 enabled=1, current_map=excluded.current_map, zone=excluded.zone, spot=excluded.spot,
                 mission_idx=excluded.mission_idx, size=excluded.size,
-                auto_mp=auto_mp+excluded.auto_mp, potions_loaded=potions_loaded+excluded.potions_loaded,
+                auto_mp=excluded.auto_mp, potions_loaded=excluded.potions_loaded,
                 last_result=NULL, updated_at=excluded.updated_at`,
             [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, now]);
 
@@ -13179,7 +13179,9 @@ async function processOneAutoChar(db, state) {
     if ((fresh.daily_mp_reset_at || 0) < todayStart) {
         await dbRun(db, 'UPDATE characters SET daily_mp_spent=0, daily_mp_reset_at=? WHERE id=?', [todayStart, state.char_id]);
     }
-    const duration = MISSION_SIZES[size].duration;
+    const baseDuration = MISSION_SIZES[size].duration;
+    let duration = eventHas('short_missions') ? Math.max(30, Math.floor(baseDuration / 2)) : baseDuration;
+    if (hasPremium(activePrem, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
 
     await dbRun(db, `INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
