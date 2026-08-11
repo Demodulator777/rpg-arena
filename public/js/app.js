@@ -5294,6 +5294,31 @@ function showMissionOverlay(active, displayName) {
     tick();
     if (active.ends_at>Math.floor(Date.now()/1000)) overlayInterval=setInterval(tick,1000);
     overlay.classList.remove('hidden');
+    refreshMissionOverlayAuto();
+}
+async function refreshMissionOverlayAuto() {
+    const box=document.getElementById('overlay-auto'); if(!box) return;
+    let status=null;
+    try { status=await api('GET','/game/missions/auto-status'); } catch(e){}
+    if (!status || status.enabled!==true) { box.style.display='none'; box.innerHTML=''; return; }
+    box.style.display='block';
+    const pool=status.autoMp||0, runs=status.runs||0, last=status.lastResult?escHtml(status.lastResult):'';
+    box.innerHTML=`
+        <div style="margin-top:14px;padding:10px 12px;border:1px solid rgba(155,89,182,0.4);border-radius:10px;background:rgba(155,89,182,0.1);text-align:left">
+            <div style="color:#9b59b6;font-weight:700;font-size:0.8rem">🔮 Auto-Complete running</div>
+            <div style="color:var(--text-dim);font-size:0.8rem;margin-top:4px;line-height:1.6">
+                ${pool>0?`<div>Pool MP: <strong style="color:#dcd0ff">${pool}</strong></div>`:''}
+                <div>✅ Completed: <strong style="color:#fff">${runs}</strong></div>
+                ${last?`<div>📝 ${last}</div>`:''}
+            </div>
+            <button id="overlay-auto-stop" class="btn-cancel-travel" style="margin-top:10px;width:100%;border-color:rgba(231,76,60,0.5);color:#e74c3c;background:rgba(231,76,60,0.1)">Stop Auto-Complete</button>
+        </div>`;
+    const stop=document.getElementById('overlay-auto-stop');
+    if (stop) stop.addEventListener('click', async ()=>{
+        try { await api('POST','/game/missions/auto-disable'); _autoSelectedPotions = new Map(); }
+        catch(e){ console.error(e); }
+        box.style.display='none'; box.innerHTML='';
+    });
 }
 function hideMissionOverlay() {
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
