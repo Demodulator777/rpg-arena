@@ -8453,6 +8453,16 @@ async function buildCombatFighter(db, char) {
     const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
+    const now = Math.floor(Date.now() / 1000);
+    let tempStatBuffs = {};
+    if (typeof char.temp_stat_buffs === 'string') {
+        try { tempStatBuffs = JSON.parse(char.temp_stat_buffs); } catch (e) { console.error('Error parsing temp_stat_buffs:', e); }
+    } else if (char.temp_stat_buffs) {
+        tempStatBuffs = char.temp_stat_buffs;
+    }
+    const tempDef = Number(tempStatBuffs['defense']?.exp > now ? tempStatBuffs['defense'].value || 0 : 0);
+    console.log(`[DEBUG] buildCombatFighter: charId=${char.id}, tempStatBuffs=`, tempStatBuffs, `tempDef=${tempDef}`);
+
     const fighter = {
         id: char.id,
         name: char.name,
