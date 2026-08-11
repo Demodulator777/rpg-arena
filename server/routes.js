@@ -9838,7 +9838,9 @@ async function buildCharacterResponse(char, db) {
         }
     }
 
-    const armorValue = calcArmorValue(char, equippedArray, beastDefBonus + tempBonus('defense'));
+    const beastBonusValue = beastDefBonus + tempBonus('defense');
+    console.log(`[DEBUG] buildCharacterResponse: charId=${char.id}, beastDefBonus=${beastDefBonus}, tempDef=${tempBonus('defense')}, finalBeastBonusValue=${beastBonusValue}`);
+    const armorValue = calcArmorValue(char, equippedArray, beastBonusValue);
     const elemDmg    = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
