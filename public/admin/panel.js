@@ -91,30 +91,38 @@ function loadTab(name) {
 function loadSettings() {
     var el = document.getElementById('tab-settings');
     el.innerHTML = '<div class="loading">Loading settings...</div>';
-    fetch('/api/game/admin/settings', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
-        .then(function(r) { return r.json(); })
-        .then(function(settings) {
-            console.log('[DEBUG] loadSettings settings:', settings);
-            var enabled = !!settings.spirit_beast_enabled;
-            el.innerHTML = '<h2>Feature Toggles</h2>' +
-                '<div class="card-compact">' +
-                    '<div class="row">' +
-                        '<span class="lbl">Spirit Beast</span>' +
-                        '<button class="db-btn ' + (enabled ? 'db-btn-del' : 'db-btn-apply') + '" onclick="toggleFeature(\'spirit-beast\', ' + !enabled + ')">' +
-                            (enabled ? 'Disable' : 'Enable') +
-                        '</button>' +
-                    '</div>' +
-                '</div>';
-        });
-}
 
-function toggleFeature(feature, enabled) {
-    console.log('[DEBUG] toggleFeature:', feature, enabled);
-    fetch('/api/game/admin/settings/' + feature, {
-        method: 'POST',
-        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token'), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: enabled })
-    }).then(function() { loadSettings(); });
+    el.innerHTML = '<h2>Feature Toggles</h2>' +
+        '<div class="card-compact">' +
+            '<div class="row">' +
+                '<span class="lbl">Spirit Beast</span>' +
+                '<span id="sb-status-text" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">...</span>' +
+                '<button class="db-btn" id="sb-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button>' +
+            '</div>' +
+        '</div>';
+
+    var sbTimer = document.getElementById('sb-status-text');
+    var sbBtn = document.getElementById('sb-toggle-btn');
+
+    function refreshSettings() {
+        fetch('/api/game/admin/settings', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
+            .then(function(r) { return r.json(); })
+            .then(function(s) {
+                var on = !!s.spirit_beast_enabled;
+                sbTimer.textContent = on ? '✅ ON' : '❌ OFF';
+                sbTimer.style.color = on ? '#50c878' : '#e06060';
+            }).catch(function() { sbTimer.textContent = '?'; });
+    }
+    refreshSettings();
+
+    sbBtn.addEventListener('click', function() {
+        var currentlyOn = sbTimer.textContent.indexOf('ON') !== -1;
+        fetch('/api/game/admin/settings/spirit-beast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+            body: JSON.stringify({ enabled: !currentlyOn })
+        }).then(function() { refreshSettings(); });
+    });
 }
 
 
