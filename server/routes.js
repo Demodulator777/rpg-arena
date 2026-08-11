@@ -15714,7 +15714,9 @@ router.get('/admin/settings', auth, async (req, res) => {
     try {
         const db = await getDb();
         const settingsRows = await db.execute({ sql: 'SELECT key, value FROM server_settings', args: [] });
-        const settings = {};
+        const settings = {
+            spirit_beast_enabled: true // Default
+        };
         for (const row of settingsRows.rows) {
             settings[row.key] = row.value === 'true';
         }
