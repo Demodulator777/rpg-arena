@@ -8418,7 +8418,8 @@ async function buildCombatFighter(db, char) {
     const hpMax = calcHpMax({ ...char, vitality: boostedVitality }, equippedArray) + (beastBonus.role === 'heal' ? (beastBonus.def * 2) : 0);
     const hpCurrent = char.hp_current ?? hpMax;
 
-    let _beastStats = await beastStatBonus(db, char.id);
+    let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
+    _beastStats = await beastStatBonus(db, char.id);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -9814,6 +9815,7 @@ async function buildCharacterResponse(char, db) {
     let elemental = null;
     if (await isFeatureEnabled(db, 'spirit_beast_enabled')) {
         _beastStats = await beastStatBonus(db, char.id);
+        console.error(`[DEBUG MISSION] charId=${char.id}, _beastStats=`, _beastStats);
     }
     // Spirit Beast flat stat bonuses (single source of truth: beastBonusFromRow)
     let beastStrBonus = 0, beastDefBonus = 0, beastMagBonus = 0, beastVitBonus = 0;
