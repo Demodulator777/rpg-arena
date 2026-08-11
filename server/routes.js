@@ -6394,7 +6394,6 @@ function calcBaseDamage(char, equippedItems) {
 
 // ── Armor & Elemental helpers ─────────────────────────────────────────────
 function calcArmorValue(char, equippedItems, additionalDefense = 0) {
-    console.error(`[DEBUG ARMOR] additionalDefense=${additionalDefense}`);
     const setBonuses = getEquippedSetBonuses(equippedItems);
     let itemDef = 0;
     for (const item of equippedItems) {
@@ -8419,8 +8418,7 @@ async function buildCombatFighter(db, char) {
     const hpMax = calcHpMax({ ...char, vitality: boostedVitality }, equippedArray) + (beastBonus.role === 'heal' ? (beastBonus.def * 2) : 0);
     const hpCurrent = char.hp_current ?? hpMax;
 
-    let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
-    _beastStats = await beastStatBonus(db, char.id);
+    let _beastStats = await beastStatBonus(db, char.id);
     const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
