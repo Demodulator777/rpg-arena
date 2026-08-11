@@ -1503,7 +1503,14 @@ async function selectCharacter(characterId) {
         await loadCharacterRoster();
         closeCharacterSwitcher();
         renderTopBar();
-        renderChatWidget(); // Refresh chat on character switch
+        // Reset chat state and reload fresh history for the newly selected character
+        chatActiveView = 'global';
+        chatActivePmThread = '';
+        chatPmTarget = '';
+        chatClosedPmThreads = new Set();
+        chatReadStateLoadedFromStorage = false;
+        chatReadStateForCharId = 0;
+        await loadChatHistory();
         const activeTab = TAB_ORDER.find(name => document.getElementById(`tab-${name}`)?.classList.contains('active')) || 'character';
         showTab(activeTab);
     } catch (e) {
