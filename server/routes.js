@@ -8406,6 +8406,12 @@ async function beastHpBonus(db, charId) {
 }
 
 async function buildCombatFighter(db, char) {
+    // Ensure full character data is available
+    if (!char.temp_stat_buffs) {
+        const fullChar = await dbGet(db, 'SELECT temp_stat_buffs FROM characters WHERE id = ?', [char.id]);
+        if (fullChar) char.temp_stat_buffs = fullChar.temp_stat_buffs;
+    }
+
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const setBonuses = getEquippedSetBonuses(equippedArray);
     // Include the equipped spirit beast's HP contribution (vitality bonus) so
