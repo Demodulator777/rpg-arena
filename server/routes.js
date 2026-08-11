@@ -8385,7 +8385,7 @@ function beastBonusFromRow(row) {
 
 async function getBeastStatBonus(db, charId) {
     try {
-        const row = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [charId]);
+        const row = await ensureElemental(db, charId);
         return beastBonusFromRow(row);
     } catch { return { str: 0, def: 0, mag: 0, vit: 0, role: null }; }
 }
