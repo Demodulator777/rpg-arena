@@ -4854,6 +4854,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                     ${status.autoMp > 0 ? `<div>🔮 Pool MP: <strong style="color:#dcd0ff">${status.autoMp}</strong></div>` : ''}
                     <div>✅ Missions completed: <strong style="color:#fff">${status.runs || 0}</strong></div>
                     ${status.lastResult ? `<div>📝 Last: ${escHtml(status.lastResult)}</div>` : ''}
+                    ${status.hpStopEnabled ? `<div>💗 Auto-pause on low HP: <strong style="color:#fff">on</strong> (below ${status.hpStopThreshold})</div>` : ''}
                 </div>
                 <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ Stop Auto-Complete</button>
                 <div style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);line-height:1.6">⚠️ Stopping does not refund the MP in the pool — it is recommended to let it clear naturally.</div>
@@ -4901,6 +4902,14 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                 <div class="arc-pool-chip">🔮 Pool <b id="auto-pool-total">0</b> MP</div>
                 <div class="arc-pool-note">Spends your Mission Points first, then this pool</div>
             </div>
+            <label class="arc-hp-stop" style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;cursor:pointer">
+                <input type="checkbox" id="auto-hp-stop-enable" ${status?.hpStopEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:#e74c3c">
+                <span style="font-size:0.8rem;color:var(--text-dim)">⏸ Pause auto-complete when HP is below</span>
+                <input type="number" id="auto-hp-stop-threshold" min="1" max="99999"
+                    value="${status?.hpStopThreshold || 50}" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.8rem">
+                <span style="font-size:0.78rem;color:var(--text-dim)">HP</span>
+            </label>
+            <div style="font-size:0.68rem;color:var(--text-dim);line-height:1.5;margin-bottom:10px">Auto-complete will pause (and stay enabled) while your HP is below the value, then resume once HP recovers above it.</div>
             <button id="auto-enable-btn" class="arc-start">🔮 Start Auto-Complete</button>`
         }
             </div>
@@ -4957,8 +4966,10 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         enableBtn.disabled = true;
         enableBtn.textContent = '🔮 Summoning auto-complete…';
         const selected = [..._autoSelectedPotions].map(([invId, qty]) => ({ inventoryId: invId, qty }));
+        const hpStopEnabled = !!document.getElementById('auto-hp-stop-enable')?.checked;
+        const hpStopThreshold = Number(document.getElementById('auto-hp-stop-threshold')?.value || 0);
         try {
-            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected });
+            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected, hpStopEnabled, hpStopThreshold });
             _autoSelectedPotions = new Map();
             // Close the mission-selection modal with a fade-out, then let the
             // mission overlay fade in once the first mission starts.
