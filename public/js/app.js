@@ -4985,12 +4985,13 @@ function ensureAutoPickerModal() {
     if (document.getElementById('auto-picker-modal')) return;
     document.body.insertAdjacentHTML('beforeend', `
         <div id="auto-picker-modal" class="modal-overlay hidden">
-            <div class="modal-box game-dialog-box" style="max-width:340px">
-                <div class="modal-header">
-                    <h3 id="auto-picker-title">Choose</h3>
-                    <button class="btn-secondary" data-action="closeAutoPicker">✕</button>
+            <div class="arc-picker-box">
+                <div class="arc-picker-head">
+                    <div class="arc-panel-rune">🧿</div>
+                    <div class="arc-panel-title" id="auto-picker-title">Choose</div>
+                    <button class="arc-picker-close" data-action="closeAutoPicker">✕</button>
                 </div>
-                <div id="auto-picker-list" class="game-dialog-message"></div>
+                <div id="auto-picker-list" class="arc-picker-list"></div>
             </div>
         </div>`);
 }
@@ -5006,14 +5007,18 @@ function openAutoPicker(kind) {
         const opts = (_autoPickerMissions && _autoPickerMissions.length ? _autoPickerMissions : ['Mission']);
         list.innerHTML = opts.map((name, idx) => {
             const active = String(_autoSelMission) === String(idx);
-            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAutoMission" data-args="${encodeActionArgs([idx])}">${escHtml(name)}${active ? ' ✓' : ''}</button>`;
+            return `<button class="arc-opt${active ? ' active' : ''}" data-action="pickAutoMission" data-args="${encodeActionArgs([idx])}">
+                <span>${escHtml(name)}</span>${active ? '<span class="arc-opt-check">✓</span>' : ''}
+            </button>`;
         }).join('');
     } else {
         title.textContent = 'Choose Mission Size';
         list.innerHTML = ['small', 'medium', 'large'].map(sz => {
             const active = _autoSelSize === sz;
             const cost = { small: 20, medium: 40, large: 60 }[sz];
-            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAutoSize" data-args="${encodeActionArgs([sz])}">${sz.charAt(0).toUpperCase() + sz.slice(1)} (${cost} MP)${active ? ' ✓' : ''}</button>`;
+            return `<button class="arc-opt${active ? ' active' : ''}" data-action="pickAutoSize" data-args="${encodeActionArgs([sz])}">
+                <span>${sz.charAt(0).toUpperCase() + sz.slice(1)} <span class="arc-opt-cost">· ${cost} MP</span></span>${active ? '<span class="arc-opt-check">✓</span>' : ''}
+            </button>`;
         }).join('');
     }
     modal.classList.remove('hidden');
@@ -5211,7 +5216,7 @@ async function checkAndShowMissionOverlay() {
             hideTrainingOverlay();
             hideTravelOverlay();
             showMissionOverlay(activeMission, activeMission.mission_name || activeMission.missionName || 'Mission');
-            return;
+            return activeMission.id;
         }
         window.activeMission = false;
 
@@ -5224,7 +5229,7 @@ async function checkAndShowMissionOverlay() {
             hideTrainingOverlay();
             hideTravelOverlay();
             showAutoSummonOverlay(auto);
-            return;
+            return null;
         }
         _autoEnabledCache = false;
 
@@ -5265,15 +5270,17 @@ async function checkAndShowMissionOverlay() {
         hideRestOverlay();
         if (playerTravelTarget) {
             showTravelOverlay();
-            return;
+            return null;
         }
         hideTravelOverlay();
+        return null;
     } catch (e) {
         console.error('Error in checkAndShowMissionOverlay:', e);
         hideMissionOverlay();
         hideRestOverlay();
         hideTrainingOverlay();
         hideTravelOverlay();
+        return null;
     }
 }
 
@@ -5370,12 +5377,30 @@ async function instantBattleRecovery() {
 let overlayMissionCollectBusy = false;
 let _autoEnabledCache = false;
 let autoOverlayPollInterval = null;
+let _lastAutoMissionId = null;
 function startAutoOverlayPoll() {
     if (autoOverlayPollInterval) return;
-    autoOverlayPollInterval = setInterval(() => { checkAndShowMissionOverlay().catch(() => {}); }, 2500);
+    autoOverlayPollInterval = setInterval(async () => {
+        const missionId = await checkAndShowMissionOverlay().catch(() => null);
+        const currentId = missionId || null;
+        // New mission started (or the old one was collected server-side) →
+        // refresh gold / MP / character data so an online player sees it live.
+        if (currentId !== _lastAutoMissionId) {
+            _lastAutoMissionId = currentId;
+            refreshCharacterData().catch(() => {});
+        }
+    }, 2500);
+}
+async function refreshCharacterData() {
+    const fresh = await api('GET', '/game/character').catch(() => null);
+    if (!fresh) return;
+    character = fresh;
+    if (typeof renderTopBar === 'function') renderTopBar();
+    if (typeof renderCharacter === 'function') renderCharacter();
 }
 function stopAutoOverlayPoll() {
     if (autoOverlayPollInterval) { clearInterval(autoOverlayPollInterval); autoOverlayPollInterval = null; }
+    _lastAutoMissionId = null;
 }
 function showMissionOverlay(active, displayName) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
