@@ -5027,6 +5027,65 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .travel-overlay-name { font-family: 'Cinzel', serif; font-size: 1.2rem; font-weight: 700; color: var(--text-bright); }
 .travel-overlay-from { font-size: 0.75rem; color: var(--text-dim); }
 
+/* ===== Arcane Reservoir — auto-complete module ===== */
+.arc-relic {
+    width: 100%;
+    background: linear-gradient(180deg, rgba(34,20,52,0.92), rgba(18,12,34,0.94));
+    border: 1px solid rgba(155,89,182,0.42);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(155,89,182,0.14), 0 0 28px rgba(155,89,182,0.2), inset 0 1px 0 rgba(255,255,255,0.07);
+    position: relative;
+    text-align: left;
+}
+.arc-relic::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(120deg, rgba(155,89,182,0.16) 0%, transparent 40%, rgba(201,146,42,0.12) 100%);
+}
+.arc-relic-head {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px; cursor: pointer; position: relative; z-index: 1;
+    background: rgba(155,89,182,0.1);
+    border-bottom: 1px solid rgba(155,89,182,0.22);
+    user-select: none;
+}
+.arc-relic-head:hover { background: rgba(155,89,182,0.16); }
+.arc-relic-rune {
+    font-size: 1.1rem; width: 28px; height: 28px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 30% 30%, rgba(155,89,182,0.55), rgba(155,89,182,0.12));
+    border: 1px solid rgba(155,89,182,0.55); border-radius: 8px;
+    box-shadow: 0 0 14px rgba(155,89,182,0.4); text-shadow: 0 0 10px rgba(155,89,182,0.9);
+}
+.arc-relic-title {
+    font-family: 'Cinzel', serif; font-size: 0.86rem; font-weight: 700; letter-spacing: 0.05em; flex: 1;
+    background: linear-gradient(90deg, #e8d2ff, #b48be0, #e8d2ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.arc-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 10px rgba(46,204,113,0.85); animation: arcPulse 1.4s infinite; }
+.arc-status-label { font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: #5be88f; }
+.arc-chevy { transition: transform 0.25s; color: rgba(255,255,255,0.6); font-size: 0.8rem; }
+.arc-relic-head.open .arc-chevy { transform: rotate(180deg); }
+.arc-relic-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 14px; }
+.arc-relic-head.open + .arc-relic-body { max-height: 300px; padding: 14px; }
+.arc-stats { display: flex; gap: 8px; }
+.arc-stat {
+    flex: 1; min-width: 90px; text-align: center; padding: 9px 6px;
+    background: rgba(155,89,182,0.08); border: 1px solid rgba(155,89,182,0.24);
+    border-radius: 10px;
+}
+.arc-stat-val { font-family: 'Cinzel', serif; font-size: 1.05rem; font-weight: 700; color: #e0c3ff; text-shadow: 0 0 14px rgba(155,89,182,0.55); }
+.arc-stat-lbl { font-size: 0.56rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255,255,255,0.42); margin-top: 2px; }
+.arc-last { font-size: 0.72rem; color: var(--text-dim); font-style: italic; margin: 8px 0 2px; }
+.arc-stop {
+    width: 100%; margin-top: 10px; padding: 9px 12px; border-radius: 10px;
+    background: linear-gradient(180deg, rgba(231,76,60,0.3), rgba(231,76,60,0.12));
+    border: 1px solid rgba(231,76,60,0.48); color: #ff9185; font-weight: 700; font-size: 0.78rem;
+    cursor: pointer; transition: background 0.15s;
+}
+.arc-stop:hover { background: rgba(231,76,60,0.34); }
+@keyframes arcPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.55; } }
+
 @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(52,143,209,0.5)}50%{box-shadow:0 0 0 8px rgba(52,143,209,0)}}
 
 .mission-modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); backdrop-filter: blur(5px); z-index: 10000; display: flex; align-items: stretch; justify-content: center; }
