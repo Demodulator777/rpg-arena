@@ -9077,6 +9077,7 @@ function renderBaseMapContent() {
                     <div class="clan-base-wrap${isOwned ? ' owned' : ''}">
                         <img class="clan-base-icon" src="/images/assets/base${b.tier}.png" style="width:${iconSize}px;height:auto;margin:0 auto;display:block">
                         ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
+                        ${b.owner_at_war ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#ff6b35;font-weight:700">⚔️ WAR</div>` : ''}
                     </div>
                 </div>`;
     }).join('')}
@@ -9166,6 +9167,7 @@ async function showClanBaseDetail(baseId) {
                     : `${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
                        ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}`}
             </div>
+            ${b.owner_at_war && b.owner_war_resolves_at > Date.now() ? `<div class="squads-meta" style="padding:0 12px 8px;color:#ff6b35">⚔️ ${escHtml(b.owner_squad_name || 'This squad')} is at war — resolves in <span class="sb-protect-countdown" data-expires="${b.owner_war_resolves_at}">${_formatCountdown(b.owner_war_resolves_at)}</span></div>` : ''}
             ${b.last_defended_at ? (b.defender_protected_until && b.defender_protected_until > Date.now()
                 ? `<div class="squads-meta" style="padding:0 12px 8px;color:#2ecc71">🛡️ Protected — can be attacked again in <span class="sb-protect-countdown" data-expires="${b.defender_protected_until}">${_formatCountdown(b.defender_protected_until)}</span></div>`
                 : `<div class="squads-meta" style="padding:0 12px 8px;color:#e74c3c">⚔️ No longer protected — eligible to be attacked.</div>`)
