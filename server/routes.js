@@ -10954,6 +10954,20 @@ router.get('/squads/bases', auth, async (req, res) => {
             upgrade_cost: b.owner_squad_id && squadId && Number(b.owner_squad_id) === squadId
                 ? calcBaseUpgradeCost(b.tier, Number(b.upgrade_level || 0)) : null,
         }));
+        // Which squads are currently at war, and their earliest resolve time
+        const warSquads = new Map();
+        for (const w of await dbAll(db, "SELECT attacker_squad_id, defender_squad_id, attack_ends_at FROM clan_wars WHERE status IN ('preparation','attacking')")) {
+            const t = Number(w.attack_ends_at || 0);
+            for (const sid of [Number(w.attacker_squad_id || 0), Number(w.defender_squad_id || 0)]) {
+                if (sid <= 0) continue;
+                if (!warSquads.has(sid) || (t > 0 && t < warSquads.get(sid))) warSquads.set(sid, t);
+            }
+        }
+        for (const b of enhanced) {
+            const ws = b.owner_squad_id ? warSquads.get(b.owner_squad_id) : undefined;
+            b.owner_at_war = ws !== undefined;
+            b.war_resolves_at = ws ? ws * 1000 : 0;
+        }
         res.json({ bases: enhanced, squad_id: squadId, in_war: !!inWar });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -11037,9 +11051,21 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
         const inWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') LIMIT 1",
             [membership.squad_id, membership.squad_id]);
         const warLocked = !!inWar;
+        // Is the base's owning squad currently at war? (their next resolution time)
+        let ownerAtWar = false;
+        let ownerWarResolvesAt = 0;
+        if (base.owner_squad_id) {
+            const ownerWar = await dbGet(db,
+                "SELECT attack_ends_at FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') ORDER BY attack_ends_at ASC LIMIT 1",
+                [base.owner_squad_id, base.owner_squad_id]);
+            if (ownerWar) {
+                ownerAtWar = true;
+                ownerWarResolvesAt = Number(ownerWar.attack_ends_at || 0) * 1000;
+            }
+        }
         // Can attack? Must be occupied by another squad, user is officer+, no active war for this base, and 24h cooldown passed
         let canAttack = false;
-        if (isOccupied && !warLocked) {
+        if (isOccupied && !warLocked && !ownerAtWar) {
             const officerCheck = await dbGet(db, "SELECT 1 FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
             if (officerCheck) {
                 const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND base_id=? LIMIT 1",
@@ -11078,6 +11104,8 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 can_capture: !base.owner_squad_id && !warLocked,
                 can_loot: false,
                 can_attack: canAttack,
+                owner_at_war: ownerAtWar,
+                owner_war_resolves_at: ownerWarResolvesAt,
                 last_defended_at: lastDefendedAt,
                 defender_protected_until: defenderProtectedUntil,
             }
