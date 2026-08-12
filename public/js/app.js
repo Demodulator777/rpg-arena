@@ -1753,6 +1753,34 @@ document.addEventListener('securitypolicyviolation', (e) => {
     }
 })();
 
+// ── Human-input presence beacon (anti-cheat, no position tracking) ─────────
+// Posts once per minute whether the mouse/keyboard/touch was used at all.
+// No coordinates are ever recorded — just a boolean, keeping it resource-light.
+(function(){
+    window._lastHumanInput = Date.now();
+    var _inputThrottle = 0;
+    function markHumanInput() {
+        var now = Date.now();
+        if (now - _inputThrottle > 1000) { _inputThrottle = now; window._lastHumanInput = now; }
+    }
+    document.addEventListener('mousemove', markHumanInput);
+    document.addEventListener('mousedown', markHumanInput);
+    document.addEventListener('keydown', markHumanInput);
+    document.addEventListener('touchstart', markHumanInput, { passive: true });
+    function inputBeacon() {
+        if (window.__botDetectionEnabled === false) return;
+        var token = localStorage.getItem('rpg_token');
+        if (!token) return;
+        var hasInput = (Date.now() - window._lastHumanInput) < 90000 ? 1 : 0;
+        fetch('/api/game/admin/report-input-activity', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify({ has_input: hasInput })
+        }).catch(function(){});
+    }
+    setInterval(inputBeacon, 60000);
+})();
+
 // ── Trusted Event Tracker (detect bot-driven API calls) ───────────────────
 // Tracks the last trusted user interaction. If a state-changing API call
 // happens without a recent trusted event, it's likely script-driven.
