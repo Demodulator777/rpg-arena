@@ -5529,6 +5529,19 @@ async function refreshMissionOverlayAuto() {
                     <div class="arc-stat"><div class="arc-stat-val">${runs}</div><div class="arc-stat-lbl">Completed</div></div>
                 </div>
                 ${last?`<div class="arc-last">📜 ${last}</div>`:''}
+                <div class="arc-relic-hp">
+                    <div class="arc-relic-hp-row">
+                        <span class="arc-relic-hp-lbl">💗 HP <strong>${status.hpCurrent ?? 0}</strong>/<span style="color:#6a6a70">${status.hpMax ?? 0}</span></span>
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto">
+                            <input type="checkbox" id="overlay-hp-stop-enable" style="width:14px;height:14px;accent-color:#e74c3c"
+                                ${status.hpStopEnabled ? 'checked' : ''}>
+                            <span style="font-size:0.72rem;color:var(--text-dim)">Pause when HP &lt;</span>
+                            <input type="number" id="overlay-hp-stop-threshold" min="1" max="99999"
+                                value="${status.hpStopThreshold || 50}" style="width:62px;padding:3px 5px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.75rem">
+                        </label>
+                    </div>
+                    ${status.hpStopEnabled ? `<div style="font-size:0.62rem;color:#e74c3c;margin-top:3px">Auto-pause enabled — resumes once HP recovers above ${status.hpStopThreshold}</div>` : ''}
+                </div>
                 <button id="overlay-auto-stop" class="arc-stop">⏹ Stop Auto-Complete</button>
             </div>
         </div>`;
@@ -5546,6 +5559,16 @@ async function refreshMissionOverlayAuto() {
         catch(e){ console.error(e); }
         refreshMissionOverlayAuto();
     });
+    const hpToggle=document.getElementById('overlay-hp-stop-enable');
+    const hpInput=document.getElementById('overlay-hp-stop-threshold');
+    const applyHpStop=async ()=>{
+        try {
+            await api('POST','/game/missions/auto-hp-stop', { enabled: hpToggle.checked, threshold: Number(hpInput?.value || 0) });
+            refreshMissionOverlayAuto();
+        } catch(e){ console.error('[AutoMission] hp-stop update:', e.message); }
+    };
+    if (hpToggle) hpToggle.addEventListener('change', applyHpStop);
+    if (hpInput) hpInput.addEventListener('change', applyHpStop);
 }
 
 async function confirmStopAutoComplete() {
