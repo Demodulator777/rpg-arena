@@ -248,10 +248,16 @@ getDb().then(async (db) => {
     }, 3600000);
   }, msUntilHour);
 
-  // Auto upkeep — check every 60s for due payments
-  setInterval(() => {
+  // Auto upkeep — runs at most once per UTC day. `autoProcessUpkeep` itself
+  // guards against re-processing the same day, so a restart mid-day can never
+  // re-deduct gold or re-activate the squad stat discount.
+  const msUntilNextUpkeepDay = 86400000 - (Date.now() % 86400000);
+  setTimeout(() => {
     autoProcessUpkeep(db).catch(e => console.error('[Upkeep] tick failed:', e.message));
-  }, 60000);
+    setInterval(() => {
+      autoProcessUpkeep(db).catch(e => console.error('[Upkeep] tick failed:', e.message));
+    }, 86400000);
+  }, msUntilNextUpkeepDay);
   autoProcessUpkeep(db).catch(e => console.error('[Upkeep] init failed:', e.message));
 
   // Clan wars — auto-advance/resolve pending wars so the global report posts
