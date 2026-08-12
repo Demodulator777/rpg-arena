@@ -9031,12 +9031,12 @@ function renderSquads() {
 
 // ── Clan Base / War System ────────────────────────────────────────────────
 
-let clanData = { bases: [], squad_id: null, treasury: null, baseInfo: null, wars: [] };
+let clanData = { bases: [], squad_id: null, treasury: null, baseInfo: null, wars: [], in_war: false };
 
 async function loadClanData() {
     try {
         const [basesRes, treasuryRes, baseInfoRes, warsRes] = await Promise.all([
-            api('GET', '/game/squads/bases').catch(() => ({ bases: [], squad_id: null })),
+            api('GET', '/game/squads/bases').catch(() => ({ bases: [], squad_id: null, in_war: false })),
             api('GET', '/game/squads/treasury').catch(() => ({ treasury: null })),
             api('GET', '/game/squads/base-info').catch(() => ({ base: null })),
             api('GET', '/game/squads/wars/active').catch(() => ({ wars: [] })),
@@ -9046,11 +9046,23 @@ async function loadClanData() {
         clanData.treasury = treasuryRes.treasury || null;
         clanData.baseInfo = baseInfoRes.base || null;
         clanData.wars = warsRes.wars || [];
+        clanData.in_war = !!basesRes.in_war;
     } catch {}
 }
 
 function renderBaseMapContent() {
     if (!clanData.squad_id) return '<div class="squads-meta">Squad has no base.</div>';
+    // Map is fully locked while the squad is in an active war
+    if (clanData.wars.length > 0 || clanData.in_war) {
+        return `<div class="squads-card" style="margin-top:0">
+            <div class="squads-title">🗺️ Clan Base Map</div>
+            <div class="squads-members" style="padding:24px 12px;text-align:center">
+                <div style="font-size:1.6rem;margin-bottom:8px">⚔️</div>
+                <div class="squads-meta"><strong>Base map is locked while your squad is in a war.</strong></div>
+                <div class="squads-meta" style="font-size:0.7rem;opacity:0.6">Resolve the active war to access the map.</div>
+            </div>
+        </div>`;
+    }
     const tierColors = { main: '#ff6b35', large: '#e74c3c', medium: '#f39c12', small: '#3498db' };
     return `<div class="squads-card" style="margin-top:0">
         <div class="squads-title">🗺️ Clan Base Map</div>
@@ -9124,9 +9136,9 @@ async function showClanBaseDetail(baseId) {
                 </div>
             </div></div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
-                ${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
-                ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}
-                ${b.can_loot ? `<button class="btn-success btn-sm" ${actionAttrs('lootBase', b.id)}>💰 Loot Base (10% Gold)</button>` : ''}
+                ${(clanData.wars.length > 0 || clanData.in_war) ? '<div class="squads-meta">⚔️ Base actions are locked while your squad is in a war.</div>'
+                    : `${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
+                       ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}`}
             </div>
         </div>`;
         await openGameNoticeDialog({ title: 'Base Detail', message: html, confirmLabel: 'Close' });
@@ -9159,17 +9171,6 @@ async function startBaseWar(baseId, intent) {
     }
 }
 window.startBaseWar = startBaseWar;
-
-async function lootBase(baseId) {
-    try {
-        const res = await api('POST', `/game/squads/bases/${baseId}/loot`);
-        await openGameNoticeDialog({ title: '💰 Loot Success', message: `You looted ${res.looted_gold.toLocaleString()} gold!` });
-        await loadClanData(); renderSquads();
-    } catch (e) {
-        await openGameNoticeDialog({ title: '💰 Loot Failed', message: e.message || String(e) });
-    }
-}
-window.lootBase = lootBase;
 
 async function donateToTreasury() {
     const gold = parseInt(document.getElementById('clan-donate-gold')?.value || '0');
