@@ -4808,6 +4808,8 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
 let _autoSelSize = 'small';
 let _autoSelMission = 0;
 let _autoSelectedPotions = new Map();
+let _autoSelectedHpPotions = new Map();
+let _autoHpHealThr = 50;
 let _autoPickerZone = null;
 let _autoPickerSpot = null;
 let _autoPickerMissions = [];
@@ -4827,6 +4829,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     const premium = status?.premium === true;
     const running = status?.enabled === true && String(status?.zone) === String(zoneId) && String(status?.spot) === String(spotId);
     const potions = (status?.potions || []).filter(p => p.mp > 0);
+    const hpPotions = (status?.hpPotions || []).filter(p => p.heal > 0);
     _autoPickerZone = zoneId;
     _autoPickerSpot = spotId;
     _autoPickerMissions = spot.missions.map((m, idx) => typeof m === 'string' ? m : (m.name || `Mission ${idx + 1}`));
@@ -4902,7 +4905,35 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                 <div class="arc-pool-chip">🔮 Pool <b id="auto-pool-total">0</b> MP</div>
                 <div class="arc-pool-note">Spends your Mission Points first, then this pool</div>
             </div>
+            <div class="arc-pot-title">Load HP potions · up to ${status?.maxHpPotions ?? 3} (auto-heal on low HP)</div>
+            ${hpPotions.length === 0
+                ? `<div style="color:#8e44ad;font-size:0.76rem">No health potions in inventory.</div>`
+                : `<div class="arc-pot-grid">
+                    ${hpPotions.map((p) => {
+                        const selectedQty = _autoSelectedHpPotions.get(String(p.inventoryId)) || 0;
+                        const remaining = (status?.maxHpPotions ?? 3) - autoHpPotionCount(hpPotions);
+                        const canAdd = selectedQty < Number(p.qty) && remaining > 0;
+                        return `<div class="arc-pot-card${selectedQty ? ' selected' : ''}" data-inv="${p.inventoryId}">
+                            <div class="arc-pot-name">${p.emoji || '🧪'} ${escHtml(p.name)}</div>
+                            <div class="arc-pot-mp">${p.healFull ? 'Full restore' : `+${p.heal} HP`}</div>
+                            <div class="arc-pot-stock">${p.qty} in stock</div>
+                            <div class="arc-pot-ctl">
+                                <button type="button" class="arc-pot-btn" data-hpp="${p.inventoryId}" data-dir="-1" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
+                                <span class="arc-pot-count">${selectedQty}</span>
+                                <button type="button" class="arc-pot-btn plus" data-hpp="${p.inventoryId}" data-dir="1" ${canAdd ? '' : 'disabled'}>+</button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                 </div>`}
             <label class="arc-hp-stop" style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;cursor:pointer">
+                <input type="checkbox" id="auto-hp-heal-enable" style="width:16px;height:16px;accent-color:#27ae60">
+                <span style="font-size:0.8rem;color:var(--text-dim)">💗 Auto-drink HP potion when HP is below</span>
+                <input type="number" id="auto-hp-heal-threshold" min="1" max="99999"
+                    value="${_autoHpHealThr || status?.hpHealThreshold || 50}" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.8rem">
+                <span style="font-size:0.78rem;color:var(--text-dim)">HP</span>
+            </label>
+            <div style="font-size:0.68rem;color:var(--text-dim);line-height:1.5;margin-bottom:6px">When your HP drops below this value, a loaded HP potion is used (one per 30 min).</div>
+            <label class="arc-hp-stop" style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;cursor:pointer">
                 <input type="checkbox" id="auto-hp-stop-enable" ${status?.hpStopEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:#e74c3c">
                 <span style="font-size:0.8rem;color:var(--text-dim)">⏸ Pause auto-complete when HP is below</span>
                 <input type="number" id="auto-hp-stop-threshold" min="1" max="99999"
@@ -4956,6 +4987,30 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         });
     });
 
+    const hpBtns = panel.querySelectorAll('.arc-pot-btn[data-hpp]');
+    hpBtns.forEach(btn => {
+        btn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            const invId = String(btn.getAttribute('data-hpp'));
+            const dir = Number(btn.getAttribute('data-dir'));
+            const p = hpPotions.find(x => String(x.inventoryId) === invId);
+            if (!p) return;
+            const max = status?.maxHpPotions ?? 3;
+            const cur = _autoSelectedHpPotions.get(invId) || 0;
+            const next = cur + dir;
+            if (next <= 0) {
+                _autoSelectedHpPotions.delete(invId);
+            } else if (next > Number(p.qty)) {
+                return;
+            } else if (dir > 0 && autoHpPotionCount(hpPotions) >= max) {
+                return;
+            } else {
+                _autoSelectedHpPotions.set(invId, Math.min(next, max));
+            }
+            renderAutoCompletePanel(zoneId, spotId);
+        });
+    });
+
     updateAutoPoolTotal(panel, potions);
 
     const enableBtn = document.getElementById('auto-enable-btn');
@@ -4968,9 +5023,14 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         const selected = [..._autoSelectedPotions].map(([invId, qty]) => ({ inventoryId: invId, qty }));
         const hpStopEnabled = !!document.getElementById('auto-hp-stop-enable')?.checked;
         const hpStopThreshold = Number(document.getElementById('auto-hp-stop-threshold')?.value || 0);
+        const hpPotionsPayload = [..._autoSelectedHpPotions].map(([invId, qty]) => ({ inventoryId: invId, qty }));
+        const hpHealEnabled = !!document.getElementById('auto-hp-heal-enable')?.checked;
+        const hpHealThreshold = Number(document.getElementById('auto-hp-heal-threshold')?.value || 50);
+        if (hpHealEnabled) _autoHpHealThr = hpHealThreshold;
         try {
-            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected, hpStopEnabled, hpStopThreshold });
+            await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected, hpStopEnabled, hpStopThreshold, hpPotions: hpPotionsPayload, hpHealEnabled, hpHealThreshold });
             _autoSelectedPotions = new Map();
+            _autoSelectedHpPotions = new Map();
             // Close the mission-selection modal with a fade-out, then let the
             // mission overlay fade in once the first mission starts.
             const modal = document.getElementById('mission-location-modal');
@@ -5007,6 +5067,12 @@ async function renderAutoCompletePanel(zoneId, spotId) {
 function autoPotionCount(potions) {
     let c = 0;
     for (const v of _autoSelectedPotions.values()) c += (Number(v) || 0);
+    return Math.min(c, 999);
+}
+
+function autoHpPotionCount(potions) {
+    let c = 0;
+    for (const v of _autoSelectedHpPotions.values()) c += (Number(v) || 0);
     return Math.min(c, 999);
 }
 
@@ -5528,6 +5594,7 @@ async function refreshMissionOverlayAuto() {
                     <div class="arc-stat"><div class="arc-stat-val">${pool}</div><div class="arc-stat-lbl">Pool MP</div></div>
                     <div class="arc-stat"><div class="arc-stat-val">${runs}</div><div class="arc-stat-lbl">Completed</div></div>
                 </div>
+                ${Number(status?.hpHealEnabled) ? `<div style="font-size:0.68rem;color:#27ae60;margin-bottom:4px">💗 Auto-heal armed — ${Array.isArray(status.hpStack)?status.hpStack.length:0} HP potion(s) left (threshold ${status.hpHealThreshold})</div>` : ''}
                 ${last?`<div class="arc-last">📜 ${last}</div>`:''}
                 <div class="arc-relic-hp">
                     <div class="arc-relic-hp-row">
