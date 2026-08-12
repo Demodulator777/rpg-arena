@@ -5189,6 +5189,7 @@ async function checkAndShowMissionOverlay() {
     try {
         const activeMission = await api('GET', '/game/missions/active').catch(() => null);
         if (activeMission && activeMission.id) {
+            stopAutoOverlayPoll();
             window.activeMission = true;
             hideRestOverlay();
             hideTrainingOverlay();
@@ -5197,6 +5198,19 @@ async function checkAndShowMissionOverlay() {
             return;
         }
         window.activeMission = false;
+
+        // Auto-complete enabled but between missions → keep a summoning overlay
+        // so the screen never goes blank while the next mission starts.
+        const auto = await api('GET', '/game/missions/auto-status').catch(() => null);
+        if (auto && auto.enabled === true) {
+            _autoEnabledCache = true;
+            hideRestOverlay();
+            hideTrainingOverlay();
+            hideTravelOverlay();
+            showAutoSummonOverlay(auto);
+            return;
+        }
+        _autoEnabledCache = false;
 
         const trainingStatus = await api('GET', '/skills/training/status').catch(() => null);
         if (trainingStatus && trainingStatus.active) {
@@ -5338,6 +5352,15 @@ async function instantBattleRecovery() {
     }
 }
 let overlayMissionCollectBusy = false;
+let _autoEnabledCache = false;
+let autoOverlayPollInterval = null;
+function startAutoOverlayPoll() {
+    if (autoOverlayPollInterval) return;
+    autoOverlayPollInterval = setInterval(() => { checkAndShowMissionOverlay().catch(() => {}); }, 2500);
+}
+function stopAutoOverlayPoll() {
+    if (autoOverlayPollInterval) { clearInterval(autoOverlayPollInterval); autoOverlayPollInterval = null; }
+}
 function showMissionOverlay(active, displayName) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
@@ -5348,7 +5371,10 @@ function showMissionOverlay(active, displayName) {
     const subtextEl=document.getElementById('overlay-mission-subtext');
     const fillEl=document.getElementById('overlay-progress-fill');
     const collectBtn=document.getElementById('overlay-collect-btn');
+    const badgeEl=overlay.querySelector('.mission-overlay-badge');
     if (collectBtn) collectBtn.textContent = 'Collect Rewards';
+    if (collectBtn) collectBtn.classList.toggle('hidden', !!_autoEnabledCache);
+    if (badgeEl) badgeEl.textContent='⚔️ ON MISSION';
     if (nameEl) nameEl.textContent=displayName;
     if (zoneEl) zoneEl.textContent='📍 '+(ZONES[active.zone]?.name||active.zone||'');
     const totalDuration=active.ends_at-(active.started_at||(active.ends_at-600));
@@ -5357,22 +5383,53 @@ function showMissionOverlay(active, displayName) {
         const m=Math.floor(left/60), s=left%60, done=left<=0;
         const pct=done?100:Math.min(100,((totalDuration-left)/Math.max(totalDuration,1))*100);
         if (timerEl) { timerEl.textContent=done?'✅ Complete!':`${m}:${String(s).padStart(2,'0')}`; timerEl.className='mission-overlay-timer'+(done?' done':''); }
-        if (subtextEl) subtextEl.textContent=done?'Collect your rewards!':'Returning when complete...';
+        if (subtextEl) subtextEl.textContent=done ? (_autoEnabledCache ? 'Preparing the next mission…' : 'Collect your rewards!') : 'Returning when complete...';
         if (fillEl) { fillEl.style.width=pct+'%'; fillEl.className='mission-overlay-progress-fill'+(done?' done':''); }
-        if (collectBtn) collectBtn.disabled=!done || overlayMissionCollectBusy;
-        if (done&&overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
+        if (collectBtn) collectBtn.disabled=!done || overlayMissionCollectBusy || !!_autoEnabledCache;
+        if (done&&overlayInterval) {
+            clearInterval(overlayInterval); overlayInterval=null;
+            // Auto-complete keeps cycling → poll for the next mission so the
+            // countdown restarts automatically instead of sticking on Collect.
+            if (_autoEnabledCache) startAutoOverlayPoll();
+        }
     }
     tick();
     if (active.ends_at>Math.floor(Date.now()/1000)) overlayInterval=setInterval(tick,1000);
     overlay.classList.remove('hidden');
     refreshMissionOverlayAuto();
 }
+
+function showAutoSummonOverlay(auto) {
+    const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
+    if (overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
+    overlayMissionCollectBusy=false;
+    const nameEl=document.getElementById('overlay-mission-name');
+    const zoneEl=document.getElementById('overlay-mission-zone');
+    const timerEl=document.getElementById('overlay-mission-timer');
+    const subtextEl=document.getElementById('overlay-mission-subtext');
+    const fillEl=document.getElementById('overlay-progress-fill');
+    const badgeEl=overlay.querySelector('.mission-overlay-badge');
+    const collectBtn=document.getElementById('overlay-collect-btn');
+    if (badgeEl) badgeEl.textContent='🔮 AUTO-COMPLETE';
+    if (nameEl) nameEl.textContent='Arcane Reservoir';
+    if (zoneEl) zoneEl.textContent='📍 '+(ZONES[auto?.zone]?.name || ZONES[_autoPickerZone]?.name || '');
+    if (timerEl) { timerEl.textContent='Summoning…'; timerEl.className='mission-overlay-timer summon'; }
+    if (subtextEl) subtextEl.textContent='Your arcane flow ignites — the first mission begins shortly.';
+    if (fillEl) { fillEl.style.width='0%'; fillEl.className='mission-overlay-progress-fill'; }
+    if (collectBtn) collectBtn.classList.add('hidden');
+    overlay.classList.remove('hidden');
+    refreshMissionOverlayAuto();
+    startAutoOverlayPoll();
+}
 let _autoOverlayOpen = true;
 async function refreshMissionOverlayAuto() {
-    const box=document.getElementById('overlay-auto'); if(!box) return;
     let status=null;
     try { status=await api('GET','/game/missions/auto-status'); } catch(e){}
-    if (!status || status.enabled!==true) { box.style.display='none'; box.innerHTML=''; return; }
+    _autoEnabledCache = !!(status && status.enabled === true);
+    const collectBtn=document.getElementById('overlay-collect-btn');
+    if (collectBtn) collectBtn.classList.toggle('hidden', !!_autoEnabledCache);
+    const box=document.getElementById('overlay-auto'); if(!box) return;
+    if (!_autoEnabledCache) { box.style.display='none'; box.innerHTML=''; return; }
     box.style.display='block';
     const pool=status.autoMp||0, runs=status.runs||0, last=status.lastResult?escHtml(status.lastResult):'';
     box.innerHTML=`
@@ -5405,11 +5462,12 @@ async function refreshMissionOverlayAuto() {
         ev.stopPropagation();
         try { await api('POST','/game/missions/auto-disable'); _autoSelectedPotions = new Map(); }
         catch(e){ console.error(e); }
-        box.style.display='none'; box.innerHTML='';
+        refreshMissionOverlayAuto();
     });
 }
 function hideMissionOverlay() {
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
+    stopAutoOverlayPoll();
     overlayMissionCollectBusy = false;
     const o = document.getElementById('mission-overlay');
     if(o) o.classList.add('hidden');
