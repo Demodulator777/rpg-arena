@@ -13043,6 +13043,9 @@ async function listAutoPotions(db, charId) {
 // auto path (never /missions/start or /missions/collect) for the anti-cheat.
 async function markAutoIntended(db, charId, action) {
     try {
+        // start/collect markers are written once per auto mission run and clutter
+        // the admin action log (and churn the per-char 500-entry buffer); skip them.
+        if (action === 'start' || action === 'collect') return;
         const char = await dbGet(db, 'SELECT name FROM characters WHERE id=?', [charId]);
         if (!char || !char.name) return;
         const now = Math.floor(Date.now() / 1000);
