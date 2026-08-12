@@ -5531,7 +5531,7 @@ async function refreshMissionOverlayAuto() {
                 ${last?`<div class="arc-last">📜 ${last}</div>`:''}
                 <div class="arc-relic-hp">
                     <div class="arc-relic-hp-row">
-                        <span class="arc-relic-hp-lbl">💗 HP <strong>${status.hpCurrent ?? 0}</strong>/<span style="color:#6a6a70">${status.hpMax ?? 0}</span></span>
+                        <span class="arc-relic-hp-lbl">💗 HP <strong>${status.hpCurrent ?? 0}</strong></span>
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto">
                             <input type="checkbox" id="overlay-hp-stop-enable" style="width:14px;height:14px;accent-color:#e74c3c"
                                 ${status.hpStopEnabled ? 'checked' : ''}>
