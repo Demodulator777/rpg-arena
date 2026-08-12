@@ -10936,6 +10936,8 @@ router.get('/squads/bases', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         const squadId = membership?.squad_id || null;
+        // Map is locked while the squad has an active war
+        const inWar = squadId ? await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') LIMIT 1", [squadId, squadId]) : null;
         const bases = await dbAll(db, `SELECT b.*, su.upgrade_level, su.last_upkeep_paid, s.name AS owner_name, s.squad_tag AS owner_tag
             FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
             LEFT JOIN squads s ON s.id = b.owner_squad_id ORDER BY b.tier, b.id`, []);
@@ -10952,7 +10954,7 @@ router.get('/squads/bases', auth, async (req, res) => {
             upgrade_cost: b.owner_squad_id && squadId && Number(b.owner_squad_id) === squadId
                 ? calcBaseUpgradeCost(b.tier, Number(b.upgrade_level || 0)) : null,
         }));
-        res.json({ bases: enhanced, squad_id: squadId });
+        res.json({ bases: enhanced, squad_id: squadId, in_war: !!inWar });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -11031,16 +11033,13 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
 
         const isOwned = Number(base.owner_squad_id) === membership.squad_id;
         const isOccupied = base.owner_squad_id !== null && !isOwned;
-        let canLoot = false;
-        if (isOccupied) {
-            // Check if user's squad has a resolved war against this base with >=3 wins and not looted
-            const lootableWar = await dbGet(db, "SELECT id FROM clan_wars WHERE attacker_squad_id=? AND base_id=? AND status='completed' AND phase='resolved' AND attacker_wins >= 3 AND looted_at IS NULL LIMIT 1",
-                [membership.squad_id, baseId]);
-            if (lootableWar) canLoot = true;
-        }
+        // Base actions (capture / attack / loot) are locked while the squad has an active war
+        const inWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') LIMIT 1",
+            [membership.squad_id, membership.squad_id]);
+        const warLocked = !!inWar;
         // Can attack? Must be occupied by another squad, user is officer+, no active war for this base, and 24h cooldown passed
         let canAttack = false;
-        if (isOccupied) {
+        if (isOccupied && !warLocked) {
             const officerCheck = await dbGet(db, "SELECT 1 FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
             if (officerCheck) {
                 const activeWar = await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status='preparation' AND base_id=? LIMIT 1",
@@ -11059,49 +11058,11 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 map_x: Number(base.map_x), map_y: Number(base.map_y),
                 owner_squad_id: Number(base.owner_squad_id || 0), owner_squad_name: base.owner_squad_name,
                 is_owned: isOwned, is_occupied: isOccupied,
-                can_capture: !base.owner_squad_id,
-                can_loot: canLoot,
+                can_capture: !base.owner_squad_id && !warLocked,
+                can_loot: false,
                 can_attack: canAttack,
             }
         });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-router.post('/squads/bases/:baseId/loot', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id');
-        if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
-        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
-        const baseId = Number(req.params.baseId);
-        const base = await dbGet(db, 'SELECT * FROM clan_bases WHERE id=?', [baseId]);
-        if (!base) return res.status(404).json({ error: 'Base not found.' });
-        if (Number(base.owner_squad_id || 0) === membership.squad_id) return res.status(400).json({ error: 'You cannot loot your own base.' });
-        if (base.owner_squad_id === null) return res.status(400).json({ error: 'Base is not occupied.' });
-
-        const lootableWar = await dbGet(db, "SELECT * FROM clan_wars WHERE attacker_squad_id=? AND base_id=? AND status='completed' AND phase='resolved' AND attacker_wins >= 3 AND looted_at IS NULL LIMIT 1",
-            [membership.squad_id, baseId]);
-        if (!lootableWar) return res.status(400).json({ error: 'No valid war found to loot this base.' });
-
-        const defenderTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [base.owner_squad_id]);
-        const defGold = Number(defenderTreasury?.gold || 0);
-        const lootAmount = Math.floor(defGold * 0.10); // 10% of defender's gold
-
-        if (lootAmount <= 0) return res.status(400).json({ error: 'No gold to loot or already looted.' });
-
-        // Deduct from defender, add to attacker
-        await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [lootAmount, base.owner_squad_id]);
-        const lootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [lootAmount, membership.squad_id]);
-        if (!(lootResult?.rowsAffected ?? lootResult?.changes ?? 0)) {
-            await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [membership.squad_id, lootAmount]);
-        }
-
-        // Mark war as looted
-        const now = Math.floor(Date.now() / 1000);
-        await dbRun(db, 'UPDATE clan_wars SET looted_at=? WHERE id=?', [now, lootableWar.id]);
-
-        res.json({ success: true, looted_gold: lootAmount });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -11503,17 +11464,32 @@ async function resolveWarBattle(db, war) {
     }
 
     // ---- Loot Raid resolution ----
+    let raidTransferGold = 0;
     if (isLootRaid) {
         if (attackerWins >= 3) {
             const defTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.defender_squad_id]);
             const defGold = Number(defTreasury?.gold || 0);
-            const loot = Math.floor(defGold * 0.2);
+            const loot = Math.floor(defGold * 0.2); // 20% of defender's gold
             if (loot > 0) {
+                raidTransferGold = loot;
                 const warLootResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [loot, war.attacker_squad_id]);
                 if (!(warLootResult?.rowsAffected ?? warLootResult?.changes ?? 0)) {
                     await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.attacker_squad_id, loot]);
                 }
                 await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [loot, war.defender_squad_id]);
+            }
+        } else {
+            // Attacker lost — 5% of attacker treasury is transferred to the defender
+            const attTreasury = await dbGet(db, 'SELECT gold FROM squad_treasury WHERE squad_id=?', [war.attacker_squad_id]);
+            const attGold = Number(attTreasury?.gold || 0);
+            const penalty = Math.floor(attGold * 0.05); // 5% of attacker's gold
+            if (penalty > 0) {
+                raidTransferGold = penalty;
+                await dbRun(db, 'UPDATE squad_treasury SET gold=gold-? WHERE squad_id=?', [penalty, war.attacker_squad_id]);
+                const defResult = await dbRun(db, 'UPDATE squad_treasury SET gold=gold+? WHERE squad_id=?', [penalty, war.defender_squad_id]);
+                if (!(defResult?.rowsAffected ?? defResult?.changes ?? 0)) {
+                    await dbRun(db, 'INSERT INTO squad_treasury (squad_id, gold, gems) VALUES (?,?,0)', [war.defender_squad_id, penalty]);
+                }
             }
         }
         const now = Math.floor(Date.now() / 1000);
@@ -11529,13 +11505,16 @@ async function resolveWarBattle(db, war) {
         const defNameL = defSquadL?.name || 'Unknown';
         const baseNameL = baseL?.name || 'Unknown';
         const attackerWonL = attackerWins >= 3;
+        const transferNote = raidTransferGold > 0
+            ? ` ${raidTransferGold.toLocaleString()} gold ${attackerWonL ? 'looted' : 'was lost as a penalty'}.`
+            : '';
         await Promise.all([
             notifySquadWarEnd(db, war.attacker_squad_id, warId,
                 `⚔️ Loot Raid ${attackerWonL ? 'Victory' : 'Defeat'}`,
-                `Your squad (${attNameL}) loot raid against ${defNameL} at ${baseNameL} ended in ${attackerWonL ? 'victory' : 'defeat'}! (${attackerWins}-${defenderWins})`),
+                `Your squad (${attNameL}) loot raid against ${defNameL} at ${baseNameL} ended in ${attackerWonL ? 'victory' : 'defeat'}! (${attackerWins}-${defenderWins})${transferNote}`),
             notifySquadWarEnd(db, war.defender_squad_id, warId,
                 `⚔️ Loot Raid ${attackerWonL ? 'Defeat' : 'Victory'}`,
-                `The loot raid by ${attNameL} against ${defNameL} at ${baseNameL} ended in ${attackerWonL ? 'defeat' : 'victory'}! (${defenderWins}-${attackerWins})`)
+                `The loot raid by ${attNameL} against ${defNameL} at ${baseNameL} ended in ${attackerWonL ? 'defeat' : 'victory'}! (${defenderWins}-${attackerWins})${transferNote}`)
         ]);
         await postGlobalWarReport(db, attNameL, defNameL, baseNameL, attackerWonL, false);
         return;
