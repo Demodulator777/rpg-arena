@@ -8789,6 +8789,8 @@ function setLbSort(sort, btn) {
             window._weeklyLbData = weekly;
             window._weeklyLbHistoryDmg = hist.history_dmg || [];
             window._weeklyLbHistoryWin = hist.history_win || [];
+            window._weeklyLbHistorySquadDmg = hist.history_squad_dmg || [];
+            window._weeklyLbHistorySquadWin = hist.history_squad_win || [];
             renderLeaderboard();
         }).catch(() => renderLeaderboard());
         return;
@@ -8815,6 +8817,8 @@ async function loadLeaderboard() {
         window._weeklyLbData = weeklyLb;
         window._weeklyLbHistoryDmg = weeklyHist.history_dmg || [];
         window._weeklyLbHistoryWin = weeklyHist.history_win || [];
+        window._weeklyLbHistorySquadDmg = weeklyHist.history_squad_dmg || [];
+        window._weeklyLbHistorySquadWin = weeklyHist.history_squad_win || [];
         renderLeaderboard();
     }
     catch(e) { document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${e.message}</p>`; }
@@ -9908,6 +9912,39 @@ function renderLeaderboard() {
         } else {
             // Squads view — stats from each squad's best 10 members this week.
             const squads = isDmg ? (data?.current_squad_dmg_top || []) : (data?.current_squad_win_top || []);
+            const squadHistory = isDmg ? (window._weeklyLbHistorySquadDmg || []) : (window._weeklyLbHistorySquadWin || []);
+            const squadPrev = isDmg ? data?.previous_squad_dmg_winner : data?.previous_squad_win_winner;
+
+            // Squad Hall of Fame — Past Champions
+            if (squadHistory.length > 0) {
+                html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ Hall of Fame — Past Squad Champions</div>' +
+                    '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
+                squadHistory.forEach(h => {
+                    const wn = getWeekNumber(h.week_start);
+                    const y = new Date(h.week_start * 1000).getUTCFullYear();
+                    const val = isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins';
+                    const logoHtml = h.logo
+                        ? `<img src="${escHtml(h.logo)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">`
+                        : `<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);margin-bottom:4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>`;
+                    html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('showSquadDetail', h.squad_id)}>
+                        <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">Week ${wn} (${y})</div>
+                        ${logoHtml}
+                        <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}${h.tag ? ` [${escHtml(h.tag)}]` : ''}</div>
+                        <div style="font-size:10px;color:#8a8a90">${val}</div>
+                    </div>`;
+                });
+                html += '</div></div>';
+            }
+            // Previous week squad winner
+            if (squadPrev) {
+                const label = isDmg ? 'Last Week\'s Squad Damage King' : 'Last Week\'s Squad Win Champion';
+                const stat = isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} damage` : `${Number(squadPrev.total_wins).toLocaleString()} wins`;
+                html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
+                    <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 ${label}</div>
+                    <div style="font-size:15px;margin-top:4px">${escHtml(squadPrev.name)}${squadPrev.tag ? ` [${escHtml(squadPrev.tag)}]` : ''} · ${stat}</div>
+                    <div style="font-size:11px;color:#6a6a70">Awarded ${squadPrev.reward_gems}💎</div>
+                </div>`;
+            }
             if (squads.length === 0) {
                 html += '<p class="empty">No squad data recorded yet this week.</p>';
             } else {
