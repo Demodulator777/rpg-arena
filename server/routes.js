@@ -11047,8 +11047,25 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 if (!activeWar) {
                     const cooldown = await dbGet(db, "SELECT 1 FROM clan_wars WHERE attacker_squad_id=? AND created_at > ? LIMIT 1",
                         [membership.squad_id, Math.floor(Date.now() / 1000) - 86400]);
-                    if (!cooldown) canAttack = true;
+                    // Defender 24h protection after defending a war
+                    const defProtected = await dbGet(db,
+                        "SELECT 1 FROM clan_wars WHERE defender_squad_id=? AND status='completed' AND resolved_at > ? LIMIT 1",
+                        [base.owner_squad_id, Math.floor(Date.now() / 1000) - 86400]);
+                    if (!cooldown && !defProtected) canAttack = true;
                 }
+            }
+        }
+
+        // Defender 24h protection after defending a war — expose when this base can be attacked again
+        let defenderProtectedUntil = 0;
+        let lastDefendedAt = 0;
+        if (isOccupied && base.owner_squad_id) {
+            const defLast = await dbGet(db,
+                "SELECT resolved_at FROM clan_wars WHERE defender_squad_id=? AND status='completed' AND resolved_at > ? ORDER BY resolved_at DESC LIMIT 1",
+                [base.owner_squad_id, Math.floor(Date.now() / 1000) - 86400]);
+            if (defLast && Number(defLast.resolved_at || 0) > 0) {
+                lastDefendedAt = Number(defLast.resolved_at);
+                defenderProtectedUntil = (lastDefendedAt + 86400) * 1000;
             }
         }
 
@@ -11061,6 +11078,8 @@ router.get('/squads/bases/:baseId', auth, async (req, res) => {
                 can_capture: !base.owner_squad_id && !warLocked,
                 can_loot: false,
                 can_attack: canAttack,
+                last_defended_at: lastDefendedAt,
+                defender_protected_until: defenderProtectedUntil,
             }
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
