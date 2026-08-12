@@ -4805,71 +4805,77 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     const _autoPickMissionName = _autoPickerMissions[Number(_autoSelMission) || 0] || _autoPickerMissions[0] || 'Mission';
 
     panel.innerHTML = `
-        <div class="mz-section-label" style="margin-top:24px">⚡ Auto-Complete <span style="color:#9b59b6;font-weight:700">(🔮 Arcane Reservoir)</span></div>
+        <div class="arc-panel">
+            <div class="arc-panel-head">
+                <div class="arc-panel-rune">🧿</div>
+                <div>
+                    <div class="arc-panel-title">Arcane Reservoir</div>
+                    <div class="arc-panel-sub">Auto-farm ${escHtml(spot.name)} — even while logged off</div>
+                </div>
+            </div>
+            <div class="arc-panel-body">
         ${!premium ? `
-            <div style="background:rgba(155,89,182,0.12);border:1px solid rgba(155,89,182,0.35);border-radius:10px;padding:14px;font-size:0.85rem;color:#dcd0ff">
-                Auto-Complete keeps farming missions in ${escHtml(spot.name)} automatically — even while you're logged off.
-                <div style="margin-top:8px;font-weight:700;color:#fff">Activate <strong>Arcane Reservoir</strong> to access auto-complete.</div>
-            </div>`
+            <div style="font-size:0.8rem;color:#dcd0ff;line-height:1.7">Auto-Complete keeps farming missions in ${escHtml(spot.name)} automatically — even while you're logged off.</div>
+            <button id="auto-premium-cta" class="arc-cta" data-action="goToPremium">🔮 Activate Arcane Reservoir to unlock</button>`
         : !isHere ? `
-            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:10px;padding:14px;font-size:0.85rem;color:var(--text-dim)">
-                Travel to <strong>${escHtml(spot.name)}</strong> first — auto-complete only runs on your current location.
-            </div>`
+            <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.7">Travel to <strong style="color:#fff">${escHtml(spot.name)}</strong> first — auto-complete only runs on your current location.</div>`
         : running ? `
-            <div style="background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.35);border-radius:10px;padding:14px;font-size:0.85rem">
-                <div style="font-weight:700;color:#2ecc71;margin-bottom:6px">● Auto-complete is running for ${escHtml(spot.name)}</div>
-                <div style="color:var(--text-dim);line-height:1.7">
+            <div style="font-size:0.8rem;line-height:1.7">
+                <div style="font-weight:700;color:#2ecc71;margin-bottom:6px">● Auto-complete running</div>
+                <div style="color:var(--text-dim)">
                     ${status.autoMp > 0 ? `<div>🔮 Pool MP: <strong style="color:#dcd0ff">${status.autoMp}</strong></div>` : ''}
                     <div>✅ Missions completed: <strong style="color:#fff">${status.runs || 0}</strong></div>
                     ${status.lastResult ? `<div>📝 Last: ${escHtml(status.lastResult)}</div>` : ''}
                 </div>
-                <button id="auto-disable-btn" class="btn-secondary" style="margin-top:12px;width:100%">Stop Auto-Complete</button>
+                <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ Stop Auto-Complete</button>
             </div>`
         : `
-            <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:14px;font-size:0.85rem">
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-                    <label style="color:var(--text-dim);align-self:center">Mission</label>
-                    <button type="button" id="auto-mission-pick" class="auto-pick-field" data-action="openAutoPicker" data-args="${encodeActionArgs(['mission'])}">
-                        <span class="auto-pick-val">${escHtml(_autoPickMissionName)}</span><span class="auto-pick-caret">▾</span>
-                    </button>
-                    <label style="color:var(--text-dim);align-self:center">Size</label>
-                    <button type="button" id="auto-size-pick" class="auto-pick-field" data-action="openAutoPicker" data-args="${encodeActionArgs(['size'])}">
-                        <span class="auto-pick-val">${_autoSelSize.charAt(0).toUpperCase() + _autoSelSize.slice(1)} (${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP)</span><span class="auto-pick-caret">▾</span>
+            <div class="arc-picker-row">
+                <div>
+                    <div class="arc-field-label">Mission</div>
+                    <button type="button" class="arc-pick" data-action="openAutoPicker" data-args="${encodeActionArgs(['mission'])}">
+                        <span class="arc-pick-val">${escHtml(_autoPickMissionName)}</span><span class="arc-pick-caret">▾</span>
                     </button>
                 </div>
-                <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-                    <label style="color:var(--text-dim);align-self:center">Your MP</label>
-                    <input id="auto-mp-in" type="text" value="${status.mp || 0}" style="width:80px;background:#0f1820;color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:8px;padding:7px 8px" disabled>
-                    <span id="auto-mp-hint" style="color:var(--text-dim);align-self:center;font-size:0.75rem">Needs ${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP per mission · uses your MP first</span>
+                <div>
+                    <div class="arc-field-label">Size</div>
+                    <button type="button" class="arc-pick" data-action="openAutoPicker" data-args="${encodeActionArgs(['size'])}">
+                        <span class="arc-pick-val">${_autoSelSize.charAt(0).toUpperCase() + _autoSelSize.slice(1)} · ${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP</span><span class="arc-pick-caret">▾</span>
+                    </button>
                 </div>
-                <div style="color:var(--text-dim);margin-bottom:6px">Load MP potions into the pool (up to ${status?.maxPotions ?? 10})</div>
-                ${potions.length === 0
-                    ? `<div style="color:#8e44ad;font-size:0.78rem;margin-bottom:10px">No MP potions in inventory. Convert MP into Special Mana Potions, or use your Mission Points above.</div>`
-                    : `<div id="auto-pot-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px">
-                        ${potions.map((p, i) => {
-                            const selectedQty = _autoSelectedPotions.get(String(p.inventoryId)) || 0;
-                            const selCount = autoPotionCount(potions);
-                            const remaining = (status?.maxPotions ?? 10) - selCount;
-                            const canAdd = selectedQty < Number(p.qty) && remaining > 0;
-                            return `<div data-inv="${p.inventoryId}" style="position:relative;border:1px solid ${selectedQty ? 'rgba(155,89,182,0.7)' : 'rgba(255,255,255,0.12)'};${selectedQty ? 'background:rgba(155,89,182,0.15)' : ''};border-radius:8px;padding:8px;text-align:center">
-                                <div>${p.emoji || '💧'} ${escHtml(p.name)}</div>
-                                <div style="color:#9b59b6;font-weight:700">${p.mp} MP each</div>
-                                <div style="color:var(--text-dim);font-size:0.7rem;">${p.qty} in stock</div>
-                                <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:7px">
-                                    <button type="button" class="qp-btn" data-inv="${p.inventoryId}" data-dir="-1" style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(255,255,255,0.2);background:rgba(255,255,255,0.06);color:#fff;font-weight:700;cursor:pointer" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
-                                    <span style="color:#fff;font-weight:700;min-width:18px">${selectedQty}</span>
-                                    <button type="button" class="qp-btn" data-inv="${p.inventoryId}" data-dir="1" style="width:26px;height:26px;border-radius:6px;border:1px solid rgba(155,89,182,0.5);background:rgba(155,89,182,0.2);color:#fff;font-weight:700;cursor:${canAdd ? 'pointer' : 'not-allowed'};opacity:${canAdd ? 1 : 0.45}" ${canAdd ? '' : 'disabled'} data-inv2="${p.inventoryId}">+</button>
-                                </div>
-                            </div>`;
-                        }).join('')}
-                     </div>`}
-                <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
-                    <div style="color:var(--text-dim)">Pool total: <strong id="auto-pool-total" style="color:#dcd0ff">0</strong> MP</div>
-                    <div style="color:var(--text-dim);font-size:0.72rem">Note: spends your Mission Points first, then this pool</div>
-                </div>
-                <button id="auto-enable-btn" class="btn-primary" style="width:100%">Start Auto-Complete</button>
-            </div>`
+            </div>
+            <div class="arc-mp-strip">
+                <span>Your MP <strong>${status.mp || 0}</strong></span>
+                <span>${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP per mission · uses your MP first</span>
+            </div>
+            <div class="arc-pot-title">Load MP potions · up to ${status?.maxPotions ?? 10}</div>
+            ${potions.length === 0
+                ? `<div style="color:#8e44ad;font-size:0.76rem">No MP potions in inventory. Convert MP into Special Mana Potions, or use your Mission Points above.</div>`
+                : `<div class="arc-pot-grid">
+                    ${potions.map((p) => {
+                        const selectedQty = _autoSelectedPotions.get(String(p.inventoryId)) || 0;
+                        const remaining = (status?.maxPotions ?? 10) - autoPotionCount(potions);
+                        const canAdd = selectedQty < Number(p.qty) && remaining > 0;
+                        return `<div class="arc-pot-card${selectedQty ? ' selected' : ''}" data-inv="${p.inventoryId}">
+                            <div class="arc-pot-name">${p.emoji || '💧'} ${escHtml(p.name)}</div>
+                            <div class="arc-pot-mp">+${p.mp} MP each</div>
+                            <div class="arc-pot-stock">${p.qty} in stock</div>
+                            <div class="arc-pot-ctl">
+                                <button type="button" class="arc-pot-btn" data-inv="${p.inventoryId}" data-dir="-1" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
+                                <span class="arc-pot-count">${selectedQty}</span>
+                                <button type="button" class="arc-pot-btn plus" data-inv="${p.inventoryId}" data-dir="1" ${canAdd ? '' : 'disabled'}>+</button>
+                            </div>
+                        </div>`;
+                    }).join('')}
+                 </div>`}
+            <div class="arc-pool-row">
+                <div class="arc-pool-chip">🔮 Pool <b id="auto-pool-total">0</b> MP</div>
+                <div class="arc-pool-note">Spends your Mission Points first, then this pool</div>
+            </div>
+            <button id="auto-enable-btn" class="arc-start">🔮 Start Auto-Complete</button>`
         }
+            </div>
+        </div>
     `;
 
     if (!premium || !isHere || running) {
@@ -4884,7 +4890,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         return;
     }
 
-    const qpBtns = panel.querySelectorAll('.qp-btn');
+    const qpBtns = panel.querySelectorAll('.arc-pot-btn');
     qpBtns.forEach(btn => {
         btn.addEventListener('click', (ev) => {
             ev.stopPropagation();
@@ -5026,6 +5032,12 @@ function pickAutoSize(sz) {
     if (_autoPickerZone && _autoPickerSpot) renderAutoCompletePanel(_autoPickerZone, _autoPickerSpot);
 }
 window.pickAutoSize = pickAutoSize;
+
+function goToPremium() {
+    closeMissionModal2();
+    showTab('premium');
+}
+window.goToPremium = goToPremium;
 
 function refreshAutoCompletePanelForZone(zoneId, spotId) {
     const panel = document.getElementById('auto-complete-panel');
