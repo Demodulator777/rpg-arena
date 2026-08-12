@@ -9122,6 +9122,32 @@ function _startUpkeepTicker() {
     }, 1000);
 } function _stopUpkeepTicker() { if (_upkeepTick) { clearInterval(_upkeepTick); _upkeepTick = null; } }
 
+// Live countdown for defender-protection timers on bases
+function _formatCountdown(expiresMs) {
+    var ms = Number(expiresMs) - Date.now();
+    if (ms <= 0) return 'Available now';
+    var s = Math.floor(ms / 1000);
+    var d = Math.floor(s / 86400); s -= d * 86400;
+    var h = Math.floor(s / 3600); s -= h * 3600;
+    var m = Math.floor(s / 60); s -= m * 60;
+    var parts = [];
+    if (d > 0) parts.push(d + 'd');
+    if (h > 0 || d > 0) parts.push(h + 'h');
+    parts.push(m + 'm');
+    parts.push(s + 's');
+    return parts.join(' ');
+}
+var _countdownTick = null;
+function _startCountdownTicker() {
+    if (_countdownTick) return;
+    _countdownTick = setInterval(function() {
+        document.querySelectorAll('.sb-protect-countdown').forEach(function(el) {
+            el.textContent = _formatCountdown(el.dataset.expires);
+        });
+    }, 1000);
+}
+function _stopCountdownTicker() { if (_countdownTick) { clearInterval(_countdownTick); _countdownTick = null; } }
+
 async function showClanBaseDetail(baseId) {
     const tierNames = { main: 'Main', large: 'Large', medium: 'Medium', small: 'Small' };
     try {
@@ -9140,7 +9166,13 @@ async function showClanBaseDetail(baseId) {
                     : `${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
                        ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}`}
             </div>
+            ${b.last_defended_at ? (b.defender_protected_until && b.defender_protected_until > Date.now()
+                ? `<div class="squads-meta" style="padding:0 12px 8px;color:#2ecc71">🛡️ Protected — can be attacked again in <span class="sb-protect-countdown" data-expires="${b.defender_protected_until}">${_formatCountdown(b.defender_protected_until)}</span></div>`
+                : `<div class="squads-meta" style="padding:0 12px 8px;color:#e74c3c">⚔️ No longer protected — eligible to be attacked.</div>`)
+                : ''}
+                ${b.last_defended_at ? `<div class="squads-meta" style="padding:0 12px 8px;font-size:0.7rem;opacity:0.6">Last defended: ${formatRelativeTime(b.last_defended_at)}</div>` : ''}
         </div>`;
+        _startCountdownTicker();
         await openGameNoticeDialog({ title: 'Base Detail', message: html, confirmLabel: 'Close' });
     } catch (e) {
         await openGameNoticeDialog({ title: 'Base Detail', message: e.message || String(e), confirmLabel: 'Close' });
