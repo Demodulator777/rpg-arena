@@ -4780,6 +4780,9 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
 let _autoSelSize = 'small';
 let _autoSelMission = 0;
 let _autoSelectedPotions = new Map();
+let _autoPickerZone = null;
+let _autoPickerSpot = null;
+let _autoPickerMissions = [];
 
 async function renderAutoCompletePanel(zoneId, spotId) {
     const panel = document.getElementById('auto-complete-panel');
@@ -4796,6 +4799,10 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     const premium = status?.premium === true;
     const running = status?.enabled === true && String(status?.zone) === String(zoneId) && String(status?.spot) === String(spotId);
     const potions = (status?.potions || []).filter(p => p.mp > 0);
+    _autoPickerZone = zoneId;
+    _autoPickerSpot = spotId;
+    _autoPickerMissions = spot.missions.map((m, idx) => typeof m === 'string' ? m : (m.name || `Mission ${idx + 1}`));
+    const _autoPickMissionName = _autoPickerMissions[Number(_autoSelMission) || 0] || _autoPickerMissions[0] || 'Mission';
 
     panel.innerHTML = `
         <div class="mz-section-label" style="margin-top:24px">⚡ Auto-Complete <span style="color:#9b59b6;font-weight:700">(🔮 Arcane Reservoir)</span></div>
@@ -4822,14 +4829,13 @@ async function renderAutoCompletePanel(zoneId, spotId) {
             <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:14px;font-size:0.85rem">
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                     <label style="color:var(--text-dim);align-self:center">Mission</label>
-                    <select id="auto-mission-sel" style="flex:1;min-width:120px;background:#0f1820;color:#fff;border:1px solid rgba(155,89,182,0.4);border-radius:8px;padding:7px 8px">${spot.missions.map((m, idx) => {
-                        const name = typeof m === 'string' ? m : (m.name || `Mission ${idx + 1}`);
-                        return `<option value="${idx}" ${String(_autoSelMission) === String(idx) ? 'selected' : ''}>${escHtml(name)}</option>`;
-                    }).join('')}</select>
+                    <button type="button" id="auto-mission-pick" class="auto-pick-field" data-action="openAutoPicker" data-args="${encodeActionArgs(['mission'])}">
+                        <span class="auto-pick-val">${escHtml(_autoPickMissionName)}</span><span class="auto-pick-caret">▾</span>
+                    </button>
                     <label style="color:var(--text-dim);align-self:center">Size</label>
-                    <select id="auto-size-sel" style="background:#0f1820;color:#fff;border:1px solid rgba(155,89,182,0.4);border-radius:8px;padding:7px 8px">
-                        ${['small', 'medium', 'large'].map(sz => `<option value="${sz}" ${_autoSelSize === sz ? 'selected' : ''}>${sz.charAt(0).toUpperCase() + sz.slice(1)} (${sz === 'small' ? 20 : sz === 'medium' ? 40 : 60} MP)</option>`).join('')}
-                    </select>
+                    <button type="button" id="auto-size-pick" class="auto-pick-field" data-action="openAutoPicker" data-args="${encodeActionArgs(['size'])}">
+                        <span class="auto-pick-val">${_autoSelSize.charAt(0).toUpperCase() + _autoSelSize.slice(1)} (${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP)</span><span class="auto-pick-caret">▾</span>
+                    </button>
                 </div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px">
                     <label style="color:var(--text-dim);align-self:center">Your MP</label>
@@ -4878,16 +4884,6 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         return;
     }
 
-    const missionSel = document.getElementById('auto-mission-sel');
-    const sizeSel = document.getElementById('auto-size-sel');
-    if (missionSel) missionSel.addEventListener('change', () => { _autoSelMission = Number(missionSel.value) || 0; });
-    if (sizeSel) sizeSel.addEventListener('change', () => {
-        _autoSelSize = sizeSel.value;
-        const cost = { small: 20, medium: 40, large: 60 }[_autoSelSize] || 20;
-        const hint = document.getElementById('auto-mp-hint');
-        if (hint) hint.textContent = `Needs ${cost} MP per mission · uses your MP first`;
-    });
-
     const qpBtns = panel.querySelectorAll('.qp-btn');
     qpBtns.forEach(btn => {
         btn.addEventListener('click', (ev) => {
@@ -4917,14 +4913,29 @@ async function renderAutoCompletePanel(zoneId, spotId) {
 
     const enableBtn = document.getElementById('auto-enable-btn');
     if (enableBtn) enableBtn.addEventListener('click', async () => {
+        if (enableBtn.dataset.busy === 'true') return;
+        enableBtn.dataset.busy = 'true';
+        const originalLabel = enableBtn.innerHTML;
+        enableBtn.disabled = true;
+        enableBtn.textContent = '🔮 Summoning auto-complete…';
         const selected = [..._autoSelectedPotions].map(([invId, qty]) => ({ inventoryId: invId, qty }));
         try {
-            showMsg('missions-msg', 'Starting auto-complete...', false);
             await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected });
             _autoSelectedPotions = new Map();
-            showMsg('missions-msg', 'Auto-complete is now running. It will keep farming even while you are logged off.', false);
-            // The first mission starts server-side within a few seconds; poll for
-            // it so the mission countdown overlay appears automatically.
+            // Close the mission-selection modal with a fade-out, then let the
+            // mission overlay fade in once the first mission starts.
+            const modal = document.getElementById('mission-location-modal');
+            if (modal) {
+                modal.classList.add('auto-closing');
+                setTimeout(() => {
+                    modal.classList.add('hidden');
+                    modal.classList.remove('auto-closing');
+                    checkAndShowMissionOverlay().catch(() => {});
+                }, 360);
+            } else {
+                checkAndShowMissionOverlay().catch(() => {});
+            }
+            // Poll for the first mission so the countdown overlay appears.
             for (let i = 0; i < 8; i++) {
                 await new Promise(r => setTimeout(r, 1200));
                 try {
@@ -4935,6 +4946,10 @@ async function renderAutoCompletePanel(zoneId, spotId) {
             }
         } catch (e) {
             showMsg('missions-msg', e.message, true);
+        } finally {
+            enableBtn.disabled = false;
+            enableBtn.innerHTML = originalLabel;
+            delete enableBtn.dataset.busy;
         }
         renderAutoCompletePanel(zoneId, spotId);
     });
@@ -4955,6 +4970,62 @@ function updateAutoPoolTotal(panel, potions) {
     const el = document.getElementById('auto-pool-total');
     if (el) el.textContent = String(total);
 }
+
+function ensureAutoPickerModal() {
+    if (document.getElementById('auto-picker-modal')) return;
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="auto-picker-modal" class="modal-overlay hidden">
+            <div class="modal-box game-dialog-box" style="max-width:340px">
+                <div class="modal-header">
+                    <h3 id="auto-picker-title">Choose</h3>
+                    <button class="btn-secondary" data-action="closeAutoPicker">✕</button>
+                </div>
+                <div id="auto-picker-list" class="game-dialog-message"></div>
+            </div>
+        </div>`);
+}
+
+function openAutoPicker(kind) {
+    ensureAutoPickerModal();
+    const modal = document.getElementById('auto-picker-modal');
+    const list = document.getElementById('auto-picker-list');
+    const title = document.getElementById('auto-picker-title');
+    if (!modal || !list || !title) return;
+    if (kind === 'mission') {
+        title.textContent = 'Choose Mission';
+        const opts = (_autoPickerMissions && _autoPickerMissions.length ? _autoPickerMissions : ['Mission']);
+        list.innerHTML = opts.map((name, idx) => {
+            const active = String(_autoSelMission) === String(idx);
+            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAutoMission" data-args="${encodeActionArgs([idx])}">${escHtml(name)}${active ? ' ✓' : ''}</button>`;
+        }).join('');
+    } else {
+        title.textContent = 'Choose Mission Size';
+        list.innerHTML = ['small', 'medium', 'large'].map(sz => {
+            const active = _autoSelSize === sz;
+            const cost = { small: 20, medium: 40, large: 60 }[sz];
+            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAutoSize" data-args="${encodeActionArgs([sz])}">${sz.charAt(0).toUpperCase() + sz.slice(1)} (${cost} MP)${active ? ' ✓' : ''}</button>`;
+        }).join('');
+    }
+    modal.classList.remove('hidden');
+}
+window.openAutoPicker = openAutoPicker;
+
+function closeAutoPicker() { document.getElementById('auto-picker-modal')?.classList.add('hidden'); }
+window.closeAutoPicker = closeAutoPicker;
+
+function pickAutoMission(idx) {
+    _autoSelMission = Number(idx) || 0;
+    closeAutoPicker();
+    if (_autoPickerZone && _autoPickerSpot) renderAutoCompletePanel(_autoPickerZone, _autoPickerSpot);
+}
+window.pickAutoMission = pickAutoMission;
+
+function pickAutoSize(sz) {
+    _autoSelSize = sz;
+    closeAutoPicker();
+    if (_autoPickerZone && _autoPickerSpot) renderAutoCompletePanel(_autoPickerZone, _autoPickerSpot);
+}
+window.pickAutoSize = pickAutoSize;
 
 function refreshAutoCompletePanelForZone(zoneId, spotId) {
     const panel = document.getElementById('auto-complete-panel');
