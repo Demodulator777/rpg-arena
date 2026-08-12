@@ -1680,6 +1680,7 @@ const MISSION_SIZES = {
     large:  { mpCost: 60, duration: 1800, label: 'Large',  rewardMult: 2.5 },
 };
 const AUTO_MISSION_MAX_POTIONS = 10; // Max potions converted into the auto-mission MP pool per session
+const AUTO_MISSION_MAX_HP_POTIONS = 3; // Max HP potions loaded for auto-mission low-HP healing
 const SKILL_DURATION = 5 * 3600;
 const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
 const HEALTH_POTION_COOLDOWN = 30 * 60;
@@ -13031,6 +13032,9 @@ async function ensureAutoMissionTable(db) {
     )`);
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_stop_enabled INTEGER NOT NULL DEFAULT 0"); } catch {}
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_stop_threshold INTEGER NOT NULL DEFAULT 0"); } catch {}
+    try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_potion_stack TEXT"); } catch {}
+    try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_heal_enabled INTEGER NOT NULL DEFAULT 0"); } catch {}
+    try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_heal_threshold INTEGER NOT NULL DEFAULT 0"); } catch {}
 }
 
 async function ensureAutoMissionState(db, charId) {
@@ -13041,13 +13045,15 @@ async function ensureAutoMissionState(db, charId) {
 
 async function listAutoPotions(db, charId) {
     const rows = await dbAll(db, "SELECT * FROM inventory WHERE char_id=? AND item_type='consumable'", [charId]);
-    const out = [];
+    const mp = [];
+    const hp = [];
     for (const r of rows) {
         let d; try { d = JSON.parse(r.item_data); } catch { continue; }
         const qty = Number(d.qty ?? 1);
-        const perMp = Number(d.effect?.value || 0);
-        if (d.effect && d.effect.type === 'mp' && qty > 0 && perMp > 0) {
-            out.push({
+        if (qty <= 0) continue;
+        if (d.effect?.type === 'mp' && Number(d.effect?.value || 0) > 0) {
+            const perMp = Number(d.effect.value);
+            mp.push({
                 inventoryId: r.id,
                 id: d.id || 'mana_potion',
                 name: d.name || 'Mana Potion',
@@ -13056,9 +13062,21 @@ async function listAutoPotions(db, charId) {
                 qty,
                 totalMp: perMp * qty,
             });
+        } else if ((d.effect?.type === 'heal' || d.effect?.type === 'heal_full') && Number(d.effect?.value || 0) > 0) {
+            const perHp = Number(d.effect.value);
+            hp.push({
+                inventoryId: r.id,
+                id: d.id || 'health_potion',
+                name: d.name || 'Health Potion',
+                emoji: d.emoji || '🧪',
+                heal: perHp,
+                healFull: d.effect.type === 'heal_full',
+                qty,
+                totalHeal: perHp * qty,
+            });
         }
     }
-    return out;
+    return { mp, hp, maxHp: AUTO_MISSION_MAX_HP_POTIONS };
 }
 
 // Records a generic "intended behavior" marker in api_log under a dedicated
@@ -13100,6 +13118,10 @@ router.get('/missions/auto-status', auth, async (req, res) => {
         const state = await ensureAutoMissionState(db, char.id);
         const activePrem = getActivePremium(char);
         const hasReservoir = hasPremium(activePrem, 'arcane_reservoir');
+        let potionList;
+        try { potionList = await listAutoPotions(db, char.id); } catch { potionList = { mp: [], hp: [] }; }
+        let hpStack = [];
+        try { hpStack = JSON.parse(state.hp_potion_stack || '[]'); } catch {}
         res.json({
             enabled: state.enabled === 1,
             premium: hasReservoir,
@@ -13114,12 +13136,18 @@ router.get('/missions/auto-status', auth, async (req, res) => {
             lastResult: state.last_result || '',
             hpStopEnabled: state.hp_stop_enabled === 1,
             hpStopThreshold: Number(state.hp_stop_threshold || 0),
+            hpHealEnabled: Number(state.hp_heal_enabled || 0) === 1,
+            hpHealThreshold: Number(state.hp_heal_threshold || 0),
             hpCurrent: Number(char.hp_current ?? char.hp_max ?? 0),
             hpMax: Number(char.hp_max ?? 0),
             mp: char.mission_points || 0,
             mpMax: hasReservoir ? MP_MAX * 2 : MP_MAX,
             maxPotions: AUTO_MISSION_MAX_POTIONS,
-            potions: await listAutoPotions(db, char.id),
+            maxHpPotions: AUTO_MISSION_MAX_HP_POTIONS,
+            mpPotions: potionList.mp || [],
+            hpPotions: potionList.hp || [],
+            hpStack,
+            potions: potionList.mp || [],
         });
     } catch (e) { console.error('[AutoMission] status error:', e); res.status(500).json({ error: e.message }); }
 });
@@ -13133,7 +13161,7 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         if (!hasPremium(activePrem, 'arcane_reservoir')) {
             return res.status(403).json({ error: 'Auto-complete requires the Arcane Reservoir premium. Activate it to access auto-complete.' });
         }
-        const { zone, spot, missionIdx, size, potionIds, potions, hpStopEnabled, hpStopThreshold } = req.body || {};
+        const { zone, spot, missionIdx, size, potionIds, potions, hpPotions, hpStopEnabled, hpStopThreshold, hpHealEnabled, hpHealThreshold } = req.body || {};
         const now = Math.floor(Date.now() / 1000);
         const currentMap = char.current_map || 'overworld';
         const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[zone] || ZONES[zone]) : ZONES[zone];
@@ -13180,22 +13208,54 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
 
         const hpEnabled = !!hpStopEnabled;
         const hpThreshold = hpEnabled ? Math.max(1, Math.floor(Number(hpStopThreshold || 10))) : 0;
-        await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, hp_stop_enabled, hp_stop_threshold, updated_at)
-            VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+
+        // Load selected HP-restoring potions into a stack (max 3). Each entry is
+        // one potion use worth of healing; consumed one at a time during low-HP.
+        const hpStack = [];
+        const hpPicks = (Array.isArray(hpPotions) ? hpPotions : [])
+            .map(p => ({ invId: String(p?.inventoryId ?? p?.id ?? ''), qty: Math.max(0, Math.floor(Number(p?.qty) || 0)) }))
+            .filter(p => p.invId);
+        for (const pick of hpPicks) {
+            if (hpStack.length >= AUTO_MISSION_MAX_HP_POTIONS) break;
+            const item = await dbGet(db, 'SELECT * FROM inventory WHERE id=? AND char_id=?', [pick.invId, char.id]);
+            if (!item) continue;
+            let d; try { d = JSON.parse(item.item_data); } catch { continue; }
+            const isHealFull = d.effect?.type === 'heal_full';
+            const perHp = Number(d.effect?.value || 0);
+            if (!('heal' === d.effect?.type || isHealFull) || perHp <= 0) continue;
+            const qty = Number(d.qty ?? 1);
+            const wanted = pick.qty > 0 ? Math.min(pick.qty, qty) : qty;
+            const take = Math.min(wanted, AUTO_MISSION_MAX_HP_POTIONS - hpStack.length);
+            for (let i = 0; i < take; i++) hpStack.push({ invId: pick.invId, heal: perHp, healFull: isHealFull ? 1 : 0 });
+            if (take >= qty) {
+                await dbRun(db, 'DELETE FROM inventory WHERE id=?', [pick.invId]);
+            } else {
+                d.qty = qty - take;
+                await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), pick.invId]);
+            }
+        }
+        const hpHealOn = !!hpHealEnabled && hpStack.length > 0;
+        const hpHealThr = hpHealOn ? Math.max(1, Math.floor(Number(hpHealThreshold || 50))) : 0;
+
+        await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, hp_stop_enabled, hp_stop_threshold, hp_potion_stack, hp_heal_enabled, hp_heal_threshold, updated_at)
+            VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(char_id) DO UPDATE SET
                 enabled=1, current_map=excluded.current_map, zone=excluded.zone, spot=excluded.spot,
                 mission_idx=excluded.mission_idx, size=excluded.size,
                 auto_mp=excluded.auto_mp, potions_loaded=excluded.potions_loaded,
                 hp_stop_enabled=excluded.hp_stop_enabled, hp_stop_threshold=excluded.hp_stop_threshold,
+                hp_potion_stack=excluded.hp_potion_stack,
+                hp_heal_enabled=excluded.hp_heal_enabled, hp_heal_threshold=excluded.hp_heal_threshold,
                 last_result=NULL, updated_at=excluded.updated_at`,
-            [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, hpEnabled ? 1 : 0, hpThreshold, now]);
+            [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, hpEnabled ? 1 : 0, hpThreshold, JSON.stringify(hpStack), hpHealOn ? 1 : 0, hpHealThr, now]);
 
         await markAutoIntended(db, char.id, 'enable');
         const state = await ensureAutoMissionState(db, char.id);
         res.json({
             success: true,
             autoMp: state.auto_mp || 0,
-            message: `Auto-complete enabled for ${spotDef.name}. ${loadedCount} potion(s) loaded (+${loadedMp} MP into pool).`,
+            hpStack: JSON.parse(state.hp_potion_stack || '[]'),
+            message: `Auto-complete enabled for ${spotDef.name}. ${loadedCount} potion(s) loaded (+${loadedMp} MP)${hpStack.length ? `, ${hpStack.length} HP potion(s) loaded.` : '.'}`,
         });
     } catch (e) { console.error('[AutoMission] enable error:', e); res.status(500).json({ error: e.message }); }
 });
@@ -13211,18 +13271,43 @@ router.post('/missions/auto-disable', auth, async (req, res) => {
     } catch (e) { console.error('[AutoMission] disable error:', e); res.status(500).json({ error: e.message }); }
 });
 
-// Update the low-HP auto-pause setting on a running auto-complete session.
+// Update the low-HP auto-pause / auto-heal settings on a running session.
 router.post('/missions/auto-hp-stop', auth, async (req, res) => {
     try {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
         const state = await ensureAutoMissionState(db, char.id);
-        const enabled = !!req.body?.enabled;
-        const threshold = enabled ? Math.max(1, Math.floor(Number(req.body?.threshold) || 10)) : 0;
+        const now = Math.floor(Date.now() / 1000);
+        let stack = [];
+        try { stack = JSON.parse(state.hp_potion_stack || '[]'); } catch {}
+        const sets = [];
+
+        const pauseEnabled = !!req.body?.enabled;
+        const pauseThreshold = pauseEnabled ? Math.max(1, Math.floor(Number(req.body?.threshold) || 10)) : 0;
         await dbRun(db, 'UPDATE auto_mission_state SET hp_stop_enabled=?, hp_stop_threshold=?, updated_at=? WHERE char_id=?',
-            [enabled ? 1 : 0, threshold, Math.floor(Date.now() / 1000), char.id]);
-        res.json({ success: true, hpStopEnabled: enabled, hpStopThreshold: threshold });
+            [pauseEnabled ? 1 : 0, pauseThreshold, now, char.id]);
+
+        if (req.body?.healEnabled !== undefined || req.body?.healThreshold !== undefined) {
+            if (typeof req.body?.hpPotions === 'object' && req.body?.hpPotions !== null && Array.isArray(req.body?.hpPotions)) {
+                stack = req.body.hpPotions.map(p => ({ invId: String(p?.invId ?? ''), heal: Number(p?.heal ?? 0), healFull: p?.healFull ? 1 : 0 })).filter(p => p.invId && p.heal > 0);
+            }
+            const healEnabled = !!req.body?.healEnabled;
+            const healThreshold = healEnabled ? Math.max(1, Math.floor(Number(req.body?.healThreshold || 50))) : 0;
+            await dbRun(db, 'UPDATE auto_mission_state SET hp_heal_enabled=?, hp_heal_threshold=?, hp_potion_stack=?, last_result=?, updated_at=? WHERE char_id=?',
+                [healEnabled ? 1 : 0, healThreshold, JSON.stringify(stack), stack.length ? '💗 HP auto-heal armed' : (state.last_result || ''), now, char.id]);
+        }
+
+        const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            success: true,
+            hpStopEnabled: pauseEnabled,
+            hpStopThreshold: pauseThreshold,
+            hpHealEnabled: Number(state.hp_heal_enabled || 0) === 1,
+            hpHealThreshold: Number(state.hp_heal_threshold || 0),
+            hpStack: stack,
+            hpCurrent: Number(fresh?.hp_current ?? 0),
+        });
     } catch (e) { console.error('[AutoMission] hp-stop error:', e); res.status(500).json({ error: e.message }); }
 });
 
@@ -13241,6 +13326,33 @@ async function processOneAutoChar(db, state) {
     await applyMpRegen(db, state.char_id);
     await applyHpRegen(db, state.char_id);
     const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [state.char_id]);
+
+    // Auto-use a loaded HP potion when current HP drops below the heal threshold.
+    // Consumes one potion from the stack at a time and respects the global potion
+    // cooldown, so it can't chain-spam heals every tick.
+    const hpHealOn = Number(state.hp_heal_enabled || 0) === 1;
+    const hpHealThr = Number(state.hp_heal_threshold || 0);
+    if (hpHealOn && hpHealThr > 0) {
+        const hpNow = Number(fresh.hp_current ?? 0);
+        if (hpNow < hpHealThr) {
+            const equippedArray = await getEquippedItemsArray(db, state.char_id);
+            const trueHpMax = calcHpMax(fresh, equippedArray);
+            const lastUse = Number(fresh.last_health_potion_at || 0);
+            const cdLeft = (lastUse + HEALTH_POTION_COOLDOWN) - now;
+            if (cdLeft <= 0) {
+                let stack = [];
+                try { stack = JSON.parse(state.hp_potion_stack || '[]'); } catch {}
+                if (stack.length > 0) {
+                    const potion = stack.shift();
+                    const currentHp = Number(fresh.hp_current ?? trueHpMax);
+                    const newHp = potion?.healFull ? trueHpMax : Math.min(trueHpMax, currentHp + Number(potion?.heal || 0));
+                    await dbRun(db, 'UPDATE characters SET hp_current=?, last_health_potion_at=? WHERE id=?', [newHp, now, state.char_id]);
+                    await dbRun(db, 'UPDATE auto_mission_state SET hp_potion_stack=?, last_result=?, updated_at=? WHERE char_id=?',
+                        [JSON.stringify(stack), `💗 Auto-healed to ${newHp} HP`, now, state.char_id]);
+                }
+            }
+        }
+    }
 
     const currentMission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id=?', [state.char_id]);
 
