@@ -161,6 +161,19 @@ async function ensureApiLogTable(db) {
     )`);
 }
 
+// Stores lightweight per-minute "did a human interact" beacons from the client.
+// Only a boolean is recorded (mouse/keyboard/touch seen or not) — no coordinates.
+async function ensureInputActivityTable(db) {
+    await db.execute(`CREATE TABLE IF NOT EXISTS input_activity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        char_id INTEGER NOT NULL DEFAULT 0,
+        char_name TEXT NOT NULL DEFAULT '',
+        has_input INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL
+    )`);
+    try { await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_input_activity_created ON input_activity(created_at)", args: [] }); } catch {}
+}
+
 async function ensureFlaggedTable(db) {
     await db.execute({ sql: `CREATE TABLE IF NOT EXISTS flagged_characters (id INTEGER PRIMARY KEY AUTOINCREMENT, char_name TEXT NOT NULL UNIQUE, reason TEXT NOT NULL DEFAULT '', detected_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, confirmed INTEGER NOT NULL DEFAULT 0, signal_count INTEGER NOT NULL DEFAULT 0, distinct_signals INTEGER NOT NULL DEFAULT 0, signal_types TEXT NOT NULL DEFAULT '')`, args: [] });
     // Migration: add signal tracking columns to existing tables
@@ -552,6 +565,11 @@ async function purgeOldFlagEvents(db) {
     await dbRun(db, 'DELETE FROM flag_events WHERE created_at < ?', [cutoff]);
 }
 
+async function purgeOldInputActivity(db) {
+    const cutoff = Math.floor(Date.now() / 1000) - 86400 * 3;
+    await dbRun(db, 'DELETE FROM input_activity WHERE created_at < ?', [cutoff]);
+}
+
 async function purgeAllOldData(db) {
     try { await purgeExpiredMessages(db); } catch (e) { console.error('[purge] messages:', e.message); }
     try { await purgeExpiredChatMessages(db); } catch (e) { console.error('[purge] chat:', e.message); }
@@ -559,10 +577,12 @@ async function purgeAllOldData(db) {
     try { await purgeOldDomMutations(db); } catch (e) { console.error('[purge] dom_mutations:', e.message); }
     try { await purgeOldCspViolations(db); } catch (e) { console.error('[purge] csp_violations:', e.message); }
     try { await purgeOldFlagEvents(db); } catch (e) { console.error('[purge] flag_events:', e.message); }
+    try { await purgeOldInputActivity(db); } catch (e) { console.error('[purge] input_activity:', e.message); }
     // Ensure indexes exist for cleanup queries
     try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_api_log_created ON api_log(created_at)"); } catch {}
     try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_dom_mutations_created ON dom_mutations(created_at)"); } catch {}
     try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_flag_events_created ON flag_events(created_at)"); } catch {}
+    try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_input_activity_created ON input_activity(created_at)"); } catch {}
     try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_messages_sent ON messages(sent_at)"); } catch {}
     try { await dbRun(db, "CREATE INDEX IF NOT EXISTS idx_chat_messages_created ON chat_messages(created_at)"); } catch {}
 }
@@ -15944,6 +15964,10 @@ async function runBotDetection(db) {
             }
         }
     } catch (e) { console.error('[bot-detect] state polling error:', e.message); }
+    try {
+        const nhFlags = await collectNoHumanInputFlags(db, null, scanEnabledSet, now);
+        for (const [name, reason] of nhFlags) appendFlag(botPlayers, name, reason);
+    } catch (e) { console.error('[bot-detect] no human input error:', e.message); }
     if (botPlayers.size > 0) console.log('[bot-detect] Detected:', [...botPlayers.entries()].map(([k,v])=>k+': '+v).join(', '));
     return botPlayers;
 }
@@ -16077,7 +16101,54 @@ async function runSelectiveBotDetection(db, charName) {
         }
     } catch (e) { console.error('[bot-detect] selective bot pattern error:', e.message); }
 
+    // 6. No human input while the game keeps running
+    try {
+        const nhFlags = await collectNoHumanInputFlags(db, charName, null, now);
+        for (const [name, reason] of nhFlags) appendFlag(botPlayers, name, reason);
+    } catch (e) { console.error('[bot-detect] selective no human input error:', e.message); }
+
     return botPlayers;
+}
+
+// Detects characters whose game keeps running (missions/battles/polling) while
+// the client reported zero human input (mouse/keyboard/touch) for a long window.
+// Returns [[name, reason], ...]. Position data is never tracked or stored.
+async function collectNoHumanInputFlags(db, charName, scanEnabledSet, now) {
+    const flags = [];
+    const cutoff = now - 6 * 3600; // 6h window
+    try {
+        await ensureInputActivityTable(db);
+        if (charName) {
+            const act = await dbGet(db, `SELECT COUNT(*) AS c FROM api_log WHERE char_name=? AND created_at>? AND (path LIKE '%/missions/%' OR path LIKE '%/dungeon/%' OR path LIKE '%/character%' OR path LIKE '%/inventory%')`, [charName, cutoff]);
+            const activity = Number(act?.c || 0);
+            if (activity < 20) return flags;
+            const rep = await dbGet(db, `SELECT SUM(has_input) AS input, COUNT(*) AS total FROM input_activity WHERE char_name=? AND created_at>?`, [charName, cutoff]);
+            const total = Number(rep?.total || 0);
+            const input = Number(rep?.input || 0);
+            if (total >= 30 && input === 0) {
+                flags.push([charName, `No human input: ${activity} game actions in 6h, ${total} input reports, 0 with input`]);
+            }
+            return flags;
+        }
+        const actRows = await db.execute({ sql: `SELECT char_name, COUNT(*) AS c FROM api_log WHERE created_at>? AND (path LIKE '%/missions/%' OR path LIKE '%/dungeon/%' OR path LIKE '%/character%' OR path LIKE '%/inventory%') GROUP BY char_name`, args: [cutoff] });
+        const actMap = {};
+        for (const r of actRows.rows) {
+            if (r.char_name && r.char_name !== '?') actMap[r.char_name] = Number(r.c || 0);
+        }
+        const repRows = await db.execute({ sql: `SELECT char_name, SUM(has_input) AS input, COUNT(*) AS total FROM input_activity WHERE created_at>? GROUP BY char_name`, args: [cutoff] });
+        for (const r of repRows.rows) {
+            const name = r.char_name;
+            if (!name || name === '?') continue;
+            if (scanEnabledSet && !scanEnabledSet.has(name)) continue;
+            if (!actMap[name]) continue;
+            const total = Number(r.total || 0);
+            const input = Number(r.input || 0);
+            if (actMap[name] >= 20 && total >= 30 && input === 0) {
+                flags.push([name, `No human input: ${actMap[name]} game actions in 6h, ${total} input reports, 0 with input`]);
+            }
+        }
+        return flags;
+    } catch (e) { console.error('[bot-detect] no human input error:', e.message); return flags; }
 }
 
 async function persistBotFlags(db, botPlayers) {
@@ -16128,9 +16199,9 @@ async function persistBotFlags(db, botPlayers) {
                 const flaggedData = await dbGet(db, 'SELECT reason, signal_types FROM flagged_characters WHERE char_name=?', [flagged.char_name]);
                 if (!flaggedData) continue;
                 const sTypes = (flaggedData.signal_types || '').split(',').filter(Boolean);
-                const hasNonDetectionFlag = sTypes.some(t => !['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
+                const hasNonDetectionFlag = sTypes.some(t => !['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling', 'No human input'].includes(t));
                 if (hasNonDetectionFlag) continue;
-                const isDetectionFlag = sTypes.some(t => ['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling'].includes(t));
+                const isDetectionFlag = sTypes.some(t => ['Managed test bot', 'Instant collect', 'No UI tick', 'Mission timing', 'Battle timing', 'State polling', 'No human input'].includes(t));
                 if (!isDetectionFlag) continue;
                 await db.execute({ sql: "UPDATE flagged_characters SET reason='No longer detected', confirmed=0 WHERE char_name=? AND confirmed=0", args: [flagged.char_name] });
             }
@@ -16475,8 +16546,31 @@ router.post('/admin/sw-toggle', auth, async (req, res) => {
 
 // ── DOM Mutation Reporting ────────────────────────────────────────────────
 
-router.post('/admin/report-dom-mutation', auth, async (req, res) => {
+// Lightweight human-input beacon (anti-cheat). Client posts once per minute
+// whether any mouse/keyboard/touch input happened; no position is ever sent.
+router.post('/admin/report-input-activity', auth, async (req, res) => {
     try {
+        const db = await getDb();
+        const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
+        const globalOn = !(setting && setting.value === 'false');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
+        if (!globalOn) {
+            if (char?.name) {
+                const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [char.name]);
+                if (!flagRow || flagRow.scan_enabled !== 1) return res.json({ success: true });
+            } else {
+                return res.json({ success: true });
+            }
+        }
+        await ensureInputActivityTable(db);
+        const now = Math.floor(Date.now() / 1000);
+        const hasInput = req.body && req.body.has_input === 1 ? 1 : 0;
+        await db.execute({ sql: `INSERT INTO input_activity (char_id, char_name, has_input, created_at) VALUES (?,?,?,?)`, args: [char?.id || 0, char?.name || '', hasInput, now] });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
         const db = await getDb();
         const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
         const globalOn = !(setting && setting.value === 'false');
