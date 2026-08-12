@@ -5296,6 +5296,7 @@ function showMissionOverlay(active, displayName) {
     overlay.classList.remove('hidden');
     refreshMissionOverlayAuto();
 }
+let _autoOverlayOpen = true;
 async function refreshMissionOverlayAuto() {
     const box=document.getElementById('overlay-auto'); if(!box) return;
     let status=null;
@@ -5304,17 +5305,33 @@ async function refreshMissionOverlayAuto() {
     box.style.display='block';
     const pool=status.autoMp||0, runs=status.runs||0, last=status.lastResult?escHtml(status.lastResult):'';
     box.innerHTML=`
-        <div style="margin-top:14px;padding:10px 12px;border:1px solid rgba(155,89,182,0.4);border-radius:10px;background:rgba(155,89,182,0.1);text-align:left">
-            <div style="color:#9b59b6;font-weight:700;font-size:0.8rem">🔮 Auto-Complete running</div>
-            <div style="color:var(--text-dim);font-size:0.8rem;margin-top:4px;line-height:1.6">
-                ${pool>0?`<div>Pool MP: <strong style="color:#dcd0ff">${pool}</strong></div>`:''}
-                <div>✅ Completed: <strong style="color:#fff">${runs}</strong></div>
-                ${last?`<div>📝 ${last}</div>`:''}
+        <div class="arc-relic">
+            <div class="arc-relic-head ${_autoOverlayOpen?'open':''}" id="arc-relic-head">
+                <div class="arc-relic-rune">🧿</div>
+                <div class="arc-relic-title">Arcane Reservoir</div>
+                <div style="display:flex;align-items:center;gap:5px">
+                    <div class="arc-status-dot"></div>
+                    <span class="arc-status-label">Unleashed</span>
+                </div>
+                <div class="arc-chevy">▾</div>
             </div>
-            <button id="overlay-auto-stop" class="btn-cancel-travel" style="margin-top:10px;width:100%;border-color:rgba(231,76,60,0.5);color:#e74c3c;background:rgba(231,76,60,0.1)">Stop Auto-Complete</button>
+            <div class="arc-relic-body">
+                <div class="arc-stats">
+                    <div class="arc-stat"><div class="arc-stat-val">${pool}</div><div class="arc-stat-lbl">Pool MP</div></div>
+                    <div class="arc-stat"><div class="arc-stat-val">${runs}</div><div class="arc-stat-lbl">Completed</div></div>
+                </div>
+                ${last?`<div class="arc-last">📜 ${last}</div>`:''}
+                <button id="overlay-auto-stop" class="arc-stop">⏹ Stop Auto-Complete</button>
+            </div>
         </div>`;
+    const head=document.getElementById('arc-relic-head');
+    if (head) head.addEventListener('click', ()=>{
+        _autoOverlayOpen=!_autoOverlayOpen;
+        head.classList.toggle('open',_autoOverlayOpen);
+    });
     const stop=document.getElementById('overlay-auto-stop');
-    if (stop) stop.addEventListener('click', async ()=>{
+    if (stop) stop.addEventListener('click', async (ev)=>{
+        ev.stopPropagation();
         try { await api('POST','/game/missions/auto-disable'); _autoSelectedPotions = new Map(); }
         catch(e){ console.error(e); }
         box.style.display='none'; box.innerHTML='';
