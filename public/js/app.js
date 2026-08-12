@@ -4828,6 +4828,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                     ${status.lastResult ? `<div>📝 Last: ${escHtml(status.lastResult)}</div>` : ''}
                 </div>
                 <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ Stop Auto-Complete</button>
+                <div style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);line-height:1.6">⚠️ Stopping does not refund the MP in the pool — it is recommended to let it clear naturally.</div>
             </div>`
         : `
             <div class="arc-picker-row">
@@ -4881,9 +4882,12 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     if (!premium || !isHere || running) {
         const stopBtn = document.getElementById('auto-disable-btn');
         if (stopBtn) stopBtn.addEventListener('click', async () => {
+            const ok = await confirmStopAutoComplete();
+            if (!ok) return;
             try {
                 await api('POST', '/game/missions/auto-disable');
                 _autoSelectedPotions = new Map();
+                showMsg('missions-msg', 'Auto-complete stopped. MP left in the pool was not refunded.', false);
             } catch (e) { showMsg('missions-msg', e.message, true); }
             renderAutoCompletePanel(zoneId, spotId);
         });
@@ -5472,10 +5476,21 @@ async function refreshMissionOverlayAuto() {
     const stop=document.getElementById('overlay-auto-stop');
     if (stop) stop.addEventListener('click', async (ev)=>{
         ev.stopPropagation();
+        const ok = await confirmStopAutoComplete();
+        if (!ok) return;
         try { await api('POST','/game/missions/auto-disable'); _autoSelectedPotions = new Map(); }
         catch(e){ console.error(e); }
         refreshMissionOverlayAuto();
     });
+}
+
+async function confirmStopAutoComplete() {
+    return !!(await openGameConfirmDialog({
+        title: 'Stop Auto-Complete?',
+        message: 'Stopping does <strong>not</strong> refund the MP you fed into the pool.<br><br>It is recommended to let the pool clear on its own.<br><br>Really stop auto-complete now?',
+        confirmLabel: 'Yes, stop now',
+        cancelLabel: 'Keep running'
+    }));
 }
 function hideMissionOverlay() {
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval = null; }
