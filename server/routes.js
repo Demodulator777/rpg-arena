@@ -15108,6 +15108,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
         // Get previous week award winners
         const prevAward = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
         let previousDmgWinner = null, previousWinWinner = null;
+        let previousSquadDmgWinner = null, previousSquadWinWinner = null;
         if (prevAward) {
             if (prevAward.reward_sent && Number(prevAward.winner_char_id) > 0) {
                 previousDmgWinner = {
@@ -15126,6 +15127,28 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                     class: prevAward.win_winner_class,
                     total_wins: Number(prevAward.win_winner_wins),
                     total_battles: Number(prevAward.win_winner_battles),
+                    reward_gems: 5,
+                };
+            }
+            if (prevAward.squad_dmg_reward_sent && Number(prevAward.squad_winner_id) > 0) {
+                previousSquadDmgWinner = {
+                    squad_id: Number(prevAward.squad_winner_id),
+                    name: prevAward.squad_winner_name,
+                    tag: prevAward.squad_winner_tag || null,
+                    logo: prevAward.squad_winner_logo || null,
+                    member_count: Number(prevAward.squad_winner_members || 0),
+                    total_dmg: Number(prevAward.squad_winner_dmg || 0),
+                    reward_gems: 5,
+                };
+            }
+            if (prevAward.squad_win_reward_sent && Number(prevAward.squad_win_winner_id) > 0) {
+                previousSquadWinWinner = {
+                    squad_id: Number(prevAward.squad_win_winner_id),
+                    name: prevAward.squad_win_winner_name,
+                    tag: prevAward.squad_win_winner_tag || null,
+                    logo: prevAward.squad_win_winner_logo || null,
+                    member_count: Number(prevAward.squad_win_winner_members || 0),
+                    total_wins: Number(prevAward.squad_win_wins || 0),
                     reward_gems: 5,
                 };
             }
@@ -15184,6 +15207,8 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
             current_squad_win_top: currentSquadWinTop.slice(0, 10),
             previous_dmg_winner: previousDmgWinner,
             previous_win_winner: previousWinWinner,
+            previous_squad_dmg_winner: previousSquadDmgWinner,
+            previous_squad_win_winner: previousSquadWinWinner,
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -15193,9 +15218,11 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
     try {
         const db = await getDb();
         const limit = Math.min(Number(req.query.limit) || 10, 52);
-        const rows = await dbAll(db, `SELECT * FROM weekly_leaderboard_awards WHERE winner_char_id>0 OR win_winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
+        const rows = await dbAll(db, `SELECT * FROM weekly_leaderboard_awards WHERE winner_char_id>0 OR win_winner_char_id>0 OR squad_winner_id>0 OR squad_win_winner_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
         const history_dmg = [];
         const history_win = [];
+        const history_squad_dmg = [];
+        const history_squad_win = [];
         for (const r of rows) {
             if (Number(r.winner_char_id) > 0) {
                 const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.winner_char_id)]);
@@ -15223,8 +15250,32 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
                     type: 'wins',
                 });
             }
+            if (Number(r.squad_winner_id) > 0) {
+                history_squad_dmg.push({
+                    week_start: Number(r.week_start),
+                    squad_id: Number(r.squad_winner_id),
+                    name: r.squad_winner_name,
+                    tag: r.squad_winner_tag || null,
+                    logo: r.squad_winner_logo || null,
+                    member_count: Number(r.squad_winner_members || 0),
+                    total_dmg: Number(r.squad_winner_dmg || 0),
+                    type: 'damage',
+                });
+            }
+            if (Number(r.squad_win_winner_id) > 0) {
+                history_squad_win.push({
+                    week_start: Number(r.week_start),
+                    squad_id: Number(r.squad_win_winner_id),
+                    name: r.squad_win_winner_name,
+                    tag: r.squad_win_winner_tag || null,
+                    logo: r.squad_win_winner_logo || null,
+                    member_count: Number(r.squad_win_winner_members || 0),
+                    total_wins: Number(r.squad_win_wins || 0),
+                    type: 'wins',
+                });
+            }
         }
-        res.json({ history_dmg, history_win });
+        res.json({ history_dmg, history_win, history_squad_dmg, history_squad_win });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
