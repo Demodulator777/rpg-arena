@@ -5212,6 +5212,44 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .arc-cta:hover { background: linear-gradient(180deg, rgba(155,89,182,0.45), rgba(155,89,182,0.16)); box-shadow: 0 0 22px rgba(155,89,182,0.35); }
 
+/* ===== Arcane picker modal ===== */
+.arc-picker-box {
+    width: 92vw; max-width: 340px;
+    background: linear-gradient(180deg, rgba(34,20,52,0.96), rgba(18,12,34,0.97));
+    border: 1px solid rgba(155,89,182,0.45); border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(155,89,182,0.16), 0 0 34px rgba(155,89,182,0.3), 0 24px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.07);
+    overflow: hidden;
+    animation: autoOverlayIn 0.25s ease;
+}
+.arc-picker-head {
+    display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+    background: linear-gradient(90deg, rgba(155,89,182,0.24), rgba(155,89,182,0.05));
+    border-bottom: 1px solid rgba(155,89,182,0.25);
+}
+.arc-picker-close {
+    margin-left: auto; width: 28px; height: 28px; border-radius: 8px;
+    background: rgba(155,89,182,0.18); border: 1px solid rgba(155,89,182,0.4);
+    color: #e0c3ff; font-size: 0.85rem; cursor: pointer; line-height: 1;
+    transition: background 0.15s;
+}
+.arc-picker-close:hover { background: rgba(155,89,182,0.34); }
+.arc-picker-list {
+    padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    max-height: 60vh; overflow-y: auto;
+}
+.arc-opt {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 11px 14px; border-radius: 10px; text-align: left;
+    background: linear-gradient(180deg, rgba(155,89,182,0.16), rgba(155,89,182,0.05));
+    border: 1px solid rgba(155,89,182,0.35); color: #fff;
+    font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+.arc-opt:hover { border-color: rgba(155,89,182,0.7); box-shadow: 0 0 12px rgba(155,89,182,0.22); }
+.arc-opt.active { border-color: var(--gold); background: linear-gradient(180deg, rgba(201,146,42,0.22), rgba(201,146,42,0.06)); box-shadow: 0 0 14px rgba(201,146,42,0.25); }
+.arc-opt-cost { color: rgba(255,255,255,0.5); font-weight: 400; }
+.arc-opt-check { color: var(--gold); font-weight: 700; }
+
 /* ===== Auto-Complete summon transition ===== */
 #mission-location-modal { transition: opacity 0.35s ease, transform 0.35s ease; }
 #mission-location-modal.auto-closing { opacity: 0; transform: scale(0.96); pointer-events: none; }
