@@ -13029,6 +13029,8 @@ async function ensureAutoMissionTable(db) {
         last_result TEXT,
         updated_at INTEGER NOT NULL DEFAULT 0
     )`);
+    try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_stop_enabled INTEGER NOT NULL DEFAULT 0"); } catch {}
+    try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_stop_threshold INTEGER NOT NULL DEFAULT 0"); } catch {}
 }
 
 async function ensureAutoMissionState(db, charId) {
@@ -13110,6 +13112,10 @@ router.get('/missions/auto-status', auth, async (req, res) => {
             potionsLoaded: state.potions_loaded || 0,
             runs: state.runs_completed || 0,
             lastResult: state.last_result || '',
+            hpStopEnabled: state.hp_stop_enabled === 1,
+            hpStopThreshold: Number(state.hp_stop_threshold || 0),
+            hpCurrent: Number(char.hp_current ?? char.hp_max ?? 0),
+            hpMax: Number(char.hp_max ?? 0),
             mp: char.mission_points || 0,
             mpMax: hasReservoir ? MP_MAX * 2 : MP_MAX,
             maxPotions: AUTO_MISSION_MAX_POTIONS,
@@ -13127,7 +13133,7 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         if (!hasPremium(activePrem, 'arcane_reservoir')) {
             return res.status(403).json({ error: 'Auto-complete requires the Arcane Reservoir premium. Activate it to access auto-complete.' });
         }
-        const { zone, spot, missionIdx, size, potionIds, potions } = req.body || {};
+        const { zone, spot, missionIdx, size, potionIds, potions, hpStopEnabled, hpStopThreshold } = req.body || {};
         const now = Math.floor(Date.now() / 1000);
         const currentMap = char.current_map || 'overworld';
         const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[zone] || ZONES[zone]) : ZONES[zone];
@@ -13172,14 +13178,17 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
             }
         }
 
-        await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, updated_at)
-            VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?)
+        const hpEnabled = !!hpStopEnabled;
+        const hpThreshold = hpEnabled ? Math.max(1, Math.floor(Number(hpStopThreshold || 10))) : 0;
+        await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, hp_stop_enabled, hp_stop_threshold, updated_at)
+            VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(char_id) DO UPDATE SET
                 enabled=1, current_map=excluded.current_map, zone=excluded.zone, spot=excluded.spot,
                 mission_idx=excluded.mission_idx, size=excluded.size,
                 auto_mp=excluded.auto_mp, potions_loaded=excluded.potions_loaded,
+                hp_stop_enabled=excluded.hp_stop_enabled, hp_stop_threshold=excluded.hp_stop_threshold,
                 last_result=NULL, updated_at=excluded.updated_at`,
-            [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, now]);
+            [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, hpEnabled ? 1 : 0, hpThreshold, now]);
 
         await markAutoIntended(db, char.id, 'enable');
         const state = await ensureAutoMissionState(db, char.id);
@@ -13251,6 +13260,16 @@ async function processOneAutoChar(db, state) {
     }
     // HP is the player's responsibility — wait if at 0 rather than starting.
     if ((fresh.hp_current ?? fresh.hp_max) <= 0) return;
+    // Optional HP-stop: if enabled and current HP is below the set threshold,
+    // pause auto-complete (stay enabled) until HP recovers above the threshold.
+    if (state.hp_stop_enabled === 1 && Number(state.hp_stop_threshold || 0) > 0) {
+        const hpNow = Number(fresh.hp_current ?? 0);
+        if (hpNow < Number(state.hp_stop_threshold)) {
+            await dbRun(db, 'UPDATE auto_mission_state SET last_result=?, updated_at=? WHERE char_id=?',
+                [`HP below ${state.hp_stop_threshold} — paused`, now, state.char_id]);
+            return;
+        }
+    }
     // Current-zone only (no auto-travel) — pause if the character left the zone.
     const currentMap = fresh.current_map || 'overworld';
     if (String(fresh.location) !== String(state.zone) || String(state.current_map || 'overworld') !== currentMap) return;
@@ -22305,13 +22324,24 @@ async function isCharacterTraining(db, characterId) {
 }
 
 // ── Auto Upkeep Scheduler ──────────────────────────────────────────────────
+// Processes upkeep at most once per UTC day, inside a short window after 00:00.
+// If a scheduled window is missed (server down / restart mid-day), the day is
+// skipped and the tick waits for the next day — so a restart can never re-deduct
+// gold or re-activate the squad stat discount mid-day.
+const UPKEEP_TICK_WINDOW = 600; // seconds after 00:00 UTC in which the tick may run
 async function autoProcessUpkeep(db) {
     try {
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS server_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`, args: [] }); } catch {}
+        const now = Math.floor(Date.now() / 1000);
+        const day = 86400;
+        const todayIdx = Math.floor(now / day);
+        const lastRow = await dbGet(db, "SELECT value FROM server_settings WHERE key='upkeep_last_process_day'", []);
+        const lastDay = Number(lastRow?.value || 0);
+        if (lastDay === todayIdx) return;
+        if ((now - todayIdx * day) > UPKEEP_TICK_WINDOW) return;
         const ownedBases = await dbAll(db, `SELECT cb.*, su.upgrade_level, su.last_upkeep_paid, su.squad_id, su.base_id
             FROM clan_bases cb JOIN squad_base_upgrades su ON su.base_id = cb.id AND su.squad_id = cb.owner_squad_id
             WHERE cb.owner_squad_id IS NOT NULL AND su.upgrade_level > 0`, []);
-        const now = Math.floor(Date.now() / 1000);
-        const day = 86400;
         for (const base of ownedBases) {
             try {
                 const lastPaid = Number(base.last_upkeep_paid || 0);
@@ -22328,6 +22358,7 @@ async function autoProcessUpkeep(db) {
                 await dbRun(db, 'UPDATE squad_base_upgrades SET last_upkeep_paid=?, upkeep_paid_by=NULL WHERE squad_id=? AND base_id=?', [paidAt, base.squad_id, base.base_id]);
             } catch (e) { console.error(`[Upkeep] base ${base.id}:`, e.message); }
         }
+        await dbRun(db, "INSERT OR REPLACE INTO server_settings (key, value) VALUES ('upkeep_last_process_day', ?)", [String(todayIdx)]);
     } catch (e) { console.error('[Upkeep] tick error:', e.message); }
 }
 
