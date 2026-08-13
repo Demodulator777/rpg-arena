@@ -563,7 +563,7 @@ async function buildFighter(db, participant, participants, noEquip) {
   const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
   const armor = calcArmorValue(char, equippedArray);
   const statsElemDmg = calcElemDmg(equippedArray);
-  const statsElemResist = calcElemResist(char, equippedArray);
+  const statsElemResist = calcElemResist(equippedArray);
   const setBonuses = getEquippedSetBonuses(equippedArray);
 
   const learnedRows = await dbAll_t(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
@@ -1261,35 +1261,40 @@ async function finalizeTournament(db, tournamentId) {
   const totalNonDsq = standings.filter(p => !p._dsq).length;
   for (let i = 0; i < standings.length; i++) {
     const p = standings[i];
+    const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
+    const matchCount = pMatches.length;
+    const matchStr = `${matchCount} match${matchCount === 1 ? '' : 'es'}`;
+    
     if (p._dsq) {
       await dbRun_t(db, 'UPDATE tournament_participants SET final_rank = 0 WHERE id = ?', [p.id]);
       if (p.is_npc || !p.char_id) continue;
-      const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
       const subject = `🏟️ Tournament #${tournamentId} — DSQ`;
-      const body = `You fought ${pMatches.length} match(es) (dealt ${p.total_damage_dealt || 0} dmg, took ${p.total_damage_taken || 0} dmg). You dealt less damage than you took and were disqualified (DSQ).`;
+      const body = `You fought ${matchStr} (dealt ${p.total_damage_dealt || 0} dmg, took ${p.total_damage_taken || 0} dmg). You dealt less damage than you took and were disqualified (DSQ).`;
       await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
         [p.char_id, p.char_id, subject, body]);
       continue;
     }
+    
     // Rank ALL participants (including NPCs) in standings order so placements
     // reflect the true point-based ordering.
     rank++;
     await dbRun_t(db, 'UPDATE tournament_participants SET final_rank = ? WHERE id = ?', [rank, p.id]);
     if (p.is_npc || !p.char_id) continue;
-    const pMatches = matches.filter(m => m.participant1_id === p.id || m.participant2_id === p.id);
+    
     const statLine = mode === 'damage' ? `dealt ${p.total_damage_dealt || 0} total damage`
       : mode === 'least_damage' ? `took ${p.total_damage_taken || 0} total damage`
       : mode === 'all_vs_all' ? `eliminated #${p.eliminated_round || '—'} of ${totalNonDsq}`
-      : mode === 'elimination' ? `${p.wins || 0} wins, ${p.losses || 0} losses`
-      : `${p.wins} wins, ${p.losses} losses, ${p.draws} draws`;
+      : mode === 'elimination' ? `${p.wins || 0} win${p.wins === 1 ? '' : 's'}, ${p.losses || 0} loss${p.losses === 1 ? '' : 'es'}`
+      : `${p.wins} win${p.wins === 1 ? '' : 's'}, ${p.losses || 0} loss${p.losses === 1 ? '' : 'es'}, ${p.draws} draw${p.draws === 1 ? '' : 's'}`;
+    
     let rewardLine = '';
     if (rank === 1 && !winnerIsNpc) {
       rewardLine = ' 🏆 Prize: 5000g + 10💎';
     }
     const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${totalNonDsq}!${rewardLine}`;
-    const body = `You fought ${pMatches.length} match(es) with ${statLine}.`;
+    const body = `You fought ${matchStr}. ${statLine.charAt(0).toUpperCase() + statLine.slice(1)}.`;
     await dbRun_t(db, 'INSERT INTO messages (sender_id, receiver_id, subject, body, system_message) VALUES (?,?,?,?,1)',
-      [p.char_id, p.char_id, subject, body]);
+        [p.char_id, p.char_id, subject, body]);
   }
   console.log(`🏆 Tournament #${tournamentId} complete! Winner: ${winner.name}${winnerIsNpc ? ' (NPC)' : ''}`);
 }
