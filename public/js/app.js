@@ -5908,16 +5908,29 @@ function renderForge() {
 
     if (forgeTab==='refine') {
         el.innerHTML=`<div class="forge-grid">${forgeData.components.map(c=>{
+            let maxQty = Math.floor(forgeData.gold / Math.max(1, c.goldCost));
+            for (const [mat,need] of Object.entries(c.recipe)) {
+                const avail = forgeData.mats[mat]?.qty || 0;
+                maxQty = Math.min(maxQty, Math.floor(avail / need));
+            }
+            maxQty = Math.max(0, maxQty);
             const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{
                 const have=(forgeData.mats[mat]?.qty||0);
                 return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${mat.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
-            return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:220px">
+            return `<div class="forge-card" data-eid="${c.id}" style="display:flex;flex-direction:column;min-height:240px">
                 <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div>
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc||''}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
-                <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold</div>
-                <button class="btn-forge" style="margin-top:auto" ${actionAttrs('refine', c.id)} ${c.canCraft?'':'disabled'}>${c.canCraft?'Refine':'Cannot Refine'}</button>
+                <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold each</div>
+                <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                    <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, -1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">−</button>
+                    <input type="number" class="forge-qty-input" data-eid="${c.id}" value="${maxQty >= 1 ? 1 : 0}" min="0" max="${maxQty}"
+                        style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
+                    <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, 1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">+</button>
+                    <button class="btn-sm" ${actionAttrs('forgeQtySetMax', c.id)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 40px; padding:2px 0;">MAX</button>
+                </div>
+                <button class="btn-forge" style="margin-top:auto" ${actionAttrs('refineInput', c.id)} ${maxQty < 1 ? 'disabled' : ''}>${maxQty >= 1 ? 'Refine' : 'Cannot Refine'}</button>
             </div>`;
         }).join('')}</div>`;
         return;
@@ -6344,9 +6357,10 @@ async function doApplyWeaponStats(dialog, weap) {
     } catch(e) { showMsg('forge-msg', e.message, true); }
 }
 
-async function refine(componentId) {
+async function refine(componentId, quantity = 1) {
     try {
-        const d = await api('POST','/game/forge/refine',{componentId});
+        const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+        const d = await api('POST','/game/forge/refine',{componentId, quantity: qty});
         character = await api('GET','/game/character');
         renderTopBar();
         renderCharacter();
@@ -6355,6 +6369,35 @@ async function refine(componentId) {
     } catch(e) {
         showMsg('forge-msg',e.message,true);
     }
+}
+
+function getForgeQtyInput(id) {
+    return document.querySelector(`input.forge-qty-input[data-eid="${id}"]`);
+}
+
+function forgeQtyStep(id, step) {
+    const input = getForgeQtyInput(id);
+    if (!input) return;
+    const max = parseInt(input.getAttribute('max') || '0', 10);
+    let v = parseInt(input.value || '0', 10);
+    if (isNaN(v)) v = 0;
+    input.value = Math.max(0, Math.min(v + step, max));
+}
+
+function forgeQtySetMax(id) {
+    const input = getForgeQtyInput(id);
+    if (!input) return;
+    input.value = parseInt(input.getAttribute('max') || '0', 10);
+}
+
+async function refineInput(componentId) {
+    const input = getForgeQtyInput(componentId);
+    let qty = input ? parseInt(input.value || '0', 10) : 0;
+    if (isNaN(qty) || qty < 1) {
+        showMsg('forge-msg', 'Enter a refine quantity of at least 1.', true);
+        return;
+    }
+    await refine(componentId, qty);
 }
 async function craftItem(recipeId) {
     try {
@@ -6803,8 +6846,6 @@ function renderInventory(data) {
             shadowsteel_bar: { name: 'Shadowsteel Bar', emoji: '⚙️', fragmentCost: 45 },
             crimson_alloy: { name: 'Crimson Alloy', emoji: '⚡', fragmentCost: 50 },
             void_plate: { name: 'Void Plate', emoji: '🛡️', fragmentCost: 55 },
-            abyss_crystal: { name: 'Abyss Crystal', emoji: '💎', fragmentCost: 20 },
-            abyss_fragment: { name: 'Abyss Fragment', emoji: '🧩', fragmentCost: 30 },
             wood: { name: 'Wood', emoji: '🪵', fragmentCost: 5 },
             iron_ore: { name: 'Iron Ore', emoji: '⛏️', fragmentCost: 5 },
             wolf_pelt: { name: 'Wolf Pelt', emoji: '🐺', fragmentCost: 5 },
@@ -6855,15 +6896,21 @@ function renderInventory(data) {
             <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
             <div class="mat-grid">
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
-            const canAfford = fragmentCount >= rate.fragmentCost;
-            return `<div class="mat-card" style="position: relative;">
+            const maxCan = Math.floor(fragmentCount / rate.fragmentCost);
+            return `<div class="mat-card" data-eid="${id}" style="position: relative;">
                         <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
                         <div class="mat-name">${rate.name}</div>
-                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐</div>
-                        <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 1)} ${!canAfford ? 'disabled' : ''} 
-                            style="margin-top: 8px; width: 100%;">Exchange x1</button>
-                        <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterial', id, 5)} ${fragmentCount < rate.fragmentCost * 5 ? 'disabled' : ''}
-                            style="margin-top: 4px; width: 100%;">Exchange x5</button>
+                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐ each</div>
+                        <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">You can afford: ${maxCan}</div>
+                        <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                            <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, -1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">−</button>
+                            <input type="number" class="mat-qty-input" data-eid="${id}" value="${maxCan >= 1 ? 1 : 0}" min="0" max="${maxCan}"
+                                style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
+                            <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, 1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">+</button>
+                            <button class="btn-sm" ${actionAttrs('exchangeQtySetMax', id)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 40px; padding:2px 0;">MAX</button>
+                        </div>
+                        <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterialInput', id)} ${maxCan < 1 ? 'disabled' : ''}
+                            style="margin-top: 8px; width: 100%;">Exchange</button>
                     </div>`;
         }).join('')}
             </div>
@@ -13795,6 +13842,45 @@ async function exchangeFragmentForMaterial(materialId, quantity) {
     } catch (e) {
         showMsg('inv-msg', e.message, true);
     }
+}
+
+function getExchangeQtyInput(id) {
+    return document.querySelector(`input.mat-qty-input[data-eid="${id}"]`);
+}
+
+function clampExchangeQty(id) {
+    const input = getExchangeQtyInput(id);
+    if (!input) return;
+    const max = parseInt(input.getAttribute('max') || '0', 10);
+    let v = parseInt(input.value || '0', 10);
+    if (isNaN(v)) v = 0;
+    input.value = Math.max(0, Math.min(v, max));
+}
+
+function exchangeQtyStep(id, step) {
+    const input = getExchangeQtyInput(id);
+    if (!input) return;
+    const max = parseInt(input.getAttribute('max') || '0', 10);
+    let v = parseInt(input.value || '0', 10);
+    if (isNaN(v)) v = 0;
+    v = Math.max(0, Math.min(v + step, max));
+    input.value = v;
+}
+
+function exchangeQtySetMax(id) {
+    const input = getExchangeQtyInput(id);
+    if (!input) return;
+    input.value = parseInt(input.getAttribute('max') || '0', 10);
+}
+
+async function exchangeFragmentForMaterialInput(materialId) {
+    const input = getExchangeQtyInput(materialId);
+    let qty = input ? parseInt(input.value || '0', 10) : 0;
+    if (isNaN(qty) || qty < 1) {
+        showMsg('inv-msg', 'Enter an exchange quantity of at least 1.', true);
+        return;
+    }
+    await exchangeFragmentForMaterial(materialId, qty);
 }
 
 async function exitAbyss() {
