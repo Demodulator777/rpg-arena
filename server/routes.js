@@ -1035,6 +1035,8 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN character_name TEXT DEFAULT NULL", args: [] }); } catch {}
         // DOM mutation reports table
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dom_mutations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', char_id INTEGER DEFAULT 0, mutation_type TEXT DEFAULT '', target_info TEXT DEFAULT '', detail TEXT DEFAULT '', url TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
+        // War performance tracking
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS war_performance (war_id INTEGER NOT NULL, char_id INTEGER NOT NULL, damage_dealt INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (war_id, char_id))`, args: [] }); } catch {}
         // Server settings table (key-value)
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS server_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`, args: [] }); } catch {}
         // Default SW enabled
@@ -11392,10 +11394,12 @@ async function processPendingWars(db) {
 // Build a fight where each side targets only the opposing side (no friendly fire),
 // round by round, until only one side is left standing. Mirrors the tournament's
 // all-vs-all logic but restricts targets to the enemy team.
-async function runSquadBattle(db, attackerChars, defenderChars, attackerName, defenderName) {
+async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerName, defenderName) {
     const log = [`👥 ${attackerName} (${attackerChars.length}) vs ${defenderName} (${defenderChars.length}) — battle begins!`];
     log.push('---');
     const fighters = [];
+    const charDamage = new Map();
+
     for (const c of attackerChars) {
         const f = await buildCombatFighter(db, c);
         f._team = 'attacker';
@@ -11431,7 +11435,10 @@ async function runSquadBattle(db, attackerChars, defenderChars, attackerName, de
             const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
             const dealt = res.damageDealt || 0;
             target.hp = Math.max(0, target.hp - dealt);
-            if (dealt > 0) log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
+            if (dealt > 0) {
+                log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
+                charDamage.set(attacker.id, (charDamage.get(attacker.id) || 0) + dealt);
+            }
         }
         // Defenders strike attackers
         for (const attacker of aliveD) {
@@ -11441,7 +11448,10 @@ async function runSquadBattle(db, attackerChars, defenderChars, attackerName, de
             const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
             const dealt = res.damageDealt || 0;
             target.hp = Math.max(0, target.hp - dealt);
-            if (dealt > 0) log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
+            if (dealt > 0) {
+                log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
+                charDamage.set(attacker.id, (charDamage.get(attacker.id) || 0) + dealt);
+            }
         }
         let anyDied = false;
         for (const f of fighters) {
@@ -11449,6 +11459,11 @@ async function runSquadBattle(db, attackerChars, defenderChars, attackerName, de
         }
         if (anyDied) log.push('---');
         if (fighters.filter(f => f.hp > 0).length <= 1) break;
+    }
+    
+    // Save performance
+    for (const [charId, dmg] of charDamage) {
+        await dbRun(db, 'INSERT INTO war_performance (war_id, char_id, damage_dealt) VALUES (?, ?, ?)', [warId, charId, dmg]);
     }
 
     const aliveA = fighters.filter(f => f._team === 'attacker' && f.hp > 0).length;
@@ -11521,7 +11536,7 @@ async function resolveWarBattle(db, war) {
                 winner = 'attacker';
                 battleLog = [`⚔️ Outpost ${op.outpost_index + 1} — ${attName} found no defenders and seized it uncontested.`];
             } else {
-                const result = await runSquadBattle(db, aChars, dChars, attName, defName);
+                const result = await runSquadBattle(db, warId, aChars, dChars, attName, defName);
                 winner = result.winner;
                 battleLog = result.log;
             }
@@ -13750,31 +13765,34 @@ router.post('/forge/refine', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'No character' });
-        const { componentId } = req.body;
+        const { componentId, quantity = 1 } = req.body;
+        const qty = Math.max(1, Math.floor(Number(quantity) || 1));
         const comp = COMPONENTS[componentId];
         if (!comp) return res.status(400).json({ error: 'Unknown component' });
-        if (char.gold < comp.goldCost) return res.status(400).json({ error: `Need ${comp.goldCost} gold` });
+        const totalGold = comp.goldCost * qty;
+        if (char.gold < totalGold) return res.status(400).json({ error: `Need ${totalGold} gold` });
         const mats = await getInventoryMaterials(db, char.id);
-        for (const [mat, qty] of Object.entries(comp.recipe)) {
-            if ((mats[mat]?.qty || 0) < qty) return res.status(400).json({ error: `Need ${qty}x ${RAW_MATERIALS[mat]?.name || mat}` });
+        for (const [mat, need] of Object.entries(comp.recipe)) {
+            const totalNeed = need * qty;
+            if ((mats[mat]?.qty || 0) < totalNeed) return res.status(400).json({ error: `Need ${totalNeed}x ${RAW_MATERIALS[mat]?.name || mat}` });
         }
-        for (const [mat, qty] of Object.entries(comp.recipe)) {
+        for (const [mat, need] of Object.entries(comp.recipe)) {
             const inv = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [char.id, mat]);
             if (inv) {
-                const d = JSON.parse(inv.item_data); d.qty = (d.qty || 1) - qty;
+                const d = JSON.parse(inv.item_data); d.qty = (d.qty || 1) - need * qty;
                 if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inv.id]);
                 else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), inv.id]);
             }
         }
         const existingComp = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='component' AND json_extract(item_data,'$.id')=?`, [char.id, componentId]);
         if (existingComp) {
-            const d = JSON.parse(existingComp.item_data); d.qty = (d.qty || 1) + 1;
+            const d = JSON.parse(existingComp.item_data); d.qty = (d.qty || 1) + qty;
             await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), existingComp.id]);
         } else {
-            await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [char.id, 'component', JSON.stringify({ id:componentId, ...comp, qty:1 })]);
+            await dbRun(db, 'INSERT INTO inventory (char_id,item_type,item_data) VALUES (?,?,?)', [char.id, 'component', JSON.stringify({ id:componentId, ...comp, qty })]);
         }
-        await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [comp.goldCost, char.id]);
-        res.json({ message:`Refined: ${comp.name}!` });
+        await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [totalGold, char.id]);
+        res.json({ message:`Refined: ${qty}x ${comp.name}!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
