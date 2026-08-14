@@ -4990,6 +4990,80 @@ ACHIEVEMENTS.push(
         rewards: { gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
     },
 
+    // War Damage Achievements (cumulative damage dealt in clan wars)
+    {
+        id: 'war_damage_10k', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Skirmisher', desc: 'Deal 10,000 total damage in clan wars.',
+        icon: '⚔️', metric: 'war_damage', target: 10000,
+        rewards: { gold: 5000 },
+    },
+    {
+        id: 'war_damage_50k', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Soldier', desc: 'Deal 50,000 total damage in clan wars.',
+        icon: '🛡️', metric: 'war_damage', target: 50000,
+        rewards: { gold: 10000, gems: 5 },
+    },
+    {
+        id: 'war_damage_100k', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Veteran', desc: 'Deal 100,000 total damage in clan wars.',
+        icon: '💥', metric: 'war_damage', target: 100000,
+        rewards: { gold: 25000, gems: 10 },
+    },
+    {
+        id: 'war_damage_250k', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Sergeant', desc: 'Deal 250,000 total damage in clan wars.',
+        icon: '🔥', metric: 'war_damage', target: 250000,
+        rewards: { gold: 40000, gems: 15 },
+    },
+    {
+        id: 'war_damage_500k', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Warlord', desc: 'Deal 500,000 total damage in clan wars.',
+        icon: '🌟', metric: 'war_damage', target: 500000,
+        rewards: { gold: 75000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
+    },
+    {
+        id: 'war_damage_1m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Conqueror', desc: 'Deal 1,000,000 total damage in clan wars.',
+        icon: '⚡', metric: 'war_damage', target: 1000000,
+        rewards: { gold: 100000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'war_damage_2_5m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Annihilator', desc: 'Deal 2,500,000 total damage in clan wars.',
+        icon: '💀', metric: 'war_damage', target: 2500000,
+        rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+    },
+    {
+        id: 'war_damage_5m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Destroyer', desc: 'Deal 5,000,000 total damage in clan wars.',
+        icon: '🌋', metric: 'war_damage', target: 5000000,
+        rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    },
+    {
+        id: 'war_damage_10m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Overlord', desc: 'Deal 10,000,000 total damage in clan wars.',
+        icon: '👑', metric: 'war_damage', target: 10000000,
+        rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    },
+    {
+        id: 'war_damage_25m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: War God', desc: 'Deal 25,000,000 total damage in clan wars.',
+        icon: '🪓', metric: 'war_damage', target: 25000000,
+        rewards: { gold: 400000, gems: 30, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+    },
+    {
+        id: 'war_damage_50m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Titan', desc: 'Deal 50,000,000 total damage in clan wars.',
+        icon: '🌌', metric: 'war_damage', target: 50000000,
+        rewards: { gold: 600000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+    },
+    {
+        id: 'war_damage_100m', chain: 'war_damage', category: 'combat',
+        name: 'War Damage: Legend of War', desc: 'Deal 100,000,000 total damage in clan wars.',
+        icon: '🏆', metric: 'war_damage', target: 100000000,
+        rewards: { gold: 1000000, gems: 50, lootbox: { id: 'lootbox_mythic', qty: 1 } },
+    },
+
     // Gold earned achievements
     { id: 'gold_earned_5k', category: 'economy', name: 'Penny Pincher', desc: 'Earn 5,000 gold total.', icon: '💰', metric: 'gold_earned', target: 5000, rewards: { gold: 1000 } },
     { id: 'gold_earned_25k', category: 'economy', name: 'Coin Collector', desc: 'Earn 25,000 gold total.', icon: '💰', metric: 'gold_earned', target: 25000, rewards: { gold: 4000 } },
@@ -5205,7 +5279,7 @@ ACHIEVEMENTS.push(
 async function buildAchievementMetricSnapshot(db, char) {
     const now = Math.floor(Date.now() / 1000);
     const weekStart = getCurrentWeekStart(now);
-    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow, weeklyDmgRow] = await Promise.all([
+    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow, weeklyDmgRow, warDmgRow] = await Promise.all([
         dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
         dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
         char.user_id
@@ -5231,6 +5305,7 @@ async function buildAchievementMetricSnapshot(db, char) {
                     AND receiver_id = ? AND sent_at >= ?
             )
         `, [char.id, weekStart, char.id, weekStart]),
+        dbGet(db, 'SELECT COALESCE(SUM(damage_dealt), 0) AS total FROM war_performance WHERE char_id = ?', [char.id]),
     ]);
 
     const missionTotals = {
@@ -5308,6 +5383,7 @@ async function buildAchievementMetricSnapshot(db, char) {
         crawler_defeats: Number(crawlerRow?.defeats || 0),
         crawler_deaths: Number(crawlerRow?.deaths || 0),
         total_dmg_dealt: Number(weeklyDmgRow?.total || 0),
+        war_damage: Number(warDmgRow?.total || 0),
         missionTotals,
         monsterTotals,
         gatekeeperTotals,
@@ -5343,6 +5419,7 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'crawler_encounters') return metrics.crawler_encounters || 0;
     if (metric === 'crawler_defeats') return metrics.crawler_defeats || 0;
     if (metric === 'crawler_deaths') return metrics.crawler_deaths || 0;
+    if (metric === 'war_damage') return metrics.war_damage || 0;
 
     if (metric === 'level') return char.level || 1;
     if (metric === 'total_missions_completed') return char.total_missions_completed || 0;
@@ -11509,6 +11586,10 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
     // Save performance
     for (const [charId, dmg] of charDamage) {
         await dbRun(db, 'INSERT INTO war_performance (war_id, char_id, damage_dealt) VALUES (?, ?, ?)', [warId, charId, dmg]);
+        try {
+            const cumRows = await dbAll(db, 'SELECT COALESCE(SUM(damage_dealt),0) AS total FROM war_performance WHERE char_id=?', [charId]);
+            await checkAndAwardWarDamageAchievements(db, Number(charId), Number(cumRows[0]?.total || 0));
+        } catch (e) { console.error('[war ach]', e.message); }
     }
 
     const aliveA = fighters.filter(f => f._team === 'attacker' && f.hp > 0).length;
@@ -13095,6 +13176,7 @@ async function ensureAutoMissionTable(db) {
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_potion_stack TEXT"); } catch {}
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_heal_enabled INTEGER NOT NULL DEFAULT 0"); } catch {}
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_heal_threshold INTEGER NOT NULL DEFAULT 0"); } catch {}
+    try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN paused INTEGER NOT NULL DEFAULT 0"); } catch {}
 }
 
 async function ensureAutoMissionState(db, charId) {
@@ -13184,7 +13266,13 @@ router.get('/missions/auto-status', auth, async (req, res) => {
         try { hpStack = JSON.parse(state.hp_potion_stack || '[]'); } catch {}
         res.json({
             enabled: state.enabled === 1,
+            paused: state.paused === 1,
             premium: hasReservoir,
+            battleCooldownEndsAt: (() => {
+                const lastBattle = char.last_battle_at || 0;
+                const pvpCd = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(600 * 0.50) : 600;
+                return lastBattle > 0 ? lastBattle + pvpCd : 0;
+            })(),
             zone: state.zone,
             spot: state.spot,
             missionIdx: state.mission_idx,
@@ -13306,7 +13394,7 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
                 hp_stop_enabled=excluded.hp_stop_enabled, hp_stop_threshold=excluded.hp_stop_threshold,
                 hp_potion_stack=excluded.hp_potion_stack,
                 hp_heal_enabled=excluded.hp_heal_enabled, hp_heal_threshold=excluded.hp_heal_threshold,
-                last_result=NULL, updated_at=excluded.updated_at`,
+                paused=0, last_result=NULL, updated_at=excluded.updated_at`,
             [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, hpEnabled ? 1 : 0, hpThreshold, JSON.stringify(hpStack), hpHealOn ? 1 : 0, hpHealThr, now]);
 
         await markAutoIntended(db, char.id, 'enable');
@@ -13325,10 +13413,38 @@ router.post('/missions/auto-disable', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
-        await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=? WHERE char_id=?', ['Stopped by player', char.id]);
+await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=? WHERE char_id=?', ['Stopped by player', char.id]);
         await markAutoIntended(db, char.id, 'disable');
         res.json({ success: true, message: 'Auto-complete disabled.' });
-    } catch (e) { console.error('[AutoMission] disable error:', e); res.status(500).json({ error: e.message }); }
+    } catch (e) { console.error('[AutoMission] disable error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/missions/auto-pause', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const state = await ensureAutoMissionState(db, char.id);
+        if (state.enabled !== 1) return res.status(400).json({ error: 'Auto-complete is not running.' });
+        await dbRun(db, 'UPDATE auto_mission_state SET paused=1, last_result=?, updated_at=? WHERE char_id=?', ['Paused by player', Math.floor(Date.now()/1000), char.id]);
+        await markAutoIntended(db, char.id, 'pause');
+        const updated = await ensureAutoMissionState(db, char.id);
+        res.json({ success: true, message: 'Auto-complete paused.', paused: updated.paused === 1 });
+    } catch (e) { console.error('[AutoMission] pause error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+router.post('/missions/auto-resume', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const state = await ensureAutoMissionState(db, char.id);
+        if (state.enabled !== 1) return res.status(400).json({ error: 'Auto-complete is not running.' });
+        await dbRun(db, 'UPDATE auto_mission_state SET paused=0, last_result=?, updated_at=? WHERE char_id=?', ['Resumed by player', Math.floor(Date.now()/1000), char.id]);
+        await markAutoIntended(db, char.id, 'resume');
+        const updated = await ensureAutoMissionState(db, char.id);
+        res.json({ success: true, message: 'Auto-complete resumed.', paused: updated.paused === 1 });
+    } catch (e) { console.error('[AutoMission] resume error:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // Update the low-HP auto-pause / auto-heal settings on a running session.
@@ -13376,6 +13492,8 @@ const _autoProcessing = new Set();
 // One processing pass for a single enabled character (idempotent, guarded by set).
 async function processOneAutoChar(db, state) {
     const now = Math.floor(Date.now() / 1000);
+    // Player-held pause: stop starting new missions (and skip collection) until resumed.
+    if (state.paused === 1) return;
     const shutoff = async (reason) => {
         await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=?, updated_at=? WHERE char_id=?', [reason, now, state.char_id]);
     };
@@ -22621,6 +22739,22 @@ async function checkAndAwardWeeklyDamageAchievements(db, charId, weeklyDamage) {
     }
 }
 
+async function checkAndAwardWarDamageAchievements(db, charId, warDamage) {
+    const warAchievements = ACHIEVEMENTS.filter(a => a.chain === 'war_damage');
+    for (const achievement of warAchievements) {
+        if (warDamage >= achievement.target) {
+            const alreadyClaimed = await dbGet(db, 'SELECT 1 FROM character_achievements WHERE char_id = ? AND achievement_id = ?', [charId, achievement.id]);
+            if (!alreadyClaimed) {
+                await db.execute({
+                    sql: 'INSERT INTO character_achievements (char_id, achievement_id, claimed_at) VALUES (?, ?, ?)',
+                    args: [charId, achievement.id, Math.floor(Date.now() / 1000)]
+                });
+                console.log(`[Achievements] Character ${charId} awarded war_damage ${achievement.id} for ${warDamage} total war damage.`);
+            }
+        }
+    }
+}
+
 async function migrateBase64Logos() {
     try {
         const db = await getDb();
@@ -22704,7 +22838,7 @@ module.exports = {
     getFighterExtraHits,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
-    runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements,
+    runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements, checkAndAwardWarDamageAchievements,
     processPendingWars,
     processAutoMissions, collectMissionForCharacter,
     ensureElemental,
