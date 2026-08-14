@@ -9596,7 +9596,7 @@ window.doScout = doScout;
 let _assignWarId = null;
 let _assignMembers = [];
 let _assignIsAttacker = false;
-let _assignSelections = {}; // char_id -> outpost_index (or -1)
+let _assignSelections = {}; // char_id -> { outpost, role }
 
 function ensureAssignModal() {
     if (document.getElementById('assign-war-modal')) return;
@@ -9629,22 +9629,38 @@ function _renderAssignList() {
     const list = document.getElementById('assign-war-list');
     if (!list) return;
     const isCaptured = (m) => m.captured || false;
+    const sel = (m) => _assignSelections[m.id] || { outpost: -1, role: '' };
     list.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px">${_assignIsAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
+        ${!_assignIsAttacker ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">🛡️ Defenders pick a battle role. This only applies when you defend an outpost.</div>' : ''}
         <div style="display:flex;flex-direction:column;gap:8px">
         ${_assignMembers.map(m => {
-            const cur = _assignSelections[m.id] != null ? _assignSelections[m.id] : -1;
+            const cur = sel(m);
             return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:10px;border:1px solid #ffffff12;background:rgba(0,0,0,0.18)${isCaptured(m) ? ';opacity:0.5' : ''}">
                 <div style="flex:1 1 150px;min-width:130px;display:flex;align-items:center;gap:6px">
                     <span style="font-size:0.82rem;font-weight:600">${escHtml(m.name)}</span>
                     ${isCaptured(m) ? '<span style="font-size:0.65rem;color:#e74c3c">(captured)</span>' : ''}
                 </div>
                 <div style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
+                ${!_assignIsAttacker ? `<select data-assign-role="${m.id}" ${isCaptured(m) ? 'disabled' : ''} style="padding:5px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.72rem;flex:1 1 120px;min-width:120px">
+                    <option value="" ${cur.role === '' ? 'selected' : ''}>— No Role (DPS) —</option>
+                    <option value="tank" ${cur.role === 'tank' ? 'selected' : ''}>🛡️ Tank</option>
+                    <option value="dps" ${cur.role === 'dps' ? 'selected' : ''}>⚔️ Damage Dealer</option>
+                    <option value="healer" ${cur.role === 'healer' ? 'selected' : ''}>💚 Healer</option>
+                    <option value="support" ${cur.role === 'support' ? 'selected' : ''}>✨ Support</option>
+                </select>` : ''}
                 <button class="btn-secondary btn-sm" data-action="openAssignOutpost" data-args="${encodeActionArgs([m.id])}" ${isCaptured(m) ? 'disabled' : ''} style="flex:1 1 130px;min-width:120px;padding:6px 8px;font-size:0.78rem">
-                    ${cur >= 0 ? `Outpost ${cur + 1}` : '— Unassigned —'}
+                    ${cur.outpost >= 0 ? `Outpost ${cur.outpost + 1}` : '— Unassigned —'}
                 </button>
             </div>`;
         }).join('')}
         </div>`;
+    list.querySelectorAll('select[data-assign-role]').forEach(selEl => {
+        selEl.addEventListener('change', (ev) => {
+            const cid = Number(selEl.getAttribute('data-assign-role'));
+            _assignSelections[cid] = _assignSelections[cid] || { outpost: -1, role: '' };
+            _assignSelections[cid].role = selEl.value;
+        });
+    });
 }
 function openAssignOutpost(charId) {
     const m = _assignMembers.find(x => x.id === charId);
@@ -9653,16 +9669,17 @@ function openAssignOutpost(charId) {
     const list = document.getElementById('assign-outpost-list');
     if (!modal || !list) return;
     document.getElementById('assign-outpost-title').textContent = `Assign ${m.name}`;
+    const cur = (_assignSelections[charId] || {}).outpost != null ? _assignSelections[charId].outpost : -1;
     list.innerHTML = '<button class="btn-secondary" style="width:100%;margin-bottom:6px" data-action="pickAssignOutpost" data-args="' + encodeActionArgs([charId, -1]) + '">— Unassigned —</button>' +
         [0,1,2,3,4].map(i => {
-            const cur = _assignSelections[charId] != null ? _assignSelections[charId] : -1;
             const active = cur === i;
             return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAssignOutpost" data-args="${encodeActionArgs([charId, i])}">Outpost ${i + 1}${active ? ' ✓' : ''}</button>`;
         }).join('');
     modal.classList.remove('hidden');
 }
 function pickAssignOutpost(charId, outpostIdx) {
-    _assignSelections[charId] = outpostIdx;
+    _assignSelections[charId] = _assignSelections[charId] || { outpost: -1, role: '' };
+    _assignSelections[charId].outpost = outpostIdx;
     closeAssignOutpostModal();
     _renderAssignList();
 }
@@ -9671,8 +9688,8 @@ window.pickAssignOutpost = pickAssignOutpost;
 async function saveAssignments() {
     const assignments = [];
     for (const m of _assignMembers) {
-        const idx = _assignSelections[m.id] != null ? _assignSelections[m.id] : -1;
-        if (idx >= 0) assignments.push({ char_id: m.id, outpost_index: idx });
+        const sel = _assignSelections[m.id] || { outpost: -1, role: '' };
+        if (sel.outpost >= 0) assignments.push({ char_id: m.id, outpost_index: sel.outpost, role: sel.role || '' });
     }
     try {
         await api('POST', `/game/squads/wars/${_assignWarId}/assign`, { assignments });
@@ -9702,7 +9719,7 @@ async function assignToOutpost(warId) {
         _assignIsAttacker = isAttacker;
         _assignSelections = {};
         for (const m of _assignMembers) {
-            _assignSelections[m.id] = m.assigned_outpost != null ? m.assigned_outpost : -1;
+            _assignSelections[m.id] = { outpost: m.assigned_outpost != null ? m.assigned_outpost : -1, role: m.role || '' };
         }
         _renderAssignList();
         document.getElementById('assign-war-modal').classList.remove('hidden');
