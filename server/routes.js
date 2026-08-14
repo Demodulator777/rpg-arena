@@ -13534,6 +13534,18 @@ async function processOneAutoChar(db, state) {
 
     const currentMission = await dbGet(db, 'SELECT * FROM active_missions WHERE character_id=?', [state.char_id]);
 
+    // Safety net: never collect a finished mission (which auto-starts the next one)
+    // while current HP is below the HP-stop threshold. Built-in first so a mission
+    // that began on low HP isn't collected into a death.
+    if (state.hp_stop_enabled === 1 && Number(state.hp_stop_threshold || 0) > 0 && currentMission) {
+        const hpNow = Number(fresh.hp_current ?? 0);
+        if (hpNow < Number(state.hp_stop_threshold)) {
+            await dbRun(db, 'UPDATE auto_mission_state SET last_result=?, updated_at=? WHERE char_id=?',
+                [`HP below ${state.hp_stop_threshold} — holding rewards`, now, state.char_id]);
+            return;
+        }
+    }
+
     // Collect any finished mission, then fall through to start the next one.
     if (currentMission) {
         if (now < currentMission.ends_at) return; // still running — wait
