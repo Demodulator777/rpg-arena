@@ -620,6 +620,7 @@ async function api(method, path, body=null) {
         path.indexOf('/auth/') === -1 && 
         path.indexOf('/missions/tab-viewed') === -1 &&
         path.indexOf('/dungeon/lock-refresh') === -1 &&
+        path.indexOf('/dungeon/mp-spent') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
@@ -5480,6 +5481,25 @@ async function instantBattleRecovery() {
         if (btn) btn.disabled = false;
     }
 }
+
+async function skipOverlayBattleCooldown() {
+    const gems = character?.gems || 0;
+    if (gems < 1) {
+        showMsg('missions-msg', 'Need 1 💎 gem to skip the cooldown!', true);
+        return;
+    }
+    const ok = await openGameDialog({ title: 'Skip Cooldown', message: 'Skip the battle cooldown for 1 💎?', showCancel: true, confirmLabel: 'Skip' });
+    if (!ok) return;
+    try {
+        const d = await api('POST', '/game/battle/recover');
+        character = d.character;
+        renderTopBar();
+        await checkAndShowMissionOverlay();
+        showMsg('missions-msg', '⚡ Cooldown skipped!');
+    } catch(e) {
+        showMsg('missions-msg', e.message, true);
+    }
+}
 let overlayMissionCollectBusy = false;
 let _autoEnabledCache = false;
 let autoOverlayPollInterval = null;
@@ -5579,14 +5599,19 @@ async function refreshMissionOverlayAuto() {
     if (!_autoEnabledCache) { box.style.display='none'; box.innerHTML=''; return; }
     box.style.display='block';
     const pool=status.autoMp||0, runs=status.runs||0, last=status.lastResult?escHtml(status.lastResult):'';
+    const paused = !!status.paused;
+    const nowS = Math.floor(Date.now()/1000);
+    const coldownEnds = Number((status.battleCooldownEndsAt != null && status.battleCooldownEndsAt !== '') ? status.battleCooldownEndsAt : (character?.battle_cooldown_ends_at || 0));
+    const inCooldown = coldownEnds > nowS;
+    const hasGems = (character?.gems || 0) >= 1;
     box.innerHTML=`
         <div class="arc-relic">
             <div class="arc-relic-head ${_autoOverlayOpen?'open':''}" id="arc-relic-head">
                 <div class="arc-relic-rune">🧿</div>
                 <div class="arc-relic-title">Arcane Reservoir</div>
                 <div style="display:flex;align-items:center;gap:5px">
-                    <div class="arc-status-dot"></div>
-                    <span class="arc-status-label">Unleashed</span>
+                    <div class="arc-status-dot${paused?' paused':''}"></div>
+                    <span class="arc-status-label">${paused?'Paused':'Unleashed'}</span>
                 </div>
                 <div class="arc-chevy">▾</div>
             </div>
@@ -5597,6 +5622,11 @@ async function refreshMissionOverlayAuto() {
                 </div>
                 ${Number(status?.hpHealEnabled) ? `<div style="font-size:0.68rem;color:#27ae60;margin-bottom:4px">💗 Auto-heal armed — ${Array.isArray(status.hpStack)?status.hpStack.length:0} HP potion(s) left (threshold ${status.hpHealThreshold})</div>` : ''}
                 ${last?`<div class="arc-last">📜 ${last}</div>`:''}
+                ${inCooldown ? `<button id="overlay-skip-cd" class="arc-recover" ${hasGems?'':'disabled'}>⚡ Skip Cooldown (1 💎)</button>` : ''}
+                <div class="arc-pause-row">
+                    <button id="overlay-auto-pause" class="arc-pause">${paused?'▶️ Resume':'⏸ Pause'}</button>
+                    <button id="overlay-auto-stop" class="arc-stop">⏹ Stop Auto-Complete</button>
+                </div>
                 <div class="arc-relic-hp">
                     <div class="arc-relic-hp-row">
                         <span class="arc-relic-hp-lbl">💗 HP <strong>${status.hpCurrent ?? 0}</strong></span>
@@ -5610,13 +5640,25 @@ async function refreshMissionOverlayAuto() {
                     </div>
                     ${status.hpStopEnabled ? `<div style="font-size:0.62rem;color:#e74c3c;margin-top:3px">Auto-pause enabled — resumes once HP recovers above ${status.hpStopThreshold}</div>` : ''}
                 </div>
-                <button id="overlay-auto-stop" class="arc-stop">⏹ Stop Auto-Complete</button>
             </div>
         </div>`;
     const head=document.getElementById('arc-relic-head');
     if (head) head.addEventListener('click', ()=>{
         _autoOverlayOpen=!_autoOverlayOpen;
         head.classList.toggle('open',_autoOverlayOpen);
+    });
+    const pause=document.getElementById('overlay-auto-pause');
+    if (pause) pause.addEventListener('click', async (ev)=>{
+        ev.stopPropagation();
+        try {
+            await api('POST', paused ? '/game/missions/auto-resume' : '/game/missions/auto-pause');
+        } catch(e){ console.error(e); }
+        refreshMissionOverlayAuto();
+    });
+    const skipCd=document.getElementById('overlay-skip-cd');
+    if (skipCd) skipCd.addEventListener('click', async (ev)=>{
+        ev.stopPropagation();
+        await skipOverlayBattleCooldown();
     });
     const stop=document.getElementById('overlay-auto-stop');
     if (stop) stop.addEventListener('click', async (ev)=>{
