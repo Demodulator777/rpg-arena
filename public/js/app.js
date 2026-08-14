@@ -4861,7 +4861,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                     ${status.lastResult ? `<div>📝 Last: ${escHtml(status.lastResult)}</div>` : ''}
                     ${status.hpStopEnabled ? `<div>💗 Auto-pause on low HP: <strong style="color:#fff">on</strong> (below ${status.hpStopThreshold})</div>` : ''}
                 </div>
-                <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ Stop Auto-Complete</button>
+                <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ Stop</button>
                 <div style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);line-height:1.6">⚠️ Stopping does not refund the MP in the pool — it is recommended to let it clear naturally.</div>
             </div>`
         : `
