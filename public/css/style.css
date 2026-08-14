@@ -5085,7 +5085,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     cursor: pointer; transition: background 0.15s;
 }
 .arc-stop:hover { background: rgba(231,76,60,0.34); }
-.arc-pause-row { display: flex; gap: 8px; margin-top: 10px; }
+.arc-pause-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.arc-pause-row .arc-stop { flex: 1; width: auto; margin-top: 0; }
 .arc-pause {
     flex: 1; padding: 9px 12px; border-radius: 10px;
     background: linear-gradient(180deg, rgba(241,196,15,0.3), rgba(241,196,15,0.12));
