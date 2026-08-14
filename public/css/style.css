@@ -5085,14 +5085,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     cursor: pointer; transition: background 0.15s;
 }
 .arc-stop:hover { background: rgba(231,76,60,0.34); }
-.arc-pause-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
-.arc-pause-row .arc-stop { flex: 1; width: auto; margin-top: 0; }
-.arc-pause {
-    flex: 1; padding: 9px 12px; border-radius: 10px;
+.arc-pause-row { display: flex; gap: 8px; margin-top: 10px; align-items: stretch; }
+.arc-pause-row .arc-stop { flex: 1; width: auto; margin-top: 0; height: auto; display: flex; align-items: center; justify-content: center; }
+.arc-pause { flex: 1; padding: 9px 12px; border-radius: 10px;
     background: linear-gradient(180deg, rgba(241,196,15,0.3), rgba(241,196,15,0.12));
     border: 1px solid rgba(243,156,18,0.5); color: #f7d774; font-weight: 700; font-size: 0.78rem;
     cursor: pointer; transition: background 0.15s;
-}
+    display: flex; align-items: center; justify-content: center; }
 .arc-pause:hover { background: rgba(241,196,15,0.32); }
 .arc-recover {
     width: 100%; margin-top: 8px; padding: 9px 12px; border-radius: 10px;
