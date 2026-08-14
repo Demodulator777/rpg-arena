@@ -216,7 +216,9 @@ async function autoBanUntrustedApi(db, userId, charName, detail) {
             banLevel = 3;
             expiresAt = null;
         }
-        const reason = `Auto-ban: Untrusted API call (offense #${offenses}) — ${String(detail).slice(0, 200)}`;
+        const reason = offenses >= UNTRUSTED_API_BAN_MINUTES.length + 1
+            ? 'Auto-Ban: Repeated scripting detected'
+            : `Auto-Ban: Scripting detected (offense #${offenses})`;
         await dbRun(db, 'UPDATE users SET ban_level=?, ban_expires_at=?, ban_reason=?, banned_by=? WHERE id=?', [banLevel, expiresAt, reason, 0, userId]);
         await logFlagEvent(db, charName, reason, 'untrusted_api_autoban');
         if (banLevel === 3) {
