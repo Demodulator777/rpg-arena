@@ -5063,11 +5063,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .arc-status-dot { width: 8px; height: 8px; border-radius: 50%; background: #2ecc71; box-shadow: 0 0 10px rgba(46,204,113,0.85); animation: arcPulse 1.4s infinite; }
+.arc-status-dot.paused { width: 8px; height: 8px; border-radius: 50%; background: #f39c12; box-shadow: 0 0 10px rgba(243,156,18,0.85); animation: none; }
 .arc-status-label { font-size: 0.58rem; letter-spacing: 0.1em; text-transform: uppercase; color: #5be88f; }
 .arc-chevy { transition: transform 0.25s; color: rgba(255,255,255,0.6); font-size: 0.8rem; }
 .arc-relic-head.open .arc-chevy { transform: rotate(180deg); }
 .arc-relic-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease, padding 0.3s ease; padding: 0 14px; }
-.arc-relic-head.open + .arc-relic-body { max-height: 300px; padding: 14px; }
+.arc-relic-head.open + .arc-relic-body { max-height: 420px; padding: 14px; }
 .arc-stats { display: flex; gap: 8px; }
 .arc-stat {
     flex: 1; min-width: 90px; text-align: center; padding: 9px 6px;
@@ -5084,6 +5085,22 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     cursor: pointer; transition: background 0.15s;
 }
 .arc-stop:hover { background: rgba(231,76,60,0.34); }
+.arc-pause-row { display: flex; gap: 8px; margin-top: 10px; }
+.arc-pause {
+    flex: 1; padding: 9px 12px; border-radius: 10px;
+    background: linear-gradient(180deg, rgba(241,196,15,0.3), rgba(241,196,15,0.12));
+    border: 1px solid rgba(243,156,18,0.5); color: #f7d774; font-weight: 700; font-size: 0.78rem;
+    cursor: pointer; transition: background 0.15s;
+}
+.arc-pause:hover { background: rgba(241,196,15,0.32); }
+.arc-recover {
+    width: 100%; margin-top: 8px; padding: 9px 12px; border-radius: 10px;
+    background: linear-gradient(180deg, rgba(155,89,182,0.32), rgba(155,89,182,0.14));
+    border: 1px solid rgba(155,89,182,0.55); color: #e0c3ff; font-weight: 700; font-size: 0.78rem;
+    cursor: pointer; transition: background 0.15s;
+}
+.arc-recover:hover:not(:disabled) { background: rgba(155,89,182,0.36); }
+.arc-recover:disabled { opacity: 0.4; cursor: not-allowed; }
 @keyframes arcPulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.55; } }
 
 /* ===== Arcane Reservoir — panel ===== */
