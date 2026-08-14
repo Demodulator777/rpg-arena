@@ -7577,9 +7577,13 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
 
             if (justAbsorbed) {
                 if (finalDmg <= 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
+                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
                 } else {
-                    logLine = `Round ${roundNum}: ${attacker.name} attacks — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
+                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
+                    if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
+                    if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
+                    if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
+                    if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
                 }
                 if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
             }
