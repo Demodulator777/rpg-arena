@@ -1572,6 +1572,7 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_power REAL DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN scouted_count INTEGER DEFAULT NULL`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_war_outposts ADD COLUMN battle_log TEXT DEFAULT NULL`, args: [] }); } catch {}
+        try { await db.execute({ sql: `ALTER TABLE clan_war_assignments ADD COLUMN role TEXT NOT NULL DEFAULT ''`, args: [] }); } catch {}
         try { await db.execute({ sql: `UPDATE clan_wars SET phase='defense' WHERE phase='scout'`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_level INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE users ADD COLUMN ban_expires_at INTEGER DEFAULT NULL`, args: [] }); } catch {}
@@ -11516,7 +11517,8 @@ async function processPendingWars(db) {
 // Build a fight where each side targets only the opposing side (no friendly fire),
 // round by round, until only one side is left standing. Mirrors the tournament's
 // all-vs-all logic but restricts targets to the enemy team.
-async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerName, defenderName) {
+async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerName, defenderName, defenderRoles) {
+    const roleOf = (id) => (defenderRoles && defenderRoles[id]) || '';
     const log = [`👥 ${attackerName} (${attackerChars.length}) vs ${defenderName} (${defenderChars.length}) — battle begins!`];
     log.push('---');
     const fighters = [];
@@ -11526,6 +11528,7 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
         const f = await buildCombatFighter(db, c);
         f._team = 'attacker';
         f._dead = false;
+        f._role = '';
         f.hp = f.hpMax; // fresh HP for the fight
         fighters.push(f);
     }
@@ -11533,9 +11536,13 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
         const f = await buildCombatFighter(db, c);
         f._team = 'defender';
         f._dead = false;
+        f._role = roleOf(c.id) || ''; // 'tank' | 'dps' | 'healer' | 'support' | '' (defaults to dps)
         f.hp = f.hpMax;
         fighters.push(f);
     }
+
+    // Group defenders by role lane. Unset role defaults to the damage lane.
+    const defLane = (f) => f._role === 'tank' ? 'tank' : (f._role === 'healer' || f._role === 'support' ? 'back' : 'dps');
 
     let round = 0;
     const MAX_ROUNDS = 300;
@@ -11544,15 +11551,46 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
         const aliveD = fighters.filter(f => f._team === 'defender' && f.hp > 0);
         if (aliveA.length === 0 || aliveD.length === 0) break;
         round++;
+        const tanks = aliveD.filter(f => defLane(f) === 'tank');
+        const dps = aliveD.filter(f => defLane(f) === 'dps');
+        const back = aliveD.filter(f => defLane(f) === 'back');
+        const front = tanks.length ? tanks : (dps.length ? dps : back);
         log.push(`🌀 Round ${round} — ${aliveA.length} attacker(s) / ${aliveD.length} defender(s)`);
         const idx = (round - 1) % 10;
         const atkZone = DEFAULT_ATTACK_ZONES[idx];
         const blkZone = DEFAULT_BLOCK_ZONES[idx];
 
-        // Attackers strike defenders
+        // ---- Defenders act first: healers heal, supports buff ----
+        for (const def of aliveD) {
+            // Healers restore HP (spread across wounded allies) while any tank or
+            // DPS still stands. Supports grant a damage buff to each DPS before the
+            // defenders' counterattack this round.
+            if (def._role === 'healer' && (tanks.length || dps.length)) {
+                const wounded = aliveD.filter(t => t.hp < t.hpMax && defLane(t) !== 'back');
+                if (wounded.length) {
+                    const perHeal = Math.max(1, Math.floor(def.magic / wounded.length));
+                    for (const w of wounded) {
+                        const before = w.hp;
+                        w.hp = Math.min(w.hpMax, w.hp + perHeal);
+                        if (w.hp > before) {
+                            log.push(`  💚 ${def.name} heals ${w.name} for ${w.hp - before} HP`);
+                        }
+                    }
+                }
+            } else if (def._role === 'support' && (tanks.length || dps.length) && dps.length) {
+                const perBuff = Math.max(1, Math.floor(def.magic / 8));
+                for (const d of dps) {
+                    d._buff = (d._buff || 0) + perBuff;
+                    log.push(`  ✨ ${def.name} empowers ${d.name} (+${perBuff} dmg)`);
+                }
+            }
+        }
+
+        // Attackers strike defenders — always hit the front lane (tanks if any
+        // alive, else DPS) so back-line healers/supports are protected while protected.
         for (const attacker of aliveA) {
-            const targets = aliveD.filter(t => t.hp > 0);
-            if (!targets.length) break;
+            const targets = front.filter(t => t.hp > 0);
+            if (!targets.length) continue;
             const target = targets[Math.floor(Math.random() * targets.length)];
             const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
             const dealt = res.damageDealt || 0;
@@ -11562,17 +11600,23 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
                 charDamage.set(attacker.id, (charDamage.get(attacker.id) || 0) + dealt);
             }
         }
-        // Defenders strike attackers
-        for (const attacker of aliveD) {
+        // Defenders strike attackers (with any buff applied to DPS damage).
+        // Healers/supports only attack once they are the last line standing —
+        // while a tank or DPS is alive they use their turn healing/buffing.
+        const frontAlive = (tanks.length || dps.length) > 0;
+        for (const def of aliveD) {
+            if ((def._role === 'healer' || def._role === 'support') && frontAlive) continue;
             const targets = aliveA.filter(t => t.hp > 0);
             if (!targets.length) break;
+            const buff = def._buff || 0;
+            def._buff = 0;
             const target = targets[Math.floor(Math.random() * targets.length)];
-            const res = simulateRound(round, attacker, target, atkZone, blkZone, false, { active: false }, { active: false });
-            const dealt = res.damageDealt || 0;
+            const res = simulateRound(round, def, target, atkZone, blkZone, false, { active: false }, { active: false });
+            const dealt = (res.damageDealt || 0) + buff;
             target.hp = Math.max(0, target.hp - dealt);
             if (dealt > 0) {
-                log.push(`  ⚔️ ${attacker.name} → ${target.name}: ${dealt} damage`);
-                charDamage.set(attacker.id, (charDamage.get(attacker.id) || 0) + dealt);
+                log.push(`  ⚔️ ${def.name} → ${target.name}: ${dealt} damage`);
+                charDamage.set(def.id, (charDamage.get(def.id) || 0) + dealt);
             }
         }
         let anyDied = false;
@@ -11581,6 +11625,8 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
         }
         if (anyDied) log.push('---');
         if (fighters.filter(f => f.hp > 0).length <= 1) break;
+        // Refresh lanes each round
+        for (const f of fighters) { if (f._buff) f._buff = 0; }
     }
     
     // Save performance
@@ -11662,7 +11708,10 @@ async function resolveWarBattle(db, war) {
                 winner = 'attacker';
                 battleLog = [`⚔️ Outpost ${op.outpost_index + 1} — ${attName} found no defenders and seized it uncontested.`];
             } else {
-                const result = await runSquadBattle(db, warId, aChars, dChars, attName, defName);
+                const dRoles = await dbAll(db, `SELECT wa.char_id, wa.role FROM clan_war_assignments wa WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='defender' AND wa.role != ''`, [warId, op.id]);
+                const roleMap = {};
+                for (const r of dRoles) roleMap[Number(r.char_id)] = r.role;
+                const result = await runSquadBattle(db, warId, aChars, dChars, attName, defName, roleMap);
                 winner = result.winner;
                 battleLog = result.log;
             }
@@ -11954,11 +12003,12 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
         const squadMembers = await dbAll(db, "SELECT id, name, class, level FROM characters WHERE id IN (SELECT char_id FROM squad_members WHERE squad_id=?)",
             [isAttacker ? war.attacker_squad_id : war.defender_squad_id]);
         const side = isAttacker ? 'attacker' : 'defender';
-        const ourAssignments = await dbAll(db, `SELECT wa.char_id, o.outpost_index FROM clan_war_assignments wa
+        const ourAssignments = await dbAll(db, `SELECT wa.char_id, o.outpost_index, wa.role FROM clan_war_assignments wa
             JOIN clan_war_outposts o ON o.id = wa.outpost_id
             WHERE wa.war_id=? AND wa.side=?`, [warId, side]);
         const assignMap = {};
-        for (const a of ourAssignments) assignMap[Number(a.char_id)] = Number(a.outpost_index);
+        const roleMap = {};
+        for (const a of ourAssignments) { assignMap[Number(a.char_id)] = Number(a.outpost_index); roleMap[Number(a.char_id)] = a.role || ''; }
         let enemyMembers = [];
         let npcInfo = null;
         if (isNpcWar) {
@@ -11995,6 +12045,7 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
                 })),
                 squad_members: squadMembers.map(c => ({ id: Number(c.id), name: c.name, class: c.class, level: Number(c.level),
                     power: calcFighterPower(c), assigned_outpost: assignMap[Number(c.id)] != null ? assignMap[Number(c.id)] : -1,
+                    role: roleMap[Number(c.id)] || '',
                     captured: capturedArr.includes(Number(c.id)) })),
                 enemy_members: war.phase !== 'defense' && war.phase !== 'scout' ? enemyMembers.map(c => ({ id: Number(c.id), name: c.name, class: c.class, level: Number(c.level),
                     power: calcFighterPower(c) })) : [],
@@ -12089,8 +12140,9 @@ router.post('/squads/wars/:warId/assign', auth, async (req, res) => {
         // Defenders assign during scout phase; attackers assign during attack phase
         if (isAttacker && war.phase !== 'attacking') return res.status(400).json({ error: 'Attackers can only assign fighters during the attack phase.' });
         if (!isAttacker && war.phase !== 'defense' && war.phase !== 'scout') return res.status(400).json({ error: 'Defenders can only assign fighters during the defense phase.' });
-        const assignments = req.body.assignments; // [{ outpost_index, char_id }]
+        const assignments = req.body.assignments; // [{ outpost_index, char_id, role? }]
         if (!Array.isArray(assignments) || assignments.length === 0) return res.status(400).json({ error: 'Assignments array required.' });
+        const VALID_ROLES = ['', 'tank', 'dps', 'healer', 'support'];
         for (const a of assignments) {
             if (a.outpost_index < 0 || a.outpost_index > 4) continue;
             // Check character is in squad
@@ -12103,9 +12155,16 @@ router.post('/squads/wars/:warId/assign', auth, async (req, res) => {
             const outpost = await dbGet(db, 'SELECT id FROM clan_war_outposts WHERE war_id=? AND outpost_index=?', [warId, a.outpost_index]);
             if (!outpost) continue;
             const side = isAttacker ? 'attacker' : 'defender';
+            // Roles are only meaningful on the defensive side (attackers have no
+            // outpost to defend, no formation). Detect any invalid attacker role.
+            let role = '';
+            if (!isAttacker) {
+                role = String(a.role || '');
+                if (!VALID_ROLES.includes(role)) role = '';
+            }
             // Remove previous assignment for this char
             await dbRun(db, 'DELETE FROM clan_war_assignments WHERE war_id=? AND char_id=? AND side=?', [warId, a.char_id, side]);
-            await dbRun(db, 'INSERT INTO clan_war_assignments (war_id, outpost_id, char_id, side) VALUES (?,?,?,?)', [warId, outpost.id, a.char_id, side]);
+            await dbRun(db, 'INSERT INTO clan_war_assignments (war_id, outpost_id, char_id, side, role) VALUES (?,?,?,?,?)', [warId, outpost.id, a.char_id, side, role]);
         }
         // Recalculate power for each outpost
         const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=?', [warId]);
