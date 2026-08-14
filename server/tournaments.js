@@ -563,7 +563,7 @@ async function buildFighter(db, participant, participants, noEquip) {
   const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
   const armor = calcArmorValue(char, equippedArray);
   const statsElemDmg = calcElemDmg(equippedArray);
-  const statsElemResist = calcElemResist(equippedArray);
+  const statsElemResist = calcElemResist(char, equippedArray);
   const setBonuses = getEquippedSetBonuses(equippedArray);
 
   const learnedRows = await dbAll_t(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
