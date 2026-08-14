@@ -5625,7 +5625,7 @@ async function refreshMissionOverlayAuto() {
                 ${inCooldown ? `<button id="overlay-skip-cd" class="arc-recover" ${hasGems?'':'disabled'}>⚡ Skip Cooldown (1 💎)</button>` : ''}
                 <div class="arc-pause-row">
                     <button id="overlay-auto-pause" class="arc-pause">${paused?'▶️ Resume':'⏸ Pause'}</button>
-                    <button id="overlay-auto-stop" class="arc-stop">⏹ Stop Auto-Complete</button>
+                    <button id="overlay-auto-stop" class="arc-stop">⏹ Stop</button>
                 </div>
                 <div class="arc-relic-hp">
                     <div class="arc-relic-hp-row">
