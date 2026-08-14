@@ -186,6 +186,45 @@ async function ensureFlaggedTable(db) {
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_enabled INTEGER NOT NULL DEFAULT 1", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_notes TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_started_at INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
+    // Migration: auto-ban escalation tracking for untrusted_api offenses
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN untrusted_offenses INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
+    try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN last_untrusted_at INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
+}
+
+const UNTRUSTED_API_DEBOUNCE_S = 300; // 5 min — a burst of reports counts as one offense
+const UNTRUSTED_API_BAN_MINUTES = [60, 720, 1440]; // 1h, 12h, 24h
+
+async function autoBanUntrustedApi(db, userId, charName, detail) {
+    try {
+        await ensureFlaggedTable(db);
+        const now = Math.floor(Date.now() / 1000);
+        const row = await dbGet(db, 'SELECT untrusted_offenses, last_untrusted_at FROM flagged_characters WHERE char_name=?', [charName]);
+        const lastAt = row?.last_untrusted_at || 0;
+        let offenses = row?.untrusted_offenses || 0;
+
+        // Debounce: ignore additional reports from the same offending burst/session.
+        const isNewOffense = (now - lastAt) > UNTRUSTED_API_DEBOUNCE_S;
+        if (isNewOffense) offenses += 1;
+
+        await db.execute({ sql: 'UPDATE flagged_characters SET untrusted_offenses=?, last_untrusted_at=? WHERE char_name=?', args: [offenses, now, charName] });
+
+        // Determine ban for THIS offense (if it's a new/current offense apply it).
+        const offenseIdx = offenses - 1;
+        let banLevel = 2;
+        let expiresAt = now + UNTRUSTED_API_BAN_MINUTES[Math.min(offenseIdx, UNTRUSTED_API_BAN_MINUTES.length - 1)] * 60;
+        if (offenses >= UNTRUSTED_API_BAN_MINUTES.length + 1) { // 4th offense -> permanent
+            banLevel = 3;
+            expiresAt = null;
+        }
+        const reason = `Auto-ban: Untrusted API call (offense #${offenses}) — ${String(detail).slice(0, 200)}`;
+        await dbRun(db, 'UPDATE users SET ban_level=?, ban_expires_at=?, ban_reason=?, banned_by=? WHERE id=?', [banLevel, expiresAt, reason, 0, userId]);
+        await logFlagEvent(db, charName, reason, 'untrusted_api_autoban');
+        if (banLevel === 3) {
+            console.log(`🚫 [AUTO-BAN] ${charName} permanently banned for repeated untrusted API calls (${offenses} offenses)`);
+        } else {
+            console.log(`🔒 [AUTO-BAN] ${charName} locked for ${Math.round(UNTRUSTED_API_BAN_MINUTES[Math.min(offenseIdx, UNTRUSTED_API_BAN_MINUTES.length - 1)] / 60)}h on untrusted API offense #${offenses}`);
+        }
+    } catch (e) { console.error('[autoBanUntrustedApi]', e.message); }
 }
 
 async function logFlagEvent(db, charName, reason, signalType) {
@@ -16832,6 +16871,8 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
                 });
                 await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
             }
+            // Automatic escalating ban on untrusted API calls
+            await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
