@@ -619,6 +619,7 @@ async function api(method, path, body=null) {
     if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && 
         path.indexOf('/auth/') === -1 && 
         path.indexOf('/missions/tab-viewed') === -1 &&
+        path.indexOf('/dungeon/lock-refresh') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
