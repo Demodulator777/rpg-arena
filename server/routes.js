@@ -15267,12 +15267,12 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             };
         }
 
+        const battleStatsForAttacker = { you: summarizeBattleStats(fighterA), enemy: summarizeBattleStats(fighterB) };
+        const battleStatsForDefender = { you: summarizeBattleStats(fighterB), enemy: summarizeBattleStats(fighterA) };
+
         const battle = runBattle(fighterA, fighterB);
         const attackerWon = battle.winnerId === freshA.id;
         const isDraw = battle.winnerId === 0;
-
-        const battleStatsForAttacker = { you: summarizeBattleStats(fighterA), enemy: summarizeBattleStats(fighterB) };
-        const battleStatsForDefender = { you: summarizeBattleStats(fighterB), enemy: summarizeBattleStats(fighterA) };
 
         if (isDraw) {
             // No achievements for draws
