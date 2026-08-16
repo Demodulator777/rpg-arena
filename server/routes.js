@@ -3771,215 +3771,6 @@ function buildExtendedAchievements() {
             rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 }, premium: { id: 'fortune_hunter', days: 30 } },
         },
         {
-            id: 'damage_negated_phys_1000',
-            chain: 'damage_negated_phys',
-            category: 'combat',
-            name: 'Ironclad',
-            desc: 'Negate 1,000 total physical damage with armor.',
-            icon: '🛡️',
-            metric: 'damage_negated_phys',
-            target: 1000,
-            rewards: { gold: 4000, consumable: { id: 'potion_health', qty: 3 } },
-        },
-        {
-            id: 'damage_negated_phys_8000',
-            chain: 'damage_negated_phys',
-            category: 'combat',
-            name: 'Bulwark',
-            desc: 'Negate 8,000 total physical damage with armor.',
-            icon: '🧱',
-            metric: 'damage_negated_phys',
-            target: 8000,
-            rewards: { gold: 25000, gems: 5, lootbox: { id: 'lootbox_common', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_phys_50000',
-            chain: 'damage_negated_phys',
-            category: 'combat',
-            name: 'Fortress of Steel',
-            desc: 'Negate 50,000 total physical damage with armor.',
-            icon: '🏯',
-            metric: 'damage_negated_phys',
-            target: 50000,
-            rewards: { gold: 140000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_phys_200000',
-            chain: 'damage_negated_phys',
-            category: 'combat',
-            name: 'Unbreakable',
-            desc: 'Negate 200,000 total physical damage with armor.',
-            icon: '⚒️',
-            metric: 'damage_negated_phys',
-            target: 200000,
-            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_phys_800000',
-            chain: 'damage_negated_phys',
-            category: 'combat',
-            name: 'Immovable',
-            desc: 'Negate 800,000 total physical damage with armor.',
-            icon: '🗿',
-            metric: 'damage_negated_phys',
-            target: 800000,
-            rewards: { gold: 1500000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 2 } },
-        },
-        {
-            id: 'damage_negated_phys_2000000',
-            chain: 'damage_negated_phys',
-            category: 'combat',
-            name: 'Titan of Stone',
-            desc: 'Negate 2,000,000 total physical damage with armor.',
-            icon: '⛰️',
-            metric: 'damage_negated_phys',
-            target: 2000000,
-            rewards: { gold: 4000000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_elem_1000',
-            chain: 'damage_negated_elem',
-            category: 'combat',
-            name: 'Magic Barrier',
-            desc: 'Negate 1,000 total elemental damage with resistances.',
-            icon: '🔮',
-            metric: 'damage_negated_elem',
-            target: 1000,
-            rewards: { gold: 4000, consumable: { id: 'potion_mana', qty: 3 } },
-        },
-        {
-            id: 'damage_negated_elem_8000',
-            chain: 'damage_negated_elem',
-            category: 'combat',
-            name: 'Elemental Ward',
-            desc: 'Negate 8,000 total elemental damage with resistances.',
-            icon: '🌐',
-            metric: 'damage_negated_elem',
-            target: 8000,
-            rewards: { gold: 25000, gems: 5, lootbox: { id: 'lootbox_common', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_elem_50000',
-            chain: 'damage_negated_elem',
-            category: 'combat',
-            name: 'Prime Warder',
-            desc: 'Negate 50,000 total elemental damage with resistances.',
-            icon: '✨',
-            metric: 'damage_negated_elem',
-            target: 50000,
-            rewards: { gold: 140000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_elem_200000',
-            chain: 'damage_negated_elem',
-            category: 'combat',
-            name: 'Null Element',
-            desc: 'Negate 200,000 total elemental damage with resistances.',
-            icon: '🌑',
-            metric: 'damage_negated_elem',
-            target: 200000,
-            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_elem_800000',
-            chain: 'damage_negated_elem',
-            category: 'combat',
-            name: 'Arcane Ward',
-            desc: 'Negate 800,000 total elemental damage with resistances.',
-            icon: '🌀',
-            metric: 'damage_negated_elem',
-            target: 800000,
-            rewards: { gold: 1500000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 2 } },
-        },
-        {
-            id: 'damage_negated_elem_2000000',
-            chain: 'damage_negated_elem',
-            category: 'combat',
-            name: 'Aegis of Magic',
-            desc: 'Negate 2,000,000 total elemental damage with resistances.',
-            icon: '🌠',
-            metric: 'damage_negated_elem',
-            target: 2000000,
-            rewards: { gold: 4000000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_1m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'Aegis Bearer',
-            desc: 'Negate 1,000,000 total damage (physical, elemental & shield).',
-            icon: '🛡️',
-            metric: 'damage_negated',
-            target: 1000000,
-            rewards: { gold: 2000000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_3m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'Wall of Steel',
-            desc: 'Negate 3,000,000 total damage (physical, elemental & shield).',
-            icon: '🧱',
-            metric: 'damage_negated',
-            target: 3000000,
-            rewards: { gold: 6000000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 2 } },
-        },
-        {
-            id: 'damage_negated_8m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'Grand Bastion',
-            desc: 'Negate 8,000,000 total damage (physical, elemental & shield).',
-            icon: '🏯',
-            metric: 'damage_negated',
-            target: 8000000,
-            rewards: { gold: 16000000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
-        },
-        {
-            id: 'damage_negated_20m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'Fortress Eternal',
-            desc: 'Negate 20,000,000 total damage (physical, elemental & shield).',
-            icon: '🏰',
-            metric: 'damage_negated',
-            target: 20000000,
-            rewards: { gold: 40000000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 2 } },
-        },
-        {
-            id: 'damage_negated_45m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'Avatar of Aegis',
-            desc: 'Negate 45,000,000 total damage (physical, elemental & shield).',
-            icon: '👑',
-            metric: 'damage_negated',
-            target: 45000000,
-            rewards: { gold: 90000000, gems: 60, lootbox: { id: 'lootbox_legendary', qty: 3 } },
-        },
-        {
-            id: 'damage_negated_75m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'Sentinel of Silence',
-            desc: 'Negate 75,000,000 total damage (physical, elemental & shield).',
-            icon: '🌌',
-            metric: 'damage_negated',
-            target: 75000000,
-            rewards: { gold: 150000000, gems: 75, lootbox: { id: 'lootbox_legendary', qty: 4 } },
-        },
-        {
-            id: 'damage_negated_100m',
-            chain: 'damage_negated',
-            category: 'combat',
-            name: 'The Great Ward',
-            desc: 'Negate 100,000,000 total damage (physical, elemental & shield).',
-            icon: '⭐',
-            metric: 'damage_negated',
-            target: 100000000,
-            rewards: { gold: 250000000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 5 }, premium: { id: 'fortune_hunter', days: 30 } },
-        },
-        {
             id: 'elemental_kills_10',
             chain: 'elemental_kills',
             category: 'combat',
@@ -4993,8 +4784,102 @@ function buildExtendedAchievements() {
     return extras;
 }
 
+// ── Negated-damage achievements ────────────────────────────────────────
+// Same ladder for physical (armor), elemental (resist), and combined
+// (phys + elem + shield) negation. All share the same 28 thresholds.
+
+const NEGATED_TIERS = [1000, 10000, 25000, 50000, 100000, 150000, 200000, 250000, 300000, 400000, 500000, 750000, 1000000, 1250000, 1500000, 2000000, 3000000, 5000000, 10000000, 20000000, 30000000, 40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 100000000];
+
+const NEGATED_PHYS_NAMES = [
+    'Ironclad', 'Bastion', 'Staunch', 'Stonewall', 'Bulwark', 'Unshaken', 'Fortified',
+    'Impregnable', 'Titan Shell', 'Aegis', 'Rampart', 'Iron Mountain', 'Steel Guardian',
+    'Adamantite', 'Collosus', 'Bulwark Supreme', 'Unyielding', 'Mountainheart', 'Titan',
+    'Worldshield', 'Iron Bastion', 'Unbreakable', 'Immovable', 'Atlas', 'Ironclad God',
+    'Terra Plating', 'Petrified', 'Absolute Defense'
+];
+const NEGATED_ELEM_NAMES = [
+    'Warded', 'Aegis Core', 'Barrier', 'Magus Ward', 'Element Shield', 'Warded Soul',
+    'Runic Shroud', 'Arcane Bulwark', 'Prism Guard', 'Elemental Ward', 'Omega Barrier',
+    'Siphon Ward', 'Runic Aegis', 'Prism Aegis', 'Element Sovereign', 'Arcane Bastion',
+    'Wardmaster', 'Runic Citadel', 'Elemental Emperor', 'Void Warden', 'Pure Ward',
+    'Element Null', 'Arcane Fortress', 'Grand Warden', 'Elementless', 'Ultimate Ward',
+    'Sovereign Aegis', 'Absolute Null'
+];
+const NEGATED_COMBINED_NAMES = [
+    'Aegis Bearer', 'Warden', 'Nullifier', 'Denier', 'Stopper', 'Bastion Lord', 'Wallkeeper',
+    'Absolver', 'Guardian', 'Shieldbearer', 'Nullmaster', 'Wardbearer', 'Unscathed',
+    'Impunity', 'Untouchable', 'Guardian Prime', 'Aegis Dominator', 'Shield Sovereign',
+    'Untouchable God', 'Absolute Warden', 'Denial Master', 'Null Sovereign', 'Grand Aegis',
+    'Perfect Denial', 'Immovable Wall', 'Ultimate Guardian', 'Omnishield', 'Absolute Denial'
+];
+
+function buildNegatedAchievements() {
+    const out = [];
+    NEGATED_TIERS.forEach((target, idx) => {
+        const th = target >= 1000000 ? (target / 1000000) + 'M' : target >= 1000 ? (target / 1000) + 'K' : String(target);
+        out.push(
+            {
+                id: 'damage_negated_phys_' + target,
+                chain: 'damage_negated_phys',
+                category: 'combat',
+                name: NEGATED_PHYS_NAMES[idx],
+                desc: 'Negate ' + th + ' total physical damage with armor.',
+                icon: '🛡️',
+                metric: 'damage_negated_phys',
+                target: target,
+                rewards: buildNegatedRewards(target),
+            },
+            {
+                id: 'damage_negated_elem_' + target,
+                chain: 'damage_negated_elem',
+                category: 'combat',
+                name: NEGATED_ELEM_NAMES[idx],
+                desc: 'Negate ' + th + ' total elemental damage with resistances.',
+                icon: '🔮',
+                metric: 'damage_negated_elem',
+                target: target,
+                rewards: buildNegatedRewards(target),
+            },
+            {
+                id: 'damage_negated_' + target,
+                chain: 'damage_negated',
+                category: 'combat',
+                name: NEGATED_COMBINED_NAMES[idx],
+                desc: 'Negate ' + th + ' total damage (physical, elemental & shield).',
+                icon: '⛨',
+                metric: 'damage_negated',
+                target: target,
+                rewards: buildNegatedRewards(target),
+            }
+        );
+    });
+    return out;
+}
+
+function buildNegatedRewards(target) {
+    let gold = Math.round(target * 1.5);
+    let gems = 0;
+    let lootbox = null;
+    let premium = null;
+    if (target >= 100000) gems = 5;
+    if (target >= 250000) gems = 10;
+    if (target >= 1000000) { gems = 15; lootbox = { id: 'lootbox_rare', qty: 1 }; }
+    if (target >= 5000000) { gems = 20; lootbox = { id: 'lootbox_epic', qty: 1 }; }
+    if (target >= 10000000) { gems = 25; lootbox = { id: 'lootbox_epic', qty: 2 }; }
+    if (target >= 30000000) { gems = 30; lootbox = { id: 'lootbox_legendary', qty: 1 }; }
+    if (target >= 60000000) { gems = 40; lootbox = { id: 'lootbox_legendary', qty: 2 }; }
+    if (target >= 100000000) { gems = 50; lootbox = { id: 'lootbox_legendary', qty: 3 }; }
+    const rewards = { gold: gold };
+    if (gems) rewards.gems = gems;
+    if (lootbox) rewards.lootbox = lootbox;
+    if (premium) rewards.premium = premium;
+    return rewards;
+}
+
 const extended = buildExtendedAchievements();
 ACHIEVEMENTS.push(...extended);
+
+ACHIEVEMENTS.push(...buildNegatedAchievements());
 
 // Add new progression achievements
 ACHIEVEMENTS.push(
