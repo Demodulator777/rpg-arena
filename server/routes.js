@@ -986,6 +986,9 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN nightmare_missions_completed INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN damage_dealt INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN top_damage_dealt INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN damage_negated_phys INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN damage_negated_elem INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN damage_negated_shield INTEGER DEFAULT 0',
             `ALTER TABLE inventory ADD COLUMN weapon_type TEXT DEFAULT NULL`,
             `ALTER TABLE battles ADD COLUMN attacker_name TEXT DEFAULT NULL`,
             `ALTER TABLE battles ADD COLUMN defender_name TEXT DEFAULT NULL`,
@@ -3768,6 +3771,215 @@ function buildExtendedAchievements() {
             rewards: { gold: 2500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 3 }, premium: { id: 'fortune_hunter', days: 30 } },
         },
         {
+            id: 'damage_negated_phys_1000',
+            chain: 'damage_negated_phys',
+            category: 'combat',
+            name: 'Ironclad',
+            desc: 'Negate 1,000 total physical damage with armor.',
+            icon: '🛡️',
+            metric: 'damage_negated_phys',
+            target: 1000,
+            rewards: { gold: 4000, consumable: { id: 'potion_health', qty: 3 } },
+        },
+        {
+            id: 'damage_negated_phys_8000',
+            chain: 'damage_negated_phys',
+            category: 'combat',
+            name: 'Bulwark',
+            desc: 'Negate 8,000 total physical damage with armor.',
+            icon: '🧱',
+            metric: 'damage_negated_phys',
+            target: 8000,
+            rewards: { gold: 25000, gems: 5, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_phys_50000',
+            chain: 'damage_negated_phys',
+            category: 'combat',
+            name: 'Fortress of Steel',
+            desc: 'Negate 50,000 total physical damage with armor.',
+            icon: '🏯',
+            metric: 'damage_negated_phys',
+            target: 50000,
+            rewards: { gold: 140000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_phys_200000',
+            chain: 'damage_negated_phys',
+            category: 'combat',
+            name: 'Unbreakable',
+            desc: 'Negate 200,000 total physical damage with armor.',
+            icon: '⚒️',
+            metric: 'damage_negated_phys',
+            target: 200000,
+            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_phys_800000',
+            chain: 'damage_negated_phys',
+            category: 'combat',
+            name: 'Immovable',
+            desc: 'Negate 800,000 total physical damage with armor.',
+            icon: '🗿',
+            metric: 'damage_negated_phys',
+            target: 800000,
+            rewards: { gold: 1500000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 2 } },
+        },
+        {
+            id: 'damage_negated_phys_2000000',
+            chain: 'damage_negated_phys',
+            category: 'combat',
+            name: 'Titan of Stone',
+            desc: 'Negate 2,000,000 total physical damage with armor.',
+            icon: '⛰️',
+            metric: 'damage_negated_phys',
+            target: 2000000,
+            rewards: { gold: 4000000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_elem_1000',
+            chain: 'damage_negated_elem',
+            category: 'combat',
+            name: 'Magic Barrier',
+            desc: 'Negate 1,000 total elemental damage with resistances.',
+            icon: '🔮',
+            metric: 'damage_negated_elem',
+            target: 1000,
+            rewards: { gold: 4000, consumable: { id: 'potion_mana', qty: 3 } },
+        },
+        {
+            id: 'damage_negated_elem_8000',
+            chain: 'damage_negated_elem',
+            category: 'combat',
+            name: 'Elemental Ward',
+            desc: 'Negate 8,000 total elemental damage with resistances.',
+            icon: '🌐',
+            metric: 'damage_negated_elem',
+            target: 8000,
+            rewards: { gold: 25000, gems: 5, lootbox: { id: 'lootbox_common', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_elem_50000',
+            chain: 'damage_negated_elem',
+            category: 'combat',
+            name: 'Prime Warder',
+            desc: 'Negate 50,000 total elemental damage with resistances.',
+            icon: '✨',
+            metric: 'damage_negated_elem',
+            target: 50000,
+            rewards: { gold: 140000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_elem_200000',
+            chain: 'damage_negated_elem',
+            category: 'combat',
+            name: 'Null Element',
+            desc: 'Negate 200,000 total elemental damage with resistances.',
+            icon: '🌑',
+            metric: 'damage_negated_elem',
+            target: 200000,
+            rewards: { gold: 500000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_elem_800000',
+            chain: 'damage_negated_elem',
+            category: 'combat',
+            name: 'Arcane Ward',
+            desc: 'Negate 800,000 total elemental damage with resistances.',
+            icon: '🌀',
+            metric: 'damage_negated_elem',
+            target: 800000,
+            rewards: { gold: 1500000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 2 } },
+        },
+        {
+            id: 'damage_negated_elem_2000000',
+            chain: 'damage_negated_elem',
+            category: 'combat',
+            name: 'Aegis of Magic',
+            desc: 'Negate 2,000,000 total elemental damage with resistances.',
+            icon: '🌠',
+            metric: 'damage_negated_elem',
+            target: 2000000,
+            rewards: { gold: 4000000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_1m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'Aegis Bearer',
+            desc: 'Negate 1,000,000 total damage (physical, elemental & shield).',
+            icon: '🛡️',
+            metric: 'damage_negated',
+            target: 1000000,
+            rewards: { gold: 2000000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_3m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'Wall of Steel',
+            desc: 'Negate 3,000,000 total damage (physical, elemental & shield).',
+            icon: '🧱',
+            metric: 'damage_negated',
+            target: 3000000,
+            rewards: { gold: 6000000, gems: 30, lootbox: { id: 'lootbox_epic', qty: 2 } },
+        },
+        {
+            id: 'damage_negated_8m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'Grand Bastion',
+            desc: 'Negate 8,000,000 total damage (physical, elemental & shield).',
+            icon: '🏯',
+            metric: 'damage_negated',
+            target: 8000000,
+            rewards: { gold: 16000000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } },
+        },
+        {
+            id: 'damage_negated_20m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'Fortress Eternal',
+            desc: 'Negate 20,000,000 total damage (physical, elemental & shield).',
+            icon: '🏰',
+            metric: 'damage_negated',
+            target: 20000000,
+            rewards: { gold: 40000000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 2 } },
+        },
+        {
+            id: 'damage_negated_45m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'Avatar of Aegis',
+            desc: 'Negate 45,000,000 total damage (physical, elemental & shield).',
+            icon: '👑',
+            metric: 'damage_negated',
+            target: 45000000,
+            rewards: { gold: 90000000, gems: 60, lootbox: { id: 'lootbox_legendary', qty: 3 } },
+        },
+        {
+            id: 'damage_negated_75m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'Sentinel of Silence',
+            desc: 'Negate 75,000,000 total damage (physical, elemental & shield).',
+            icon: '🌌',
+            metric: 'damage_negated',
+            target: 75000000,
+            rewards: { gold: 150000000, gems: 75, lootbox: { id: 'lootbox_legendary', qty: 4 } },
+        },
+        {
+            id: 'damage_negated_100m',
+            chain: 'damage_negated',
+            category: 'combat',
+            name: 'The Great Ward',
+            desc: 'Negate 100,000,000 total damage (physical, elemental & shield).',
+            icon: '⭐',
+            metric: 'damage_negated',
+            target: 100000000,
+            rewards: { gold: 250000000, gems: 100, lootbox: { id: 'lootbox_legendary', qty: 5 }, premium: { id: 'fortune_hunter', days: 30 } },
+        },
+        {
             id: 'elemental_kills_10',
             chain: 'elemental_kills',
             category: 'combat',
@@ -5366,6 +5578,10 @@ async function buildAchievementMetricSnapshot(db, char) {
         nightmare_missions_completed: char.nightmare_missions_completed || 0,
         damage_dealt: char.damage_dealt || 0,
         top_damage_dealt: char.top_damage_dealt || 0,
+        damage_negated_phys: char.damage_negated_phys || 0,
+        damage_negated_elem: char.damage_negated_elem || 0,
+        damage_negated_shield: char.damage_negated_shield || 0,
+        damage_negated: (char.damage_negated_phys || 0) + (char.damage_negated_elem || 0) + (char.damage_negated_shield || 0),
         total_missions_completed: char.total_missions_completed || 0,
         level: char.level || 1,
         elemental_kills: char.elemental_kills || 0,
@@ -5405,6 +5621,10 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
     if (metric === 'nightmare_missions_completed') return metrics.nightmare_missions_completed;
     if (metric === 'damage_dealt') return metrics.damage_dealt;
     if (metric === 'top_damage_dealt') return metrics.top_damage_dealt;
+    if (metric === 'damage_negated_phys') return metrics.damage_negated_phys;
+    if (metric === 'damage_negated_elem') return metrics.damage_negated_elem;
+    if (metric === 'damage_negated_shield') return metrics.damage_negated_shield;
+    if (metric === 'damage_negated') return metrics.damage_negated;
     if (metric === 'elemental_kills') return metrics.elemental_kills;
     if (metric === 'physical_only_wins') return metrics.physical_only_wins;
     if (metric === 'wins_without_shield') return metrics.wins_without_shield;
@@ -5669,7 +5889,7 @@ const CLASS_SKILLS = {
     paladin: [
         { id:'divine_shield',    name:'Divine Shield',      emoji:'✨', desc:'Negate the first hit received each battle round for 5h.', effect:'first_hit_negate',value:1    },
         { id:'holy_strike',      name:'Holy Strike',        emoji:'⚡', desc:'+20% damage and heal 10% of damage dealt per hit for 5h.',effect:'holy_strike',     value:0.20 },
-        { id:'consecrate',       name:'Consecrate',         emoji:'🌿', desc:'Reflect 15% of damage received back to attacker for 5h.',effect:'reflect',         value:0.15 },
+        { id:'consecrate',       name:'Consecrate',         emoji:'🌿', desc:'Reflect 15% of damage absorbed (armor/resist/shield) back to attacker for 5h.',effect:'reflect',         value:0.15 },
     ],
 };
 
@@ -7152,6 +7372,12 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
     const autoBlockedHit = autoBlocked && atkHit;
     let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
+    // Absorbed/negated damage trackers (amount of incoming damage the defender stopped).
+    // absorbedPhys = physical damage negated by armor, absorbedElem = elemental damage
+    // negated by elem + magic resist, absorbedShield = damage stopped by force field.
+    let absorbedPhys = 0, absorbedElem = 0, absorbedShield = 0;
+    // Raw (pre-resist) elemental total for this attack, used for full-negation events.
+    let rawElemTotal = 0;
 
     const chargeHolyStrikeFromAbsorb = (absorbedAmount) => {
         if (absorbedAmount <= 0) return;
@@ -7177,17 +7403,28 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     };
 
     if (!atkHit) {
+        // A miss/dodge/divine-negate negates the ENTIRE incoming attack. Estimate the
+        // would-be damage (physical roll + elemental) so it counts toward negation tracking.
+        const negEstPhysRaw = Math.floor((Number(attacker.dmgMin || 0) + Number(attacker.dmgMax || 0)) / 2) ;
+        const negEstPhys = Math.floor(negEstPhysRaw * rogueWeaponPenalty * physicalDamagePenalty);
+        const negEstElem = Math.floor(ELEMENTS.reduce((s, el) => s + ((attacker.elem_dmg || {})[el] || 0), 0));
         if (divineNegate) {
             logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
+            absorbedPhys += Math.max(0, negEstPhys);
+            absorbedElem += Math.max(0, negEstElem);
         } else if (forceMiss && dodgeChance > 0.001) {
             const lostAgi = Math.floor((defender.agility || 0) * 0.05);
             defender.agility = Math.floor((defender.agility || 0) * 0.95);
             logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
+            absorbedPhys += Math.max(0, negEstPhys);
+            absorbedElem += Math.max(0, negEstElem);
         } else {
             const atkDeficit = Math.max(0, defAgi - totalHitStat);
             const glanceChance = Math.min(0.85, Math.max(0.05, 0.20 + atkHitChance * atkHitChance - Math.max(0, atkDeficit - 100) / 6000));
             if (Math.random() >= glanceChance) {
                 logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
+                absorbedPhys += Math.max(0, negEstPhys);
+                absorbedElem += Math.max(0, negEstElem);
             } else {
                 // Design rule: glancing blows should be *reduced* damage, never higher than a normal hit.
                 // Use the non-crit base (dmgMin) and then apply the glance reduction further down the pipeline.
@@ -7224,7 +7461,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
                         ed = Math.max(0, ed);
                     } else {
+                        const edBefore = ed;
                         ed = Math.max(0, ed - eRes - mRes);
+                        absorbedElem += edBefore - ed;
                     }
                     gElem += Math.floor(ed);
                 }
@@ -7238,6 +7477,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 if (gDmg > 0 && (defender.armor || 0) > 0) {
                     const effArmor = isBackstab ? Math.floor(defender.armor * 0.5) : defender.armor;
                     const reducedPhys = Math.max(1, gPhys - Math.min(gPhys - 1, effArmor));
+                    absorbedPhys += Math.max(0, Math.min(gPhys - 1, effArmor));
                     gDmg = reducedPhys + gElem;
                 }
                 gDmg = Math.max(1, gDmg);
@@ -7254,6 +7494,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     }
                 }
                 chargeHolyStrikeFromAbsorb(absorbed);
+                absorbedShield += absorbed;
                 // Force field regeneration handled once per turn at end of simulateRound.
                 finalDmg = gDmg;
                 totalElemDmg = gElem;
@@ -7505,10 +7746,13 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 // Elemental weapon ramps are applied by weaponElementDamageMultiplier above.
                 const elemResist = ((defender.elem_resist || {})[elem] || 0) + (rampD.resFlat[elem] || 0);
                 const magicResist = Math.floor((defender.magic || 0) * 0.05);
+                rawElemTotal += ed;
                 if (hasClassModifier(attacker, 'ignore_resist_shadow')) {
                     ed = Math.max(0, ed);
                 } else {
+                    const edBefore = ed;
                     ed = Math.max(0, ed - elemResist - magicResist);
+                    absorbedElem += edBefore - ed;
                 }
                 totalElemDmg += Math.floor(ed);
             }
@@ -7519,11 +7763,16 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 const mageBaseElemRaw = Math.max(1, Math.floor((rawPhysicalDmg * zoneEffMult * atkBonusDmg) * 0.05));
                 const avgElemResist = Math.floor(ELEMENTS.reduce((sum, elem) => sum + (((defender.elem_resist || {})[elem] || 0) + (rampD.resFlat[elem] || 0)), 0) / ELEMENTS.length);
                 const magicResist = Math.floor((defender.magic || 0) * 0.05);
+                rawElemTotal += mageBaseElemRaw;
+                const mageResist = Math.min(mageBaseElemRaw, avgElemResist + magicResist);
                 const mageBaseElemDmg = Math.max(0, mageBaseElemRaw - avgElemResist - magicResist);
+                absorbedElem += mageResist;
                 totalElemDmg += mageBaseElemDmg;
             }
             if (blockCovers && !blockFails) {
                 logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
+                absorbedPhys += Math.max(0, physicalDmg);
+                absorbedElem += Math.max(0, rawElemTotal);
                 totalElemDmg = 0;
                 finalDmg = 0;
             }
@@ -7544,6 +7793,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 }
                 const physReduction = Math.min(finalDmg - 1, effArmor);
                 finalDmg = Math.max(1, finalDmg - physReduction);
+                absorbedPhys += physReduction;
             }
 
             if (totalElemDmg > 0) finalDmg += totalElemDmg;
@@ -7686,6 +7936,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 justAbsorbed = true;
             }
             chargeHolyStrikeFromAbsorb(absorbedAmount);
+            absorbedShield += absorbedAmount;
 
             const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
             logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
@@ -7723,8 +7974,9 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             const consEff = getActiveCombatEffect(defender, 'consecrate');
             if (consEff && finalDmg > 0) {
                 const reflectPct = consEff.reflect_pct || 0.15;
-                const reflect = Math.floor(finalDmg * reflectPct);
-                logLine += ` 🌿 ${reflect} reflected`;
+                const absorbedTotal = absorbedPhys + absorbedElem + absorbedShield;
+                const reflect = Math.floor(absorbedTotal * reflectPct);
+                logLine += ` 🛡️ ${Math.round(absorbedTotal)} absorbed — 🌿 ${reflect} reflected`;
                 damageCounter += reflect;
             }
             // counter_attack: 40% chance to counter for 75% damage
@@ -7796,7 +8048,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
     if (roundStartHeal > 0 && logLine) {
         logLine += ` 💚+${roundStartHeal} HP healed`;
     }
-    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender };
+    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender, absorbedPhys, absorbedElem, absorbedShield };
 }
 function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     if (options?.guaranteedHit) {
@@ -7823,6 +8075,12 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let totalDmgToA = 0, totalDmgToB = 0;
     let totalElemDmgDealtA = 0;
     let totalElemDmgDealtB = 0;
+
+    // Absorbed/negated damage totals (damage stopped by armor/resist/shield).
+    // absorbedPhysA = physical damage negated by A, absorbedElemA = elemental negated by A,
+    // absorbedShieldA = force-field durability spent for A.
+    let totalAbsorbedPhysA = 0, totalAbsorbedElemA = 0, totalAbsorbedShieldA = 0;
+    let totalAbsorbedPhysB = 0, totalAbsorbedElemB = 0, totalAbsorbedShieldB = 0;
 
     // Elemental companions
     let elemA = fighterA._elementalFighter || null;
@@ -7919,7 +8177,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         const noOpRes = () => ({
             logLine: '', damageDealt: 0, damageCounter: 0, nextAtkPenalty: false,
             healBack: 0, totalElemDmg: 0, attackerBurnDmg: 0, defenderBurnDmg: 0,
-            roundStartHeal: 0, postDmgHeal: 0, postDmgHealDefender: 0
+            roundStartHeal: 0, postDmgHeal: 0, postDmgHealDefender: 0, absorbedPhys: 0, absorbedElem: 0, absorbedShield: 0
         });
         const resA = aActs ? simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB) : noOpRes();
         const resB = bActs ? simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA) : noOpRes();
@@ -7945,6 +8203,15 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
         totalElemDmgDealtA += resA.totalElemDmg;
         totalElemDmgDealtB += resB.totalElemDmg;
+
+        // resA is A attacking B → B is the defender that absorbed the damage.
+        totalAbsorbedPhysB += resA.absorbedPhys || 0;
+        totalAbsorbedElemB += resA.absorbedElem || 0;
+        totalAbsorbedShieldB += resA.absorbedShield || 0;
+        // resB is B attacking A → A is the defender that absorbed the damage.
+        totalAbsorbedPhysA += resB.absorbedPhys || 0;
+        totalAbsorbedElemA += resB.absorbedElem || 0;
+        totalAbsorbedShieldA += resB.absorbedShield || 0;
 
         totalDmgToA += dmgToA + elemDmgToA;
         totalDmgToB += dmgToB + elemDmgToB;
@@ -8133,6 +8400,12 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         totalElemDmgDealt: Math.round(totalElemDmgDealtA),
         totalElemDmgDealtA: Math.round(totalElemDmgDealtA),
         totalElemDmgDealtB: Math.round(totalElemDmgDealtB),
+        totalAbsorbedPhysA: Math.round(totalAbsorbedPhysA),
+        totalAbsorbedElemA: Math.round(totalAbsorbedElemA),
+        totalAbsorbedShieldA: Math.round(totalAbsorbedShieldA),
+        totalAbsorbedPhysB: Math.round(totalAbsorbedPhysB),
+        totalAbsorbedElemB: Math.round(totalAbsorbedElemB),
+        totalAbsorbedShieldB: Math.round(totalAbsorbedShieldB),
         elementalHpA: Math.round(Math.max(0, elemAHp)),
         elementalHpB: Math.round(Math.max(0, elemBHp))
     };}
@@ -13000,8 +13273,8 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
             return { __error: 'Mission rewards already collected.', __status: 409 };
         }
 
-        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
-            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, isDraw ? 1 : 0, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshChar.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=gold+?,gems=gems+?,level=?,wins=?,losses=?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gems_earned=COALESCE(total_gems_earned, 0)+?,mission_gems_earned=COALESCE(mission_gems_earned, 0)+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+? WHERE id=?`,
+            [newXp, goldEarned, gemsFound, newLevel, newWins, newLosses, isDraw ? 1 : 0, finalHp, goldEarned, gemsFound, gemsFound, battle.totalDmgToB || 0, battle.totalDmgToB || 0, battle.totalAbsorbedPhysA || 0, battle.totalAbsorbedElemA || 0, battle.totalAbsorbedShieldA || 0, freshChar.id]);
         const weekStart = getCurrentWeekStart();
         await incrementWeeklyPerformance(db, freshChar.id, battle.totalDmgToB || 0, playerWon, weekStart);
         await handleReferralLevelMilestone(db, freshChar.user_id, freshChar.level, newLevel);
@@ -15323,11 +15596,11 @@ router.post('/attack/:targetId', auth, async (req, res) => {
 
         await ensureWeeklyTaskState(db, freshA);
         await ensureWeeklyTaskState(db, freshD);
-        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
-            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, battle.totalDmgToB || 0, battle.totalDmgToB || 0, freshA.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+? WHERE id=?`,
+            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, battle.totalDmgToB || 0, battle.totalDmgToB || 0, battle.totalAbsorbedPhysA || 0, battle.totalAbsorbedElemA || 0, battle.totalAbsorbedShieldA || 0, freshA.id]);
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
-        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?) WHERE id=?`,
-            [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, freshD.id]);
+        await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+? WHERE id=?`,
+            [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, battle.totalAbsorbedPhysB || 0, battle.totalAbsorbedElemB || 0, battle.totalAbsorbedShieldB || 0, freshD.id]);
         const pvpWeekStart = getCurrentWeekStart();
         await incrementWeeklyPerformance(db, freshA.id, battle.totalDmgToB || 0, attackerWon || false, pvpWeekStart);
         await incrementWeeklyPerformance(db, freshD.id, battle.totalDmgToA || 0, (!attackerWon && !isDraw) || false, pvpWeekStart);
