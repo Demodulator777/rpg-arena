@@ -7384,7 +7384,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 finalDmg = gDmg;
                 totalElemDmg = gElem;
                 if (absorbed > 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD absorbed ${absorbed} damage! ${Math.round(gDmg)} gets through`;
+                    logLine = `Round ${roundNum}: ${attacker.name} glances off — ✨ FORCE FIELD blocks the blow! ${Math.round(gDmg)} gets through`;
                     if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
                     if (defenderShield.remaining > 0) logLine += ` ${defenderShield.remaining} durability remains.`;
                 } else {
@@ -7832,9 +7832,9 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
 
             if (justAbsorbed) {
                 if (finalDmg <= 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD absorbed ${absorbedAmount} damage!`;
+                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD blocks the blow!`;
                 } else {
-                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD absorbed ${absorbedAmount} damage! ${Math.round(finalDmg)} gets through`;
+                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD blocks the blow! ${Math.round(finalDmg)} gets through`;
                     if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
                     if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
                     if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
@@ -7859,10 +7859,8 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             const consEff = getActiveCombatEffect(defender, 'consecrate');
             if (consEff && finalDmg > 0) {
                 const reflectPct = consEff.reflect_pct || 0.15;
-                const absorbedTotal = absorbedPhys + absorbedElem + absorbedShield;
-                const reflect = Math.floor(absorbedTotal * reflectPct);
-                logLine += ` 🛡️ ${Math.round(absorbedTotal)} absorbed — 🌿 ${reflect} reflected`;
-                damageCounter += reflect;
+                const absorbReflected = Math.floor((absorbedPhys + absorbedElem + absorbedShield) * reflectPct);
+                damageCounter += absorbReflected;
             }
             // counter_attack: 40% chance to counter for 75% damage
             if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
