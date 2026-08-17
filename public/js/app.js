@@ -14142,22 +14142,55 @@ async function showProfilePicSelector() {
 async function uploadProfilePic(e) {
     const file = e.target.files[0];
     if (!file) return;
-    if (!confirm('Upload custom profile picture for 500 gems? It will be reviewed by an admin.')) return;
+
+    // Load image to check dimensions
+    const img = new Image();
+    img.src = URL.createObjectURL(file);
+    await img.decode();
+
+    let finalFile = file;
+    if (img.width > 1024 || img.height > 1024) {
+        const canvas = document.createElement('canvas');
+        const ratio = Math.min(1024 / img.width, 1024 / img.height);
+        canvas.width = img.width * ratio;
+        canvas.height = img.height * ratio;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, file.type));
+        finalFile = new File([blob], file.name, { type: file.type });
+        
+        await openGameNoticeDialog({ title: 'Image Resized', message: `Image dimensions were too large (${img.width}x${img.height}). Resized to ${canvas.width}x${canvas.height} for upload.`, confirmLabel: 'Proceed' });
+    }
+
+    const confirmed = await new Promise(resolve => {
+        openGameNoticeDialog({
+            title: 'Upload Profile Picture',
+            message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.',
+            confirmLabel: 'Upload',
+            cancelLabel: 'Cancel',
+            onConfirm: () => resolve(true),
+            onCancel: () => resolve(false)
+        });
+    });
+    if (!confirmed) return;
+
     const formData = new FormData();
-    formData.append('file', file);
+    formData.append('file', finalFile);
     try {
         const token = localStorage.getItem('rpg_token');
-        const res = await fetch('/api/game/game/profile-pic/upload', {
+        const res = await fetch('/api/game/profile-pic/upload', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token },
             body: formData
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        showMsg('inv-msg', 'Upload submitted for review!', false);
+        if (!res.ok) throw new Error(data.error || 'Upload failed');
+        
+        await openGameNoticeDialog({ title: 'Upload Successful', message: 'Upload submitted for review!', confirmLabel: 'Close' });
         document.getElementById('profile-pic-modal')?.remove();
     } catch (e) {
-        showMsg('inv-msg', e.message, true);
+        await openGameNoticeDialog({ title: 'Upload Failed', message: e.message, confirmLabel: 'Close' });
     }
 }
 
