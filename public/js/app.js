@@ -14149,6 +14149,7 @@ async function uploadProfilePic(e) {
     await img.decode();
 
     let finalFile = file;
+    let resized = false;
     if (img.width > 1024 || img.height > 1024) {
         const canvas = document.createElement('canvas');
         const ratio = Math.min(1024 / img.width, 1024 / img.height);
@@ -14159,14 +14160,13 @@ async function uploadProfilePic(e) {
         
         const blob = await new Promise(resolve => canvas.toBlob(resolve, file.type));
         finalFile = new File([blob], file.name, { type: file.type });
-        
-        await openGameNoticeDialog({ title: 'Image Resized', message: `Image dimensions were too large (${img.width}x${img.height}). Resized to ${canvas.width}x${canvas.height} for upload.`, confirmLabel: 'Proceed' });
+        resized = true;
     }
 
     const confirmed = await new Promise(resolve => {
         openGameNoticeDialog({
             title: 'Upload Profile Picture',
-            message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.',
+            message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.' + (resized ? '<br><br><b>Image was resized to 1024x1024.</b>' : ''),
             confirmLabel: 'Upload',
             cancelLabel: 'Cancel',
             onConfirm: () => resolve(true),
@@ -14179,6 +14179,7 @@ async function uploadProfilePic(e) {
     formData.append('file', finalFile);
     try {
         const token = localStorage.getItem('rpg_token');
+        // Fix: Removed doubled /game/ path
         const res = await fetch('/api/game/profile-pic/upload', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token },
@@ -14187,8 +14188,9 @@ async function uploadProfilePic(e) {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Upload failed');
         
-        await openGameNoticeDialog({ title: 'Upload Successful', message: 'Upload submitted for review!', confirmLabel: 'Close' });
+        // Fix: Close modal first so notification isn't blocked
         document.getElementById('profile-pic-modal')?.remove();
+        await openGameNoticeDialog({ title: 'Upload Successful', message: 'Upload submitted for review!', confirmLabel: 'Close' });
     } catch (e) {
         await openGameNoticeDialog({ title: 'Upload Failed', message: e.message, confirmLabel: 'Close' });
     }
