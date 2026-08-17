@@ -48,7 +48,10 @@ const uploadLimiter = rateLimit({
     max: 20,
     standardHeaders: true,
     legacyHeaders: false,
-    handler: (req, res) => res.status(429).json({ error: 'Too many uploads. Try again later.' })
+    handler: (req, res) => {
+        console.warn('[Upload] Rate limit exceeded for IP:', req.ip);
+        res.status(429).json({ error: 'Too many uploads. Try again later.' });
+    }
 });
 
 const storage = multer.diskStorage({
