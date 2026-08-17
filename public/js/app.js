@@ -14115,12 +14115,13 @@ async function showProfilePicSelector() {
                 <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
                 <div id="profile-pic-options" style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:16px;">${optionsHtml}</div>
                 <div style="margin-bottom:16px;">
-                    <button class="btn-secondary" onclick="document.getElementById('pic-upload').click()">Upload Custom Picture (500 💎)</button>
+                    <button class="btn-secondary" id="btn-upload-trigger">Upload Custom Picture (500 💎)</button>
                     <input type="file" id="pic-upload" hidden accept="image/png,image/jpeg">
                 </div>
                 <button class="btn-primary" id="profile-pic-close-btn">Close</button>
             </div>
         `;
+        modal.querySelector('#btn-upload-trigger').addEventListener('click', () => modal.querySelector('#pic-upload').click());
         modal.querySelector('#pic-upload').addEventListener('change', uploadProfilePic);
 
         modal.querySelector('#profile-pic-close-btn').addEventListener('click', () => modal.remove());
