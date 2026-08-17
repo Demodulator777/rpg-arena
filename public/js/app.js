@@ -14177,22 +14177,25 @@ async function uploadProfilePic(e) {
 
     const formData = new FormData();
     formData.append('file', finalFile);
+    console.log('FormData prepared:', finalFile);
+
     try {
         const token = localStorage.getItem('rpg_token');
-        // Fix: Removed doubled /game/ path
         const res = await fetch('/api/game/profile-pic/upload', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token },
             body: formData
         });
+        console.log('Upload response status:', res.status);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Upload failed');
         
-        // Fix: Close modal first so notification isn't blocked
-        document.getElementById('profile-pic-modal')?.remove();
         await openGameNoticeDialog({ title: 'Upload Successful', message: 'Upload submitted for review!', confirmLabel: 'Close' });
     } catch (e) {
+        console.error('Upload error:', e);
         await openGameNoticeDialog({ title: 'Upload Failed', message: e.message, confirmLabel: 'Close' });
+    } finally {
+        document.getElementById('profile-pic-modal')?.remove();
     }
 }
 
