@@ -10595,7 +10595,6 @@ router.post('/profile-pic/set', auth, async (req, res) => {
 
 router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
     try {
-        await ensurePendingProfilePicsTable(await getDb());
         uploadProfilePic(req, res, async (err) => {
             if (err) return res.status(400).json({ error: err.message });
             if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
