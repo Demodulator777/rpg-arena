@@ -68,6 +68,8 @@ function renderLayout() {
         });
     });
     loadTab('csp');
+    updatePendingBadge();
+    setInterval(updatePendingBadge, 30000);
 }
 
 function loadTab(name) {
@@ -1750,3 +1752,37 @@ document.addEventListener('click', function(e) {
 });
 
 init();
+
+function renderProfilePicReview() {
+    var el = document.getElementById('tab-profile-pic-review');
+    el.innerHTML = '<div class="loading">Loading pending uploads...</div>';
+    API('/admin/pending-profile-pics').then(function(res) {
+        var pending = res.pending || [];
+        if (!pending.length) { el.innerHTML = '<p>No pending profile pictures.</p>'; return; }
+        var html = '<div style="display:flex;flex-wrap:wrap;gap:10px">';
+        pending.forEach(function(p) {
+            html += '<div class="card" style="width:150px;text-align:center;padding:10px">' +
+                '<img src="/' + escHtml(p.image_path) + '" style="width:100px;height:100px;object-fit:cover;border-radius:50%">' +
+                '<div style="font-size:12px;margin:5px 0">' + escHtml(p.char_name) + '</div>' +
+                '<button class="db-btn" style="background:#2ecc71;margin-right:5px" onclick="reviewPic(' + p.id + ', true)">Approve</button>' +
+                '<button class="db-btn" style="background:#e74c3c" onclick="reviewPic(' + p.id + ', false)">Reject</button>' +
+                '</div>';
+        });
+        el.innerHTML = html + '</div>';
+    }).catch(function(e) { el.innerHTML = '<p class="error">Error: ' + escHtml(e.message) + '</p>'; });
+}
+
+window.reviewPic = function(id, approve) {
+    fetch('/api/game/admin/profile-pic/review', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify({ id: id, approve: approve })
+    }).then(function() { renderProfilePicReview(); updatePendingBadge(); });
+};
+
+function updatePendingBadge() {
+    API('/admin/pending-profile-pics/count').then(function(res) {
+        var tab = document.querySelector('[data-tab="profile-pic-review"]');
+        if (tab) tab.textContent = 'Profile Pic Review (' + res.count + ')';
+    });
+}
