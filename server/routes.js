@@ -6755,6 +6755,9 @@ function getEquippedSetCounts(equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (!data?.setId) continue;
+            // Jewelry / accessories (rings, amulets, trinkets) are not armor set
+            // pieces — exclude them so they never count toward a set bonus.
+            if (data?.slot === 'ring' || data?.slot === 'amulet' || data?.slot === 'accessory') continue;
             counts[data.setId] = (counts[data.setId] || 0) + 1;
         } catch {}
     }
@@ -6796,6 +6799,7 @@ function getSetMaxQuality(equippedItems, setId) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
             if (data?.setId !== setId) continue;
+            if (data?.slot === 'ring' || data?.slot === 'amulet' || data?.slot === 'accessory') continue;
             const q = data?.quality;
             if (!best || (QUALITY_SCALE[q] || 1) > (QUALITY_SCALE[best] || 1)) best = q;
         } catch {}
