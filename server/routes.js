@@ -81,7 +81,7 @@ const profilePicStorage = multer.diskStorage({
 });
 const uploadProfilePic = multer({
     storage: profilePicStorage,
-    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    limits: { fileSize: 5 * 1024 * 1024 }, // Increased to 5MB limit
     fileFilter: (req, file, cb) => {
         if (!['.png', '.jpg', '.jpeg'].includes(require('path').extname(file.originalname).toLowerCase())) {
             return cb(new Error('Only PNG/JPG allowed.'));
@@ -10593,7 +10593,7 @@ router.post('/profile-pic/set', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/game/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
+router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
     try {
         await ensurePendingProfilePicsTable(await getDb());
         uploadProfilePic(req, res, async (err) => {
