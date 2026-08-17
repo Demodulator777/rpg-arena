@@ -35,6 +35,7 @@ function renderLayout() {
         { id: 'actions', label: 'Action Log' },
         { id: 'flagged', label: 'Flagged' },
         { id: 'bans', label: 'Bans' },
+        { id: 'profile-pic-review', label: 'Profile Pic Review' },
     ];
     if (!isModOnly) {
         tabs.push(
