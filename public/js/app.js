@@ -14121,7 +14121,7 @@ async function showProfilePicSelector() {
                 <button class="btn-primary" id="profile-pic-close-btn">Close</button>
             </div>
         `;
-        document.getElementById('pic-upload').addEventListener('change', uploadProfilePic);
+        modal.querySelector('#pic-upload').addEventListener('change', uploadProfilePic);
 
         modal.querySelector('#profile-pic-close-btn').addEventListener('click', () => modal.remove());
         modal.querySelector('#profile-pic-options').addEventListener('click', async (e) => {
