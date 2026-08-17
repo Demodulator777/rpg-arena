@@ -94,7 +94,7 @@ const uploadProfilePic = multer({
         }
         cb(null, true);
     }
-}).single('file');
+}).single('profilePic');
 
 // Migration: pending_profile_pics
 async function ensurePendingProfilePicsTable(db) {
