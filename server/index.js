@@ -97,6 +97,17 @@ getDb().then(async (db) => {
   )` }); } catch {}
 
   // Seed default banner if none exists
+  // Pending profile pics table
+  try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS pending_profile_pics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        char_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at INTEGER NOT NULL
+    )`, args: [] }); } catch {}
+
+  // Seed default banner if none exists
   await bannerModule.seedDefaultBanner(db);
 
   // Quick DB init only — heavy startup runs after server starts
