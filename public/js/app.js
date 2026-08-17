@@ -9630,30 +9630,74 @@ function _renderAssignList() {
     if (!list) return;
     const isCaptured = (m) => m.captured || false;
     const sel = (m) => _assignSelections[m.id] || { outpost: -1, role: '' };
-    list.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px">${_assignIsAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
-        ${!_assignIsAttacker ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">🛡️ Defenders pick a battle role. This only applies when you defend an outpost.</div>' : ''}
-        <div style="display:flex;flex-direction:column;gap:8px">
-        ${_assignMembers.map(m => {
-            const cur = sel(m);
-            return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;border-radius:10px;border:1px solid #ffffff12;background:rgba(0,0,0,0.18)${isCaptured(m) ? ';opacity:0.5' : ''}">
-                <div style="flex:1 1 150px;min-width:130px;display:flex;align-items:center;gap:6px">
-                    <span style="font-size:0.82rem;font-weight:600">${escHtml(m.name)}</span>
-                    ${isCaptured(m) ? '<span style="font-size:0.65rem;color:#e74c3c">(captured)</span>' : ''}
+    const roleGroupLabel = { tank: '🛡️ Tanks', dps: '⚔️ DPS', heal: '💚 Healers/Support' };
+    const roleGroupOf = (role) => (role === 'tank' ? 'tank' : (role === 'healer' || role === 'support') ? 'heal' : 'dps');
+
+    function memberRow(m) {
+        const cur = sel(m);
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid #ffffff10;background:rgba(0,0,0,0.15)${isCaptured(m) ? ';opacity:0.5' : ''}">
+                <div style="flex:1 1 130px;min-width:115px;display:flex;align-items:center;gap:6px">
+                    <span style="font-size:0.8rem;font-weight:600">${escHtml(m.name)}</span>
+                    ${isCaptured(m) ? '<span style="font-size:0.62rem;color:#e74c3c">(captured)</span>' : ''}
                 </div>
-                <div style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
-                ${!_assignIsAttacker ? `<select data-assign-role="${m.id}" ${isCaptured(m) ? 'disabled' : ''} style="padding:5px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.72rem;flex:1 1 120px;min-width:120px">
-                    <option value="" ${cur.role === '' ? 'selected' : ''}>— No Role (DPS) —</option>
+                <div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
+                ${!_assignIsAttacker ? `<select data-assign-role="${m.id}" ${isCaptured(m) ? 'disabled' : ''} style="padding:4px 5px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.7rem;flex:1 1 90px;min-width:90px">
+                    <option value="" ${cur.role === '' ? 'selected' : ''}>⚔️ DPS</option>
                     <option value="tank" ${cur.role === 'tank' ? 'selected' : ''}>🛡️ Tank</option>
-                    <option value="dps" ${cur.role === 'dps' ? 'selected' : ''}>⚔️ Damage Dealer</option>
+                    <option value="dps" ${cur.role === 'dps' ? 'selected' : ''}>⚔️ DPS</option>
                     <option value="healer" ${cur.role === 'healer' ? 'selected' : ''}>💚 Healer</option>
                     <option value="support" ${cur.role === 'support' ? 'selected' : ''}>✨ Support</option>
                 </select>` : ''}
-                <button class="btn-secondary btn-sm" data-action="openAssignOutpost" data-args="${encodeActionArgs([m.id])}" ${isCaptured(m) ? 'disabled' : ''} style="flex:1 1 130px;min-width:120px;padding:6px 8px;font-size:0.78rem">
+                <button class="btn-secondary btn-sm" data-action="openAssignOutpost" data-args="${encodeActionArgs([m.id])}" ${isCaptured(m) ? 'disabled' : ''} style="flex:1 1 100px;min-width:90px;padding:5px 8px;font-size:0.76rem">
                     ${cur.outpost >= 0 ? `Outpost ${cur.outpost + 1}` : '— Unassigned —'}
                 </button>
             </div>`;
-        }).join('')}
+    }
+
+    // Group members by outpost, then by role; leftover members go to Unassigned.
+    const buckets = {};
+    for (let i = 0; i < 5; i++) buckets[i] = { tank: [], dps: [], heal: [] };
+    const unassigned = [];
+    for (const m of _assignMembers) {
+        const cur = sel(m);
+        if (cur.outpost >= 0 && cur.outpost <= 4) {
+            buckets[cur.outpost][roleGroupOf(cur.role || '')].push(m);
+        } else {
+            unassigned.push(m);
+        }
+    }
+
+    let html = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px">${_assignIsAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
+        ${!_assignIsAttacker ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">🛡️ Defenders pick a battle role. This only applies when you defend an outpost.</div>' : ''}
+        <div style="display:flex;flex-direction:column;gap:10px">`;
+
+    for (let i = 0; i < 5; i++) {
+        const b = buckets[i];
+        const total = b.tank.length + b.dps.length + b.heal.length;
+        html += `<div style="border:1px solid #ffffff14;border-radius:10px;background:rgba(0,0,0,0.20);overflow:hidden">
+            <div style="padding:6px 10px;background:rgba(241,196,15,0.10);font-size:0.78rem;font-weight:700;color:var(--gold)">🏰 Outpost ${i + 1} <span style="font-weight:400;color:var(--text-dim)">${total ? `(${total} assigned)` : ''}</span></div>
+            <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
+                ${['tank', 'dps', 'heal'].map(g => {
+                    if (!b[g].length) return '';
+                    return `<div>
+                        <div style="font-size:0.68rem;font-weight:600;color:var(--text-dim);margin-bottom:4px">${roleGroupLabel[g]}:</div>
+                        <div style="display:flex;flex-direction:column;gap:5px">${b[g].map(memberRow).join('')}</div>
+                    </div>`;
+                }).join('') || '<div style="font-size:0.7rem;color:var(--text-dim)">No fighters assigned.</div>'}
+            </div>
         </div>`;
+    }
+
+    html += `<div style="border:1px solid #ffffff12;border-radius:10px;background:rgba(0,0,0,0.16);overflow:hidden">
+        <div style="padding:6px 10px;background:rgba(231,76,60,0.10);font-size:0.78rem;font-weight:700;color:#e74c3c">— Unassigned — <span style="font-weight:400;color:var(--text-dim)">${unassigned.length ? `(${unassigned.length})` : ''}</span></div>
+        <div style="padding:8px;display:flex;flex-direction:column;gap:5px">
+            ${unassigned.length ? unassigned.map(memberRow).join('') : '<div style="font-size:0.7rem;color:var(--text-dim)">All fighters assigned.</div>'}
+        </div>
+    </div>`;
+
+    html += `</div>`;
+    list.innerHTML = html;
+
     list.querySelectorAll('select[data-assign-role]').forEach(selEl => {
         selEl.addEventListener('change', (ev) => {
             const cid = Number(selEl.getAttribute('data-assign-role'));
