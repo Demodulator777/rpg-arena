@@ -14111,12 +14111,17 @@ async function showProfilePicSelector() {
         }).join('');
 
         modal.innerHTML = `
-            <div style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
+            <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
                 <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
                 <div id="profile-pic-options" style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:16px;">${optionsHtml}</div>
+                <div style="margin-bottom:16px;">
+                    <button class="btn-secondary" onclick="document.getElementById('pic-upload').click()">Upload Custom Picture (500 💎)</button>
+                    <input type="file" id="pic-upload" hidden accept="image/png,image/jpeg">
+                </div>
                 <button class="btn-primary" id="profile-pic-close-btn">Close</button>
             </div>
         `;
+        document.getElementById('pic-upload').addEventListener('change', uploadProfilePic);
 
         modal.querySelector('#profile-pic-close-btn').addEventListener('click', () => modal.remove());
         modal.querySelector('#profile-pic-options').addEventListener('click', async (e) => {
@@ -14128,6 +14133,28 @@ async function showProfilePicSelector() {
         });
 
         document.body.appendChild(modal);
+    } catch (e) {
+        showMsg('inv-msg', e.message, true);
+    }
+}
+
+async function uploadProfilePic(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (!confirm('Upload custom profile picture for 500 gems? It will be reviewed by an admin.')) return;
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const token = localStorage.getItem('rpg_token');
+        const res = await fetch('/api/game/game/profile-pic/upload', {
+            method: 'POST',
+            headers: { 'Authorization': 'Bearer ' + token },
+            body: formData
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        showMsg('inv-msg', 'Upload submitted for review!', false);
+        document.getElementById('profile-pic-modal')?.remove();
     } catch (e) {
         showMsg('inv-msg', e.message, true);
     }
