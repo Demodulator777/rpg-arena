@@ -14179,7 +14179,7 @@ async function uploadProfilePic(e) {
     if (!confirmed) return;
 
     const formData = new FormData();
-    formData.append('file', finalFile);
+    formData.append('profilePic', finalFile);
     try {
         const token = localStorage.getItem('rpg_token');
         const res = await fetch('/api/game/profile-pic/upload', {
