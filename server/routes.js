@@ -17602,9 +17602,10 @@ async function computeWeeklyLeaderboard(db) {
                     FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
                         AND json_extract(substr(body, 15), '$.type') = 'mission'
                         AND sent_at >= ? AND sent_at < ?
-                ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC LIMIT 10
+                ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
             `, params);
-            for (const r of rows) {
+            const winTop10Rows = rows.slice(0, 10);
+            for (const r of winTop10Rows) {
                 const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
                 if (!ch) continue;
                 const entry = {
@@ -17907,6 +17908,87 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
         squadRollup.sort((a, b) => b.total_wins - a.total_wins || b.total_dmg - a.total_dmg);
 
         res.json({ week_start: weekStart, total_battles: totalBattles, stats, squads: squadRollup });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Recompute the squad weekly winners for a given week using the fixed full-list
+// logic (top-10 members per squad, not the global top-10 individuals) and overwrite
+// the stored award row. Rewards already sent are left untouched.
+router.post('/admin/weekly-squad-recompute', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const weekStart = Number(req.body.week_start) || getCurrentWeekStart();
+        const weekEnd = weekStart + 7 * 86400;
+        const params = [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd];
+
+        const dmgRows = await dbAll(db, `
+            SELECT char_id, SUM(dmg) AS total_dmg FROM (
+                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg FROM battles WHERE fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg FROM messages
+                    WHERE body LIKE 'BATTLE_REPORT:%' AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?
+            ) GROUP BY char_id ORDER BY total_dmg DESC
+        `, params);
+        const winRows = await dbAll(db, `
+            SELECT char_id, SUM(is_win) AS total_wins FROM (
+                SELECT attacker_id AS char_id, CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win FROM battles WHERE fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT defender_id AS char_id, CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                UNION ALL
+                SELECT receiver_id AS char_id, CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win FROM messages
+                    WHERE body LIKE 'BATTLE_REPORT:%' AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?
+            ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
+        `, params);
+
+        const squadWeekly = await computeSquadWeeklyWinners(db, dmgRows, winRows);
+
+        const existing = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
+        const sq = (g) => g ? { id: g.squad_id, name: g.name, tag: g.tag || '', logo: g.logo || '', members: g.member_count, dmg: g.total_dmg, wins: g.total_wins, top10: (g === squadWeekly.dmgWinner ? 'dmg' : 'win') } : null;
+
+        await dbRun(db, `UPDATE weekly_leaderboard_awards SET
+            squad_winner_id=?, squad_winner_name=?, squad_winner_tag=?, squad_winner_logo=?, squad_winner_members=?, squad_winner_dmg=?, squad_dmg_top10_data=?,
+            squad_win_winner_id=?, squad_win_winner_name=?, squad_win_winner_tag=?, squad_win_winner_logo=?, squad_win_winner_members=?, squad_win_wins=?, squad_win_top10_data=?
+            WHERE week_start=?`,
+            [
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0,
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '',
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.tag : '',
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.logo : '',
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.member_count : 0,
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.total_dmg : 0,
+                JSON.stringify(squadWeekly.dmgTop10 || []),
+                squadWeekly.winWinner ? squadWeekly.winWinner.squad_id : 0,
+                squadWeekly.winWinner ? squadWeekly.winWinner.name : '',
+                squadWeekly.winWinner ? squadWeekly.winWinner.tag : '',
+                squadWeekly.winWinner ? squadWeekly.winWinner.logo : '',
+                squadWeekly.winWinner ? squadWeekly.winWinner.member_count : 0,
+                squadWeekly.winWinner ? squadWeekly.winWinner.total_wins : 0,
+                JSON.stringify(squadWeekly.winTop10 || []),
+                weekStart
+            ]);
+
+        // If no award row existed for this week, create one
+        if (!existing) {
+            await dbRun(db, `INSERT INTO weekly_leaderboard_awards
+                (week_start, squad_winner_id, squad_winner_name, squad_winner_tag, squad_winner_logo, squad_winner_members, squad_winner_dmg, squad_dmg_top10_data,
+                 squad_win_winner_id, squad_win_winner_name, squad_win_winner_tag, squad_win_winner_logo, squad_win_winner_members, squad_win_wins, squad_win_top10_data)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                [weekStart,
+                 squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.tag : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.logo : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.member_count : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.total_dmg : 0, JSON.stringify(squadWeekly.dmgTop10 || []),
+                 squadWeekly.winWinner ? squadWeekly.winWinner.squad_id : 0, squadWeekly.winWinner ? squadWeekly.winWinner.name : '', squadWeekly.winWinner ? squadWeekly.winWinner.tag : '', squadWeekly.winWinner ? squadWeekly.winWinner.logo : '', squadWeekly.winWinner ? squadWeekly.winWinner.member_count : 0, squadWeekly.winWinner ? squadWeekly.winWinner.total_wins : 0, JSON.stringify(squadWeekly.winTop10 || [])]);
+        }
+
+        res.json({
+            success: true,
+            week_start: weekStart,
+            squad_dmg_winner: sq(squadWeekly.dmgWinner),
+            squad_win_winner: sq(squadWeekly.winWinner),
+            dmgTop10: squadWeekly.dmgTop10,
+            winTop10: squadWeekly.winTop10,
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
