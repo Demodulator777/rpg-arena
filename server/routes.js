@@ -17881,7 +17881,32 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
             stats.sort((a, b) => b.total_battles - a.total_battles || b.wins - a.wins);
         }
 
-        res.json({ week_start: weekStart, total_battles: totalBattles, stats });
+        // Squad rollup — sum each squad's top-10 members' wins/battles/damage for
+        // this week (mirrors computeSquadWeeklyWinners), so admins can verify winners.
+        const squads = await dbAll(db, 'SELECT id, name, squad_tag FROM squads');
+        const members = await dbAll(db, 'SELECT squad_id, char_id FROM squad_members');
+        const squadMap = new Map();
+        for (const sq of squads) squadMap.set(Number(sq.id), { id: Number(sq.id), name: sq.name, tag: sq.squad_tag || '', winMembers: [], dmgMembers: [], memberCount: 0 });
+        for (const m of members) {
+            const s = squadMap.get(Number(m.squad_id));
+            if (!s) continue;
+            const cid = Number(m.char_id);
+            const cs = charStatMap[cid];
+            s.memberCount++;
+            s.winMembers.push(cs ? cs.wins : 0);
+            s.dmgMembers.push(cs ? cs.dmg_dealt : 0);
+        }
+        const squadRollup = [];
+        for (const s of squadMap.values()) {
+            const top10Wins = s.winMembers.slice().sort((a, b) => b - a).slice(0, 10);
+            const totalWins = top10Wins.reduce((a, v) => a + v, 0);
+            const top10Dmg = s.dmgMembers.slice().sort((a, b) => b - a).slice(0, 10);
+            const totalDmg = top10Dmg.reduce((a, v) => a + v, 0);
+            squadRollup.push({ id: s.id, name: s.name, tag: s.tag, member_count: s.memberCount, total_wins: totalWins, counted_wins: top10Wins.filter(v => v > 0).length, total_dmg: totalDmg, counted_dmg: top10Dmg.filter(v => v > 0).length });
+        }
+        squadRollup.sort((a, b) => b.total_wins - a.total_wins || b.total_dmg - a.total_dmg);
+
+        res.json({ week_start: weekStart, total_battles: totalBattles, stats, squads: squadRollup });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
