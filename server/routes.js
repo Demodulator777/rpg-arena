@@ -7861,6 +7861,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 const reflectPct = consEff.reflect_pct || 0.15;
                 const absorbReflected = Math.floor((absorbedPhys + absorbedElem + absorbedShield) * reflectPct);
                 damageCounter += absorbReflected;
+                logLine += ` 🌿 ${Math.round(absorbReflected)} reflected`;
             }
             // counter_attack: 40% chance to counter for 75% damage
             if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
