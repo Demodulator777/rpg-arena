@@ -925,6 +925,7 @@ function loadWeekly() {
         '<h2 style="margin:0;border:none">📊 Weekly Stats</h2>' +
         '<input type="date" id="weekly-date" value="' + monday.toISOString().slice(0,10) + '" style="padding:6px 10px;background:#14141e;border:1px solid #2a2a35;border-radius:6px;color:inherit;font-size:13px">' +
         '<button class="db-btn weekly-load-btn" style="background:#c8a86e;color:#0a0a0f;padding:6px 14px;font-size:12px">📅 Load Week</button>' +
+        '<button class="db-btn weekly-recompute-squad" style="background:#7d3c98;color:#fff;padding:6px 14px;font-size:12px">🏰 Recompute Squad Winners</button>' +
         '</div><div id="weekly-summary" class="loading">Loading...</div><div id="weekly-table-wrap"></div>';
     // Event delegation for weekly actions
     if (!el._weeklyDelegation) {
@@ -933,6 +934,8 @@ function loadWeekly() {
             var target = e.target;
             if (target.classList.contains('weekly-load-btn')) {
                 loadWeeklyData();
+            } else if (target.classList.contains('weekly-recompute-squad')) {
+                recomputeWeeklySquad();
             } else if (target.classList.contains('weekly-sort')) {
                 sortWeekly(target.dataset.col);
             }
@@ -1029,6 +1032,31 @@ function loadWeeklyData() {
         window._weeklyData = stats;
     }).catch(function(e) {
         summary.innerHTML = '<p class="error">Error loading weekly stats: ' + escHtml(e.message) + '</p>';
+    });
+}
+
+function recomputeWeeklySquad() {
+    var dateInput = document.getElementById('weekly-date');
+    if (!dateInput) return;
+    var parts = dateInput.value.split('-');
+    var monday = new Date(Date.UTC(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]), 0, 0, 0, 0));
+    var weekTs = Math.floor(monday.getTime() / 1000);
+    if (!window.confirm('Recompute squad winners for this week and overwrite the stored Hall of Fame record? Rewards already sent are left as-is.')) return;
+    fetch('/api/game/admin/weekly-squad-recompute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify({ week_start: weekTs })
+    }).then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+    }).then(function(res) {
+        var lines = ['Squad standings recomputed for week ' + new Date(res.week_start * 1000).toISOString().slice(0, 10) + ':'];
+        if (res.dmgTop10) lines.push('Damage top10: ' + res.dmgTop10.map(function(x) { return x.name + ' (' + Number(x.total_dmg || 0).toLocaleString() + ')'; }).join(', '));
+        if (res.winTop10) lines.push('Wins top10: ' + res.winTop10.map(function(x) { return x.name + ' (' + Number(x.total_wins || 0) + ')'; }).join(', '));
+        window.alert(lines.join('\n'));
+        loadWeeklyData();
+    }).catch(function(e) {
+        window.alert('Error: ' + (e.message || e));
     });
 }
 
