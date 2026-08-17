@@ -14163,6 +14163,9 @@ async function uploadProfilePic(e) {
         resized = true;
     }
 
+    // Immediately close the profile selector modal
+    document.getElementById('profile-pic-modal')?.remove();
+
     const confirmed = await new Promise(resolve => {
         openGameNoticeDialog({
             title: 'Upload Profile Picture',
@@ -14177,8 +14180,6 @@ async function uploadProfilePic(e) {
 
     const formData = new FormData();
     formData.append('file', finalFile);
-    console.log('FormData prepared:', finalFile);
-
     try {
         const token = localStorage.getItem('rpg_token');
         const res = await fetch('/api/game/profile-pic/upload', {
@@ -14186,7 +14187,6 @@ async function uploadProfilePic(e) {
             headers: { 'Authorization': 'Bearer ' + token },
             body: formData
         });
-        console.log('Upload response status:', res.status);
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Upload failed');
         
@@ -14194,8 +14194,6 @@ async function uploadProfilePic(e) {
     } catch (e) {
         console.error('Upload error:', e);
         await openGameNoticeDialog({ title: 'Upload Failed', message: e.message, confirmLabel: 'Close' });
-    } finally {
-        document.getElementById('profile-pic-modal')?.remove();
     }
 }
 
