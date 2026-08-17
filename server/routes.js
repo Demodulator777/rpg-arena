@@ -71,7 +71,36 @@ const uploadDecal = multer({
     fileFilter: imageFileFilter
 }).single('image');
 
-// Sweep legacy/invalid files from upload dirs (e.g. .svg/.html uploaded before
+// Profile pic upload storage
+const profilePicStorage = multer.diskStorage({
+    destination: 'public/images/profile-pics/',
+    filename: (req, file, cb) => {
+        const ext = require('path').extname(file.originalname);
+        cb(null, `pending-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`);
+    }
+});
+const uploadProfilePic = multer({
+    storage: profilePicStorage,
+    limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit
+    fileFilter: (req, file, cb) => {
+        if (!['.png', '.jpg', '.jpeg'].includes(require('path').extname(file.originalname).toLowerCase())) {
+            return cb(new Error('Only PNG/JPG allowed.'));
+        }
+        cb(null, true);
+    }
+}).single('file');
+
+// Migration: pending_profile_pics
+async function ensurePendingProfilePicsTable(db) {
+    await db.execute({ sql: `CREATE TABLE IF NOT EXISTS pending_profile_pics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        char_id INTEGER NOT NULL,
+        image_path TEXT NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at INTEGER NOT NULL
+    )`, args: [] });
+}
 // hardening). Only real images in allowed dirs remain serveable.
 function cleanupUploadDirs() {
     for (const dir of [SQUAD_IMG_DIR, DECAL_IMG_DIR]) {
@@ -10561,6 +10590,27 @@ router.post('/profile-pic/set', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET profile_pic = ? WHERE id = ?', [profilePic, char.id]);
 
         res.json({ success: true, profilePic });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/game/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
+    try {
+        await ensurePendingProfilePicsTable(await getDb());
+        uploadProfilePic(req, res, async (err) => {
+            if (err) return res.status(400).json({ error: err.message });
+            if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+
+            const db = await getDb();
+            const char = await getCurrentCharacter(db, req.user.userId, 'id, gems');
+            if (!char) return res.status(404).json({ error: 'Character not found' });
+            if (char.gems < 500) return res.status(400).json({ error: 'Not enough gems (need 500)' });
+
+            await dbRun(db, 'UPDATE characters SET gems=gems-500 WHERE id=?', [char.id]);
+            await dbRun(db, `INSERT INTO pending_profile_pics (user_id, char_id, image_path, created_at) VALUES (?, ?, ?, ?)`,
+                [req.user.userId, char.id, req.file.path.replace('public/', ''), Math.floor(Date.now() / 1000)]);
+
+            res.json({ success: true, message: 'Upload submitted for review.' });
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
