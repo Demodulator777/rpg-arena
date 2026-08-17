@@ -86,6 +86,7 @@ function loadTab(name) {
     else if (name === 'moderators') loadModerators();
     else if (name === 'weekly') loadWeekly();
     else if (name === 'bans') loadBans();
+    else if (name === 'profile-pic-review') renderProfilePicReview();
     else if (name === 'settings') loadSettings();
 }
 
