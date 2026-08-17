@@ -13839,6 +13839,7 @@ async function processOneAutoChar(db, state) {
             autoRewardGold(zoneDef, spotDef.difficulty, size), autoRewardXp(size),
             now, now + duration, currentMap, size, state.char_id]);
     await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?', [wantGlobal, wantGlobal, state.char_id]);
+    await recordTotalMpSpent(db, state.char_id, cost);
     await dbRun(db, 'UPDATE auto_mission_state SET auto_mp=auto_mp-?, last_result=?, updated_at=? WHERE char_id=?', [wantPool, `Restarted ${size} mission in ${spotDef.name}`, now, state.char_id]);
     await markAutoIntended(db, state.char_id, 'start');
 }
