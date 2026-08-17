@@ -26,7 +26,7 @@ app.use(cors({
     origin: corsOrigins.length ? corsOrigins : false,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Password', 'X-Tab-Session'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Password', 'X-Tab-Session', 'X-Build-Version'],
     maxAge: 86400
 }));
 app.set('trust proxy', Number(process.env.TRUST_PROXY || 1));
