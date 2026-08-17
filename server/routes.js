@@ -72,7 +72,6 @@ const uploadDecal = multer({
 }).single('image');
 
 // Profile pic upload storage
-const path = require('path');
 const PROFILE_PIC_DIR = path.join(__dirname, '../public/images/profile-pics');
 if (!fs.existsSync(PROFILE_PIC_DIR)) fs.mkdirSync(PROFILE_PIC_DIR, { recursive: true });
 
