@@ -7821,8 +7821,13 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             let absorbedAmount = 0;
             if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
                 absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
+                // Keep the elemental/bonus breakdown consistent with the reduced total:
+                // every component is reduced by the same fraction the shield absorbed.
+                const preAbsorbTotal = finalDmg;
                 finalDmg -= absorbedAmount;
                 defenderShield.remaining -= absorbedAmount;
+                const ratio = preAbsorbTotal > 0 ? ((preAbsorbTotal - absorbedAmount) / preAbsorbTotal) : 0;
+                totalElemDmg = Math.round(totalElemDmg * ratio);
                 if (defenderShield.remaining <= 0) {
                     defenderShield.active = false;
                     if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
