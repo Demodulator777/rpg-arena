@@ -7264,6 +7264,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     // Raw (pre-resist) elemental total for this attack, used for full-negation events.
     let rawElemTotal = 0;
 
+    // The defender's defensive capacity — the most incoming damage these defenses
+    // could actually stop. Caps full-negation events (block / miss / dodge / divine)
+    // so a weak defender can't "negate" more than their armor / resist allow.
+    const dArmorCap = Math.max(0, (defender.armor || 0) + ((defenderWeaponRamp && defenderWeaponRamp.armor) || 0));
+    const dMagicResist = Math.floor((defender.magic || 0) * 0.05);
+    const dElemResistCap = ELEMENTS.reduce((s, el) => s + ((defender.elem_resist || {})[el] || 0) + ((defenderWeaponRamp && defenderWeaponRamp.resFlat && defenderWeaponRamp.resFlat[el]) || 0), 0) + dMagicResist * ELEMENTS.length;
+
     const chargeHolyStrikeFromAbsorb = (absorbedAmount) => {
         if (absorbedAmount <= 0) return;
         if (defender.class !== 'paladin') return;
@@ -7295,21 +7302,21 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const negEstElem = Math.floor(ELEMENTS.reduce((s, el) => s + ((attacker.elem_dmg || {})[el] || 0), 0));
         if (divineNegate) {
             logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
-            absorbedPhys += Math.max(0, negEstPhys);
-            absorbedElem += Math.max(0, negEstElem);
+            absorbedPhys += Math.min(Math.max(0, negEstPhys), dArmorCap);
+            absorbedElem += Math.min(Math.max(0, negEstElem), dElemResistCap);
         } else if (forceMiss && dodgeChance > 0.001) {
             const lostAgi = Math.floor((defender.agility || 0) * 0.05);
             defender.agility = Math.floor((defender.agility || 0) * 0.95);
             logLine = `Round ${roundNum}: ${attacker.name} swings — DODGED by ${defender.name}`;
-            absorbedPhys += Math.max(0, negEstPhys);
-            absorbedElem += Math.max(0, negEstElem);
+            absorbedPhys += Math.min(Math.max(0, negEstPhys), dArmorCap);
+            absorbedElem += Math.min(Math.max(0, negEstElem), dElemResistCap);
         } else {
             const atkDeficit = Math.max(0, defAgi - totalHitStat);
             const glanceChance = Math.min(0.85, Math.max(0.05, 0.20 + atkHitChance * atkHitChance - Math.max(0, atkDeficit - 100) / 6000));
             if (Math.random() >= glanceChance) {
                 logLine = `Round ${roundNum}: ${attacker.name} swings — MISS`;
-                absorbedPhys += Math.max(0, negEstPhys);
-                absorbedElem += Math.max(0, negEstElem);
+                absorbedPhys += Math.min(Math.max(0, negEstPhys), dArmorCap);
+                absorbedElem += Math.min(Math.max(0, negEstElem), dElemResistCap);
             } else {
                 // Design rule: glancing blows should be *reduced* damage, never higher than a normal hit.
                 // Use the non-crit base (dmgMin) and then apply the glance reduction further down the pipeline.
@@ -7656,8 +7663,8 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             }
             if (blockCovers && !blockFails) {
                 logLine = `Round ${roundNum}: ${attacker.name} hits${critTag} — BLOCKED`;
-                absorbedPhys += Math.max(0, physicalDmg);
-                absorbedElem += Math.max(0, rawElemTotal);
+                absorbedPhys += Math.min(Math.max(0, physicalDmg), dArmorCap);
+                absorbedElem += Math.min(Math.max(0, rawElemTotal), dElemResistCap);
                 totalElemDmg = 0;
                 finalDmg = 0;
             }
@@ -7857,7 +7864,7 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
                 logLine += ` 💀 +${lifeDrainAmt} life drain`;
             }
             const consEff = getActiveCombatEffect(defender, 'consecrate');
-            if (consEff && finalDmg > 0) {
+            if (consEff && (absorbedPhys + absorbedElem + absorbedShield) > 0) {
                 const reflectPct = consEff.reflect_pct || 0.15;
                 const absorbReflected = Math.floor((absorbedPhys + absorbedElem + absorbedShield) * reflectPct);
                 damageCounter += absorbReflected;
