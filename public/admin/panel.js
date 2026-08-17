@@ -953,6 +953,7 @@ function loadWeeklyData() {
     tableWrap.innerHTML = '';
     API('/admin/weekly-stats?week_start=' + weekTs).then(function(res) {
         var stats = res.stats || [];
+        var squads = res.squads || [];
         var totalBattles = res.total_battles || 0;
         var totalPlayers = stats.length;
         var totalWins = stats.reduce(function(s, r) { return s + r.wins; }, 0);
@@ -966,8 +967,29 @@ function loadWeeklyData() {
             '  <div class="card-compact"><div class="lbl">W / L / D</div><div class="val" style="font-size:18px;font-weight:700">' + totalWins + ' / ' + totalLosses + ' / ' + totalDraws + '</div></div>' +
             '</div>';
 
+        // Squad weekly rollup (top-10 members' wins/damage, mirrors leaderboard scoring)
+        if (squads.length) {
+            var squadHtml = '<div style="margin-bottom:14px"><h3 style="margin:0 0 6px;border:none;font-size:15px">🏰 Squad Weekly (sum of top-10 members)</h3><div class="table-wrap" style="margin-bottom:8px"><table><thead><tr>' +
+                '<th>#</th><th>Squad</th>' +
+                '<th>Members</th><th>Wins (top10)</th><th>Win Contribs</th><th>Damage (top10)</th><th>Dmg Contribs</th>' +
+                '</tr></thead><tbody>';
+            squads.forEach(function(s, i) {
+                squadHtml += '<tr>' +
+                    '<td>' + (i + 1) + '</td>' +
+                    '<td><strong>' + escHtml(s.name) + '</strong> ' + (s.tag ? '<span style="color:#8a8a92">[' + escHtml(s.tag) + ']</span>' : '') + '</td>' +
+                    '<td>' + s.member_count + '</td>' +
+                    '<td style="color:#60e060"><strong>' + Number(s.total_wins).toLocaleString() + '</strong></td>' +
+                    '<td>' + s.counted_wins + '</td>' +
+                    '<td style="color:#f1c40f"><strong>' + Number(s.total_dmg).toLocaleString() + '</strong></td>' +
+                    '<td>' + s.counted_dmg + '</td>' +
+                    '</tr>';
+            });
+            squadHtml += '</tbody></table></div></div>';
+            tableWrap.innerHTML = squadHtml;
+        }
+
         if (stats.length === 0) {
-            tableWrap.innerHTML = '<p class="error" style="padding:24px">No battle data for this week.</p>';
+            tableWrap.innerHTML += '<p class="error" style="padding:24px">No battle data for this week.</p>';
             return;
         }
         var html = '<div class="table-wrap"><table><thead><tr>' +
@@ -1003,7 +1025,7 @@ function loadWeeklyData() {
         });
         html += '</tbody></table></div>';
         html += '<div style="margin-top:8px;font-size:11px;color:#6a6a70">Sort by most battles. Click column headers to sort.</div>';
-        tableWrap.innerHTML = html;
+        tableWrap.innerHTML += html;
         window._weeklyData = stats;
     }).catch(function(e) {
         summary.innerHTML = '<p class="error">Error loading weekly stats: ' + escHtml(e.message) + '</p>';
