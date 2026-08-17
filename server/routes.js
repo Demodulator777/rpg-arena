@@ -10614,6 +10614,47 @@ router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/admin/pending-profile-pics', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const pending = await dbAll(db, `SELECT p.*, c.name as char_name FROM pending_profile_pics p JOIN characters c ON p.char_id=c.id WHERE p.status='pending'`);
+        res.json({ pending });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/admin/pending-profile-pics/count', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const count = await dbGet(db, `SELECT COUNT(*) as count FROM pending_profile_pics WHERE status='pending'`);
+        res.json({ count: count.count });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/profile-pic/review', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const { id, approve } = req.body;
+        const db = await getDb();
+        const pending = await dbGet(db, 'SELECT * FROM pending_profile_pics WHERE id=?', [id]);
+        if (!pending) return res.status(404).json({ error: 'Not found' });
+        
+        if (approve) {
+            await dbRun(db, 'UPDATE pending_profile_pics SET status=? WHERE id=?', ['approved', id]);
+            // Add to unlocked list
+            const char = await dbGet(db, 'SELECT unlocked_profile_pics FROM characters WHERE id=?', [pending.char_id]);
+            const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
+            const picId = pending.image_path.replace('images/profile-pics/', '').replace('.png', '');
+            unlocked.push(picId);
+            await dbRun(db, 'UPDATE characters SET unlocked_profile_pics=? WHERE id=?', [JSON.stringify(unlocked), pending.char_id]);
+        } else {
+            await dbRun(db, 'UPDATE pending_profile_pics SET status=? WHERE id=?', ['rejected', id]);
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/profile/badges', auth, async (req, res) => {
     try {
         const db = await getDb();
