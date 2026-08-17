@@ -72,8 +72,12 @@ const uploadDecal = multer({
 }).single('image');
 
 // Profile pic upload storage
+const path = require('path');
+const PROFILE_PIC_DIR = path.join(__dirname, '../public/images/profile-pics');
+if (!fs.existsSync(PROFILE_PIC_DIR)) fs.mkdirSync(PROFILE_PIC_DIR, { recursive: true });
+
 const profilePicStorage = multer.diskStorage({
-    destination: 'public/images/profile-pics/',
+    destination: PROFILE_PIC_DIR,
     filename: (req, file, cb) => {
         const ext = require('path').extname(file.originalname);
         cb(null, `pending-${Date.now()}-${Math.random().toString(36).substr(2, 9)}${ext}`);
@@ -10596,9 +10600,16 @@ router.post('/profile-pic/set', auth, async (req, res) => {
 router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
     try {
         uploadProfilePic(req, res, async (err) => {
-            if (err) return res.status(400).json({ error: err.message });
-            if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+            if (err) {
+                console.error('[Upload] Multer error:', err);
+                return res.status(400).json({ error: err.message });
+            }
+            if (!req.file) {
+                console.error('[Upload] No file in request');
+                return res.status(400).json({ error: 'No file uploaded.' });
+            }
 
+            console.log('[Upload] File received:', req.file.path);
             const db = await getDb();
             const char = await getCurrentCharacter(db, req.user.userId, 'id, gems');
             if (!char) return res.status(404).json({ error: 'Character not found' });
@@ -10608,9 +10619,13 @@ router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
             await dbRun(db, `INSERT INTO pending_profile_pics (user_id, char_id, image_path, created_at) VALUES (?, ?, ?, ?)`,
                 [req.user.userId, char.id, req.file.path.replace('public/', ''), Math.floor(Date.now() / 1000)]);
 
+            console.log('[Upload] Pending record created.');
             res.json({ success: true, message: 'Upload submitted for review.' });
         });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('[Upload] Final error:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.get('/admin/pending-profile-pics', auth, async (req, res) => {
