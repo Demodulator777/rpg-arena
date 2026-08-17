@@ -4812,6 +4812,7 @@ let _autoSelMission = 0;
 let _autoSelectedPotions = new Map();
 let _autoSelectedHpPotions = new Map();
 let _autoHpHealThr = 50;
+let _autoHpHealOn = false;
 let _autoPickerZone = null;
 let _autoPickerSpot = null;
 let _autoPickerMissions = [];
@@ -4928,7 +4929,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                     }).join('')}
                  </div>`}
             <label class="arc-hp-stop" style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;cursor:pointer">
-                <input type="checkbox" id="auto-hp-heal-enable" style="width:16px;height:16px;accent-color:#27ae60">
+                <input type="checkbox" id="auto-hp-heal-enable" ${_autoHpHealOn || status?.hpHealEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:#27ae60">
                 <span style="font-size:0.8rem;color:var(--text-dim)">💗 Auto-drink HP potion when HP is below</span>
                 <input type="number" id="auto-hp-heal-threshold" min="1" max="99999"
                     value="${_autoHpHealThr || status?.hpHealThreshold || 50}" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.8rem">
@@ -4957,6 +4958,8 @@ async function renderAutoCompletePanel(zoneId, spotId) {
             try {
                 await api('POST', '/game/missions/auto-disable');
                 _autoSelectedPotions = new Map();
+                _autoSelectedHpPotions = new Map();
+                _autoHpHealOn = false;
                 showMsg('missions-msg', 'Auto-complete stopped. MP left in the pool was not refunded.', false);
             } catch (e) { showMsg('missions-msg', e.message, true); }
             renderAutoCompletePanel(zoneId, spotId);
@@ -5008,7 +5011,11 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                 return;
             } else {
                 _autoSelectedHpPotions.set(invId, Math.min(next, max));
+                // Adding an HP potion implies we want it consumed — auto-check the
+                // "Auto-drink HP potion when HP is below" toggle.
+                if (dir > 0) _autoHpHealOn = true;
             }
+            if (_autoSelectedHpPotions.size === 0) _autoHpHealOn = false;
             renderAutoCompletePanel(zoneId, spotId);
         });
     });
@@ -5029,6 +5036,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         const hpHealEnabled = !!document.getElementById('auto-hp-heal-enable')?.checked;
         const hpHealThreshold = Number(document.getElementById('auto-hp-heal-threshold')?.value || 50);
         if (hpHealEnabled) _autoHpHealThr = hpHealThreshold;
+        _autoHpHealOn = hpHealEnabled; // persist manual toggles too
         try {
             await api('POST', '/game/missions/auto-enable', { zone: zoneId, spot: spotId, missionIdx: _autoSelMission, size: _autoSelSize, potions: selected, hpStopEnabled, hpStopThreshold, hpPotions: hpPotionsPayload, hpHealEnabled, hpHealThreshold });
             _autoSelectedPotions = new Map();
