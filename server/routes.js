@@ -10597,7 +10597,10 @@ router.post('/profile-pic/set', auth, async (req, res) => {
 });
 
 router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
+    console.log('[Upload] Request reached /profile-pic/upload');
     try {
+        const db = await getDb();
+        await ensurePendingProfilePicsTable(db);
         uploadProfilePic(req, res, async (err) => {
             if (err) {
                 console.error('[Upload] Multer error:', err);
@@ -10631,18 +10634,26 @@ router.get('/admin/pending-profile-pics', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
+        await ensurePendingProfilePicsTable(db);
         const pending = await dbAll(db, `SELECT p.*, c.name as char_name FROM pending_profile_pics p JOIN characters c ON p.char_id=c.id WHERE p.status='pending'`);
         res.json({ pending });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('[Admin] Error fetching pending pics:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.get('/admin/pending-profile-pics/count', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
     try {
         const db = await getDb();
+        await ensurePendingProfilePicsTable(db);
         const count = await dbGet(db, `SELECT COUNT(*) as count FROM pending_profile_pics WHERE status='pending'`);
         res.json({ count: count.count });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) {
+        console.error('[Admin] Error fetching pending count:', e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 router.post('/admin/profile-pic/review', auth, async (req, res) => {
