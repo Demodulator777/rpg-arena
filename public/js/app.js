@@ -2518,6 +2518,7 @@ function renderTopBar() {
     set('topbar-avatar',el=>{
         const pic = c.profile_pic || `${c.class}.png`;
         el.src=profilePicSrc(pic);
+        el.style.objectPosition = avatarPos(c.profile_pic_offset);
         el.alt=c.class;
         el.dataset.errorHide='true';
         el.style.cursor = 'pointer';
@@ -2845,7 +2846,7 @@ function renderCharacter() {
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
-            <img src="${profilePicSrc(c.profile_pic || c.class + '.png')}" alt="${c.class}" data-error-opacity-zero="true">
+            <img src="${profilePicSrc(c.profile_pic || c.class + '.png')}" style="${avatarPos(c.profile_pic_offset)}" alt="${c.class}" data-error-opacity-zero="true">
             ${c.elemental ? (() => {
             const el = c.elemental;
             const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
@@ -10047,6 +10048,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const totalEarned = p.total_gold_earned || 0;
     const profilePic = p.profile_pic;
     const lbImg = profilePicSrc(profilePic || `${p.class}.png`);
+    const lbPos = avatarPos(p.profile_pic_offset);
     const badges = Array.isArray(p.profile_badges) ? p.profile_badges : [];
     const badgeHtml = badges.length
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
@@ -10056,7 +10058,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
-            <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
+            <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;${lbPos};border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
             <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
@@ -10114,12 +10116,13 @@ function renderLeaderboard() {
                     '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
                 history.forEach(h => {
                     const lbImg = profilePicSrc(h.profile_pic || `${h.class}.png`);
+                    const hPos = avatarPos(h.profile_pic_offset);
                     const wn = getWeekNumber(h.week_start);
                     const y = new Date(h.week_start * 1000).getUTCFullYear();
                     const val = isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins';
                     html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('openProfile', h.char_id)}>
                         <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">Week ${wn} (${y})</div>
-                        <img src="${lbImg}" alt="${h.class}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">
+                        <img src="${lbImg}" alt="${h.class}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;${hPos};border:2px solid var(--gold);margin-bottom:4px">
                         <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}</div>
                         <div style="font-size:10px;color:#8a8a90">${val}</div>
                     </div>`;
@@ -10146,10 +10149,11 @@ function renderLeaderboard() {
                     const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
                     const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
                     const lbImg = profilePicSrc(r.profile_pic || `${r.class}.png`);
+                    const rPos = avatarPos(r.profile_pic_offset);
                     const val = isDmg ? Number(r.total_dmg).toLocaleString() : Number(r.total_wins).toLocaleString();
                     html += `<div class="lb-row" ${actionAttrs('openProfile', r.char_id)}>
                         <div class="lb-rank ${rc}">${rs}</div>
-                        <img src="${lbImg}" alt="${r.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${r.class}">
+                        <img src="${lbImg}" alt="${r.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;${rPos};border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${r.class}">
                         <div class="lb-info"><div class="lb-name">${escHtml(r.name)}</div><div class="lb-sub">Lv.${r.level} ${capitalize(r.class)}</div></div>
                         <div class="lb-stats" style="grid-template-columns:1fr 1fr">
                             <div class="lb-stat"><div class="lb-stat-val">${val}</div></div>
@@ -10358,7 +10362,7 @@ async function openProfile(id) {
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
                 <div class="eq-avatar-center profile-eq-avatar">
-                    <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" alt="${p.class}" data-error-opacity-zero="true">
+                    <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="${avatarPos(p.profile_pic_offset)}" alt="${p.class}" data-error-opacity-zero="true">
                     ${p.elemental ? (() => {
                 const el = p.elemental;
                 const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
@@ -10399,7 +10403,7 @@ async function openProfile(id) {
         <div class="class-scene-content">
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
-              <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
+              <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;${avatarPos(p.profile_pic_offset)};border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
               <div><div class="profile-name">${classIconHtml} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
             </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
@@ -14092,6 +14096,13 @@ function profilePicSrc(pic) {
     return String(pic).startsWith('pending-') ? `/images/profile-pics/${pic}` : `/images/class/${pic}`;
 }
 
+function avatarPos(off) {
+    const o = off || (typeof character !== 'undefined' && character ? character.profile_pic_offset : null);
+    const x = (o && o.x != null) ? o.x : 50;
+    const y = (o && o.y != null) ? o.y : 50;
+    return `object-position:${x}% ${y}%`;
+}
+
 async function showProfilePicSelector() {
     try {
         const data = await api('GET', '/game/profile-pics');
@@ -14127,6 +14138,24 @@ async function showProfilePicSelector() {
                 </div>
             </div>` : '';
 
+        const curOff = character.profile_pic_offset || { x: 50, y: 50 };
+        const curX = (curOff.x != null) ? curOff.x : 50;
+        const curY = (curOff.y != null) ? curOff.y : 50;
+        const adjusterHtml = `
+            <div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:16px;padding-top:12px;width:100%;">
+                <div style="font-size:12px;color:#e0b84c;margin-bottom:8px;">🎯 Avatar Position</div>
+                <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;">
+                    <div id="pic-pos-preview" style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #f1c40f;cursor:grab;position:relative;background:#000;touch-action:none;user-select:none;">
+                        <img id="pic-pos-img" src="${profilePicSrc(currentPic)}" style="width:100%;height:100%;object-fit:cover;object-position:${curX}% ${curY}%;pointer-events:none;user-select:none;">
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:8px;">
+                        <button class="btn-secondary" id="pic-pos-save" style="padding:6px 12px;">Save Position</button>
+                        <button class="btn-secondary" id="pic-pos-reset" style="padding:6px 12px;">Reset</button>
+                    </div>
+                </div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:8px;">Drag to move your avatar within the circle. Affects where the avatar sits in the blob everywhere — not the full profile picture.</div>
+            </div>`;
+
         modal.innerHTML = `
             <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
                 <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
@@ -14135,6 +14164,7 @@ async function showProfilePicSelector() {
                     <button class="btn-secondary" id="btn-upload-trigger">Upload Custom Picture (500 💎)</button>
                     <input type="file" id="pic-upload" hidden accept="image/png,image/jpeg">
                 </div>
+                ${adjusterHtml}
                 ${pendingHtml}
                 <button class="btn-primary" id="profile-pic-close-btn">Close</button>
             </div>
@@ -14149,6 +14179,44 @@ async function showProfilePicSelector() {
             const picId = option.dataset.picId;
             await setProfilePic(picId);
             modal.remove();
+        });
+
+        // Avatar position adjuster
+        const posPreview = modal.querySelector('#pic-pos-preview');
+        const posImg = modal.querySelector('#pic-pos-img');
+        let posX = curX, posY = curY;
+        const applyPosPreview = () => { posImg.style.objectPosition = `${posX}% ${posY}%`; };
+        const startPosDrag = (startEvt) => {
+            const startX = posX, startY = posY;
+            const factor = 100 / posPreview.clientWidth;
+            const onMove = (e) => {
+                let dx = e.clientX - startEvt.clientX, dy = e.clientY - startEvt.clientY;
+                posX = Math.max(0, Math.min(100, Math.round(startX - dx * factor)));
+                posY = Math.max(0, Math.min(100, Math.round(startY - dy * factor)));
+                applyPosPreview();
+            };
+            const onUp = () => {
+                window.removeEventListener('pointermove', onMove);
+                window.removeEventListener('pointerup', onUp);
+                posPreview.style.cursor = 'grab';
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+            posPreview.style.cursor = 'grabbing';
+            if (posPreview.setPointerCapture) { try { posPreview.setPointerCapture(startEvt.pointerId); } catch {} }
+        };
+        posPreview.addEventListener('pointerdown', startPosDrag);
+
+        modal.querySelector('#pic-pos-reset').addEventListener('click', () => { posX = 50; posY = 50; applyPosPreview(); });
+        modal.querySelector('#pic-pos-save').addEventListener('click', async () => {
+            try {
+                const res = await api('POST', '/game/profile-pic/offset', { x: posX, y: posY });
+                if (character) character.profile_pic_offset = { x: posX, y: posY };
+                renderTopBar();
+                showMsg('inv-msg', 'Avatar position saved!', false);
+            } catch (e) {
+                showMsg('inv-msg', e.message, true);
+            }
         });
 
         document.body.appendChild(modal);
@@ -14207,6 +14275,11 @@ async function uploadProfilePic(e) {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.error || ('Upload failed (' + res.status + ')'));
+
+        if (typeof character !== 'undefined' && character) {
+            character.gems = Math.max(0, (Number(character.gems) || 0) - 500);
+            renderTopBar();
+        }
 
         await openGameNoticeDialog({
             title: 'Upload Submitted',
