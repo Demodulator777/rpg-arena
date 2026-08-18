@@ -624,17 +624,9 @@ function selectServer(el) {
   window.location.href = target.url;
 }
 (function initServerSwitch() {
-  let chosen = 'beta';
-  try { chosen = localStorage.getItem('rpg_server') || 'beta'; } catch {}
-  const target = GAME_SERVERS.find(x => x.id === chosen) || GAME_SERVERS[0];
-  let authed = false;
-  try { authed = !!localStorage.getItem('rpg_token'); } catch {}
-  // A returning user lands on the wrong origin: redirect to their chosen server
-  // unless they're already logged in here (don't kick an authed player).
-  if (target.id !== getServerId() && !authed) {
-    window.location.href = target.url;
-    return;
-  }
+  // Default the dropdown to whatever server this origin actually is. Do NOT
+  // auto-redirect on load: localStorage is per-origin and differs between the two
+  // subdomains, so redirecting "back to your chosen server" ping-pongs forever.
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyServerUI);
   else applyServerUI();
 })();
