@@ -10599,34 +10599,26 @@ router.post('/profile-pic/set', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/profile-pic/upload', auth, uploadLimiter, async (req, res) => {
-    console.log('[Upload] Request reached /profile-pic/upload');
+router.post('/profile-pic/upload', auth, uploadLimiter, uploadProfilePic, async (req, res) => {
+    console.log('[Upload] Request reached. Content-Type:', req.headers['content-type']);
     try {
+        if (!req.file) {
+            console.error('[Upload] No file in request');
+            return res.status(400).json({ error: 'No file uploaded.' });
+        }
+
+        console.log('[Upload] File received:', req.file.path);
         const db = await getDb();
-        await ensurePendingProfilePicsTable(db);
-        uploadProfilePic(req, res, async (err) => {
-            if (err) {
-                console.error('[Upload] Multer error:', err);
-                return res.status(400).json({ error: err.message });
-            }
-            if (!req.file) {
-                console.error('[Upload] No file in request');
-                return res.status(400).json({ error: 'No file uploaded.' });
-            }
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, gems');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        if (char.gems < 500) return res.status(400).json({ error: 'Not enough gems (need 500)' });
 
-            console.log('[Upload] File received:', req.file.path);
-            const db = await getDb();
-            const char = await getCurrentCharacter(db, req.user.userId, 'id, gems');
-            if (!char) return res.status(404).json({ error: 'Character not found' });
-            if (char.gems < 500) return res.status(400).json({ error: 'Not enough gems (need 500)' });
+        await dbRun(db, 'UPDATE characters SET gems=gems-500 WHERE id=?', [char.id]);
+        await dbRun(db, `INSERT INTO pending_profile_pics (user_id, char_id, image_path, created_at) VALUES (?, ?, ?, ?)`,
+            [req.user.userId, char.id, req.file.path.replace('public/', ''), Math.floor(Date.now() / 1000)]);
 
-            await dbRun(db, 'UPDATE characters SET gems=gems-500 WHERE id=?', [char.id]);
-            await dbRun(db, `INSERT INTO pending_profile_pics (user_id, char_id, image_path, created_at) VALUES (?, ?, ?, ?)`,
-                [req.user.userId, char.id, req.file.path.replace('public/', ''), Math.floor(Date.now() / 1000)]);
-
-            console.log('[Upload] Pending record created.');
-            res.json({ success: true, message: 'Upload submitted for review.' });
-        });
+        console.log('[Upload] Pending record created.');
+        res.json({ success: true, message: 'Upload submitted for review.' });
     } catch (e) {
         console.error('[Upload] Final error:', e);
         res.status(500).json({ error: e.message });
