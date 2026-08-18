@@ -593,6 +593,30 @@ body.modal-lock .topbar {
     line-height: 1.45;
 }
 
+.auth-server-select {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+.auth-server-select label {
+    color: rgba(255,255,255,0.6);
+    font-size: 0.8rem;
+    letter-spacing: 0.03em;
+}
+.auth-server-select select {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--gold-light, #f1c40f);
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    padding: 7px 10px;
+    cursor: pointer;
+}
+.auth-server-select select:focus { outline: none; border-color: var(--gold, #c9926a); }
+
 .game-logo {
     position: relative;
     z-index: 10;
