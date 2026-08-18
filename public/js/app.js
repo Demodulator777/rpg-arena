@@ -2517,7 +2517,7 @@ function renderTopBar() {
 
     set('topbar-avatar',el=>{
         const pic = c.profile_pic || `${c.class}.png`;
-        el.src=`/images/class/${pic}`;
+        el.src=profilePicSrc(pic);
         el.alt=c.class;
         el.dataset.errorHide='true';
         el.style.cursor = 'pointer';
@@ -2845,7 +2845,7 @@ function renderCharacter() {
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
-            <img src="/images/class/${c.profile_pic || c.class + '.png'}" alt="${c.class}" data-error-opacity-zero="true">
+            <img src="${profilePicSrc(c.profile_pic || c.class + '.png')}" alt="${c.class}" data-error-opacity-zero="true">
             ${c.elemental ? (() => {
             const el = c.elemental;
             const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
@@ -10113,7 +10113,7 @@ function renderLeaderboard() {
                 html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ Hall of Fame — Past Champions</div>' +
                     '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
                 history.forEach(h => {
-                    const lbImg = h.profile_pic ? `/images/class/${h.profile_pic}` : `/images/class/${h.class}.png`;
+                    const lbImg = profilePicSrc(h.profile_pic || `${h.class}.png`);
                     const wn = getWeekNumber(h.week_start);
                     const y = new Date(h.week_start * 1000).getUTCFullYear();
                     const val = isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins';
@@ -10145,7 +10145,7 @@ function renderLeaderboard() {
                 cur.forEach((r, i) => {
                     const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
                     const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
-                    const lbImg = r.profile_pic ? `/images/class/${r.profile_pic}` : `/images/class/${r.class}.png`;
+                    const lbImg = profilePicSrc(r.profile_pic || `${r.class}.png`);
                     const val = isDmg ? Number(r.total_dmg).toLocaleString() : Number(r.total_wins).toLocaleString();
                     html += `<div class="lb-row" ${actionAttrs('openProfile', r.char_id)}>
                         <div class="lb-rank ${rc}">${rs}</div>
@@ -10358,7 +10358,7 @@ async function openProfile(id) {
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
                 <div class="eq-avatar-center profile-eq-avatar">
-                    <img src="/images/class/${p.profile_pic || p.class + '.png'}" alt="${p.class}" data-error-opacity-zero="true">
+                    <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" alt="${p.class}" data-error-opacity-zero="true">
                     ${p.elemental ? (() => {
                 const el = p.elemental;
                 const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
@@ -10399,7 +10399,7 @@ async function openProfile(id) {
         <div class="class-scene-content">
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
-              <img src="/images/class/${p.profile_pic || p.class + '.png'}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
+              <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
               <div><div class="profile-name">${classIconHtml} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
             </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
@@ -14087,6 +14087,11 @@ function renderAbyssMap() {
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
 
+function profilePicSrc(pic) {
+    if (!pic) return '';
+    return String(pic).startsWith('pending-') ? `/images/profile-pics/${pic}` : `/images/class/${pic}`;
+}
+
 async function showProfilePicSelector() {
     try {
         const data = await api('GET', '/game/profile-pics');
@@ -14104,7 +14109,7 @@ async function showProfilePicSelector() {
             const isSelected = pic.id === currentPic;
             const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
             return `<div class="profile-pic-option" data-pic-id="${pic.id}" data-unlocked="${pic.unlocked}" style="text-align:center;">
-                <img src="/images/class/${pic.id}" style="${imgStyle}" data-error-hide="true" title="${pic.name}${!pic.unlocked ? ' (Locked)' : ''}">
+                <img src="${pic.url}" style="${imgStyle}" data-error-hide="true" title="${pic.name}${!pic.unlocked ? ' (Locked)' : ''}">
                 <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${pic.name}</div>
                 ${isSelected ? '<div style="font-size:10px;color:#f1c40f;">✓ Selected</div>' : ''}
             </div>`;
