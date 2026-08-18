@@ -14123,7 +14123,7 @@ const currentPic = character.profile_pic || `${character.class}.png`;
 
         const optionsHtml = () => data.available.map(pic => {
             const isSelected = pic.id === currentPicId();
-            const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;${avatarPos(character ? character.profile_pic_offset : null)};border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
+            const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;${isSelected ? avatarPos(character ? character.profile_pic_offset : null) : ''};border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
             return `<div class="profile-pic-option" data-pic-id="${pic.id}" data-unlocked="${pic.unlocked}" style="text-align:center;">
                 <img src="${pic.url}" style="${imgStyle}" data-error-hide="true" title="${pic.name}${!pic.unlocked ? ' (Locked)' : ''}">
                 <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${pic.name}</div>
