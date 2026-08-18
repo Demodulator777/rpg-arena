@@ -35,6 +35,17 @@ function isRealImageFile(filePath) {
     return false;
 }
 
+// Resolve a squad's CURRENT logo by id, falling back to the stored snapshot.
+// Hall-of-fame rows snapshot the logo at award time; that file may be deleted when the
+// squad re-uploads, leaving a broken image. Show the live logo so it always displays.
+async function resolveSquadLogo(db, squadId, storedLogo) {
+    try {
+        const s = await dbGet(db, 'SELECT logo FROM squads WHERE id=?', [Number(squadId)]);
+        if (s?.logo) return s.logo;
+    } catch {}
+    return storedLogo || null;
+}
+
 // Only real image extensions accepted (blocks .svg/.html/.php etc.). MIME type alone is unreliable.
 const imageFileFilter = (req, file, cb) => {
     const ext = (path.extname(String(file.originalname || '')) || '').toLowerCase();
@@ -11380,14 +11391,26 @@ router.post('/squads/logo', auth, uploadLimiter, (req, res) => {
                 return res.status(400).json({ error: 'Uploaded file is not a valid image.' });
             }
 
-            // Delete old logo file if exists
+            // Delete old logo file if exists (random old names and any prior canonical)
             const old = await dbGet(db, 'SELECT logo FROM squads WHERE id=?', [membership.squad_id]);
             if (old?.logo && !old.logo.startsWith('data:')) {
                 const oldPath = path.join(__dirname, '../public', old.logo);
                 if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
             }
 
-            const logoUrl = '/images/squads/' + req.file.filename;
+            // Canonical single filename per squad: a re-upload overwrites the same file,
+            // so stored references (hall of fame, leaderboards) never point at a deleted file.
+            const ext = safeImageExt(req.file.originalname);
+            const canName = `squad-${membership.squad_id}${ext}`;
+            const canPath = path.join(SQUAD_IMG_DIR, canName);
+            for (const f of fs.readdirSync(SQUAD_IMG_DIR)) {
+                if (f.startsWith(`squad-${membership.squad_id}.`)) {
+                    try { fs.unlinkSync(path.join(SQUAD_IMG_DIR, f)); } catch {}
+                }
+            }
+            fs.renameSync(req.file.path, canPath);
+
+            const logoUrl = '/images/squads/' + canName;
             await dbRun(db, 'UPDATE squads SET logo=? WHERE id=?', [logoUrl, membership.squad_id]);
             res.json({ success: true, logo: logoUrl });
         } catch (e) { res.status(500).json({ error: e.message }); }
@@ -15858,7 +15881,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                     squad_id: Number(prevAward.squad_winner_id),
                     name: prevAward.squad_winner_name,
                     tag: prevAward.squad_winner_tag || null,
-                    logo: prevAward.squad_winner_logo || null,
+                    logo: await resolveSquadLogo(db, prevAward.squad_winner_id, prevAward.squad_winner_logo || null),
                     member_count: Number(prevAward.squad_winner_members || 0),
                     total_dmg: Number(prevAward.squad_winner_dmg || 0),
                     reward_gems: 5,
@@ -15869,7 +15892,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                     squad_id: Number(prevAward.squad_win_winner_id),
                     name: prevAward.squad_win_winner_name,
                     tag: prevAward.squad_win_winner_tag || null,
-                    logo: prevAward.squad_win_winner_logo || null,
+                    logo: await resolveSquadLogo(db, prevAward.squad_win_winner_id, prevAward.squad_win_winner_logo || null),
                     member_count: Number(prevAward.squad_win_winner_members || 0),
                     total_wins: Number(prevAward.squad_win_wins || 0),
                     reward_gems: 5,
@@ -15981,7 +16004,7 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
                     squad_id: Number(r.squad_winner_id),
                     name: r.squad_winner_name,
                     tag: r.squad_winner_tag || null,
-                    logo: r.squad_winner_logo || null,
+                    logo: await resolveSquadLogo(db, r.squad_winner_id, r.squad_winner_logo || null),
                     member_count: Number(r.squad_winner_members || 0),
                     total_dmg: Number(r.squad_winner_dmg || 0),
                     type: 'damage',
@@ -15993,7 +16016,7 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
                     squad_id: Number(r.squad_win_winner_id),
                     name: r.squad_win_winner_name,
                     tag: r.squad_win_winner_tag || null,
-                    logo: r.squad_win_winner_logo || null,
+                    logo: await resolveSquadLogo(db, r.squad_win_winner_id, r.squad_win_winner_logo || null),
                     member_count: Number(r.squad_win_winner_members || 0),
                     total_wins: Number(r.squad_win_wins || 0),
                     type: 'wins',
