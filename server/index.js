@@ -195,6 +195,14 @@ getDb().then(async (db) => {
     maxAge: '1d',
     etag: true,
     lastModified: true,
+    // HTML entry pages (index.html) must revalidate every load so new ?v= asset
+    // references reach clients instead of being pinned by the 24h cache. Versioned
+    // assets (js/css?v=...) keep the long max-age.
+    setHeaders: (res, filePath) => {
+      if (path.extname(filePath).toLowerCase() === '.html') {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      }
+    },
   }));
   // Serve admin panel HTML
   app.get('/admin-panel', (req, res) => {
