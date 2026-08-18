@@ -1762,7 +1762,7 @@ function renderProfilePicReview() {
         var html = '<div style="display:flex;flex-wrap:wrap;gap:10px">';
         pending.forEach(function(p) {
             html += '<div class="card" style="width:150px;text-align:center;padding:10px">' +
-                '<img src="/' + escHtml(p.image_path) + '" style="width:100px;height:100px;object-fit:cover;border-radius:50%">' +
+                '<img src="' + escHtml(p.url) + '" style="width:100px;height:100px;object-fit:cover;border-radius:50%" onerror="this.style.display=\'none\'">' +
                 '<div style="font-size:12px;margin:5px 0">' + escHtml(p.char_name) + '</div>' +
                 '<button class="db-btn" style="background:#2ecc71;margin-right:5px" onclick="reviewPic(' + p.id + ', true)">Approve</button>' +
                 '<button class="db-btn" style="background:#e74c3c" onclick="reviewPic(' + p.id + ', false)">Reject</button>' +
