@@ -2518,7 +2518,7 @@ function renderTopBar() {
     set('topbar-avatar',el=>{
         const pic = c.profile_pic || `${c.class}.png`;
         el.src=profilePicSrc(pic);
-        el.style.objectPosition = avatarPos(c.profile_pic_offset);
+        el.style.objectPosition = avatarPosVal(c.profile_pic_offset);
         el.alt=c.class;
         el.dataset.errorHide='true';
         el.style.cursor = 'pointer';
@@ -14096,11 +14096,15 @@ function profilePicSrc(pic) {
     return String(pic).startsWith('pending-') ? `/images/profile-pics/${pic}` : `/images/class/${pic}`;
 }
 
-function avatarPos(off) {
+function avatarPosVal(off) {
     const o = off || (typeof character !== 'undefined' && character ? character.profile_pic_offset : null);
     const x = (o && o.x != null) ? o.x : 50;
     const y = (o && o.y != null) ? o.y : 50;
-    return `object-position:${x}% ${y}%`;
+    return `${x}% ${y}%`;
+}
+
+function avatarPos(off) {
+    return `object-position:${avatarPosVal(off)}`;
 }
 
 async function showProfilePicSelector() {
@@ -14118,7 +14122,7 @@ async function showProfilePicSelector() {
 
         const optionsHtml = data.available.map(pic => {
             const isSelected = pic.id === currentPic;
-            const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
+            const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;${avatarPos(character ? character.profile_pic_offset : null)};border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
             return `<div class="profile-pic-option" data-pic-id="${pic.id}" data-unlocked="${pic.unlocked}" style="text-align:center;">
                 <img src="${pic.url}" style="${imgStyle}" data-error-hide="true" title="${pic.name}${!pic.unlocked ? ' (Locked)' : ''}">
                 <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-top:2px;">${pic.name}</div>
