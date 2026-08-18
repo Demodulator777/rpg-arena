@@ -614,8 +614,8 @@ function applyServerUI() {
       : 'Beta registration is limited to 500 total accounts.';
   }
 }
-function selectServer(actionName, args, event, trigger) {
-  const sel = trigger || (event && event.target);
+function selectServer(el) {
+  const sel = (el && el.value != null) ? el : document.getElementById('server-select');
   if (!sel || !sel.value) return;
   const id = sel.value;
   try { localStorage.setItem('rpg_server', id); } catch {}
