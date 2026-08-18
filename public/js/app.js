@@ -10046,7 +10046,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const rs = rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`#${rank}`;
     const totalEarned = p.total_gold_earned || 0;
     const profilePic = p.profile_pic;
-    const lbImg = profilePic ? `/images/class/${profilePic}` : `/images/class/${p.class}.png`;
+    const lbImg = profilePicSrc(profilePic || `${p.class}.png`);
     const badges = Array.isArray(p.profile_badges) ? p.profile_badges : [];
     const badgeHtml = badges.length
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
