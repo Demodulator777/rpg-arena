@@ -14118,10 +14118,10 @@ async function showProfilePicSelector() {
         modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:2147483647;display:flex;align-items:center;justify-content:center;touch-action:none;-webkit-overflow-scrolling:touch;';
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
-        const currentPic = character.profile_pic || `${character.class}.png`;
+const currentPic = character.profile_pic || `${character.class}.png`;
 
-        const optionsHtml = data.available.map(pic => {
-            const isSelected = pic.id === currentPic;
+        const optionsHtml = () => data.available.map(pic => {
+            const isSelected = pic.id === currentPicId();
             const imgStyle = `width:80px;height:80px;border-radius:50%;object-fit:cover;${avatarPos(character ? character.profile_pic_offset : null)};border:3px solid ${isSelected ? '#f1c40f' : 'rgba(255,255,255,0.2)'};cursor:pointer;margin:5px;${!pic.unlocked ? 'opacity:0.4;filter:grayscale(1)' : ''}`;
             return `<div class="profile-pic-option" data-pic-id="${pic.id}" data-unlocked="${pic.unlocked}" style="text-align:center;">
                 <img src="${pic.url}" style="${imgStyle}" data-error-hide="true" title="${pic.name}${!pic.unlocked ? ' (Locked)' : ''}">
@@ -14163,7 +14163,7 @@ async function showProfilePicSelector() {
         modal.innerHTML = `
             <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
                 <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
-                <div id="profile-pic-options" style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:16px;">${optionsHtml}</div>
+                <div id="profile-pic-options" style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;margin-bottom:16px;">${optionsHtml()}</div>
                 <div style="margin-bottom:16px;">
                     <button class="btn-secondary" id="btn-upload-trigger">Upload Custom Picture (500 💎)</button>
                     <input type="file" id="pic-upload" hidden accept="image/png,image/jpeg">
@@ -14216,6 +14216,8 @@ async function showProfilePicSelector() {
             try {
                 const res = await api('POST', '/game/profile-pic/offset', { x: posX, y: posY });
                 if (character) character.profile_pic_offset = { x: posX, y: posY };
+                const optsEl = modal.querySelector('#profile-pic-options');
+                if (optsEl) optsEl.innerHTML = optionsHtml();
                 renderTopBar();
                 showMsg('inv-msg', 'Avatar position saved!', false);
             } catch (e) {
