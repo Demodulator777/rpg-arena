@@ -14110,6 +14110,18 @@ async function showProfilePicSelector() {
             </div>`;
         }).join('');
 
+        const pendingHtml = (data.pending && data.pending.length) ? `
+            <div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:16px;padding-top:12px;width:100%;">
+                <div style="font-size:12px;color:#f39c12;margin-bottom:8px;">⏳ Pending Approval (${data.pending.length})</div>
+                <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:10px;">
+                    ${data.pending.map(p => `
+                        <div style="text-align:center;">
+                            <img src="${p.url}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid #f39c12;margin:5px;" data-error-hide="true">
+                            <div style="font-size:10px;color:#f39c12;">Awaiting review</div>
+                        </div>`).join('')}
+                </div>
+            </div>` : '';
+
         modal.innerHTML = `
             <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:90%;max-height:90%;overflow:auto;text-align:center;">
                 <h3 style="color:#f1c40f;margin:0 0 16px 0;">🎨 Profile Picture</h3>
@@ -14118,6 +14130,7 @@ async function showProfilePicSelector() {
                     <button class="btn-secondary" id="btn-upload-trigger">Upload Custom Picture (500 💎)</button>
                     <input type="file" id="pic-upload" hidden accept="image/png,image/jpeg">
                 </div>
+                ${pendingHtml}
                 <button class="btn-primary" id="profile-pic-close-btn">Close</button>
             </div>
         `;
@@ -14140,60 +14153,69 @@ async function showProfilePicSelector() {
 }
 
 async function uploadProfilePic(e) {
-    const file = e.target.files[0];
+    const file = e.target.files && e.target.files[0];
     if (!file) return;
 
-    // Load image to check dimensions
-    const img = new Image();
-    img.src = URL.createObjectURL(file);
-    await img.decode();
-
-    let finalFile = file;
-    let resized = false;
-    if (img.width > 1024 || img.height > 1024) {
-        const canvas = document.createElement('canvas');
-        const ratio = Math.min(1024 / img.width, 1024 / img.height);
-        canvas.width = img.width * ratio;
-        canvas.height = img.height * ratio;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, file.type));
-        finalFile = new File([blob], file.name, { type: file.type });
-        resized = true;
-    }
-
-    // Immediately close the profile selector modal
-    document.getElementById('profile-pic-modal')?.remove();
-
-    const confirmed = await new Promise(resolve => {
-        openGameNoticeDialog({
-            title: 'Upload Profile Picture',
-            message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.' + (resized ? '<br><br><b>Image was resized to 1024x1024.</b>' : ''),
-            confirmLabel: 'Upload',
-            cancelLabel: 'Cancel',
-            onConfirm: () => resolve(true),
-            onCancel: () => resolve(false)
-        });
-    });
-    if (!confirmed) return;
-
-    const formData = new FormData();
-    formData.append('profilePic', finalFile);
     try {
+        // Immediately close the profile selector modal (prevents z-index stacking)
+        document.getElementById('profile-pic-modal')?.remove();
+
+        // Load image to check dimensions (non-fatal if it fails — upload as-is)
+        let finalFile = file;
+        let resized = false;
+        try {
+            const img = new Image();
+            img.src = URL.createObjectURL(file);
+            await img.decode();
+            if (img.width > 1024 || img.height > 1024) {
+                const canvas = document.createElement('canvas');
+                const ratio = Math.min(1024 / img.width, 1024 / img.height);
+                canvas.width = Math.max(1, Math.round(img.width * ratio));
+                canvas.height = Math.max(1, Math.round(img.height * ratio));
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, file.type || 'image/png'));
+                if (blob) {
+                    finalFile = new File([blob], file.name, { type: file.type || 'image/png' });
+                    resized = true;
+                }
+            }
+        } catch (imgErr) {
+            console.error('Image preprocess failed, uploading original:', imgErr);
+        }
+
+        const confirmed = await new Promise(resolve => {
+            openGameNoticeDialog({
+                title: 'Upload Profile Picture',
+                message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.' + (resized ? '<br><br><b>Image was resized to fit 1024x1024.</b>' : ''),
+                confirmLabel: 'Upload',
+                cancelLabel: 'Cancel',
+                onConfirm: () => resolve(true),
+                onCancel: () => resolve(false)
+            });
+        });
+        if (!confirmed) return;
+
+        const formData = new FormData();
+        formData.append('profilePic', finalFile);
         const token = localStorage.getItem('rpg_token');
         const res = await fetch('/api/game/profile-pic/upload', {
             method: 'POST',
             headers: { 'Authorization': 'Bearer ' + token },
             body: formData
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Upload failed');
-        
-        await openGameNoticeDialog({ title: 'Upload Successful', message: 'Upload submitted for review!', confirmLabel: 'Close' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || ('Upload failed (' + res.status + ')'));
+
+        await openGameNoticeDialog({
+            title: 'Upload Submitted',
+            message: 'Your profile picture is now <b>pending admin review</b>. 500 💎 were deducted.',
+            confirmLabel: 'Close'
+        });
+        await showProfilePicSelector();
     } catch (e) {
         console.error('Upload error:', e);
-        await openGameNoticeDialog({ title: 'Upload Failed', message: e.message, confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: 'Upload Failed', message: e.message || 'Unknown error', confirmLabel: 'Close' });
     }
 }
 
