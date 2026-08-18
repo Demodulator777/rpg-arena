@@ -10571,17 +10571,19 @@ router.get('/profile-pics', auth, async (req, res) => {
         const defaultPic = `${char.class}.png`;
 
         const allPics = [
-            { id: defaultPic, name: 'Default', class: char.class, unlocked: true }
+            { id: defaultPic, name: 'Default', class: char.class, unlocked: true, url: '/images/class/' + defaultPic }
         ];
 
         // Add unlocked themed pics
         for (const picId of unlocked) {
             let picName = picId.startsWith('pending-') ? 'Custom Upload' : (picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId);
+            const isCustom = picId.startsWith('pending-');
             allPics.push({
                 id: `${picId}.png`,
                 name: picName,
                 class: picId.split('-')[0],
-                unlocked: true
+                unlocked: true,
+                url: (isCustom ? '/images/profile-pics/' : '/images/class/') + picId + '.png'
             });
         }
 
