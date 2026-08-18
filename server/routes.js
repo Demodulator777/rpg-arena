@@ -10576,14 +10576,16 @@ router.get('/profile-pics', auth, async (req, res) => {
 
         // Add unlocked themed pics
         for (const picId of unlocked) {
-            let picName = picId.startsWith('pending-') ? 'Custom Upload' : (picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId);
             const isCustom = picId.startsWith('pending-');
+            const hasExt = /\.(png|jpe?g)$/i.test(picId);
+            const fileName = hasExt ? picId : picId + '.png';
+            let picName = isCustom ? 'Custom Upload' : (picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId);
             allPics.push({
-                id: `${picId}.png`,
+                id: fileName,
                 name: picName,
                 class: picId.split('-')[0],
                 unlocked: true,
-                url: (isCustom ? '/images/profile-pics/' : '/images/class/') + picId + '.png'
+                url: (isCustom ? '/images/profile-pics/' : '/images/class/') + fileName
             });
         }
 
@@ -10614,11 +10616,12 @@ router.post('/profile-pic/set', auth, async (req, res) => {
 
         const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
         const defaultPic = `${char.class}.png`;
-        const targetPic = profilePic.replace('.png', '');
+        const normalizePic = (x) => String(x).replace(/\.(png|jpe?g)$/i, '');
+        const targetPic = normalizePic(profilePic);
 
         // Check if valid (either default or unlocked)
-        const isDefault = targetPic === defaultPic.replace('.png', '');
-        const isUnlocked = unlocked.includes(targetPic);
+        const isDefault = targetPic === normalizePic(defaultPic);
+        const isUnlocked = unlocked.some(u => normalizePic(u) === targetPic);
 
         if (!isDefault && !isUnlocked) {
             return res.status(403).json({ error: 'Profile pic not unlocked' });
@@ -10700,7 +10703,7 @@ router.post('/admin/profile-pic/review', auth, async (req, res) => {
             // Add to unlocked list
             const char = await dbGet(db, 'SELECT unlocked_profile_pics FROM characters WHERE id=?', [pending.char_id]);
             const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
-            const picId = String(pending.image_path).split(/[\\/]/).pop().replace(/\.[^.]+$/, '');
+            const picId = String(pending.image_path).split(/[\\/]/).pop();
             unlocked.push(picId);
             await dbRun(db, 'UPDATE characters SET unlocked_profile_pics=? WHERE id=?', [JSON.stringify(unlocked), pending.char_id]);
         } else {
