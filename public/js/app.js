@@ -14184,15 +14184,11 @@ async function uploadProfilePic(e) {
             console.error('Image preprocess failed, uploading original:', imgErr);
         }
 
-        const confirmed = await new Promise(resolve => {
-            openGameNoticeDialog({
-                title: 'Upload Profile Picture',
-                message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.' + (resized ? '<br><br><b>Image was resized to fit 1024x1024.</b>' : ''),
-                confirmLabel: 'Upload',
-                cancelLabel: 'Cancel',
-                onConfirm: () => resolve(true),
-                onCancel: () => resolve(false)
-            });
+        const confirmed = await openGameConfirmDialog({
+            title: 'Upload Profile Picture',
+            message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.' + (resized ? '<br><br><b>Image was resized to fit 1024x1024.</b>' : ''),
+            confirmLabel: 'Upload',
+            cancelLabel: 'Cancel'
         });
         if (!confirmed) return;
 
