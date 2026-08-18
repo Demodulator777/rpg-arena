@@ -182,6 +182,15 @@ getDb().then(async (db) => {
       res.setHeader('Cache-Control', 'no-cache, must-revalidate');
     },
   }));
+  // Squad logos must also revalidate: re-uploads overwrite one canonical filename, and
+  // awaiting browsers must pick up the new image (and not cache a deleted one).
+  app.use('/images/squads', express.static(path.join(__dirname, '../public/images/squads'), {
+    etag: true,
+    lastModified: true,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    },
+  }));
   app.use(express.static(path.join(__dirname, '../public'), {
     maxAge: '1d',
     etag: true,
