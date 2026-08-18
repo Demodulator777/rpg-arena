@@ -14119,6 +14119,7 @@ async function showProfilePicSelector() {
         modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
 const currentPic = character.profile_pic || `${character.class}.png`;
+        const currentPicId = () => character.profile_pic || `${character.class}.png`;
 
         const optionsHtml = () => data.available.map(pic => {
             const isSelected = pic.id === currentPicId();
