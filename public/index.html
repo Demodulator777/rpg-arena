@@ -6,7 +6,7 @@
     <title>Battle ⚔️ Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-19-coming-soon"/>
     <link rel="stylesheet" href="/css/tournaments.css"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -128,6 +128,15 @@
     <div id="loading-bar-track"><div id="loading-bar-fill"></div></div>
     <div id="loading-status">Initializing...</div>
 </div>
+<div id="coming-soon" class="coming-soon hidden">
+    <div class="coming-soon-box">
+        <img src="images/logo/logo.png" alt="BATTLE ARENA" class="game-logo">
+        <h1 class="coming-soon-title">Server 1 <span class="coming-soon-sub">(Global)</span></h1>
+        <p class="coming-soon-text">This server is not open yet.</p>
+        <p class="coming-soon-text">Registrations are coming soon — join us on the Beta server in the meantime.</p>
+        <button type="button" class="btn-primary" data-action="returnToBeta">Return to Beta</button>
+    </div>
+</div>
 <div id="app">
 
     <!-- AUTH -->
@@ -143,10 +152,9 @@
 
             <div class="auth-server-select">
                 <label for="server-select">Server</label>
-                <select id="server-select">
-                    <option value="beta">Beta</option>
-                    <option value="server1">Server 1 (Global)</option>
-                </select>
+                <button type="button" id="server-select" class="server-select-btn" data-action="openServerPicker">
+                    <span id="server-select-label">…</span><span class="server-caret"> ▾</span>
+                </button>
             </div>
 
             <div class="auth-tabs">
@@ -1129,9 +1137,28 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
         </div>
 
 <script src="/asset-manifest.js"></script>
-<script src="/js/app.js?v=2026-08-19-server-nav"></script>
+<script src="/js/app.js?v=2026-08-19-coming-soon"></script>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
 <script src="/js/dungeon.js?v=2026-05-08-dungeon-combat-fix"></script>
 <script src="/js/tournaments.js?v=2026-06-03"></script>
+
+<div id="server-picker-modal" class="modal-overlay hidden">
+    <div class="modal-box server-picker-box">
+        <div class="modal-header">
+            <span class="modal-title">Choose Server</span>
+            <button class="modal-close" data-action="closeServerPicker">✕</button>
+        </div>
+        <div class="modal-body">
+            <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["beta"]'>
+                <span class="server-picker-name">Beta</span>
+                <span class="server-picker-desc">Existing accounts · registration capped at 500</span>
+            </button>
+            <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["server1"]'>
+                <span class="server-picker-name">Server 1 (Global)</span>
+                <span class="server-picker-desc">Fresh accounts · no registration cap</span>
+            </button>
+        </div>
+    </div>
+</div>
 </body>
 </html>
