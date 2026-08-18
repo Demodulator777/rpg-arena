@@ -590,6 +590,55 @@ function buildCurvedRoutePath(fromPos, toPos, pairKey) {
 }
 
 // ── API ───────────────────────────────────────────────────────────────────
+const GAME_SERVERS = [
+  { id: 'beta',    label: 'Beta',            host: 'battle-online.com',      url: 'https://battle-online.com/' },
+  { id: 'server1', label: 'Server 1 (Global)', host: 's1.battle-online.com', url: 'https://s1.battle-online.com/' }
+];
+
+function getServerId() {
+  const host = String(location.hostname || '').toLowerCase();
+  const s = GAME_SERVERS.find(x => host === x.host || host.endsWith('.' + x.host));
+  return s ? s.id : 'beta';
+}
+function getServer() {
+  return GAME_SERVERS.find(x => x.id === getServerId()) || GAME_SERVERS[0];
+}
+function applyServerUI() {
+  const s = getServer();
+  const sel = document.getElementById('server-select');
+  if (sel) sel.value = s.id;
+  const notice = document.querySelector('.auth-beta-notice');
+  if (notice) {
+    notice.textContent = s.id === 'server1'
+      ? 'Server 1 (Global) — fresh accounts. Register to begin.'
+      : 'Beta registration is limited to 500 total accounts.';
+  }
+}
+function selectServer(actionName, args, event, trigger) {
+  const sel = trigger || (event && event.target);
+  if (!sel || !sel.value) return;
+  const id = sel.value;
+  try { localStorage.setItem('rpg_server', id); } catch {}
+  const target = GAME_SERVERS.find(x => x.id === id);
+  if (!target || target.id === getServerId()) { applyServerUI(); return; }
+  window.location.href = target.url;
+}
+(function initServerSwitch() {
+  let chosen = 'beta';
+  try { chosen = localStorage.getItem('rpg_server') || 'beta'; } catch {}
+  const target = GAME_SERVERS.find(x => x.id === chosen) || GAME_SERVERS[0];
+  let authed = false;
+  try { authed = !!localStorage.getItem('rpg_token'); } catch {}
+  // A returning user lands on the wrong origin: redirect to their chosen server
+  // unless they're already logged in here (don't kick an authed player).
+  if (target.id !== getServerId() && !authed) {
+    window.location.href = target.url;
+    return;
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', applyServerUI);
+  else applyServerUI();
+})();
+
 async function api(method, path, body=null) {
     // Don't add /api prefix for skills and banner routes
     let fullUrl;
