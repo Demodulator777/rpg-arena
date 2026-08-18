@@ -96,6 +96,25 @@ const uploadProfilePic = multer({
     }
 }).single('profilePic');
 
+// Wrap multer so errors (missing dir, oversized file, bad ext) return clean JSON
+// instead of Express's default HTML 500, and so we always log the request.
+function profilePicUploadMiddleware(req, res, next) {
+    console.log('[Upload] Request arrived. Content-Type:', req.headers['content-type'] || '(none)');
+    uploadProfilePic(req, res, (err) => {
+        if (err) {
+            console.error('[Upload] Multer error:', err.message);
+            return res.status(400).json({ error: err.message });
+        }
+        next();
+    });
+}
+
+if (!fs.existsSync(PROFILE_PIC_DIR)) {
+    try { fs.mkdirSync(PROFILE_PIC_DIR, { recursive: true }); } catch (e) { console.error('[Upload] Could not create profile-pics dir:', e.message); }
+}
+try { fs.accessSync(PROFILE_PIC_DIR, fs.constants.W_OK); console.log('[Upload] Profile-pics dir writable:', PROFILE_PIC_DIR); }
+catch (e) { console.error('[Upload] Profile-pics dir NOT writable:', PROFILE_PIC_DIR, e.message); }
+
 // Migration: pending_profile_pics
 async function ensurePendingProfilePicsTable(db) {
     await db.execute({ sql: `CREATE TABLE IF NOT EXISTS pending_profile_pics (
@@ -10557,9 +10576,10 @@ router.get('/profile-pics', auth, async (req, res) => {
 
         // Add unlocked themed pics
         for (const picId of unlocked) {
+            let picName = picId.startsWith('pending-') ? 'Custom Upload' : (picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId);
             allPics.push({
                 id: `${picId}.png`,
-                name: picId.split('-')[1] ? picId.split('-')[1].charAt(0).toUpperCase() + picId.split('-')[1].slice(1) : picId,
+                name: picName,
                 class: picId.split('-')[0],
                 unlocked: true
             });
@@ -10609,8 +10629,7 @@ router.post('/profile-pic/set', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-router.post('/profile-pic/upload', auth, uploadLimiter, uploadProfilePic, async (req, res) => {
-    console.log('[Upload] Request reached. Content-Type:', req.headers['content-type']);
+router.post('/profile-pic/upload', auth, uploadLimiter, profilePicUploadMiddleware, async (req, res) => {
     try {
         if (!req.file) {
             console.error('[Upload] No file in request');
