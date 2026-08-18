@@ -10544,7 +10544,8 @@ router.get('/character', auth, async (req, res) => {
 router.get('/profile-pics', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'class, unlocked_profile_pics');
+        await ensurePendingProfilePicsTable(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, class, unlocked_profile_pics');
         if (!char) return res.status(404).json({ error: 'No character found' });
 
         const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
@@ -10564,9 +10565,18 @@ router.get('/profile-pics', auth, async (req, res) => {
             });
         }
 
+        // Pending custom uploads awaiting admin review
+        const pendingRows = await dbAll(db, `SELECT id, image_path, created_at FROM pending_profile_pics WHERE char_id=? AND status='pending' ORDER BY created_at DESC`, [char.id]);
+        const pending = pendingRows.map(p => ({
+            id: p.id,
+            url: '/images/profile-pics/' + String(p.image_path).split(/[\\/]/).pop(),
+            created_at: p.created_at
+        }));
+
         res.json({
             current: defaultPic,
-            available: allPics
+            available: allPics,
+            pending
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -10609,13 +10619,15 @@ router.post('/profile-pic/upload', auth, uploadLimiter, uploadProfilePic, async 
 
         console.log('[Upload] File received:', req.file.path);
         const db = await getDb();
+        await ensurePendingProfilePicsTable(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id, gems');
         if (!char) return res.status(404).json({ error: 'Character not found' });
         if (char.gems < 500) return res.status(400).json({ error: 'Not enough gems (need 500)' });
 
         await dbRun(db, 'UPDATE characters SET gems=gems-500 WHERE id=?', [char.id]);
+        const relPath = '/images/profile-pics/' + req.file.filename;
         await dbRun(db, `INSERT INTO pending_profile_pics (user_id, char_id, image_path, created_at) VALUES (?, ?, ?, ?)`,
-            [req.user.userId, char.id, req.file.path.replace('public/', ''), Math.floor(Date.now() / 1000)]);
+            [req.user.userId, char.id, relPath, Math.floor(Date.now() / 1000)]);
 
         console.log('[Upload] Pending record created.');
         res.json({ success: true, message: 'Upload submitted for review.' });
@@ -10631,6 +10643,9 @@ router.get('/admin/pending-profile-pics', auth, async (req, res) => {
         const db = await getDb();
         await ensurePendingProfilePicsTable(db);
         const pending = await dbAll(db, `SELECT p.*, c.name as char_name FROM pending_profile_pics p JOIN characters c ON p.char_id=c.id WHERE p.status='pending'`);
+        for (const p of pending) {
+            p.url = '/images/profile-pics/' + String(p.image_path).split(/[\\/]/).pop();
+        }
         res.json({ pending });
     } catch (e) {
         console.error('[Admin] Error fetching pending pics:', e);
@@ -10664,7 +10679,7 @@ router.post('/admin/profile-pic/review', auth, async (req, res) => {
             // Add to unlocked list
             const char = await dbGet(db, 'SELECT unlocked_profile_pics FROM characters WHERE id=?', [pending.char_id]);
             const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
-            const picId = pending.image_path.replace('images/profile-pics/', '').replace('.png', '');
+            const picId = String(pending.image_path).split(/[\\/]/).pop().replace(/\.[^.]+$/, '');
             unlocked.push(picId);
             await dbRun(db, 'UPDATE characters SET unlocked_profile_pics=? WHERE id=?', [JSON.stringify(unlocked), pending.char_id]);
         } else {
