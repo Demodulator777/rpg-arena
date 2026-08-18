@@ -20,7 +20,10 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   handler: (req, res) => res.status(429).json({ error: 'Too many login attempts. Please try again later.' })
 });
-const MAX_REGISTERED_USERS = 500;
+// Registration cap, env-configurable. Set to 0 / -1 (or leave unset) to disable
+// on unbounded servers. Beta keeps the 500-account beta cap via its env.
+const MAX_RAW = process.env.MAX_REGISTERED_USERS;
+const MAX_REGISTERED_USERS = (MAX_RAW === undefined || MAX_RAW === '' || Number(MAX_RAW) <= 0) ? Infinity : Number(MAX_RAW);
 const PASSWORD_RESET_TTL_SEC = 60 * 60; // 1 hour
 
 function normalizeReferralCode(value) {
