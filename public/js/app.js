@@ -14237,9 +14237,6 @@ async function uploadProfilePic(e) {
     if (!file) return;
 
     try {
-        // Immediately close the profile selector modal (prevents z-index stacking)
-        document.getElementById('profile-pic-modal')?.remove();
-
         // Load image to check dimensions (non-fatal if it fails — upload as-is)
         let finalFile = file;
         let resized = false;
@@ -14264,36 +14261,77 @@ async function uploadProfilePic(e) {
             console.error('Image preprocess failed, uploading original:', imgErr);
         }
 
-        const confirmed = await openGameConfirmDialog({
-            title: 'Upload Profile Picture',
-            message: 'Upload custom profile picture for 500 gems? It will be reviewed by an admin.' + (resized ? '<br><br><b>Image was resized to fit 1024x1024.</b>' : ''),
-            confirmLabel: 'Upload',
-            cancelLabel: 'Cancel'
-        });
-        if (!confirmed) return;
+        // Character-page preview BEFORE sending for approval
+        const previewUrl = URL.createObjectURL(finalFile);
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
+        overlay.onclick = (ev) => { if (ev.target === overlay) closePreview(); };
+        overlay.innerHTML = `
+            <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:92%;max-height:92%;overflow:auto;text-align:center;">
+                <h3 style="color:#f1c40f;margin:0 0 4px 0;">👤 Preview Profile Picture</h3>
+                <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:16px;">
+                    ${finalFile.name}${resized ? ' <span style="color:#f39c12;">(resized to 1024×1024)</span>' : ''}
+                </div>
+                <div id="pic-preview-frame" style="width:280px;height:340px;margin:0 auto 16px auto;background:linear-gradient(180deg,#151a30,#0d0d1a);border:1px solid rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;">
+                    <img src="${previewUrl}" style="width:230px;height:300px;object-fit:contain;" data-error-hide="true">
+                </div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:16px;">This is how it will appear on your Character page. Images without a transparent background may look like a sticker — keep a background only if it looks good.</div>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                    <button class="btn-secondary" id="pic-preview-change">Choose Different Image</button>
+                    <button class="btn-primary" id="pic-preview-send">Send for Approval (500 💎)</button>
+                </div>
+                <div id="pic-preview-msg" style="margin-top:12px;font-size:12px;color:rgba(255,255,255,0.6);"></div>
+            </div>`;
+        document.body.appendChild(overlay);
 
-        const formData = new FormData();
-        formData.append('profilePic', finalFile);
-        const token = localStorage.getItem('rpg_token');
-        const res = await fetch('/api/game/profile-pic/upload', {
-            method: 'POST',
-            headers: { 'Authorization': 'Bearer ' + token },
-            body: formData
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(data.error || ('Upload failed (' + res.status + ')'));
+        const closePreview = () => {
+            overlay.remove();
+            URL.revokeObjectURL(previewUrl);
+        };
 
-        if (typeof character !== 'undefined' && character) {
-            character.gems = Math.max(0, (Number(character.gems) || 0) - 500);
-            renderTopBar();
-        }
-
-        await openGameNoticeDialog({
-            title: 'Upload Submitted',
-            message: 'Your profile picture is now <b>pending admin review</b>. 500 💎 were deducted.',
-            confirmLabel: 'Close'
+        overlay.querySelector('#pic-preview-change').addEventListener('click', () => {
+            closePreview();
+            document.getElementById('pic-upload')?.click();
         });
-        await showProfilePicSelector();
+
+        overlay.querySelector('#pic-preview-send').addEventListener('click', async () => {
+            const btn = overlay.querySelector('#pic-preview-send');
+            btn.disabled = true;
+            btn.textContent = 'Uploading...';
+            try {
+                const formData = new FormData();
+                formData.append('profilePic', finalFile);
+                const token = localStorage.getItem('rpg_token');
+                const res = await fetch('/api/game/profile-pic/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: formData
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.error || ('Upload failed (' + res.status + ')'));
+
+                closePreview();
+                document.getElementById('profile-pic-modal')?.remove();
+
+                if (typeof character !== 'undefined' && character) {
+                    character.gems = Math.max(0, (Number(character.gems) || 0) - 500);
+                    renderTopBar();
+                }
+
+                await openGameNoticeDialog({
+                    title: 'Upload Submitted',
+                    message: 'Your profile picture is now <b>pending admin review</b>. 500 💎 were deducted.',
+                    confirmLabel: 'Close'
+                });
+                await showProfilePicSelector();
+            } catch (err) {
+                btn.disabled = false;
+                btn.textContent = 'Send for Approval (500 💎)';
+                console.error('Upload error:', err);
+                overlay.querySelector('#pic-preview-msg').textContent = 'Upload failed: ' + (err.message || 'Unknown error');
+                overlay.querySelector('#pic-preview-msg').style.color = '#e74c3c';
+            }
+        });
     } catch (e) {
         console.error('Upload error:', e);
         await openGameNoticeDialog({ title: 'Upload Failed', message: e.message || 'Unknown error', confirmLabel: 'Close' });
