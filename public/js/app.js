@@ -596,8 +596,8 @@ const GAME_SERVERS = [
 ];
 
 function getServerId() {
-  const host = String(location.hostname || '').toLowerCase();
-  const s = GAME_SERVERS.find(x => host === x.host || host.endsWith('.' + x.host));
+  const host = String(location.hostname || '').toLowerCase().replace(/^www\./, '');
+  const s = GAME_SERVERS.find(x => host === x.host);
   return s ? s.id : 'beta';
 }
 function getServer() {
