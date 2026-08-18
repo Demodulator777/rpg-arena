@@ -1764,8 +1764,8 @@ function renderProfilePicReview() {
             html += '<div class="card" style="width:150px;text-align:center;padding:10px">' +
                 '<img src="' + escHtml(p.url) + '" style="width:100px;height:100px;object-fit:cover;border-radius:50%" onerror="this.style.display=\'none\'">' +
                 '<div style="font-size:12px;margin:5px 0">' + escHtml(p.char_name) + '</div>' +
-                '<button class="db-btn" style="background:#2ecc71;margin-right:5px" onclick="reviewPic(' + p.id + ', true)">Approve</button>' +
-                '<button class="db-btn" style="background:#e74c3c" onclick="reviewPic(' + p.id + ', false)">Reject</button>' +
+                '<button class="db-btn" data-action="approve-pic" data-id="' + p.id + '" style="background:#2ecc71;margin-right:5px">Approve</button>' +
+                '<button class="db-btn" data-action="reject-pic" data-id="' + p.id + '" style="background:#e74c3c">Reject</button>' +
                 '</div>';
         });
         el.innerHTML = html + '</div>';
@@ -1779,6 +1779,14 @@ window.reviewPic = function(id, approve) {
         body: JSON.stringify({ id: id, approve: approve })
     }).then(function() { renderProfilePicReview(); updatePendingBadge(); });
 };
+
+document.addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-action="approve-pic"], [data-action="reject-pic"]');
+    if (!btn) return;
+    var id = btn.getAttribute('data-id');
+    var approve = btn.getAttribute('data-action') === 'approve-pic';
+    reviewPic(id, approve);
+});
 
 function updatePendingBadge() {
     API('/admin/pending-profile-pics/count').then(function(res) {
