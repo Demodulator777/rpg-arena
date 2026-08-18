@@ -173,6 +173,15 @@ getDb().then(async (db) => {
   } catch (e) { console.error('[assets] error:', e.message); }
 
   // Serve static files from /public
+  // Profile-pic images must always revalidate — otherwise a newly approved avatar
+  // (or its earlier 404) stays cached client-side and other players never see it.
+  app.use('/images/profile-pics', express.static(path.join(__dirname, '../public/images/profile-pics'), {
+    etag: true,
+    lastModified: true,
+    setHeaders: (res) => {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    },
+  }));
   app.use(express.static(path.join(__dirname, '../public'), {
     maxAge: '1d',
     etag: true,
