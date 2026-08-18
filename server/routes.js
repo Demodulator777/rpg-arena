@@ -981,6 +981,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN profile_badges TEXT DEFAULT NULL',
+            "ALTER TABLE characters ADD COLUMN profile_pic_offset TEXT DEFAULT '{\"x\":50,\"y\":50}'",
             'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
@@ -10340,6 +10341,9 @@ async function buildCharacterResponse(char, db) {
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
         inbox_prune_missions: Number(userSettings?.inbox_prune_missions ?? 1) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
+        profile_pic_offset: (() => {
+            try { return JSON.parse(char.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; }
+        })(),
         elemental: elemental && elemental.is_equipped === 1 ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
         profile_badges: (() => {
             try {
@@ -10659,6 +10663,21 @@ router.post('/profile-pic/upload', auth, uploadLimiter, profilePicUploadMiddlewa
         console.error('[Upload] Final error:', e);
         res.status(500).json({ error: e.message });
     }
+});
+
+router.post('/profile-pic/offset', auth, async (req, res) => {
+    try {
+        const x = Math.round(Number(req.body?.x));
+        const y = Math.round(Number(req.body?.y));
+        if (isNaN(x) || isNaN(y)) return res.status(400).json({ error: 'Invalid offset values' });
+        const cx = Math.max(0, Math.min(100, x));
+        const cy = Math.max(0, Math.min(100, y));
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        await dbRun(db, 'UPDATE characters SET profile_pic_offset=? WHERE id=?', [JSON.stringify({ x: cx, y: cy }), char.id]);
+        res.json({ success: true, x: cx, y: cy });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/admin/pending-profile-pics', auth, async (req, res) => {
@@ -15738,7 +15757,7 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,c.profile_pic_offset,
             (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
             sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo
             FROM characters c 
@@ -15756,7 +15775,7 @@ router.get('/leaderboard', auth, async (req, res) => {
                 const def = defById.get(id);
                 return def ? { id: def.id, icon: def.icon, name: def.name } : null;
             }).filter(Boolean);
-            return { ...p, rank: i + 1, profile_badges: badges };
+            return { ...p, rank: i + 1, profile_badges: badges, profile_pic_offset: (() => { try { return JSON.parse(p.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })() };
         }));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -15779,11 +15798,12 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
 
         const currentDmgTop = [];
         for (const r of dmgRows) {
-            const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic FROM characters WHERE id=?', [Number(r.char_id)]);
+            const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic, profile_pic_offset FROM characters WHERE id=?', [Number(r.char_id)]);
             if (!ch) continue;
             currentDmgTop.push({
                 char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
                 profile_pic: ch.profile_pic,
+                profile_pic_offset: (() => { try { return JSON.parse(ch.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })(),
                 total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
             });
         }
@@ -15798,11 +15818,12 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
 
         const currentWinTop = [];
         for (const r of winRows) {
-            const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic FROM characters WHERE id=?', [Number(r.char_id)]);
+            const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic, profile_pic_offset FROM characters WHERE id=?', [Number(r.char_id)]);
             if (!ch) continue;
             currentWinTop.push({
                 char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
                 profile_pic: ch.profile_pic,
+                profile_pic_offset: (() => { try { return JSON.parse(ch.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })(),
                 total_wins: Number(r.total_wins || 0), total_battles: Number(r.total_battles || 0),
             });
         }
@@ -15927,26 +15948,28 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
         const history_squad_win = [];
         for (const r of rows) {
             if (Number(r.winner_char_id) > 0) {
-                const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.winner_char_id)]);
+                const ch = await dbGet(db, 'SELECT profile_pic, profile_pic_offset FROM characters WHERE id=?', [Number(r.winner_char_id)]);
                 history_dmg.push({
                     week_start: Number(r.week_start),
                     char_id: Number(r.winner_char_id),
                     name: r.winner_name,
                     class: r.winner_class,
                     profile_pic: ch?.profile_pic || null,
+                    profile_pic_offset: ch ? (() => { try { return JSON.parse(ch.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })() : null,
                     total_dmg: Number(r.winner_dmg || 0),
                     total_battles: Number(r.winner_battles || 0),
                     type: 'damage',
                 });
             }
             if (Number(r.win_winner_char_id) > 0) {
-                const ch = await dbGet(db, 'SELECT profile_pic FROM characters WHERE id=?', [Number(r.win_winner_char_id)]);
+                const ch = await dbGet(db, 'SELECT profile_pic, profile_pic_offset FROM characters WHERE id=?', [Number(r.win_winner_char_id)]);
                 history_win.push({
                     week_start: Number(r.week_start),
                     char_id: Number(r.win_winner_char_id),
                     name: r.win_winner_name,
                     class: r.win_winner_class,
                     profile_pic: ch?.profile_pic || null,
+                    profile_pic_offset: ch ? (() => { try { return JSON.parse(ch.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })() : null,
                     total_wins: Number(r.win_winner_wins || 0),
                     total_battles: Number(r.win_winner_battles || 0),
                     type: 'wins',
@@ -16042,6 +16065,9 @@ router.get('/player/:id', auth, async (req, res) => {
             achievements_completed: achievementCountRow?.count || 0,
             gold:player.gold, total_gold_earned:player.total_gold_earned, total_gold_lost:player.total_gold_lost,
             profile_pic: player.profile_pic || `${player.class}.png`,
+            profile_pic_offset: (() => {
+                try { return JSON.parse(player.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; }
+            })(),
             globalCooldown, perTargetCooldown, hpLow, equipped,
             armor_value: profileArmor,
             equipped_set_bonuses: profileSetBonuses,
