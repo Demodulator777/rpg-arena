@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-20-android3"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-21-catdrop"/>
     <link rel="stylesheet" href="/css/tournaments.css"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -1156,18 +1156,22 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
       <form id="bug-report-form">
         <div class="form-group">
           <label for="bug-category">Category *</label>
-          <select id="bug-category" required>
-            <option value="">Select category</option>
-            <option value="cheating">Cheating/Exploit/Botting</option>
-            <option value="abuse">Player Abuse/Harassment</option>
-            <option value="combat">Combat/Battle Issue</option>
-            <option value="ui">UI/Display Issue</option>
-            <option value="mission">Mission Problem</option>
-            <option value="shop">Shop/Inventory Issue</option>
-            <option value="dungeon">Dungeon Problem</option>
-            <option value="performance">Performance/Lag</option>
-            <option value="other">Other</option>
-          </select>
+          <div class="bug-category-drop" id="bug-category-drop">
+            <button type="button" class="bug-category-toggle" data-action="toggleReportCategory">
+              <span id="bug-category-value">Select category</span><span class="bug-category-caret">▾</span>
+            </button>
+            <div id="bug-category-options" class="bug-category-options hidden">
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["cheating"]'>Cheating/Exploit/Botting</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["abuse"]'>Player Abuse/Harassment</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["combat"]'>Combat/Battle Issue</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["ui"]'>UI/Display Issue</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["mission"]'>Mission Problem</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["shop"]'>Shop/Inventory Issue</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["dungeon"]'>Dungeon Problem</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["performance"]'>Performance/Lag</button>
+              <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["other"]'>Other</button>
+            </div>
+          </div>
         </div>
         <div class="form-group">
           <label for="bug-reported-player">Reported Player (optional)</label>
@@ -1251,7 +1255,7 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-08-21-report"></script>
+<script src="/js/app.js?v=2026-08-21-catdrop"></script>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
 <script src="/js/dungeon.js?v=2026-08-20-android"></script>
 <script src="/js/tournaments.js?v=2026-06-03"></script>
