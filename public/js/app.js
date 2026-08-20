@@ -1017,7 +1017,7 @@ function renderTopbarMenu() {
                     <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🐛 Report a Bug
+                    🚩 Report a Problem
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
                     Logout
@@ -1025,7 +1025,7 @@ function renderTopbarMenu() {
             </div>
         </div>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🐛 Report a Bug
+                    🚩 Report a Problem
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
                     Logout
@@ -1150,7 +1150,7 @@ function renderTopbarMenu() {
                     <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🐛 Report a Bug
+                    🚩 Report a Problem
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
                     Logout
@@ -1404,7 +1404,7 @@ function renderTopbarMenu() {
                     <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🐛 Report a Bug
+                    🚩 Report a Problem
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
                     Logout
@@ -13576,6 +13576,7 @@ async function submitBugReport(event) {
     const description = document.getElementById('bug-description').value.trim();
     const steps = document.getElementById('bug-steps').value.trim();
     const browser = document.getElementById('bug-browser').value.trim();
+    const reportedPlayer = document.getElementById('bug-reported-player').value.trim();
 
     if (!category || !title || !description) {
         showBugReportStatus('Please fill in all required fields.', 'error');
@@ -13597,7 +13598,8 @@ async function submitBugReport(event) {
             title,
             description,
             steps_to_reproduce: steps || 'Not provided',
-            browser
+            browser,
+            reported_player: reportedPlayer || null
         },
         screenshot: bugReportScreenshot || null,
         game_state: {
