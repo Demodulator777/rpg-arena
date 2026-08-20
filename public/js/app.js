@@ -1641,6 +1641,15 @@ async function selectCharacter(characterId) {
         await loadCharacterRoster();
         closeCharacterSwitcher();
         renderTopBar();
+        // Reset auto-mission (auto-complete) client state so switching between a
+        // character with auto-play and one without never leaves the stale "auto"
+        // flag behind (which otherwise hides/disables the collect button on load).
+        _autoEnabledCache = false;
+        _autoOverlayOpen = true;
+        _lastAutoMissionId = null;
+        if (typeof _autoSelectedPotions !== 'undefined') _autoSelectedPotions = new Map();
+        stopAutoOverlayPoll();
+        hideMissionOverlay();
         // Reset chat state and reload fresh history for the newly selected character
         chatActiveView = 'global';
         chatActivePmThread = '';
