@@ -6700,13 +6700,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none !important;
 }
 
-/* Character-preview avatar editor: contain-fit image panned via object-position
-   and zoomed via transform:scale, cropped by this overflow-hidden frame. */
+/* Character-preview avatar editor: the image is panned via object-position and
+   zoomed via transform:scale. It is NOT cropped — on zoom the image flows freely
+   over the frame edges so no side details are trimmed away. */
 .eq-avatar-zoom {
     position: relative;
     width: 230px;
     height: 300px;
-    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
