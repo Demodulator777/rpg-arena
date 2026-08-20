@@ -1998,7 +1998,7 @@ function ensureGoogleLogin() {
         return;
     }
     __googleInit = true;
-    fetch('/auth/google/client-id')
+    fetch('/api/auth/google/client-id')
         .then(r => r.json())
         .then(d => {
             if (!d || !d.clientId) return;
