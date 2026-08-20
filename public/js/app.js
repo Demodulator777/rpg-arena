@@ -14464,17 +14464,6 @@ async function openCharacterAvatarEditor() {
                 <input type="range" id="ced-zoom" min="1" max="3" step="0.05" value="${cZ}" style="width:100%;cursor:pointer;">
                 <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:6px;">Drag the picture to move it. This is exactly how it appears on your character page.</div>
             </div>
-            <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:4px;">Move</div>
-            <div style="display:grid;grid-template-columns:repeat(3,40px);gap:6px;justify-content:center;margin:0 auto 16px auto;">
-                <div></div>
-                <button class="ced-dir" id="ced-up" style="grid-row:1;grid-column:2" title="Move up">↑</button>
-                <div></div>
-                <button class="ced-dir" id="ced-left" style="grid-row:2;grid-column:1" title="Move left">←</button>
-                <button class="ced-dir" id="ced-right" style="grid-row:2;grid-column:3" title="Move right">→</button>
-                <div></div>
-                <button class="ced-dir" id="ced-down" style="grid-row:3;grid-column:2" title="Move down">↓</button>
-                <div></div>
-            </div>
             <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
                 <button class="btn-secondary" id="ced-save">Save</button>
                 <button class="btn-secondary" id="ced-reset">Reset</button>
@@ -14496,8 +14485,8 @@ async function openCharacterAvatarEditor() {
         const factor = 100 / preview.clientWidth;
         const onMove = (e) => {
             const dx = e.clientX - startEvt.clientX, dy = e.clientY - startEvt.clientY;
-            cX = Math.max(0, Math.min(100, Math.round(sx - dx * factor)));
-            cY = Math.max(0, Math.min(100, Math.round(sy - dy * factor)));
+            cX = Math.round(sx - dx * factor);
+            cY = Math.round(sy - dy * factor);
             apply();
         };
         const onUp = () => {
@@ -14519,18 +14508,6 @@ async function openCharacterAvatarEditor() {
         zoomVal.textContent = Math.round(cZ * 100) + '%';
         apply();
     });
-    // Four-direction nudge buttons (guarantee vertical movement alongside drag)
-    const nudge = (dx, dy) => {
-        let changed = false;
-        if (dx) { const nx = Math.round(cX + dx); if (nx >= 0 && nx <= 100) { cX = nx; changed = true; } }
-        if (dy) { const ny = Math.round(cY + dy); if (ny >= 0 && ny <= 100) { cY = ny; changed = true; } }
-        if (changed) apply();
-    };
-    const dirBtns = { 'ced-up': [0, -5], 'ced-down': [0, 5], 'ced-left': [-5, 0], 'ced-right': [5, 0] };
-    for (const [id, step] of Object.entries(dirBtns)) {
-        const b = overlay.querySelector('#' + id);
-        if (b) b.addEventListener('click', () => nudge(step[0], step[1]));
-    }
     overlay.querySelector('#ced-reset').addEventListener('click', () => {
         cX = 50; cY = 50; cZ = 1;
         zoomInput.value = 1; zoomVal.textContent = '100%';
@@ -14640,8 +14617,8 @@ const currentPic = character.profile_pic || `${character.class}.png`;
             const factor = 100 / posPreview.clientWidth;
             const onMove = (e) => {
                 let dx = e.clientX - startEvt.clientX, dy = e.clientY - startEvt.clientY;
-                posX = Math.max(0, Math.min(100, Math.round(startX - dx * factor)));
-                posY = Math.max(0, Math.min(100, Math.round(startY - dy * factor)));
+                posX = Math.round(startX - dx * factor);
+                posY = Math.round(startY - dy * factor);
                 applyPosPreview();
             };
             const onUp = () => {
