@@ -1861,6 +1861,7 @@ function switchTab(tab) {
     document.getElementById('tab-login').classList.toggle('active',tab==='login');
     document.getElementById('tab-register').classList.toggle('active',tab==='register');
     setError('auth-error','');
+    relocateGoogleButton(tab);
 }
 
 function hydrateReferralFromUrl() {
@@ -1991,6 +1992,7 @@ async function handleGoogleCredential(resp) {
 
 // Load the visible Google Client ID, then mount the branded button via GIS.
 let __googleInit = false;
+let __googleButtonEl = null;
 function ensureGoogleLogin() {
     if (__googleInit) return;
     if (!window.google || !window.google.accounts || !window.google.accounts.id) {
@@ -2010,9 +2012,24 @@ function ensureGoogleLogin() {
             const el = document.getElementById('google-signin-btn');
             if (el && google.accounts.id.renderButton) {
                 google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'rectangular', width: 300 });
+                __googleButtonEl = el.firstElementChild;
             }
         })
         .catch(() => {});
+}
+
+// GIS renders a single branded iframe; move it between the login and register
+// tab containers as the user switches tabs (one button, two slots).
+function relocateGoogleButton(tab) {
+    if (!__googleButtonEl) return;
+    const from = document.getElementById(tab === 'login' ? 'google-signin-btn' : 'google-signin-btn-register');
+    const to = document.getElementById(tab === 'login' ? 'google-signin-btn-register' : 'google-signin-btn');
+    if (from && to && to !== from) {
+        if (from === __googleButtonEl.parentNode) {
+            while (to.firstChild) to.removeChild(to.firstChild);
+            to.appendChild(__googleButtonEl);
+        }
+    }
 }
 document.addEventListener('DOMContentLoaded',()=>{
     ensureGoogleLogin();
