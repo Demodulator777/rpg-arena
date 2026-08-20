@@ -635,6 +635,12 @@ function returnToBeta() {
     // Server 1 is not open yet: show a coming-soon page with a countdown until
     // the configured launch time, then reveal the registration form.
     if (getServerId() === 'server1') {
+      // Registration already opened during this session -> boot straight into the
+      // app (no overlay/countdown). The flag is set the moment launch happens.
+      if (sessionStorage.getItem('rpg_s1_open') === '1') {
+        applyServerUI();
+        return;
+      }
       const cs = document.getElementById('coming-soon');
       if (cs) cs.classList.remove('hidden');
       const app = document.getElementById('app');
@@ -657,13 +663,11 @@ let __s1CountdownTimer = null;
 
 function openS1Registration() {
   if (__s1CountdownTimer) { clearInterval(__s1CountdownTimer); __s1CountdownTimer = null; }
-  const cs = document.getElementById('coming-soon');
-  if (cs) cs.classList.add('hidden');
-  const app = document.getElementById('app');
-  if (app) app.classList.remove('hidden');
-  switchTab('register');
-  const rc = document.getElementById('screen-auth');
-  if (rc) rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Mark this session as open, then hard-refresh for a clean state (no overlay).
+  // On reload the boot logic sees rpg_s1_open and goes straight to the app with
+  // the Register tab active. The server independently enforces the launch time.
+  try { sessionStorage.setItem('rpg_s1_open', '1'); } catch {}
+  window.location.reload();
 }
 
 function renderS1Countdown() {
