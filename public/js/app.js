@@ -34,13 +34,13 @@
         setTimeout(function() { animateLayer(layer, cfg.min, cfg.max); }, idx * 600 + Math.random() * 400);
     });
 
-    // ── Star & Constellation canvas ────────────────────────────────────────
-    var starCanvas = document.getElementById('loading-stars');
-    if (starCanvas) {
-        var sc = starCanvas.getContext('2d');
+    // ── Star & Constellation canvas (shared: loading overlay + S1 panel) ──
+    function startStars(canvas, running) {
+        if (!canvas) return;
+        var sc = canvas.getContext('2d');
         var stars = [], constellations = [], starRaf;
         var NUM_STARS = 130, MAX_DIST = 130;
-        function resizeStars() { starCanvas.width = window.innerWidth; starCanvas.height = window.innerHeight; }
+        function resizeStars() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
         resizeStars();
         window.addEventListener('resize', resizeStars);
         var starColors = ['rgba(255,255,255,','rgba(200,215,255,','rgba(220,200,255,','rgba(255,240,200,','rgba(180,230,255,'];
@@ -52,20 +52,20 @@
         }
         function spawnConst() {
             var seed = Math.floor(Math.random()*stars.length);
-            var sx = stars[seed].x*starCanvas.width, sy = stars[seed].y*starCanvas.height;
+            var sx = stars[seed].x*canvas.width, sy = stars[seed].y*canvas.height;
             var nearby = [seed];
             var shuffled = stars.map(function(_,i){return i;}).sort(function(){return Math.random()-0.5;});
             for (var k=0; k<shuffled.length && nearby.length<6; k++) {
                 var ii=shuffled[k]; if(ii===seed) continue;
-                var dx=stars[ii].x*starCanvas.width-sx, dy=stars[ii].y*starCanvas.height-sy;
+                var dx=stars[ii].x*canvas.width-sx, dy=stars[ii].y*canvas.height-sy;
                 if (Math.sqrt(dx*dx+dy*dy)<MAX_DIST) nearby.push(ii);
             }
             if (nearby.length>=3) constellations.push({indices:nearby,opacity:0,dir:1});
         }
         var starFrame=0, nextSpawn=120;
         function drawStars() {
-            if (!document.getElementById('loading-overlay')) { cancelAnimationFrame(starRaf); return; }
-            sc.clearRect(0,0,starCanvas.width,starCanvas.height);
+            if (!running()) { cancelAnimationFrame(starRaf); return; }
+            sc.clearRect(0,0,canvas.width,canvas.height);
             starFrame++;
             if (starFrame>=nextSpawn) { spawnConst(); nextSpawn=starFrame+100+Math.floor(Math.random()*160); }
             for (var c=constellations.length-1;c>=0;c--) {
@@ -76,13 +76,13 @@
                 sc.strokeStyle='rgba(160,195,255,'+con.opacity.toFixed(3)+')';
                 sc.lineWidth=0.6; sc.beginPath();
                 var p0=stars[con.indices[0]];
-                sc.moveTo(p0.x*starCanvas.width,p0.y*starCanvas.height);
+                sc.moveTo(p0.x*canvas.width,p0.y*canvas.height);
                 for (var j=1;j<con.indices.length;j++) {
                     var pj=stars[con.indices[j]],prev=stars[con.indices[j-1]];
-                    var ddx=pj.x*starCanvas.width-prev.x*starCanvas.width;
-                    var ddy=pj.y*starCanvas.height-prev.y*starCanvas.height;
-                    if(Math.sqrt(ddx*ddx+ddy*ddy)<MAX_DIST) sc.lineTo(pj.x*starCanvas.width,pj.y*starCanvas.height);
-                    else sc.moveTo(pj.x*starCanvas.width,pj.y*starCanvas.height);
+                    var ddx=pj.x*canvas.width-prev.x*canvas.width;
+                    var ddy=pj.y*canvas.height-prev.y*canvas.height;
+                    if(Math.sqrt(ddx*ddx+ddy*ddy)<MAX_DIST) sc.lineTo(pj.x*canvas.width,pj.y*canvas.height);
+                    else sc.moveTo(pj.x*canvas.width,pj.y*canvas.height);
                 }
                 sc.stroke();
             }
@@ -92,7 +92,7 @@
                     if(st.waited<st.waitFrames){st.waited++;}
                     else{st.target=Math.random()*0.85+0.05;st.waitFrames=Math.floor(Math.random()*200+60);st.speed=0.003+Math.random()*0.009;st.waited=0;}
                 } else { st.opacity+=(st.target-st.opacity)>0?st.speed:-st.speed; }
-                var px=st.x*starCanvas.width,py=st.y*starCanvas.height;
+                var px=st.x*canvas.width,py=st.y*canvas.height;
                 sc.beginPath(); sc.arc(px,py,st.r*2.5,0,Math.PI*2);
                 sc.fillStyle=st.color+(st.opacity*0.18).toFixed(3)+')'; sc.fill();
                 sc.beginPath(); sc.arc(px,py,st.r,0,Math.PI*2);
@@ -102,11 +102,15 @@
         }
         starRaf=requestAnimationFrame(drawStars);
     }
+    var loadingStars = document.getElementById('loading-stars');
+    startStars(loadingStars, function(){ return !!document.getElementById('loading-overlay'); });
+    var s1Stars = document.getElementById('s1-stars');
+    startStars(s1Stars, function(){ var cs=document.getElementById('coming-soon'); return cs && !cs.classList.contains('hidden'); });
 
-    // ── Runic particle canvas ──────────────────────────────────────────────
-    var pCanvas = document.getElementById('loading-particles');
-    if (pCanvas) {
-        var pc = pCanvas.getContext('2d');
+    // ── Runic particle canvas (shared: loading overlay + S1 panel) ────────
+    function startParticles(canvas, running, ringMode) {
+        if (!canvas) return;
+        var pc = canvas.getContext('2d');
         var particles = [], pRaf;
         // Rune-like glyphs — simple strokes that feel arcane
         var glyphs = ['✦','✧','⊕','⊗','◈','⟁','⌬','⍟','⎊','⏣','⋆','∴','∵','⁂'];
@@ -115,23 +119,34 @@
             'rgba(52,211,153,',  'rgba(251,191,36,',  'rgba(244,114,182,'
         ];
         function resizeP() {
-            var rect = pCanvas.parentElement.getBoundingClientRect();
-            pCanvas.width  = rect.width  + 240;
-            pCanvas.height = rect.height + 240;
+            var rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width  = rect.width  + 240;
+            canvas.height = rect.height + 240;
         }
         resizeP();
         window.addEventListener('resize', resizeP);
 
         function spawnParticle() {
-            var w = pCanvas.width, h = pCanvas.height;
-            // spawn along bottom edge of the canvas, within ring area roughly
-            var angle = Math.random() * Math.PI * 2;
-            var r = 80 + Math.random() * 160; // spawn in a ring around center
+            var w = canvas.width, h = canvas.height;
+            var x, y, vy;
+            if (ringMode) {
+                // loading overlay: spawn in a ring around the centre (around the rings)
+                var angle = Math.random() * Math.PI * 2;
+                var r = 80 + Math.random() * 160;
+                x = w/2 + Math.cos(angle)*r;
+                y = h/2 + Math.sin(angle)*r;
+                vy = -(0.3 + Math.random()*0.7);
+            } else {
+                // Server 1 panel (no rings): float up from the bottom, spread across width
+                x = 20 + Math.random() * (w - 40);
+                y = h;
+                vy = -(0.4 + Math.random()*0.9);
+            }
             particles.push({
-                x: w/2 + Math.cos(angle)*r,
-                y: h/2 + Math.sin(angle)*r,
+                x: x,
+                y: y,
                 vx: (Math.random()-0.5)*0.4,
-                vy: -(0.3 + Math.random()*0.7), // float upward
+                vy: vy,
                 opacity: 0,
                 maxOpacity: 0.15 + Math.random()*0.35,
                 fadeIn: true,
@@ -146,8 +161,8 @@
 
         var pFrame = 0;
         function drawParticles() {
-            if (!document.getElementById('loading-overlay')) { cancelAnimationFrame(pRaf); return; }
-            pc.clearRect(0, 0, pCanvas.width, pCanvas.height);
+            if (!running()) { cancelAnimationFrame(pRaf); return; }
+            pc.clearRect(0, 0, canvas.width, canvas.height);
             pFrame++;
             // spawn a new particle every ~40 frames
             if (pFrame % 40 === 0) spawnParticle();
@@ -179,6 +194,10 @@
         for (var pi=0; pi<5; pi++) spawnParticle();
         pRaf = requestAnimationFrame(drawParticles);
     }
+    var loadingParticles = document.getElementById('loading-particles');
+    startParticles(loadingParticles, function(){ return !!document.getElementById('loading-overlay'); }, true);
+    var s1Particles = document.getElementById('s1-particles');
+    startParticles(s1Particles, function(){ var cs=document.getElementById('coming-soon'); return cs && !cs.classList.contains('hidden'); }, false);
 
     // ── Progress bar ────────────────────────────────────────────────────────
     function setLoadingProgress(pct, text) {
