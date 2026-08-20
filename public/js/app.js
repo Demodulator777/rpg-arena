@@ -14490,6 +14490,13 @@ async function openCharacterAvatarEditor() {
     const img = overlay.querySelector('#ced-img');
     const apply = () => {
         img.style.transform = avatarTransformCSS(cX, cY, cZ);
+        // Mirror to the live on-page character avatar so zoom/position updates
+        // appear immediately (previously only after Save -> renderCharacter).
+        const live = document.querySelector('.eq-avatar-custom');
+        if (live) {
+            live.style.objectPosition = '50% 50%';
+            live.style.transform = avatarTransformCSS(cX, cY, cZ);
+        }
     };
 
     const startDrag = (startEvt) => {
