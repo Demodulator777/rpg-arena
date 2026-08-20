@@ -4189,7 +4189,7 @@ function buildExtendedAchievements() {
             chain: 'referrals_registered',
             category: 'community',
             name: 'First Recruit',
-            desc: 'Refer 1 player to Battle Arena.',
+            desc: 'Refer 1 player to Mid-Evil: Battle Arena.',
             icon: '🤝',
             metric: 'referrals_registered',
             target: 1,
@@ -4200,7 +4200,7 @@ function buildExtendedAchievements() {
             chain: 'referrals_registered',
             category: 'community',
             name: 'Arena Scout',
-            desc: 'Refer 3 players to Battle Arena.',
+            desc: 'Refer 3 players to Mid-Evil: Battle Arena.',
             icon: '📯',
             metric: 'referrals_registered',
             target: 3,
@@ -4211,7 +4211,7 @@ function buildExtendedAchievements() {
             chain: 'referrals_registered',
             category: 'community',
             name: 'Crowd Caller',
-            desc: 'Refer 10 players to Battle Arena.',
+            desc: 'Refer 10 players to Mid-Evil: Battle Arena.',
             icon: '🎺',
             metric: 'referrals_registered',
             target: 10,
@@ -18360,7 +18360,7 @@ router.get('/rewards/list', noReferrer, async (req, res) => {
                                 </div>
                                 <div>
                                     <label>Subject</label>
-                                    <input type="text" name="subject" maxlength="140" placeholder="Thank you for helping test Battle Arena">
+                                    <input type="text" name="subject" maxlength="140" placeholder="Thank you for helping test Mid-Evil: Battle Arena">
                                 </div>
                                 <div class="full">
                                     <label>Message Body</label>
