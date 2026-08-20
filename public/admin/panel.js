@@ -71,6 +71,7 @@ function renderLayout() {
             { id: 'tournaments', label: 'Tournaments' },
             { id: 'bots', label: 'Bots' },
             { id: 'settings', label: 'Settings' },
+            { id: 'android', label: 'Android Testers' },
             { id: 'console', label: 'Console' },
             { id: 'moderators', label: 'Moderators' }
         );
@@ -115,6 +116,51 @@ function loadTab(name) {
     else if (name === 'bans') loadBans();
     else if (name === 'profile-pic-review') renderProfilePicReview();
     else if (name === 'settings') loadSettings();
+    else if (name === 'android') loadAndroid();
+}
+
+function loadAndroid() {
+    var el = document.getElementById('tab-android');
+    el.innerHTML = '<div class="loading">Loading applicants...</div>';
+    var tok = function() { return localStorage.getItem('rpg_token'); };
+    fetch('/api/game/admin/android-applicants', { headers: { 'Authorization': 'Bearer ' + tok() } })
+        .then(function(r) { return r.json(); })
+        .then(function(list) {
+            if (!Array.isArray(list)) {
+                el.innerHTML = '<div class="loading">' + ((list && list.error) || 'Error loading') + '</div>';
+                return;
+            }
+            var statuses = ['pending', 'accepted', 'rejected', 'removed'];
+            var rows = list.map(function(a) {
+                var d = a.created_at ? new Date(a.created_at).toLocaleString() : '';
+                var opts = statuses.map(function(s) {
+                    return '<option' + (s === a.status ? ' selected' : '') + '>' + s + '</option>';
+                }).join('');
+                return '<tr>' +
+                    '<td>' + (a.email || '').replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</td>' +
+                    '<td>' + (a.status || '') + '</td>' +
+                    '<td>' + d + '</td>' +
+                    '<td><select data-apply-email="' + encodeURIComponent(a.email || '') + '">' + opts + '</select></td>' +
+                    '</tr>';
+            }).join('');
+            el.innerHTML =
+                '<h2>Android Testers</h2>' +
+                '<p style="color:#8a8a90;font-size:12px">Closed-testing applicants from the auth screen. Update a status to accept/reject after adding them in the Play Console.</p>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+                '<thead><tr style="text-align:left;color:#8a8a90">' +
+                '<th style="padding:6px">Email</th><th style="padding:6px">Status</th><th style="padding:6px">Applied</th><th style="padding:6px">Set status</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table>';
+            el.querySelectorAll('select[data-apply-email]').forEach(function(sel) {
+                sel.addEventListener('change', function() {
+                    fetch('/api/game/admin/android-applicants/' + encodeURIComponent(sel.dataset.applyEmail) + '/status', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok() },
+                        body: JSON.stringify({ status: sel.value })
+                    }).catch(function() {});
+                });
+            });
+        })
+        .catch(function() { el.innerHTML = '<div class="loading">Error loading applicants</div>'; });
 }
 
 function loadSettings() {
