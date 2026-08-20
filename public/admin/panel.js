@@ -1150,6 +1150,7 @@ function loadConsole() {
         '<span style="flex:1"></span>' +
         '<span id="sw-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">SW: <span id="sw-status-text">...</span> <button class="db-btn" id="sw-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
         '<span id="bot-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">Bot Detection: <span id="bot-status-text">...</span> <button class="db-btn" id="bot-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
+        '<span id="s1-launch-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">S1 Launch: <input type="datetime-local" id="s1-launch-input" style="font-size:11px;background:#14141a;color:#e6e6ee;border:1px solid #333"> <button class="db-btn" id="s1-launch-save" style="font-size:11px;padding:2px 10px">Set</button></span>' +
         '</div>' +
         '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">Waiting for logs...</div>';
 
@@ -1200,6 +1201,29 @@ function loadConsole() {
     botBtn.addEventListener('click', function() {
         var currentlyOn = botText.textContent.indexOf('ON') !== -1;
         fetch('/api/game/admin/settings/bot-detection', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function() { refreshSettings(); });
+    });
+
+    var s1Input = document.getElementById('s1-launch-input');
+    var s1Save = document.getElementById('s1-launch-save');
+    var toLocalInput = function(ms) {
+        var d = new Date(ms);
+        var p = function(n){ return String(n).padStart(2, '0'); };
+        return d.getFullYear() + '-' + p(d.getMonth()+1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' + p(d.getMinutes());
+    };
+    function refreshS1Launch() {
+        fetch('/api/server/settings').then(function(r){ return r.json(); }).then(function(data) {
+            var t = Number(data.s1_launch_at) || 0;
+            if (s1Input && t) s1Input.value = toLocalInput(t);
+        }).catch(function() {});
+    }
+    refreshS1Launch();
+    if (s1Save && s1Input) s1Save.addEventListener('click', function() {
+        if (!s1Input.value) { alert('Pick a date/time first.'); return; }
+        var launchAt = new Date(s1Input.value).getTime();
+        fetch('/api/game/admin/settings/s1-launch', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ launch_at: launchAt }) })
+            .then(function(r){ return r.json(); })
+            .then(function(d) { if (d.success) alert('S1 launch set to ' + new Date(d.launch_at).toString()); })
+            .catch(function(e) { alert(e.message || 'Failed to set launch time'); });
     });
 }
 
