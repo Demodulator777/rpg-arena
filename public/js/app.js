@@ -14421,7 +14421,12 @@ function avatarPos(off) {
 }
 
 function avatarZoomVal(off) {
-    const z = off && off.z != null ? Number(off.z) : 1;
+    let z;
+    if (typeof off === 'number' || typeof off === 'string') {
+        z = Number(off);
+    } else {
+        z = (off && off.z != null) ? Number(off.z) : 1;
+    }
     return isFinite(z) ? Math.min(4, Math.max(1, z)) : 1;
 }
 
