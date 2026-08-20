@@ -14176,17 +14176,15 @@ function avatarZoomVal(off) {
     return isFinite(z) ? Math.min(4, Math.max(1, z)) : 1;
 }
 
-// Renders the big character-tab avatar. For a zoomed custom image we wrap it in a
-// cover-cropping frame so the uploaded image can be repositioned/zoomed; otherwise
-// it falls back to the plain contain img (current behaviour) so nothing regresses.
+// Renders the big character-tab avatar. Uses object-fit:contain with the image
+// panned via object-position and zoomed purely via transform:scale (kept inside an
+// overflow-hidden frame). A single fit mode makes zoom continuous: 100% = whole
+// image, 110% = genuine 10% zoom — no fit-mode switch that would jump the crop.
 function avatarImgHtml(src, off) {
     const x = (off && off.x != null) ? off.x : 50;
     const y = (off && off.y != null) ? off.y : 50;
     const z = avatarZoomVal(off);
-    if (z > 1.001) {
-        return `<div class="eq-avatar-zoom"><img class="eq-avatar-custom" src="${escHtml(src)}" alt="avatar" data-error-opacity-zero="true" style="object-position:${x}% ${y}%;transform:scale(${z});"></div>`;
-    }
-    return `<img src="${escHtml(src)}" alt="avatar" data-error-opacity-zero="true" style="object-position:${x}% ${y}%;">`;
+    return `<div class="eq-avatar-zoom"><img class="eq-avatar-custom" src="${escHtml(src)}" alt="avatar" data-error-opacity-zero="true" style="object-position:${x}% ${y}%;transform:scale(${z});transform-origin:50% 50%;"></div>`;
 }
 
 // Standalone Character Avatar Editor — edits ONLY the big character-preview crop
@@ -14210,7 +14208,7 @@ async function openCharacterAvatarEditor() {
             <h3 style="color:#f1c40f;margin:0 0 4px 0;">✏️ Character Avatar</h3>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:16px;">Adjust position & zoom of your big character-preview picture. (Your round avatar is edited separately.)</div>
             <div id="ced-preview" style="width:230px;height:300px;margin:0 auto 16px auto;overflow:hidden;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:#000;cursor:grab;touch-action:none;user-select:none;position:relative;">
-                <img id="ced-img" src="${src}" style="width:230px;height:300px;object-fit:cover;object-position:${cX}% ${cY}%;transform:scale(${cZ});transform-origin:center;pointer-events:none;user-select:none;">
+                <img id="ced-img" src="${src}" style="width:230px;height:300px;object-fit:contain;object-position:${cX}% ${cY}%;transform:scale(${cZ});transform-origin:center;pointer-events:none;user-select:none;">
             </div>
             <div style="max-width:230px;margin:0 auto 16px auto;text-align:left;">
                 <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:4px;">Zoom <span id="ced-zoom-val">${Math.round(cZ*100)}%</span></div>
@@ -14443,9 +14441,7 @@ async function uploadProfilePic(e) {
         const prevY = (prevOff.y != null) ? prevOff.y : 50;
         const prevZ = avatarZoomVal(prevOff);
         const previewUrl = URL.createObjectURL(finalFile);
-        const prevImgStyle = prevZ > 1.001
-            ? `object-fit:cover;transform:scale(${prevZ});transform-origin:center;`
-            : `object-fit:contain;`;
+        const prevImgStyle = `object-fit:contain;transform:scale(${prevZ});transform-origin:center;`;
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
         overlay.onclick = (ev) => { if (ev.target === overlay) closePreview(); };
