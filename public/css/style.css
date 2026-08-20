@@ -6700,9 +6700,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none !important;
 }
 
-/* Zoomed custom avatars: cover-crop frame so the uploaded image can be
-   repositioned/zoomed (transform:scale set inline). Higher specificity + later
-   in source overrides object-fit:contain above only for these. */
+/* Character-preview avatar editor: contain-fit image panned via object-position
+   and zoomed via transform:scale, cropped by this overflow-hidden frame. */
 .eq-avatar-zoom {
     position: relative;
     width: 230px;
@@ -6716,7 +6715,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .profile-eq-avatar .eq-avatar-zoom img.eq-avatar-custom {
     width: 230px !important;
     height: 300px !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
     transform-origin: center center;
 }
 .eq-avatar-edit-btn {
