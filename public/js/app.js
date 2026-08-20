@@ -14469,7 +14469,7 @@ async function openCharacterAvatarEditor() {
         <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:92%;max-height:92%;overflow:auto;text-align:center;">
             <h3 style="color:#f1c40f;margin:0 0 4px 0;">✏️ Character Avatar</h3>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:16px;">Adjust position & zoom of your big character-preview picture. (Your round avatar is edited separately.)</div>
-            <div id="ced-preview" style="width:230px;height:300px;margin:0 auto 16px auto;border:1px dashed rgba(255,255,255,0.3);border-radius:8px;background:#000;cursor:grab;touch-action:none;user-select:none;position:relative;">
+            <div id="ced-preview" style="width:230px;height:300px;margin:0 auto 16px auto;border:1px dashed rgba(255,255,255,0.3);border-radius:8px;background:#000;cursor:grab;touch-action:none;user-select:none;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;">
                 <img id="ced-img" src="${src}" style="width:230px;height:300px;object-fit:contain;object-position:50% 50%;transform:${avatarTransformCSS(cX, cY, cZ)};transform-origin:center;pointer-events:none;user-select:none;">
             </div>
             <div style="max-width:230px;margin:0 auto 16px auto;text-align:left;">
