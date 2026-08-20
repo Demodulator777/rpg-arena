@@ -573,6 +573,7 @@ function loadBugs() {
             '<th class="sortable" data-tab="bugs" data-col="username">User</th>' +
             '<th class="sortable" data-tab="bugs" data-col="character_name">Character</th>' +
             '<th class="sortable" data-tab="bugs" data-col="category">Category</th>' +
+            '<th>Reported Player</th>' +
             '<th class="sortable" data-tab="bugs" data-col="title">Title</th>' +
             '<th>Screenshot</th>' +
         '</tr></thead><tbody id="bugs-tbody"></tbody></table></div>';
@@ -581,10 +582,14 @@ function loadBugs() {
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
 }
 
+function reportBadge(cat) {
+    var map = { 'cheating': 'yes', 'abuse': 'yes', 'bug': 'yes' };
+    return '<span class="badge badge-' + (map[cat] ? 'yes' : 'no') + '">' + esc(cat || '') + '</span>';
+}
 function renderBugsTable(data) {
     var tbody = document.getElementById('bugs-tbody');
     tbody.innerHTML = data.map(function(b) {
-        return '<tr><td style="color:#6a6a70">' + b.id + '</td><td style="white-space:nowrap">' + b.report_timestamp + '</td><td>' + (b.username || '') + '</td><td>' + (b.character_name || '') + '</td><td><span class="badge badge-' + (b.category === 'bug' ? 'yes' : 'no') + '">' + (b.category || '') + '</span></td><td class="bug-title" title="' + esc(b.title) + '">' + esc(b.title) + '</td><td>' + (b.has_screenshot ? '<a href="/api/game/bug-report/screenshot/' + b.id + '" target="_blank" style="color:#5dade2">View</a>' : '<span style="color:#4a4a50">No</span>') + '</td></tr>';
+        return '<tr><td style="color:#6a6a70">' + b.id + '</td><td style="white-space:nowrap">' + b.report_timestamp + '</td><td>' + (b.username || '') + '</td><td>' + (b.character_name || '') + '</td><td>' + reportBadge(b.category) + '</td><td style="white-space:nowrap">' + (b.reported_player ? '<b style="color:#e74c3c">@' + esc(b.reported_player) + '</b>' : '') + '</td><td class="bug-title" title="' + esc(b.title) + '">' + esc(b.title) + '</td><td>' + (b.has_screenshot ? '<a href="/api/game/bug-report/screenshot/' + b.id + '" target="_blank" style="color:#5dade2">View</a>' : '<span style="color:#4a4a50">No</span>') + '</td></tr>';
     }).join('');
 }
 
