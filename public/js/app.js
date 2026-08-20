@@ -632,12 +632,14 @@ function returnToBeta() {
 }
 (function initServerSwitch() {
   function wire() {
-    // Server 1 is not open yet: show a coming-soon page instead of the auth form.
+    // Server 1 is not open yet: show a coming-soon page with a countdown until
+    // the configured launch time, then reveal the registration form.
     if (getServerId() === 'server1') {
       const cs = document.getElementById('coming-soon');
       if (cs) cs.classList.remove('hidden');
       const app = document.getElementById('app');
       if (app) app.classList.add('hidden');
+      startS1Countdown();
       return;
     }
     // No auto-redirect on load: localStorage is per-origin and differs between the
@@ -648,6 +650,53 @@ function returnToBeta() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
   else wire();
 })();
+
+// Server 1 launch countdown (driven by the s1_launch_at server setting).
+let __s1LaunchAt = 0;
+let __s1CountdownTimer = null;
+
+function openS1Registration() {
+  if (__s1CountdownTimer) { clearInterval(__s1CountdownTimer); __s1CountdownTimer = null; }
+  const cs = document.getElementById('coming-soon');
+  if (cs) cs.classList.add('hidden');
+  const app = document.getElementById('app');
+  if (app) app.classList.remove('hidden');
+  switchTab('register');
+  const rc = document.getElementById('screen-auth');
+  if (rc) rc.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderS1Countdown() {
+  const el = document.getElementById('s1-countdown');
+  if (!el) return;
+  const diff = __s1LaunchAt - Date.now();
+  if (!__s1LaunchAt || diff <= 0) {
+    openS1Registration();
+    return;
+  }
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  const pad = n => String(n).padStart(2, '0');
+  el.textContent = d + 'd ' + pad(h) + 'h ' + pad(m) + 'm ' + pad(s) + 's';
+}
+
+function startS1Countdown() {
+  fetch('/api/server/settings')
+    .then(r => r.json())
+    .then(data => {
+      const t = Number(data.s1_launch_at) || 0;
+      __s1LaunchAt = t;
+      if (t && t > Date.now()) {
+        renderS1Countdown();
+        __s1CountdownTimer = setInterval(renderS1Countdown, 1000);
+      } else {
+        openS1Registration();
+      }
+    })
+    .catch(() => {});
+}
 
 async function api(method, path, body=null) {
     // Don't add /api prefix for skills and banner routes
