@@ -6719,6 +6719,17 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     object-fit: cover !important;
     transform-origin: center center;
 }
+.eq-avatar-edit-btn {
+    position: absolute;
+    bottom: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 6;
+    padding: 2px 8px;
+    font-size: 0.8rem;
+    min-height: 24px;
+    line-height: 1.2;
+}
 
 .eq-avatar-center img.eq-elemental-spirit {
     position: absolute !important;
