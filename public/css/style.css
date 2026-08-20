@@ -6700,6 +6700,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none !important;
 }
 
+/* Zoomed custom avatars: cover-crop frame so the uploaded image can be
+   repositioned/zoomed (transform:scale set inline). Higher specificity + later
+   in source overrides object-fit:contain above only for these. */
+.eq-avatar-zoom {
+    position: relative;
+    width: 230px;
+    height: 300px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.eq-avatar-zoom img.eq-avatar-custom,
+.profile-eq-avatar .eq-avatar-zoom img.eq-avatar-custom {
+    width: 230px !important;
+    height: 300px !important;
+    object-fit: cover !important;
+    transform-origin: center center;
+}
+
 .eq-avatar-center img.eq-elemental-spirit {
     position: absolute !important;
     width: 60px !important;
