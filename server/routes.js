@@ -993,6 +993,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN profile_badges TEXT DEFAULT NULL',
             "ALTER TABLE characters ADD COLUMN profile_pic_offset TEXT DEFAULT '{\"x\":50,\"y\":50}'",
+            "ALTER TABLE characters ADD COLUMN char_pic_offset TEXT DEFAULT '{\"x\":50,\"y\":50,\"z\":1}'",
             'ALTER TABLE users ADD COLUMN referred_by_user_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN referral_level5_rewarded INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN pending_referral_gold INTEGER DEFAULT 0',
@@ -10355,6 +10356,9 @@ async function buildCharacterResponse(char, db) {
         profile_pic_offset: (() => {
             try { return JSON.parse(char.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; }
         })(),
+        char_pic_offset: (() => {
+            try { return JSON.parse(char.char_pic_offset || '{"x":50,"y":50,"z":1}'); } catch { return { x: 50, y: 50, z: 1 }; }
+        })(),
         elemental: elemental && elemental.is_equipped === 1 ? { ...elemental, ...calcElemStats(elemental), xpNext: elemXpForLevel(elemental.level || 1) } : null,
         profile_badges: (() => {
             try {
@@ -10678,19 +10682,37 @@ router.post('/profile-pic/upload', auth, uploadLimiter, profilePicUploadMiddlewa
 
 router.post('/profile-pic/offset', auth, async (req, res) => {
     try {
+        // Blob (round avatar) position — independent of the character-preview editor.
         const x = Math.round(Number(req.body?.x));
         const y = Math.round(Number(req.body?.y));
         if (isNaN(x) || isNaN(y)) return res.status(400).json({ error: 'Invalid offset values' });
         const cx = Math.max(0, Math.min(100, x));
         const cy = Math.max(0, Math.min(100, y));
-        // Zoom (1 = none, >1 = crop closer). Defaults to 1.
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character found' });
+        await dbRun(db, 'UPDATE characters SET profile_pic_offset=? WHERE id=?', [JSON.stringify({ x: cx, y: cy }), char.id]);
+        res.json({ success: true, x: cx, y: cy });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Character-preview avatar editor (separate from the round blob). Controls how the
+// large 230x300 character-tab crop is zoomed/positioned. Stored independently in
+// char_pic_offset, so editing the blob never affects this and vice-versa.
+router.post('/profile-pic/char-offset', auth, async (req, res) => {
+    try {
+        const x = Math.round(Number(req.body?.x));
+        const y = Math.round(Number(req.body?.y));
+        if (isNaN(x) || isNaN(y)) return res.status(400).json({ error: 'Invalid offset values' });
+        const cx = Math.max(0, Math.min(100, x));
+        const cy = Math.max(0, Math.min(100, y));
         let cz = 1;
         const zRaw = Number(req.body?.z);
         if (!isNaN(zRaw)) cz = Math.min(4, Math.max(1, zRaw));
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character found' });
-        await dbRun(db, 'UPDATE characters SET profile_pic_offset=? WHERE id=?', [JSON.stringify({ x: cx, y: cy, z: cz }), char.id]);
+        await dbRun(db, 'UPDATE characters SET char_pic_offset=? WHERE id=?', [JSON.stringify({ x: cx, y: cy, z: cz }), char.id]);
         res.json({ success: true, x: cx, y: cy, z: cz });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -15802,7 +15824,7 @@ router.get('/leaderboard', auth, async (req, res) => {
                 const def = defById.get(id);
                 return def ? { id: def.id, icon: def.icon, name: def.name } : null;
             }).filter(Boolean);
-            return { ...p, rank: i + 1, profile_badges: badges, profile_pic_offset: (() => { try { return JSON.parse(p.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })() };
+            return { ...p, rank: i + 1, profile_badges: badges, profile_pic_offset: (() => { try { return JSON.parse(p.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })(), char_pic_offset: (() => { try { return JSON.parse(p.char_pic_offset || '{"x":50,"y":50,"z":1}'); } catch { return { x: 50, y: 50, z: 1 }; } })() };
         }));
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
@@ -15831,6 +15853,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                 char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
                 profile_pic: ch.profile_pic,
                 profile_pic_offset: (() => { try { return JSON.parse(ch.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })(),
+                char_pic_offset: (() => { try { return JSON.parse(ch.char_pic_offset || '{"x":50,"y":50,"z":1}'); } catch { return { x: 50, y: 50, z: 1 }; } })(),
                 total_dmg: Number(r.total_dmg || 0), total_battles: Number(r.total_battles || 0),
             });
         }
@@ -15851,6 +15874,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                 char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
                 profile_pic: ch.profile_pic,
                 profile_pic_offset: (() => { try { return JSON.parse(ch.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })(),
+                char_pic_offset: (() => { try { return JSON.parse(ch.char_pic_offset || '{"x":50,"y":50,"z":1}'); } catch { return { x: 50, y: 50, z: 1 }; } })(),
                 total_wins: Number(r.total_wins || 0), total_battles: Number(r.total_battles || 0),
             });
         }
@@ -16094,6 +16118,9 @@ router.get('/player/:id', auth, async (req, res) => {
             profile_pic: player.profile_pic || `${player.class}.png`,
             profile_pic_offset: (() => {
                 try { return JSON.parse(player.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; }
+            })(),
+            char_pic_offset: (() => {
+                try { return JSON.parse(player.char_pic_offset || '{"x":50,"y":50,"z":1}'); } catch { return { x: 50, y: 50, z: 1 }; }
             })(),
             globalCooldown, perTargetCooldown, hpLow, equipped,
             armor_value: profileArmor,
