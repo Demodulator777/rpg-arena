@@ -108,11 +108,11 @@ async function sendPasswordResetEmail({ to, username, resetLink }) {
     auth: { user: cfg.user, pass: cfg.pass },
   });
 
-  const subject = 'Battle Arena password reset';
+  const subject = 'Mid-Evil: Battle Arena password reset';
   const text =
 `Hello ${username || 'fighter'},
 
-We received a request to reset your Battle Arena password.
+We received a request to reset your Mid-Evil: Battle Arena password.
 
 Reset link (valid for 1 hour):
 ${resetLink}
@@ -352,6 +352,31 @@ router.post('/google', loginLimiter, async (req, res) => {
     console.error('Google login error:', e);
     const msg = e.message === 'Google login is not configured.' ? e.message : 'Google login failed';
     return res.status(401).json({ error: msg });
+  }
+});
+
+router.post('/android/testing/apply', loginLimiter, async (req, res) => {
+  try {
+    const email = normalizeEmail(req.body?.email || '');
+    if (!email || !isValidEmail(email)) return res.status(400).json({ error: 'Please enter a valid email address.' });
+    const db = await getDb();
+    // Ensure the table exists (safe/idempotent even on a fresh DB)
+    await db.execute({ sql: `CREATE TABLE IF NOT EXISTS android_test_applicants (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER DEFAULT NULL
+    )`, args: [] });
+    const now = Date.now();
+    await db.execute({
+      sql: 'INSERT OR IGNORE INTO android_test_applicants (email, status, created_at) VALUES (?, ?, ?)',
+      args: [email, 'pending', now]
+    });
+    res.json({ success: true, message: 'Thanks! You have been added to the Android testing list.' });
+  } catch (e) {
+    console.error('Android testing apply error:', e);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
