@@ -2073,6 +2073,33 @@ async function handleGoogleCredential(resp) {
     }
 }
 
+// ---- Android closed-testing application ----
+let __androidApplyBusy = false;
+async function applyAndroidTesting() {
+    const input = document.getElementById('android-apply-email');
+    const msg = document.getElementById('android-apply-msg');
+    if (!input || !msg) return;
+    const email = (input.value || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
+        msg.textContent = 'Please enter a valid email address.';
+        msg.classList.add('error');
+        return;
+    }
+    if (__androidApplyBusy) return;
+    __androidApplyBusy = true;
+    try {
+        const data = await api('POST', '/auth/android/testing/apply', { email });
+        msg.textContent = data.message || 'Thanks! You have been added to the testing list.';
+        msg.classList.remove('error');
+        input.value = '';
+    } catch (e) {
+        msg.textContent = e.message || 'Something went wrong. Please try again later.';
+        msg.classList.add('error');
+    } finally {
+        __androidApplyBusy = false;
+    }
+}
+
 // Load the visible Google Client ID, then mount the branded button via GIS.
 let __googleInit = false;
 let __googleButtonEl = null;
