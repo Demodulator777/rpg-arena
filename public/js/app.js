@@ -2909,7 +2909,7 @@ function renderCharacter() {
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
-            <img src="${profilePicSrc(c.profile_pic || c.class + '.png')}" style="${avatarPos(c.profile_pic_offset)}" alt="${c.class}" data-error-opacity-zero="true">
+            ${avatarImgHtml(profilePicSrc(c.profile_pic || c.class + '.png'), c.profile_pic_offset)}
             ${c.elemental ? (() => {
             const el = c.elemental;
             const elEmoji = el.element === 'pyro' ? '🔥' : el.element === 'water' ? '💧' : el.element === 'wind' ? '🌪️' : '⚡';
@@ -10425,7 +10425,7 @@ async function openProfile(id) {
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
                 <div class="eq-avatar-center profile-eq-avatar">
-                    <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="${avatarPos(p.profile_pic_offset)}" alt="${p.class}" data-error-opacity-zero="true">
+                    ${avatarImgHtml(profilePicSrc(p.profile_pic || p.class + '.png'), p.profile_pic_offset)}
                     ${p.elemental ? (() => {
                 const el = p.elemental;
                 const elemData = escHtml(JSON.stringify({ name: el.name, element: el.element, level: el.level, str: el.str, def: el.def, mag: el.mag, vit: el.vit, dmgMin: el.dmgMin, dmgMax: el.dmgMax }));
@@ -14170,6 +14170,24 @@ function avatarPos(off) {
     return `object-position:${avatarPosVal(off)}`;
 }
 
+function avatarZoomVal(off) {
+    const z = off && off.z != null ? Number(off.z) : 1;
+    return isFinite(z) ? Math.min(4, Math.max(1, z)) : 1;
+}
+
+// Renders the big character-tab avatar. For a zoomed custom image we wrap it in a
+// cover-cropping frame so the uploaded image can be repositioned/zoomed; otherwise
+// it falls back to the plain contain img (current behaviour) so nothing regresses.
+function avatarImgHtml(src, off) {
+    const x = (off && off.x != null) ? off.x : 50;
+    const y = (off && off.y != null) ? off.y : 50;
+    const z = avatarZoomVal(off);
+    if (z > 1.001) {
+        return `<div class="eq-avatar-zoom"><img class="eq-avatar-custom" src="${escHtml(src)}" alt="avatar" data-error-opacity-zero="true" style="object-position:${x}% ${y}%;transform:scale(${z});"></div>`;
+    }
+    return `<img src="${escHtml(src)}" alt="avatar" data-error-opacity-zero="true" style="object-position:${x}% ${y}%;">`;
+}
+
 async function showProfilePicSelector() {
     try {
         const data = await api('GET', '/game/profile-pics');
@@ -14209,19 +14227,24 @@ const currentPic = character.profile_pic || `${character.class}.png`;
         const curOff = character.profile_pic_offset || { x: 50, y: 50 };
         const curX = (curOff.x != null) ? curOff.x : 50;
         const curY = (curOff.y != null) ? curOff.y : 50;
+        const curZ = avatarZoomVal(curOff);
         const adjusterHtml = `
             <div style="border-top:1px solid rgba(255,255,255,0.15);margin-top:16px;padding-top:12px;width:100%;">
-                <div style="font-size:12px;color:#e0b84c;margin-bottom:8px;">🎯 Avatar Position</div>
+                <div style="font-size:12px;color:#e0b84c;margin-bottom:8px;">🎯 Avatar Position & Zoom</div>
                 <div style="display:flex;align-items:center;justify-content:center;gap:20px;flex-wrap:wrap;">
-                    <div id="pic-pos-preview" style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid #f1c40f;cursor:grab;position:relative;background:#000;touch-action:none;user-select:none;">
-                        <img id="pic-pos-img" src="${profilePicSrc(currentPic)}" style="width:100%;height:100%;object-fit:cover;object-position:${curX}% ${curY}%;pointer-events:none;user-select:none;">
+                    <div id="pic-pos-preview" style="width:140px;height:170px;border-radius:10px;overflow:hidden;border:3px solid #f1c40f;cursor:grab;position:relative;background:#000;touch-action:none;user-select:none;">
+                        <img id="pic-pos-img" src="${profilePicSrc(currentPic)}" style="width:100%;height:100%;object-fit:cover;object-position:${curX}% ${curY}%;transform:scale(${curZ});transform-origin:center;pointer-events:none;user-select:none;">
                     </div>
-                    <div style="display:flex;flex-direction:column;gap:8px;">
+                    <div style="display:flex;flex-direction:column;gap:10px;min-width:150px;">
+                        <div>
+                            <div style="font-size:11px;color:rgba(255,255,255,0.7);margin-bottom:4px;">Zoom <span id="pic-pos-zoom-val">${Math.round(curZ*100)}%</span></div>
+                            <input type="range" id="pic-pos-zoom" min="1" max="3" step="0.05" value="${curZ}" style="width:150px;cursor:pointer;">
+                        </div>
                         <button class="btn-secondary" id="pic-pos-save" style="padding:6px 12px;">Save Position</button>
                         <button class="btn-secondary" id="pic-pos-reset" style="padding:6px 12px;">Reset</button>
                     </div>
                 </div>
-                <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:8px;">Drag to move your avatar within the circle. Affects where the avatar sits in the blob everywhere — not the full profile picture.</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:8px;">Drag the picture to move it, use the slider to zoom. Affects where the custom avatar sits on your profile everywhere.</div>
             </div>`;
 
         modal.innerHTML = `
@@ -14252,8 +14275,11 @@ const currentPic = character.profile_pic || `${character.class}.png`;
         // Avatar position adjuster
         const posPreview = modal.querySelector('#pic-pos-preview');
         const posImg = modal.querySelector('#pic-pos-img');
-        let posX = curX, posY = curY;
-        const applyPosPreview = () => { posImg.style.objectPosition = `${posX}% ${posY}%`; };
+        let posX = curX, posY = curY, posZ = curZ;
+        const applyPosPreview = () => {
+            posImg.style.objectPosition = `${posX}% ${posY}%`;
+            posImg.style.transform = `scale(${posZ})`;
+        };
         const startPosDrag = (startEvt) => {
             const startX = posX, startY = posY;
             const factor = 100 / posPreview.clientWidth;
@@ -14275,11 +14301,21 @@ const currentPic = character.profile_pic || `${character.class}.png`;
         };
         posPreview.addEventListener('pointerdown', startPosDrag);
 
-        modal.querySelector('#pic-pos-reset').addEventListener('click', () => { posX = 50; posY = 50; applyPosPreview(); });
+        const zoomInput = modal.querySelector('#pic-pos-zoom');
+        const zoomValLabel = modal.querySelector('#pic-pos-zoom-val');
+        if (zoomInput) {
+            zoomInput.addEventListener('input', () => {
+                posZ = Number(zoomInput.value);
+                if (zoomValLabel) zoomValLabel.textContent = Math.round(posZ * 100) + '%';
+                applyPosPreview();
+            });
+        }
+
+        modal.querySelector('#pic-pos-reset').addEventListener('click', () => { posX = 50; posY = 50; posZ = 1; applyPosPreview(); if (zoomInput) zoomInput.value = 1; if (zoomValLabel) zoomValLabel.textContent = '100%'; });
         modal.querySelector('#pic-pos-save').addEventListener('click', async () => {
             try {
-                const res = await api('POST', '/game/profile-pic/offset', { x: posX, y: posY });
-                if (character) character.profile_pic_offset = { x: posX, y: posY };
+                const res = await api('POST', '/game/profile-pic/offset', { x: posX, y: posY, z: posZ });
+                if (character) character.profile_pic_offset = { x: posX, y: posY, z: posZ };
                 const optsEl = modal.querySelector('#profile-pic-options');
                 if (optsEl) optsEl.innerHTML = optionsHtml();
                 renderTopBar();
@@ -14324,8 +14360,17 @@ async function uploadProfilePic(e) {
             console.error('Image preprocess failed, uploading original:', imgErr);
         }
 
-        // Character-page preview BEFORE sending for approval
+        // Character-page preview BEFORE sending for approval — mirrors exactly how
+        // the character tab renders it (same 230x300 contain+position, or the
+        // cover+zoom crop when a zoom is set), so what you see is what you get.
+        const prevOff = (character && character.profile_pic_offset) || {};
+        const prevX = (prevOff.x != null) ? prevOff.x : 50;
+        const prevY = (prevOff.y != null) ? prevOff.y : 50;
+        const prevZ = avatarZoomVal(prevOff);
         const previewUrl = URL.createObjectURL(finalFile);
+        const prevImgStyle = prevZ > 1.001
+            ? `object-fit:cover;transform:scale(${prevZ});transform-origin:center;`
+            : `object-fit:contain;`;
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2147483647;display:flex;align-items:center;justify-content:center;';
         overlay.onclick = (ev) => { if (ev.target === overlay) closePreview(); };
@@ -14335,10 +14380,10 @@ async function uploadProfilePic(e) {
                 <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:16px;">
                     ${finalFile.name}${resized ? ' <span style="color:#f39c12;">(resized to 1024×1024)</span>' : ''}
                 </div>
-                <div id="pic-preview-frame" style="width:280px;height:340px;margin:0 auto 16px auto;background:linear-gradient(180deg,#151a30,#0d0d1a);border:1px solid rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;">
-                    <img src="${previewUrl}" style="width:230px;height:300px;object-fit:contain;" data-error-hide="true">
+                <div id="pic-preview-frame" style="width:280px;height:340px;margin:0 auto 16px auto;background:linear-gradient(180deg,#151a30,#0d0d1a);border:1px solid rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                    <img src="${previewUrl}" style="width:230px;height:300px;${prevImgStyle}object-position:${prevX}% ${prevY}%;" data-error-hide="true">
                 </div>
-                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:16px;">This is how it will appear on your Character page. Images without a transparent background may look like a sticker — keep a background only if it looks good.</div>
+                <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:16px;">This is exactly how it will appear on your Character page — shown with your current avatar position/zoom, which you can tweak afterwards in Profile Picture → Avatar Position & Zoom. Images without a transparent background may look like a sticker.</div>
                 <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
                     <button class="btn-secondary" id="pic-preview-change">Choose Different Image</button>
                     <button class="btn-primary" id="pic-preview-send">Send for Approval (500 💎)</button>
