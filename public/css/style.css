@@ -723,6 +723,80 @@ body.modal-lock .topbar {
     max-width: 100%;
 }
 
+/* Android app block on the auth screen */
+.android-app-block {
+    width: 100%;
+    max-width: 560px;
+    margin: 24px auto 0;
+    padding: 0 20px 28px;
+    display: flex;
+    justify-content: center;
+}
+.android-app-card {
+    width: 100%;
+    background: rgba(255,255,255,0.045);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 18px 20px;
+}
+.android-app-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    text-align: center;
+    color: var(--gold-light, #f1c40f);
+    margin-bottom: 12px;
+}
+.android-app-inner {
+    display: flex;
+    gap: 18px;
+    align-items: flex-start;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+.android-qr-wrap {
+    text-align: center;
+    flex: 0 0 auto;
+}
+.android-qr {
+    width: 160px;
+    height: 160px;
+    border-radius: 10px;
+    background: #fff;
+    padding: 6px;
+    display: block;
+}
+.android-qr-caption {
+    margin-top: 6px;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.6);
+}
+.android-apply {
+    flex: 1 1 260px;
+    min-width: 240px;
+}
+.android-apply-title {
+    font-family: 'Cinzel', serif;
+    color: #e6e6ee;
+    margin-bottom: 4px;
+}
+.android-apply-text {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.65);
+    margin: 0 0 10px;
+}
+.android-apply .btn-primary { width: 100%; }
+.android-apply-msg {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    text-align: center;
+    color: #50c878;
+}
+.android-apply-msg.error { color: #e06060; }
+@media (max-width: 480px) {
+    .android-app-inner { flex-direction: column; align-items: center; }
+    .android-apply { min-width: 0; width: 100%; }
+}
+
 .game-logo {
     position: relative;
     z-index: 10;
