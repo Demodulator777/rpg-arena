@@ -17115,6 +17115,38 @@ router.post('/admin/settings/bot-detection', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// List Android closed-testing applicants (who applied from the auth screen).
+router.get('/admin/android-applicants', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS android_test_applicants (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+            status TEXT NOT NULL DEFAULT 'pending',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER DEFAULT NULL
+        )`, args: [] });
+        const rows = await dbAll(db, 'SELECT id, email, status, created_at, updated_at FROM android_test_applicants ORDER BY created_at DESC');
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Set an applicant's status (e.g. accepted / rejected).
+router.post('/admin/android-applicants/:email/status', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const email = String(req.params.email || '').trim().toLowerCase();
+        const status = String(req.body?.status || 'pending').slice(0, 20);
+        await db.execute({
+            sql: 'UPDATE android_test_applicants SET status = ?, updated_at = ? WHERE email = ?',
+            args: [status, Date.now(), email]
+        });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Set the Server 1 registration-launch timestamp (epoch ms). Until this moment
 // the coming-soon countdown runs; after it, registration opens.
 router.post('/admin/settings/s1-launch', auth, async (req, res) => {
