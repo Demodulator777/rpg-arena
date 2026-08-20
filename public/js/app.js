@@ -108,10 +108,11 @@
     startStars(s1Stars, function(){ var cs=document.getElementById('coming-soon'); return cs && !cs.classList.contains('hidden'); });
 
     // ── Runic particle canvas (shared: loading overlay + S1 panel) ────────
-    function startParticles(canvas, running, ringMode) {
+    function startParticles(canvas, running, ringMode, buffer) {
         if (!canvas) return;
         var pc = canvas.getContext('2d');
         var particles = [], pRaf;
+        var pad = (buffer === undefined) ? 240 : buffer;
         // Rune-like glyphs — simple strokes that feel arcane
         var glyphs = ['✦','✧','⊕','⊗','◈','⟁','⌬','⍟','⎊','⏣','⋆','∴','∵','⁂'];
         var pColors = [
@@ -120,15 +121,15 @@
         ];
         function resizeP() {
             var rect = canvas.parentElement.getBoundingClientRect();
-            canvas.width  = rect.width  + 240;
-            canvas.height = rect.height + 240;
+            canvas.width  = rect.width  + pad;
+            canvas.height = rect.height + pad;
         }
         resizeP();
         window.addEventListener('resize', resizeP);
 
         function spawnParticle() {
             var w = canvas.width, h = canvas.height;
-            var x, y, vy;
+            var x, y, vy, size;
             if (ringMode) {
                 // loading overlay: spawn in a ring around the centre (around the rings)
                 var angle = Math.random() * Math.PI * 2;
@@ -136,11 +137,13 @@
                 x = w/2 + Math.cos(angle)*r;
                 y = h/2 + Math.sin(angle)*r;
                 vy = -(0.3 + Math.random()*0.7);
+                size = 7 + Math.random()*9;
             } else {
                 // Server 1 panel (no rings): float up from the bottom, spread across width
                 x = 20 + Math.random() * (w - 40);
                 y = h;
                 vy = -(0.4 + Math.random()*0.9);
+                size = 4 + Math.random()*5;
             }
             particles.push({
                 x: x,
@@ -148,9 +151,9 @@
                 vx: (Math.random()-0.5)*0.4,
                 vy: vy,
                 opacity: 0,
-                maxOpacity: 0.15 + Math.random()*0.35,
+                maxOpacity: (ringMode ? 0.15 + Math.random()*0.35 : 0.08 + Math.random()*0.18),
                 fadeIn: true,
-                size: 7 + Math.random()*9,
+                size: size,
                 glyph: glyphs[Math.floor(Math.random()*glyphs.length)],
                 color: pColors[Math.floor(Math.random()*pColors.length)],
                 life: 0,
@@ -197,7 +200,7 @@
     var loadingParticles = document.getElementById('loading-particles');
     startParticles(loadingParticles, function(){ return !!document.getElementById('loading-overlay'); }, true);
     var s1Particles = document.getElementById('s1-particles');
-    startParticles(s1Particles, function(){ var cs=document.getElementById('coming-soon'); return cs && !cs.classList.contains('hidden'); }, false);
+    startParticles(s1Particles, function(){ var cs=document.getElementById('coming-soon'); return cs && !cs.classList.contains('hidden'); }, false, 0);
 
     // ── Progress bar ────────────────────────────────────────────────────────
     function setLoadingProgress(pct, text) {
