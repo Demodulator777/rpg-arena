@@ -63,7 +63,7 @@ const cspDirectives = [
   // HSTS — only honored by browsers over HTTPS; harmless if served over HTTP.
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   // Disallow use of browser features we don't need (ZAP/Permissions-Policy scan)
-  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=(), speaker=(), vibrate=()');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=(), usb=(), magnetometer=(), gyroscope=()');
   next();
 });
 
