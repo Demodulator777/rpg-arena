@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-20-midevil"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-20-android"/>
     <link rel="stylesheet" href="/css/tournaments.css"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -204,6 +204,25 @@
                     <button class="auth-legal-link" data-action="openGameGuide">Game Guide</button>
                     <span class="auth-legal-sep">•</span>
                     <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service & Privacy</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="android-app-block">
+            <div class="android-app-card">
+                <div class="android-app-title">Mid-Evil: Battle Arena on Android</div>
+                <div class="android-app-inner">
+                    <div class="android-qr-wrap">
+                        <img src="images/assets/qr.png" alt="Scan to download the Android app" class="android-qr">
+                        <div class="android-qr-caption">Scan to get the app</div>
+                    </div>
+                    <div class="android-apply">
+                        <div class="android-apply-title">Apply to test the Android app</div>
+                        <p class="android-apply-text">Enter your Gmail and we'll add you to the closed testing group.</p>
+                        <input type="email" id="android-apply-email" placeholder="yourname@gmail.com" class="input-field"/>
+                        <button type="button" class="btn-primary" data-action="applyAndroidTesting">Apply to Test</button>
+                        <div id="android-apply-msg" class="android-apply-msg"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1224,9 +1243,9 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-08-20-midevil"></script>
+<script src="/js/app.js?v=2026-08-20-android"></script>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
-<script src="/js/dungeon.js?v=2026-08-20-midevil"></script>
+<script src="/js/dungeon.js?v=2026-08-20-android"></script>
 <script src="/js/tournaments.js?v=2026-06-03"></script>
 
 <div id="server-picker-modal" class="modal-overlay hidden">
