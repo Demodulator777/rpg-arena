@@ -731,6 +731,7 @@ body.modal-lock .topbar {
     padding: 0 20px 28px;
     display: flex;
     justify-content: center;
+    position: relative; z-index: 1;   /* above .auth-bg (z-index 0) so QR/button are clickable & visible */
 }
 .android-app-card {
     width: 100%;
@@ -748,22 +749,23 @@ body.modal-lock .topbar {
 }
 .android-app-inner {
     display: flex;
-    gap: 18px;
-    align-items: flex-start;
+    gap: 16px;
+    flex-direction: column;
+    align-items: center;
     justify-content: center;
-    flex-wrap: wrap;
 }
 .android-qr-wrap {
     text-align: center;
     flex: 0 0 auto;
 }
 .android-qr {
-    width: 160px;
-    height: 160px;
+    width: 180px;
+    height: 180px;
     border-radius: 10px;
     background: #fff;
     padding: 6px;
     display: block;
+    margin: 0 auto;
 }
 .android-qr-caption {
     margin-top: 6px;
@@ -771,8 +773,9 @@ body.modal-lock .topbar {
     color: rgba(255,255,255,0.6);
 }
 .android-apply {
-    flex: 1 1 260px;
-    min-width: 240px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
 }
 .android-apply-title {
     font-family: 'Cinzel', serif;
@@ -792,10 +795,6 @@ body.modal-lock .topbar {
     color: #50c878;
 }
 .android-apply-msg.error { color: #e06060; }
-@media (max-width: 480px) {
-    .android-app-inner { flex-direction: column; align-items: center; }
-    .android-apply { min-width: 0; width: 100%; }
-}
 
 .game-logo {
     position: relative;
