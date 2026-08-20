@@ -6927,6 +6927,28 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     object-fit: contain !important;
     transform-origin: center center;
 }
+.ced-dir {
+    width: 40px;
+    height: 36px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: #e6e6ee;
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+.ced-dir:hover {
+    background: rgba(155,89,182,0.25);
+    border-color: rgba(155,89,182,0.5);
+}
+.ced-dir:active {
+    background: rgba(155,89,182,0.4);
+}
 .eq-avatar-edit-btn {
     position: absolute;
     bottom: -4px;
