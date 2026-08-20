@@ -14207,7 +14207,7 @@ async function openCharacterAvatarEditor() {
         <div style="background:linear-gradient(135deg,#1a1230,#161625);border-radius:12px;padding:24px;max-width:92%;max-height:92%;overflow:auto;text-align:center;">
             <h3 style="color:#f1c40f;margin:0 0 4px 0;">✏️ Character Avatar</h3>
             <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:16px;">Adjust position & zoom of your big character-preview picture. (Your round avatar is edited separately.)</div>
-            <div id="ced-preview" style="width:230px;height:300px;margin:0 auto 16px auto;overflow:hidden;border:1px solid rgba(255,255,255,0.2);border-radius:8px;background:#000;cursor:grab;touch-action:none;user-select:none;position:relative;">
+            <div id="ced-preview" style="width:230px;height:300px;margin:0 auto 16px auto;border:1px dashed rgba(255,255,255,0.3);border-radius:8px;background:#000;cursor:grab;touch-action:none;user-select:none;position:relative;">
                 <img id="ced-img" src="${src}" style="width:230px;height:300px;object-fit:contain;object-position:${cX}% ${cY}%;transform:scale(${cZ});transform-origin:center;pointer-events:none;user-select:none;">
             </div>
             <div style="max-width:230px;margin:0 auto 16px auto;text-align:left;">
@@ -14451,7 +14451,7 @@ async function uploadProfilePic(e) {
                 <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-bottom:16px;">
                     ${finalFile.name}${resized ? ' <span style="color:#f39c12;">(resized to 1024×1024)</span>' : ''}
                 </div>
-                <div id="pic-preview-frame" style="width:280px;height:340px;margin:0 auto 16px auto;background:linear-gradient(180deg,#151a30,#0d0d1a);border:1px solid rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                <div id="pic-preview-frame" style="width:280px;height:340px;margin:0 auto 16px auto;background:linear-gradient(180deg,#151a30,#0d0d1a);border:1px solid rgba(255,255,255,0.15);border-radius:8px;display:flex;align-items:center;justify-content:center;">
                     <img src="${previewUrl}" style="width:230px;height:300px;${prevImgStyle}object-position:${prevX}% ${prevY}%;" data-error-hide="true">
                 </div>
                 <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:16px;">This is exactly how it will appear on your Character page — shown with your current avatar position/zoom, which you can tweak afterwards in Profile Picture → Avatar Position & Zoom. Images without a transparent background may look like a sticker.</div>
