@@ -10683,11 +10683,15 @@ router.post('/profile-pic/offset', auth, async (req, res) => {
         if (isNaN(x) || isNaN(y)) return res.status(400).json({ error: 'Invalid offset values' });
         const cx = Math.max(0, Math.min(100, x));
         const cy = Math.max(0, Math.min(100, y));
+        // Zoom (1 = none, >1 = crop closer). Defaults to 1.
+        let cz = 1;
+        const zRaw = Number(req.body?.z);
+        if (!isNaN(zRaw)) cz = Math.min(4, Math.max(1, zRaw));
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character found' });
-        await dbRun(db, 'UPDATE characters SET profile_pic_offset=? WHERE id=?', [JSON.stringify({ x: cx, y: cy }), char.id]);
-        res.json({ success: true, x: cx, y: cy });
+        await dbRun(db, 'UPDATE characters SET profile_pic_offset=? WHERE id=?', [JSON.stringify({ x: cx, y: cy, z: cz }), char.id]);
+        res.json({ success: true, x: cx, y: cy, z: cz });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
