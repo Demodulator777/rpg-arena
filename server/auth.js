@@ -201,6 +201,129 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// ---- Google (Gmail) OAuth ID-token login ----
+// Uses the ID-token flow (no redirect URIs), so a single Google client works for
+// all subdomains. Verification is done locally against Google's public keys with
+// the already-present `jsonwebtoken` dependency — no google-auth-library needed.
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+const GOOGLE_CERTS_URL = 'https://www.googleapis.com/oauth2/v3/certs';
+
+let _googleKeys = null;
+let _googleKeysAt = 0;
+
+async function getGoogleKeys() {
+  if (_googleKeys && Date.now() - _googleKeysAt < 3600000) return _googleKeys;
+  const res = await fetch(GOOGLE_CERTS_URL);
+  const certs = await res.json();
+  const map = {};
+  for (const k of (certs.keys || [])) if (k && k.kid) map[k.kid] = k;
+  _googleKeys = map;
+  _googleKeysAt = Date.now();
+  return map;
+}
+
+async function verifyGoogleIdToken(token) {
+  if (!GOOGLE_CLIENT_ID) throw new Error('Google login is not configured.');
+  if (!token) throw new Error('Missing Google credential');
+  const decoded = jwt.decode(token, { complete: true });
+  if (!decoded || !decoded.header || !decoded.header.kid) throw new Error('Invalid Google token');
+  const keys = await getGoogleKeys();
+  const jwk = keys[decoded.header.kid];
+  if (!jwk) throw new Error('Unknown Google signing key');
+  const publicKey = crypto.createPublicKey({
+    key: { kty: jwk.kty || 'RSA', n: jwk.n, e: jwk.e },
+    format: 'jwk'
+  });
+  const payload = jwt.verify(token, publicKey, {
+    algorithms: ['RS256'],
+    audience: GOOGLE_CLIENT_ID,
+    issuer: ['accounts.google.com', 'https://accounts.google.com']
+  });
+  if (!payload || !payload.sub) throw new Error('Invalid Google login');
+  return payload;
+}
+
+async function uniqueUsername(db, baseName) {
+  let name = baseName;
+  let i = 2;
+  for (let n = 0; n < 200; n++) {
+    const r = await db.execute({ sql: 'SELECT id FROM users WHERE username = ?', args: [name] });
+    if (!r.rows[0]) return name;
+    name = `${baseName}${i++}`;
+  }
+  return `${baseName}${Date.now().toString(36)}`;
+}
+
+// Public: exposes the configured Google Client ID so the client can init GIS.
+router.get('/google/client-id', (req, res) => {
+  res.json({ clientId: GOOGLE_CLIENT_ID });
+});
+
+// Accept a Google Identity Services ID token, resolve/link/create the account,
+// and issue the same JWT + single-device session as a normal login.
+router.post('/google', loginLimiter, async (req, res) => {
+  try {
+    const payload = await verifyGoogleIdToken(String(req.body?.credential || ''));
+    const gsub = String(payload.sub);
+    const email = normalizeEmail(payload.email || '');
+
+    const db = await getDb();
+    let user = null;
+
+    // 1) Existing account already linked to this Google account.
+    const bySub = await db.execute({ sql: 'SELECT id, username FROM users WHERE google_sub = ? LIMIT 1', args: [gsub] });
+    if (bySub.rows[0]) {
+      user = bySub.rows[0];
+    } else if (email) {
+      // 2) Link by matching email on an existing account.
+      const byEmail = await db.execute({ sql: 'SELECT id, username FROM users WHERE email = ? COLLATE NOCASE LIMIT 1', args: [email] });
+      if (byEmail.rows[0]) {
+        await db.execute({ sql: 'UPDATE users SET google_sub = ? WHERE id = ?', args: [gsub, byEmail.rows[0].id] });
+        user = byEmail.rows[0];
+      }
+    }
+
+    if (!user) {
+      // 3) Create a brand-new account (respects the same registration cap).
+      const userCountResult = await db.execute('SELECT COUNT(*) AS count FROM users');
+      const userCount = Number(userCountResult.rows?.[0]?.count || 0);
+      if (userCount >= MAX_REGISTERED_USERS) {
+        return res.status(403).json({ error: `Server is currently full. The beta user limit of ${MAX_REGISTERED_USERS} accounts has been reached.` });
+      }
+      const baseName = (String(payload.name || '').trim().replace(/[^A-Za-z0-9_]/g, '').slice(0, 16)) ||
+        (email.split('@')[0].replace(/[^A-Za-z0-9_]/g, '').slice(0, 16)) || 'player';
+      const username = await uniqueUsername(db, baseName || 'player');
+      const randomPw = crypto.randomBytes(24).toString('hex');
+      const hash = await bcrypt.hash(randomPw, 10);
+      const ins = await db.execute({
+        sql: 'INSERT INTO users (username, password_hash, email, google_sub, assistant_enabled) VALUES (?, ?, ?, ?, 1)',
+        args: [username, hash, email || null, gsub]
+      });
+      user = { id: Number(ins.lastInsertRowid), username };
+    }
+
+    // Fresh single-device session + JWT (mirrors the register/login flow).
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    const now = Date.now();
+    await db.execute({
+      sql: 'UPDATE users SET user_session = ? WHERE id = ?',
+      args: [JSON.stringify({ id: sessionId, ts: now }), user.id]
+    });
+    await db.execute({ sql: 'UPDATE characters SET dungeon_session = NULL WHERE user_id = ?', args: [user.id] });
+
+    const token = jwt.sign(
+      { userId: user.id, username: user.username, sessionId, ip: getClientIp(req) },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ token, username: user.username });
+  } catch (e) {
+    console.error('Google login error:', e);
+    const msg = e.message === 'Google login is not configured.' ? e.message : 'Google login failed';
+    return res.status(401).json({ error: msg });
+  }
+});
+
 router.post('/login', loginLimiter, async (req, res) => {
   try {
     const db = await getDb();
