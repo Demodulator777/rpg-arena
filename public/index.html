@@ -1145,19 +1145,21 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 <div id="bug-report-modal" class="modal-overlay hidden">
   <div class="modal-box bug-report-modal">
     <div class="modal-header">
-      <h2>🐛 Report a Bug</h2>
+      <h2>🚩 Report a Problem</h2>
 <button class="modal-close" data-action="closeBugReport">✕</button>
     </div>
     <div class="modal-body">
       <div class="bug-report-intro">
-        <p>Found something broken? Let us know and we'll fix it!</p>
-        <p class="bug-report-note">Your username and character info will be included automatically.</p>
+        <p>Found something broken, or suspect someone of abuse, cheating, or exploiting? Let us know and we'll look into it.</p>
+        <p class="bug-report-note">Your username and character info will be included automatically. Reports go straight to our team.</p>
       </div>
       <form id="bug-report-form">
         <div class="form-group">
           <label for="bug-category">Category *</label>
           <select id="bug-category" required>
             <option value="">Select category</option>
+            <option value="cheating">Cheating/Exploit/Botting</option>
+            <option value="abuse">Player Abuse/Harassment</option>
             <option value="combat">Combat/Battle Issue</option>
             <option value="ui">UI/Display Issue</option>
             <option value="mission">Mission Problem</option>
@@ -1166,6 +1168,10 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
             <option value="performance">Performance/Lag</option>
             <option value="other">Other</option>
           </select>
+        </div>
+        <div class="form-group">
+          <label for="bug-reported-player">Reported Player (optional)</label>
+          <input type="text" id="bug-reported-player" placeholder="Enter the player's username being reported" maxlength="40">
         </div>
         <div class="form-group">
           <label for="bug-title">Short Title *</label>
@@ -1245,7 +1251,7 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-08-20-android"></script>
+<script src="/js/app.js?v=2026-08-21-report"></script>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
 <script src="/js/dungeon.js?v=2026-08-20-android"></script>
 <script src="/js/tournaments.js?v=2026-06-03"></script>
