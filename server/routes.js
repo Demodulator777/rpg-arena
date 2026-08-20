@@ -10711,8 +10711,10 @@ router.post('/profile-pic/char-offset', auth, async (req, res) => {
         const x = Math.round(Number(req.body?.x));
         const y = Math.round(Number(req.body?.y));
         if (isNaN(x) || isNaN(y)) return res.status(400).json({ error: 'Invalid offset values' });
-        const cx = Math.max(0, Math.min(100, x));
-        const cy = Math.max(0, Math.min(100, y));
+        // Allow panning past the frame/image edge in every direction (translate-based),
+        // so don't clamp to 0-100 — just cap at a generous sanity range.
+        const cx = Math.max(-500, Math.min(600, x));
+        const cy = Math.max(-500, Math.min(600, y));
         let cz = 1;
         const zRaw = Number(req.body?.z);
         if (!isNaN(zRaw)) cz = Math.min(4, Math.max(1, zRaw));
