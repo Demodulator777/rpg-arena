@@ -64,7 +64,8 @@
         }
         var starFrame=0, nextSpawn=120;
         function drawStars() {
-            if (!running()) { cancelAnimationFrame(starRaf); return; }
+            if (!canvas.isConnected) { cancelAnimationFrame(starRaf); return; }
+            if (!running()) { starRaf = requestAnimationFrame(drawStars); return; }
             sc.clearRect(0,0,canvas.width,canvas.height);
             starFrame++;
             if (starFrame>=nextSpawn) { spawnConst(); nextSpawn=starFrame+100+Math.floor(Math.random()*160); }
@@ -164,7 +165,8 @@
 
         var pFrame = 0;
         function drawParticles() {
-            if (!running()) { cancelAnimationFrame(pRaf); return; }
+            if (!canvas.isConnected) { cancelAnimationFrame(pRaf); return; }
+            if (!running()) { pRaf = requestAnimationFrame(drawParticles); return; }
             pc.clearRect(0, 0, canvas.width, canvas.height);
             pFrame++;
             // spawn a new particle every ~40 frames
