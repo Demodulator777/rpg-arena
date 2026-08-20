@@ -666,6 +666,34 @@ body.modal-lock .topbar {
 }
 .coming-soon-box .btn-primary { margin-top: 18px; padding: 12px 28px; font-size: 1rem; }
 
+/* Google (Gmail) login */
+.google-auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 14px 0 10px;
+    color: #888;
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+}
+.google-auth-divider::before,
+.google-auth-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.14);
+}
+.google-signin-wrap {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+    min-height: 44px;
+}
+.google-signin-wrap > div,
+.google-signin-wrap iframe {
+    max-width: 100%;
+}
+
 .game-logo {
     position: relative;
     z-index: 10;
