@@ -13208,6 +13208,19 @@ const legacyHandlerObserver = new MutationObserver((mutations) => {
 // ── Bug Report System ─────────────────────────────────────────────────────
 
 let bugReportScreenshot = null;
+let _bugCategory = '';
+const BUG_CATEGORY_LABELS = {
+    'cheating': 'Cheating/Exploit/Botting',
+    'abuse': 'Player Abuse/Harassment',
+    'combat': 'Combat/Battle Issue',
+    'ui': 'UI/Display Issue',
+    'mission': 'Mission Problem',
+    'shop': 'Shop/Inventory Issue',
+    'dungeon': 'Dungeon Problem',
+    'performance': 'Performance/Lag',
+    'other': 'Other'
+};
+const BUG_CATEGORY_ORDER = ['cheating', 'abuse', 'combat', 'ui', 'mission', 'shop', 'dungeon', 'performance', 'other'];
 
 function initBugReport() {
     const btn = document.getElementById('bug-report-btn');
@@ -13273,6 +13286,11 @@ function openBugReport() {
         document.getElementById('bug-report-form').reset();
         document.getElementById('bug-report-status').classList.add('hidden');
         bugReportScreenshot = null;
+        _bugCategory = '';
+        const catValue = document.getElementById('bug-category-value');
+        if (catValue) { catValue.textContent = 'Select category'; }
+        const catOpts = document.getElementById('bug-category-options');
+        if (catOpts) catOpts.classList.add('hidden');
         const preview = document.getElementById('screenshot-preview');
         if (preview) preview.classList.add('hidden');
         const uploadArea = document.getElementById('screenshot-upload-area');
@@ -13291,6 +13309,36 @@ function closeBugReport() {
     if (modal) modal.classList.add('hidden');
     bugReportScreenshot = null;
 }
+
+function toggleReportCategory() {
+    const opts = document.getElementById('bug-category-options');
+    if (!opts) return;
+    const isHidden = opts.classList.contains('hidden');
+    opts.classList.toggle('hidden', !isHidden);
+}
+window.toggleReportCategory = toggleReportCategory;
+
+function pickReportCategory(code) {
+    _bugCategory = code;
+    const value = document.getElementById('bug-category-value');
+    if (value) value.textContent = BUG_CATEGORY_LABELS[code] || 'Select category';
+    document.querySelectorAll('.bug-category-opt').forEach(opt => {
+        opt.setAttribute('data-selected', opt.dataset.args === `["${code}"]` ? 'true' : 'false');
+    });
+    const opts = document.getElementById('bug-category-options');
+    if (opts) opts.classList.add('hidden');
+}
+window.pickReportCategory = pickReportCategory;
+
+(function initBugCategoryDropdown() {
+    document.addEventListener('click', (e) => {
+        const drop = document.getElementById('bug-category-drop');
+        const opts = document.getElementById('bug-category-options');
+        if (drop && opts && !opts.classList.contains('hidden') && !drop.contains(e.target)) {
+            opts.classList.add('hidden');
+        }
+    });
+})();
 
 // Add this new function for image compression
 async function compressImage(file, maxWidth = 800, maxHeight = 800, quality = 0.7) {
@@ -13580,7 +13628,7 @@ function getBrowserInfo() {
 async function submitBugReport(event) {
     event.preventDefault();
 
-    const category = document.getElementById('bug-category').value;
+    const category = _bugCategory;
     const title = document.getElementById('bug-title').value.trim();
     const description = document.getElementById('bug-description').value.trim();
     const steps = document.getElementById('bug-steps').value.trim();
