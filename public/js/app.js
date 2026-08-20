@@ -1952,7 +1952,70 @@ async function register() {
         showScreen('create');
     } catch(e) { setError('auth-error',e.message); }
 }
+
+// ---- Google (Gmail) login ----
+// GIS (sign-in-with-google) passes us an ID token; we send it to the server for
+// verify/link/create. Guarded like login() to prevent double-submit session rotation.
+let __googleLoginBusy = false;
+async function handleGoogleCredential(resp) {
+    if (!resp || !resp.credential) return;
+    if (__googleLoginBusy) return;
+    __googleLoginBusy = true;
+    try {
+        const data = await api('POST', '/auth/google', { credential: resp.credential });
+        token = data.token; username = data.username;
+        window.__forcedLogoutShown = false;
+        window.__auth401Seen = false;
+        localStorage.setItem('rpg_token', token); localStorage.setItem('rpg_username', username);
+        try {
+            const [charData] = await Promise.all([
+                api('GET', '/game/character'),
+                loadCharacterRoster()
+            ]);
+            character = charData;
+            showScreen('game');
+        } catch (e) {
+            if (e.message === 'No character found') {
+                await loadCharacterRoster();
+                showScreen('create');
+            } else {
+                setError('auth-error', e.message);
+            }
+        }
+    } catch (e) {
+        setError('auth-error', e.message);
+    } finally {
+        __googleLoginBusy = false;
+    }
+}
+
+// Load the visible Google Client ID, then mount the branded button via GIS.
+let __googleInit = false;
+function ensureGoogleLogin() {
+    if (__googleInit) return;
+    if (!window.google || !window.google.accounts || !window.google.accounts.id) {
+        setTimeout(ensureGoogleLogin, 200);
+        return;
+    }
+    __googleInit = true;
+    fetch('/auth/google/client-id')
+        .then(r => r.json())
+        .then(d => {
+            if (!d || !d.clientId) return;
+            google.accounts.id.initialize({
+                client_id: d.clientId,
+                callback: handleGoogleCredential,
+                auto_select: false
+            });
+            const el = document.getElementById('google-signin-btn');
+            if (el && google.accounts.id.renderButton) {
+                google.accounts.id.renderButton(el, { theme: 'outline', size: 'large', shape: 'rectangular', width: 300 });
+            }
+        })
+        .catch(() => {});
+}
 document.addEventListener('DOMContentLoaded',()=>{
+    ensureGoogleLogin();
     hydrateReferralFromUrl();
     try {
         const params = new URLSearchParams(window.location.search || '');
