@@ -666,6 +666,23 @@ body.modal-lock .topbar {
 }
 .coming-soon-box .btn-primary { margin-top: 18px; padding: 12px 28px; font-size: 1rem; }
 
+/* Server 1 launch countdown */
+.s1-countdown {
+    font-family: 'Courier New', monospace;
+    font-size: 2.6rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: #ffd554;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,213,84,0.4);
+    border-radius: 12px;
+    padding: 14px 26px;
+    margin: 12px auto 14px;
+    min-width: 320px;
+    display: inline-block;
+    text-align: center;
+}
+
 /* Google (Gmail) login */
 .google-auth-divider {
     display: flex;
