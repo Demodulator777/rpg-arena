@@ -1952,6 +1952,12 @@ function hydrateReferralFromUrl() {
 }
 
 function openAuthLegalModal() {
+    // Server 1 is a full release, so it uses the non-beta terms; Beta keeps its own.
+    const isS1 = getServerId() === 'server1';
+    const beta = document.getElementById('auth-legal-beta');
+    const global = document.getElementById('auth-legal-global');
+    if (beta) beta.style.display = isS1 ? 'none' : '';
+    if (global) global.style.display = isS1 ? '' : 'none';
     document.getElementById('auth-legal-modal')?.classList.remove('hidden');
 }
 function closeAuthLegalModal() {
