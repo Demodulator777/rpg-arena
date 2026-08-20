@@ -2089,7 +2089,7 @@ async function applyAndroidTesting() {
     __androidApplyBusy = true;
     try {
         const data = await api('POST', '/auth/android/testing/apply', { email });
-        msg.textContent = data.message || 'Thanks! You have been added to the testing list.';
+        msg.textContent = (data.message || 'Thanks! You have been added to the testing list.') + ' It may take up to 24 hours for your invitation to appear in the app.';
         msg.classList.remove('error');
         input.value = '';
     } catch (e) {
