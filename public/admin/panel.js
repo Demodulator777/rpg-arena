@@ -8,6 +8,31 @@ var API = function(path) {
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
+// The admin panel is served per-origin (each server runs its own process + DB on a
+// subdomain). This selector controls WHICH server's panel you're interacting with by
+// navigating between the two origins' /admin-panel pages.
+var ADMIN_SERVERS = [
+    { id: 'beta',    host: 'battle-online.com',   url: 'https://battle-online.com/admin-panel' },
+    { id: 'server1', host: 's1.battle-online.com', url: 'https://s1.battle-online.com/admin-panel' }
+];
+function adminCurrentServer() {
+    var host = String(location.hostname || '').toLowerCase().replace(/^www\./, '');
+    var s = null;
+    for (var i = 0; i < ADMIN_SERVERS.length; i++) if (ADMIN_SERVERS[i].host === host) { s = ADMIN_SERVERS[i]; break; }
+    return s ? s.id : 'beta';
+}
+function initAdminServerSwitcher() {
+    var sel = document.getElementById('admin-server-select');
+    if (!sel) return;
+    sel.value = adminCurrentServer();
+    sel.addEventListener('change', function () {
+        var id = sel.value;
+        var target = null;
+        for (var i = 0; i < ADMIN_SERVERS.length; i++) if (ADMIN_SERVERS[i].id === id) { target = ADMIN_SERVERS[i]; break; }
+        if (target && target.id !== adminCurrentServer()) window.location.href = target.url;
+    });
+}
+
 function init() {
     var token = localStorage.getItem('rpg_token');
     if (!token) { renderNoAccess('Not logged in.'); return; }
@@ -1752,6 +1777,7 @@ document.addEventListener('click', function(e) {
 });
 
 init();
+initAdminServerSwitcher();
 
 function renderProfilePicReview() {
     var el = document.getElementById('tab-profile-pic-review');
