@@ -1,5 +1,5 @@
 // ============================================================
-//  dungeon.js  –  Battle Arena Dungeon System
+//  dungeon.js  –  Mid-Evil: Battle Arena Dungeon System
 //  Requires: global `state` object,
 //  `api(method, path, body)` from app.js, `showTab(tab)` helper
 // ============================================================
