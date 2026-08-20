@@ -1022,6 +1022,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE messages ADD COLUMN hidden INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN inbox_prune_missions INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN last_online_at INTEGER DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN google_sub TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN last_online_at INTEGER DEFAULT 0',
             'ALTER TABLE squads ADD COLUMN logo TEXT DEFAULT NULL',
             `CREATE TABLE IF NOT EXISTS chat_messages (
