@@ -43,7 +43,7 @@ const cspDirectives = [
     "worker-src 'self'",
     "connect-src 'self' https://accounts.google.com https://*.gstatic.com",
     "img-src 'self' data: blob: https://accounts.google.com https://*.gstatic.com",
-    "style-src 'self' 'unsafe-inline'",
+    "style-src 'self' 'unsafe-inline' https://accounts.google.com https://*.gstatic.com",
     "font-src 'self' data:",
     "object-src 'none'",
     "media-src 'self'",
