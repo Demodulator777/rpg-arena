@@ -120,6 +120,16 @@ getDb().then(async (db) => {
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes').router);
 
+  // Secrets/settings endpoints (no auth)
+  app.get('/api/server/settings', async (req, res) => {
+    try {
+      const r = await db.execute({ sql: `SELECT key, value FROM server_settings WHERE key IN ('s1_launch_at','beta_open','maintenance_message')`, args: [] });
+      const out = {};
+      for (const row of r.rows) out[row.key] = row.value === '' ? '' : row.value;
+      res.json({ now: Date.now(), ...out });
+    } catch (e) { try { res.status(500).json({ error: e.message }); } catch {} }
+  });
+
   // CSP violation reporting endpoint (no auth — browsers send these directly)
   // Must be BEFORE app.use('/api', auth, ...) which would require auth
   app.post('/api/csp-violation', async (req, res) => {
