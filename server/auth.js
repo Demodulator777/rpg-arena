@@ -50,6 +50,29 @@ function getClientIp(req) {
   return String(req.ip || req.connection?.remoteAddress || req.headers['x-forwarded-for']?.split(',')[0] || '').trim().slice(0, 45);
 }
 
+// Identify Server 1 (Global) by its hostname so the pre-launch registration gate
+// only applies to that subdomain and Beta registrations stay open.
+function isServer1(req) {
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').toLowerCase();
+  return host.startsWith('s1.') || host.includes('s1.battle-online.com');
+}
+
+// Returns { blocked:true, launchAt } if Server 1 registration is not open yet,
+// otherwise null (open / not Server 1).
+async function s1LaunchGate(req) {
+  if (!isServer1(req)) return null;
+  const db = await getDb();
+  const row = await db.execute({ sql: "SELECT value FROM server_settings WHERE key='s1_launch_at'", args: [] });
+  const launchAt = row.rows.length ? Number(row.rows[0].value) : 0;
+  if (launchAt && Date.now() < launchAt) return { blocked: true, launchAt };
+  return null;
+}
+
+function launchBlockedPayload(gate) {
+  const when = new Date(gate.launchAt).toUTCString();
+  return `Server 1 registration opens ${when}. Please try again then.`;
+}
+
 function getPublicBaseUrl(req) {
   const configured = String(process.env.PUBLIC_BASE_URL || '').trim();
   if (configured) return configured.replace(/\/+$/, '');
@@ -113,6 +136,10 @@ router.post('/register', async (req, res) => {
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
   try {
+    const gate = await s1LaunchGate(req).catch(() => null);
+    if (gate && gate.blocked) {
+      return res.status(403).json({ error: launchBlockedPayload(gate) });
+    }
     const db = await getDb();
 
     const normalizedEmail = normalizeEmail(email);
@@ -263,6 +290,10 @@ router.get('/google/client-id', (req, res) => {
 // and issue the same JWT + single-device session as a normal login.
 router.post('/google', loginLimiter, async (req, res) => {
   try {
+    const gate = await s1LaunchGate(req).catch(() => null);
+    if (gate && gate.blocked) {
+      return res.status(403).json({ error: launchBlockedPayload(gate) });
+    }
     const payload = await verifyGoogleIdToken(String(req.body?.credential || ''));
     const gsub = String(payload.sub);
     const email = normalizeEmail(payload.email || '');
