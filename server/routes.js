@@ -1153,6 +1153,8 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS server_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`, args: [] }); } catch {}
         // Default SW enabled
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('sw_enabled', '1')`, args: [] }); } catch {}
+        // Server 1 registration-launch timestamp (epoch ms). Overridable via admin panel.
+        try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('s1_launch_at', '1787400000000')`, args: [] }); } catch {}
         // Stale clients table — logs requests from old app.js versions
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS stale_clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', version TEXT DEFAULT '', path TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
         try {
@@ -17110,6 +17112,21 @@ router.post('/admin/settings/bot-detection', auth, async (req, res) => {
             args: ['bot_detection_enabled', enabled ? 'true' : 'false']
         });
         res.json({ success: true, enabled });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Set the Server 1 registration-launch timestamp (epoch ms). Until this moment
+// the coming-soon countdown runs; after it, registration opens.
+router.post('/admin/settings/s1-launch', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const launchAt = Number(req.body?.launch_at) || 0;
+        await db.execute({
+            sql: 'INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)',
+            args: ['s1_launch_at', String(launchAt)]
+        });
+        res.json({ success: true, launch_at: launchAt });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
