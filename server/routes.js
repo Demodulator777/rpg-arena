@@ -1221,7 +1221,8 @@ const WEEKLY_TASKS = [
             game_hp INTEGER DEFAULT 0,
             game_gold INTEGER DEFAULT 0,
             game_level INTEGER DEFAULT 0,
-            has_screenshot INTEGER DEFAULT 0
+            has_screenshot INTEGER DEFAULT 0,
+            reported_player TEXT
         )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_screenshots (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1237,6 +1238,9 @@ const WEEKLY_TASKS = [
             claimed_at INTEGER NOT NULL,
             PRIMARY KEY (char_id, achievement_id)
         )`, args: [] });
+        try {
+            await db.execute({ sql: `ALTER TABLE bug_reports ADD COLUMN reported_player TEXT`, args: [] });
+        } catch (e) { /* column already exists */ }
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_gatekeeper_defeats (
             char_id INTEGER NOT NULL,
             gatekeeper_key TEXT NOT NULL,
@@ -17554,7 +17558,7 @@ router.get('/admin/bug-reports', auth, async (req, res) => {
     if (!req.user.isAdmin && !req.user.isModerator) return res.status(403).json({ error: 'Access denied' });
     try {
         const db = await getDb();
-        const result = await db.execute({ sql: 'SELECT id, report_timestamp, username, character_name, character_level, character_class, category, title, description, game_location, has_screenshot FROM bug_reports ORDER BY id DESC LIMIT 100', args: [] });
+        const result = await db.execute({ sql: 'SELECT id, report_timestamp, username, character_name, character_level, character_class, category, title, description, game_location, has_screenshot, reported_player FROM bug_reports ORDER BY id DESC LIMIT 100', args: [] });
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -21371,8 +21375,8 @@ router.post('/bug-report', async (req, res) => {
                 report_timestamp, username, character_name, character_level, character_class,
                 category, title, description, steps_to_reproduce, browser,
                 game_location, game_hp, game_gold, game_level,
-                has_screenshot
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                has_screenshot, reported_player
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `, [
             timestamp,
             report.user?.username || 'guest',
@@ -21385,7 +21389,8 @@ router.post('/bug-report', async (req, res) => {
             report.game_state?.hp || 0,
             report.game_state?.gold || 0,
             report.game_state?.level || 0,
-            report.screenshot ? 1 : 0
+            report.screenshot ? 1 : 0,
+            report.report?.reported_player || null
         ]);
 
         const bugReportId = result.lastInsertRowid;
