@@ -765,6 +765,7 @@ async function api(method, path, body=null) {
         path.indexOf('/missions/tab-viewed') === -1 &&
         path.indexOf('/dungeon/lock-refresh') === -1 &&
         path.indexOf('/dungeon/mp-spent') === -1 &&
+        path.indexOf('/dungeon/progress') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
