@@ -253,7 +253,7 @@ let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = false;
 let assistantEnabled = true;
-let showUpgradeTab = localStorage.getItem('rpg_show_upgrade') !== 'false' && !String(location.hostname || '').toLowerCase().replace(/^www\./, '').startsWith('s1.');
+let showUpgradeTab = localStorage.getItem('rpg_show_upgrade') !== 'false' && detectServerId() !== 'server1';
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -619,10 +619,18 @@ const GAME_SERVERS = [
   { id: 'server1', label: 'Server 1 (Global)', host: 's1.battle-online.com', url: 'https://s1.battle-online.com/' }
 ];
 
-function getServerId() {
+// Hoisted server detection (no GAME_SERVERS dependency so it can run before line-256 state init).
+function detectServerId() {
   const host = String(location.hostname || '').toLowerCase().replace(/^www\./, '');
-  const s = GAME_SERVERS.find(x => host === x.host);
-  return s ? s.id : 'beta';
+  if (host === 's1.battle-online.com') return 'server1';
+  if (host === 'battle-online.com') return 'beta';
+  // Direct IP access: port 3010 is the Server 1 process (see ecosystem.config.js).
+  if (String(location.port || '') === '3010') return 'server1';
+  return 'beta';
+}
+
+function getServerId() {
+  return detectServerId();
 }
 function getServer() {
   return GAME_SERVERS.find(x => x.id === getServerId()) || GAME_SERVERS[0];
