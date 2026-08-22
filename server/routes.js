@@ -12981,6 +12981,12 @@ router.post('/missions/start', auth, async (req, res) => {
             await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
                 [effectiveMpCost, effectiveMpCost, character.id]);
             await recordTotalMpSpent(db, character.id, effectiveMpCost);
+            // Dungeon boss tokens: 1 per 20 MP spent — granted server-side so the
+            // client can't mint them (mirrors the auto-complete path).
+            const tokensEarned = Math.floor(effectiveMpCost / 20);
+            if (tokensEarned > 0) {
+                await dbRun(db, 'UPDATE characters SET dungeon_tokens = COALESCE(dungeon_tokens, 0) + ? WHERE id=?', [tokensEarned, character.id]);
+            }
         }
 
         // Mark mission_log as succeeded (handled by api_log middleware)
@@ -14083,6 +14089,13 @@ async function processOneAutoChar(db, state) {
             now, now + duration, currentMap, size, state.char_id]);
     await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?', [wantGlobal, wantGlobal, state.char_id]);
     await recordTotalMpSpent(db, state.char_id, cost);
+    // Dungeon boss tokens: 1 per 20 MP spent — same rule the client applies to
+    // manually started missions via /dungeon/mp-spent. Auto-complete must grant
+    // them server-side since no client call happens here.
+    const autoTokensEarned = Math.floor(cost / 20);
+    if (autoTokensEarned > 0) {
+        await dbRun(db, 'UPDATE characters SET dungeon_tokens = COALESCE(dungeon_tokens, 0) + ? WHERE id=?', [autoTokensEarned, state.char_id]);
+    }
     await dbRun(db, 'UPDATE auto_mission_state SET auto_mp=auto_mp-?, last_result=?, updated_at=? WHERE char_id=?', [wantPool, `Restarted ${size} mission in ${spotDef.name}`, now, state.char_id]);
     await markAutoIntended(db, state.char_id, 'start');
 }
@@ -19186,32 +19199,15 @@ router.post('/dungeon/release-room', auth, async (req, res) => {
     }
 });
 
-router.post('/dungeon/mp-spent', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const { mpSpent } = req.body;
-        const tokensEarned = Math.floor(mpSpent / 20);
+// NOTE: /dungeon/mp-spent was removed — it trusted a client-supplied mpSpent value
+// (token minting exploit). Tokens are now granted server-side in /missions/start
+// and the auto-complete path.
 
-        if (tokensEarned > 0) {
-            const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_tokens');
-            if (!char) return res.status(404).json({ error: 'Character not found' });
-            const result = await dbRun(db, `
-        UPDATE characters 
-        SET dungeon_tokens = dungeon_tokens + ?
-        WHERE id = ?
-        RETURNING dungeon_tokens
-      `, [tokensEarned, char.id]);
-
-            const updatedChar = await getCurrentCharacter(db, req.user.userId, 'dungeon_tokens');
-            res.json({ success: true, tokensEarned, totalTokens: updatedChar.dungeon_tokens });
-        } else {
-            res.json({ success: true, tokensEarned: 0, totalTokens: null });
-        }
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: e.message });
-    }
-});
+// Legacy endpoint (client-side loot). Dungeon loot is granted server-side via
+// combat sessions for new flows; this stays only for backwards compatibility.
+// Rate-limited per character so it can't be spammed for gold (same philosophy
+// as /dungeon/update-health).
+const _addGoldLimits = new Map(); // charId -> { windowStart, count, lastAt }
 
 router.post('/dungeon/add-gold', auth, async (req, res) => {
     try {
@@ -19220,10 +19216,23 @@ router.post('/dungeon/add-gold', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'Character not found' });
 
-        // Legacy endpoint (client-side loot). Dungeon loot is now granted server-side via combat sessions.
-        // Keep it for backwards compatibility, but clamp aggressively to reduce exploit value.
         const safeAmount = Math.max(0, Math.min(250, Number(amount || 0)));
         if (safeAmount <= 0) return res.json({ success: true });
+
+        // Sliding 1h window: max 120 grants/hour and min 2s between grants.
+        // Normal play sends only a handful of loot syncs per floor.
+        const now = Date.now();
+        if (_addGoldLimits.size > 1000) _addGoldLimits.clear();
+        let lim = _addGoldLimits.get(char.id);
+        if (!lim || now - lim.windowStart >= 3600000) {
+            lim = { windowStart: now, count: 0, lastAt: 0 };
+            _addGoldLimits.set(char.id, lim);
+        }
+        if ((lim.lastAt && now - lim.lastAt < 2000) || lim.count >= 120) {
+            return res.json({ success: false, throttled: true });
+        }
+        lim.count += 1;
+        lim.lastAt = now;
 
         await dbRun(db, 'UPDATE characters SET dungeon_gold = COALESCE(dungeon_gold, 0) + ? WHERE id = ?',
             [safeAmount, char.id]);
