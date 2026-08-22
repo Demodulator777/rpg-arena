@@ -253,7 +253,7 @@ let battlePlaybackIndex = 0;
 let battlePlaybackMeta = null;
 let alwaysSkipBattleAnimations = false;
 let assistantEnabled = true;
-let showUpgradeTab = localStorage.getItem('rpg_show_upgrade') !== 'false';
+let showUpgradeTab = localStorage.getItem('rpg_show_upgrade') !== 'false' && !String(location.hostname || '').toLowerCase().replace(/^www\./, '').startsWith('s1.');
 let playerLocation = 'forest';
 let playerTravelTarget = null;
 let playerTravelEndTime = 0;
@@ -1083,10 +1083,10 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
-            <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
+            ${getServerId() === 'server1' ? '' : `<button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
                 <span>Upgrade tab in character menu</span>
                 <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
-            </button>
+            </button>`}
             <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
                 <span>Keep last 10 mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
@@ -1196,10 +1196,10 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
-            <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
+            ${getServerId() === 'server1' ? '' : `<button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
                 <span>Upgrade tab in character menu</span>
                 <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
-            </button>
+            </button>`}
             <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
                 <span>Keep last 10 mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
@@ -1464,10 +1464,10 @@ function renderTopbarMenu() {
                 <span>Inbox badge: mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
             </button>
-            <button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
+            ${getServerId() === 'server1' ? '' : `<button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
                 <span>Upgrade tab in character menu</span>
                 <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
-            </button>
+            </button>`}
             <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
                 <span>Keep last 10 mission reports</span>
                 <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
@@ -2369,6 +2369,8 @@ function showTab(name) {
         }
     } catch (_) {}
     try { if (typeof hideItemTooltip === 'function') hideItemTooltip(); } catch (_) {}
+
+    if (name === 'upgrade' && getServerId() === 'server1') name = 'character';
 
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
