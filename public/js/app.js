@@ -5471,10 +5471,6 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
 
         window.activeMission = true;  // <-- ADD THIS LINE
 
-        // Dungeon token generation
-        const mpCosts = { small: 20, medium: 40, large: 60 };
-        if (typeof dungeonAddTokens === 'function') dungeonAddTokens(mpCosts[size] || 20);
-
         character = await api('GET', '/game/character');
         renderTopBar();
         const confirmedName = result?.mission?.missionName || result?.mission?.mission_name || missionName;
