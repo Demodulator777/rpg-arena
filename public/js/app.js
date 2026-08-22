@@ -2819,7 +2819,12 @@ function renderTopBar() {
     set('topbar-gold',el=>{ el.textContent=`💰 ${c.gold.toLocaleString()}`; });
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
-    set('topbar-name',el=>{ el.textContent=c.name; el.title=c.name; });
+    set('topbar-name', el => {
+        // Mobile: collapse long names to 5 chars + ellipsis so the bars keep their size.
+        const isMobile = window.matchMedia('(max-width: 640px)').matches;
+        el.textContent = (isMobile && c.name && c.name.length > 5) ? c.name.slice(0, 5) + '…' : c.name;
+        el.title = c.name;
+    });
 
     // Highlight menu button if weekly tasks are claimable
     const menuBtn = document.getElementById('topbar-menu-btn');
