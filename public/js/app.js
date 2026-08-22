@@ -2819,7 +2819,7 @@ function renderTopBar() {
     set('topbar-gold',el=>{ el.textContent=`💰 ${c.gold.toLocaleString()}`; });
     set('topbar-gems',el=>{ el.textContent=`💎 ${(c.gems||0).toLocaleString()}`; });
     set('topbar-level',el=>{ el.textContent=`Lv.${c.level}`; });
-    set('topbar-name',el=>{ el.textContent=c.name; });
+    set('topbar-name',el=>{ el.textContent=c.name; el.title=c.name; });
 
     // Highlight menu button if weekly tasks are claimable
     const menuBtn = document.getElementById('topbar-menu-btn');
