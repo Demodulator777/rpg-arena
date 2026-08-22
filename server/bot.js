@@ -335,8 +335,6 @@ class BotAccount {
       if (result.character) this.character = result.character;
       else if (this.character) this.character.mission_points = (this.character.mission_points || 0) - mpCost;
       log(this.name, `Started small hard mission in ${zoneKey} (10m)`);
-      // Convert MP to dungeon tokens
-      await this.convertMpToTokens(mpCost);
       return true;
     } catch (e) {
       log(this.name, `Mission start failed: ${e.message}`);
@@ -1069,11 +1067,6 @@ class BotAccount {
     await this.healIfLow();
     this._skipDungeon = true; // skip further dungeon attempts this tick
     log(this.name, 'Dungeon death handled: entered, exited, and HP restored');
-  }
-
-  async convertMpToTokens(mpAmount) {
-    try { await api('POST', '/game/dungeon/mp-spent', { mpSpent: mpAmount }, this.token); }
-    catch { /* non-critical */ }
   }
 
   async _getDungeonData() {
