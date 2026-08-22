@@ -12981,9 +12981,9 @@ router.post('/missions/start', auth, async (req, res) => {
             await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?',
                 [effectiveMpCost, effectiveMpCost, character.id]);
             await recordTotalMpSpent(db, character.id, effectiveMpCost);
-            // Dungeon boss tokens: 1 per 20 MP spent — granted server-side so the
-            // client can't mint them (mirrors the auto-complete path).
-            const tokensEarned = Math.floor(effectiveMpCost / 20);
+            // Dungeon boss tokens: granted per mission tier (small=1, medium=2,
+            // large=3), independent of MP discounts like Midas Flow.
+            const tokensEarned = Math.floor(sizeConf.mpCost / 20);
             if (tokensEarned > 0) {
                 await dbRun(db, 'UPDATE characters SET dungeon_tokens = COALESCE(dungeon_tokens, 0) + ? WHERE id=?', [tokensEarned, character.id]);
             }
@@ -14089,10 +14089,9 @@ async function processOneAutoChar(db, state) {
             now, now + duration, currentMap, size, state.char_id]);
     await dbRun(db, 'UPDATE characters SET mission_points=mission_points-?, daily_mp_spent=daily_mp_spent+? WHERE id=?', [wantGlobal, wantGlobal, state.char_id]);
     await recordTotalMpSpent(db, state.char_id, cost);
-    // Dungeon boss tokens: 1 per 20 MP spent — same rule the client applies to
-    // manually started missions via /dungeon/mp-spent. Auto-complete must grant
-    // them server-side since no client call happens here.
-    const autoTokensEarned = Math.floor(cost / 20);
+    // Dungeon boss tokens: granted per mission tier (small=1, medium=2,
+    // large=3), independent of MP discounts like Midas Flow.
+    const autoTokensEarned = Math.floor(MISSION_SIZES[size].mpCost / 20);
     if (autoTokensEarned > 0) {
         await dbRun(db, 'UPDATE characters SET dungeon_tokens = COALESCE(dungeon_tokens, 0) + ? WHERE id=?', [autoTokensEarned, state.char_id]);
     }
