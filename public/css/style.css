@@ -1412,7 +1412,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     align-items: center;
     gap: 11px;
-    flex-shrink: 0;
+    /* Shrinkable so a long name collapses instead of squeezing the bars */
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .topbar-avatar {
@@ -1440,6 +1442,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: flex;
     flex-direction: column;
     gap: 3px;
+    min-width: 0;
 }
 
 .topbar-name {
@@ -1448,6 +1451,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-weight: 700;
     color: var(--text-bright);
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
     letter-spacing: 0.02em;
     text-shadow: 0 1px 4px rgba(0,0,0,0.6);
 }
@@ -5914,10 +5920,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     .topbar::before { display: none; }
     .topbar-left { width: 100%; flex: none; gap: 10px; align-items: center; }
-    .topbar-avatar-wrap { flex-shrink: 0; gap: 8px; }
+    .topbar-avatar-wrap { flex-shrink: 1; min-width: 0; gap: 8px; }
     .topbar-avatar { width: 38px; height: 38px; }
-    .topbar-avatar-info { gap: 2px; }
-    .topbar-name { font-size: 0.78rem; }
+    .topbar-avatar-info { gap: 2px; min-width: 0; }
+    .topbar-name { font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
     .topbar-level { font-size: 0.55rem; padding: 1px 6px; }
     .topbar-bars { flex: 1; max-width: none; min-width: 0; gap: 4px; }
     .topbar-bar-row { gap: 5px; }
