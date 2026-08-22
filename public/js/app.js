@@ -2773,8 +2773,11 @@ function renderTopBar() {
             bannerEl.classList.remove('hidden');
         } else {
             bannerEl.classList.remove('event-banner--tutorial');
-            // Revert to event banner or hide if no event
-            if (!c.active_event) bannerEl.classList.add('hidden');
+            // #event-banner is only ever populated by the tutorial branch
+            // (live events render in #topbar-event), so always clear stale
+            // markup and hide — regardless of whether an event is running.
+            bannerEl.innerHTML = '';
+            bannerEl.classList.add('hidden');
         }
     }
 
