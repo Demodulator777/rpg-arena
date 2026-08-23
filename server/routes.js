@@ -11067,8 +11067,9 @@ function normalizeSquadName(name) {
     const n = String(name || '').trim().replace(/\s+/g, ' ');
     if (n.length < 3) return null;
     if (n.length > 20) return null;
-    // keep it simple: letters/numbers/spaces/hyphen/underscore
-    if (!/^[a-zA-Z0-9 _-]+$/.test(n)) return null;
+    // Letters/numbers in any language + spaces and common symbols.
+    // Excluded on purpose: <> (HTML), / \ (paths), ` " (quotes/attributes).
+    if (!/^[\p{L}\p{N} _\-'&.!?,;:()+=*#@%$~^|]+$/u.test(n)) return null;
     return n;
 }
 
@@ -11110,11 +11111,11 @@ router.post('/squads/create', auth, async (req, res) => {
         const existing = await dbGet(db, 'SELECT 1 FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (existing) return res.status(400).json({ error: 'You are already in a squad.' });
         const name = normalizeSquadName(req.body?.name);
-        if (!name) return res.status(400).json({ error: 'Invalid squad name (3-20 chars, letters/numbers/spaces/-/_).' });
+        if (!name) return res.status(400).json({ error: 'Invalid squad name (3-20 chars, letters/numbers/spaces/symbols).' });
 
         const tag = (req.body?.tag || '').toUpperCase().trim();
         if (!tag) return res.status(400).json({ error: 'Squad tag is required.' });
-        if (!/^[A-Z0-9]{1,5}$/.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 alphanumeric chars).' });
+        if (!/^[\p{L}\p{N}&.!?\-+*@#$%^~=|:;_]{1,5}$/u.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 chars, letters/numbers/symbols).' });
         
         const tagExists = await dbGet(db, 'SELECT 1 FROM squads WHERE squad_tag=? LIMIT 1', [tag]);
         if (tagExists) return res.status(400).json({ error: 'Squad tag already in use.' });
