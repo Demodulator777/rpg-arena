@@ -133,6 +133,7 @@ router.post('/register', async (req, res) => {
   const { username, password, referralCode, email } = req.body;
   if (!username || !password) return res.status(400).json({ error: 'Username and password required' });
   if (username.length < 3) return res.status(400).json({ error: 'Username must be at least 3 characters' });
+  if (username.length > 16) return res.status(400).json({ error: 'Username must be at most 16 characters' });
   if (password.length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters' });
 
   try {
