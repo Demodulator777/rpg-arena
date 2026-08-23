@@ -16446,6 +16446,18 @@ router.delete('/chat/:id', auth, async (req, res) => {
     }
 });
 
+// Bulk: mark every inbox message as read.
+router.post('/messages/read-all', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ ok: false });
+        const result = await dbRun(db, 'UPDATE messages SET read=1 WHERE receiver_id=? AND read=0', [char.id]);
+        res.json({ ok: true, updated: result?.rowsAffected ?? result?.changes ?? 0 });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/messages/:id/read', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -16551,6 +16563,17 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+// Bulk: soft-delete every inbox message (must be defined before /messages/:id).
+router.delete('/messages/all', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        await purgeExpiredMessages(db);
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ ok: false });
+        const result = await dbRun(db, 'UPDATE messages SET hidden=1 WHERE receiver_id=? AND hidden=0', [char.id]);
+        res.json({ ok: true, deleted: result?.rowsAffected ?? result?.changes ?? 0 });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 router.delete('/messages/:id', auth, async (req, res) => {
     try {
