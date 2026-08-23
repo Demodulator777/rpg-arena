@@ -9417,7 +9417,6 @@ function renderSquads() {
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
-                ${(isLeader && !squad.squad_tag) ? `<button class="btn-secondary btn-sm" ${actionAttrs('openUpdateTagModal')}>🏷️ Tag</button>` : ''}
                 ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
             </div>
@@ -10171,19 +10170,6 @@ async function leaveSquad() {
     }
 }
 window.leaveSquad = leaveSquad;
-
-async function openUpdateTagModal() {
-    const tag = prompt("Enter new squad tag (1-5 alphanumeric chars):");
-    if (!tag) return;
-    try {
-        await api('POST', '/game/squads/update-tag', { tag });
-        await openGameNoticeDialog({ title: '🛡️ Squad Tag', message: 'Squad tag updated!' });
-        await loadSquads();
-    } catch (e) {
-        await openGameNoticeDialog({ title: '🛡️ Squad Tag', message: e.message || String(e) });
-    }
-}
-window.openUpdateTagModal = openUpdateTagModal;
 
 async function uploadSquadLogo() {
     const input = document.createElement('input');
