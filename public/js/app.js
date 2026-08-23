@@ -4163,8 +4163,8 @@ function renderLoadoutRoundTabs() {
             background:${isActive?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.03)'};transition:all 0.15s">
             <div style="font-size:0.62rem;color:${isActive?'#fff':'rgba(255,255,255,0.4)'};font-weight:700;margin-bottom:5px">${i+1}</div>
             <div style="display:flex;gap:3px;justify-content:center">
-                <div style="width:10px;height:10px;border-radius:50%;background:${atkColor};box-shadow:0 0 5px ${atkColor}88" title="${HIT_ZONES[atkZone]?.label||atkZone}"></div>
-                <div style="width:10px;height:10px;border-radius:50%;background:${blkColor};box-shadow:0 0 5px ${blkColor}88" title="${BLOCK_ZONES[blkZone]?.label||blkZone}"></div>
+<div style="width:10px;height:10px;border-radius:50%;background:${atkColor};box-shadow:0 0 5px ${hexToRgba(atkColor, 0.53)}" title="${HIT_ZONES[atkZone]?.label||atkZone}"></div>
+<div style="width:10px;height:10px;border-radius:50%;background:${blkColor};box-shadow:0 0 5px ${hexToRgba(blkColor, 0.53)}" title="${BLOCK_ZONES[blkZone]?.label||blkZone}"></div>
             </div>
         </div>`;
     }).join('');
@@ -4296,7 +4296,7 @@ function showLoadoutPopup(type, anchorRect) {
             : `${Math.round(v.reduction*100)}% block`;
         return `<div ${actionAttrs('pickLoadoutZone', type, k)}
             style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
-                   background:${isActive?`${color}22`:'transparent'};
+                   background:${isActive?hexToRgba(color, 0.13):'transparent'};
                    border:1px solid ${isActive?color:'transparent'};
                    transition:background 0.1s;margin-bottom:2px">
             <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
@@ -4958,7 +4958,7 @@ function openSpotMissions(zoneId, spotId) {
         const canAfford = mp >= sz.mpCost && !locked;
         const isDisabled = actionBlocked || !canAfford;
 
-        const border = (!isDisabled && canAfford) ? `1px solid ${dc[spot.difficulty]}44` : '1px solid rgba(255,255,255,0.08)';
+        const border = (!isDisabled && canAfford) ? `1px solid ${hexToRgba(dc[spot.difficulty], 0.27)}` : '1px solid rgba(255,255,255,0.08)';
         const bg = (!isDisabled && canAfford) ? 'rgba(255,255,255,0.05)' : 'rgba(255,255,255,0.02)';
         const opacity = actionBlocked ? '0.38' : ((canAfford || (locked && mp >= sz.mpCost)) ? '1' : '0.45');
 
@@ -6329,13 +6329,13 @@ const sets = forgeData.sets || {};
 
     const weap = forgeData.weapon;
     const weaponHtml = weap ? `
-        <button class="forge-card" style="margin-bottom:20px;border-color:#f1c40f44;display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;background:none;border-width:1px;border-style:solid;border-radius:12px" ${actionAttrs('openWeaponUpgrade')}>
+        <button class="forge-card" style="margin-bottom:20px;border-color:rgba(241,196,15,0.27);display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;background:none;border-width:1px;border-style:solid;border-radius:12px" ${actionAttrs('openWeaponUpgrade')}>
             <span style="font-size:1.5rem;flex-shrink:0">${itemIcon(weap,'2.2rem')}</span>
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:8px">
                     <span class="forge-card-name">${escHtml(weap.name)}</span>
-                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#f1c40f22;color:#f1c40f;border:1px solid #f1c40f44;font-weight:700">Lv.${weap.wp_level}/5</span>
-                    ${weap.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:#2ecc7122;color:#2ecc71;border:1px solid #2ecc7144">MAXED</span>':''}
+                    <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:rgba(241,196,15,0.13);color:#f1c40f;border:1px solid rgba(241,196,15,0.27);font-weight:700">Lv.${weap.wp_level}/5</span>
+                    ${weap.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:rgba(46,204,113,0.13);color:#2ecc71;border:1px solid rgba(46,204,113,0.27)">MAXED</span>':''}
                 </div>
                 <div style="display:flex;gap:12px;margin-top:4px;font-size:0.7rem;color:var(--text-dim)">
                     <span>XP ${weap.wp_xp}/${weap.wp_xp_target}</span>
@@ -6378,7 +6378,7 @@ const sets = forgeData.sets || {};
                 return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
             }).join(', ');
 
-            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?qColor+'66':'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
+            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?hexToRgba(qColor, 0.4):'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
                 <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
                     <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
                     <div>
@@ -6445,7 +6445,7 @@ function buildWeaponDialog(dialog, weap) {
                 </div>
                 <button class="btn-secondary" style="font-size:0.85rem;padding:4px 10px" data-action="closeWeaponDialog">✕</button>
             </div>
-            ${weap.maxed ? `<div style="text-align:center;padding:12px;background:#2ecc7122;border:1px solid #2ecc7144;border-radius:10px;font-weight:700;color:#2ecc71">⬆️ WEAPON MAXED</div>`
+            ${weap.maxed ? `<div style="text-align:center;padding:12px;background:rgba(46,204,113,0.13);border:1px solid rgba(46,204,113,0.27);border-radius:10px;font-weight:700;color:#2ecc71">⬆️ WEAPON MAXED</div>`
         : `
             <div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px">
                 <div style="display:flex;justify-content:space-between;font-size:0.75rem;margin-bottom:4px">
@@ -7728,7 +7728,7 @@ function createLootboxModal() {
             
             .lootbox-skip-btn {
                 background: rgba(40, 35, 55, 0.95);
-                border: 1px solid #ffb347aa;
+                border: 1px solid rgba(255,179,71,0.67);
                 color: #ffdd99;
                 padding: 6px 16px;
                 border-radius: 60px;
@@ -7937,7 +7937,7 @@ function createLootboxModal() {
             }
             
             .lootbox-qty-pill {
-                background: #ffcd7e30;
+                background: rgba(255,205,126,0.19);
                 padding: 6px 14px;
                 border-radius: 60px;
                 font-weight: bold;
@@ -9480,7 +9480,7 @@ function renderSquads() {
             </div>`;
 
             wars.forEach(function(w) {
-                tabContent += `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? '#e74c3c44' : '#2ecc7144'}">
+                tabContent += `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? 'rgba(231,76,60,0.27)' : 'rgba(46,204,113,0.27)'}">
                     <div class="squads-card-head">
                         <div><div class="squads-title">⚔️ ${w.is_attacker ? 'Attacking' : 'Defending'} ${escHtml(w.base_name)}</div>
                         <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
@@ -9787,7 +9787,7 @@ async function openWarPanel(warId) {
                     } else {
                         info = `<span>Defender: ${o.defender_power.toLocaleString()} · Attacker: ???</span>`;
                     }
-                    return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #ffffff11">
+                    return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
                     <span>Outpost ${i + 1}</span>
                     ${info}
                     <span>${o.winner ? (o.winner === 'attacker' ? '✅ Won' : '❌ Lost') : '⏳ Pending'}${o.battle_log && o.battle_log.length ? ` <button class="btn-secondary btn-sm" style="margin-left:6px" ${actionAttrs('viewOutpostLog', w.id, i)}>📜 Log</button>` : ''}</span>
@@ -9819,7 +9819,7 @@ async function viewOutpostLog(warId, outpostIndex) {
         const lines = op.battle_log.map(l => `<div style="padding:1px 0;font-size:0.72rem;${l.startsWith('  ') ? 'color:var(--text-dim);padding-left:14px' : 'color:#e8e8e8;font-weight:700'}">${escHtml(l)}</div>`).join('');
         openGameNoticeDialog({
             title: `Outpost ${outpostIndex + 1} — Battle Log`,
-            message: `<div style="max-height:60vh;overflow-y:auto;border:1px solid #ffffff22;border-radius:8px;padding:8px 10px;background:rgba(0,0,0,0.25)">${lines}</div>`,
+            message: `<div style="max-height:60vh;overflow-y:auto;border:1px solid rgba(255,255,255,0.13);border-radius:8px;padding:8px 10px;background:rgba(0,0,0,0.25)">${lines}</div>`,
             confirmLabel: 'Close'
         });
     } catch (e) {
@@ -9921,7 +9921,7 @@ function _renderAssignList() {
 
     function memberRow(m) {
         const cur = sel(m);
-        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid #ffffff10;background:rgba(0,0,0,0.15)${isCaptured(m) ? ';opacity:0.5' : ''}">
+        return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.15)${isCaptured(m) ? ';opacity:0.5' : ''}">
                 <div style="flex:1 1 130px;min-width:115px;display:flex;align-items:center;gap:6px">
                     <span style="font-size:0.8rem;font-weight:600">${escHtml(m.name)}</span>
                     ${isCaptured(m) ? '<span style="font-size:0.62rem;color:#e74c3c">(captured)</span>' : ''}
@@ -9960,7 +9960,7 @@ function _renderAssignList() {
     for (let i = 0; i < 5; i++) {
         const b = buckets[i];
         const total = b.tank.length + b.dps.length + b.heal.length;
-        html += `<div style="border:1px solid #ffffff14;border-radius:10px;background:rgba(0,0,0,0.20);overflow:hidden">
+        html += `<div style="border:1px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(0,0,0,0.20);overflow:hidden">
             <div style="padding:6px 10px;background:rgba(241,196,15,0.10);font-size:0.78rem;font-weight:700;color:var(--gold)">🏰 Outpost ${i + 1} <span style="font-weight:400;color:var(--text-dim)">${total ? `(${total} assigned)` : ''}</span></div>
             <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
                 ${['tank', 'dps', 'heal'].map(g => {
@@ -9974,7 +9974,7 @@ function _renderAssignList() {
         </div>`;
     }
 
-    html += `<div style="border:1px solid #ffffff12;border-radius:10px;background:rgba(0,0,0,0.16);overflow:hidden">
+    html += `<div style="border:1px solid rgba(255,255,255,0.07);border-radius:10px;background:rgba(0,0,0,0.16);overflow:hidden">
         <div style="padding:6px 10px;background:rgba(231,76,60,0.10);font-size:0.78rem;font-weight:700;color:#e74c3c">— Unassigned — <span style="font-weight:400;color:var(--text-dim)">${unassigned.length ? `(${unassigned.length})` : ''}</span></div>
         <div style="padding:8px;display:flex;flex-direction:column;gap:5px">
             ${unassigned.length ? unassigned.map(memberRow).join('') : '<div style="font-size:0.7rem;color:var(--text-dim)">All fighters assigned.</div>'}
@@ -10651,7 +10651,7 @@ async function openProfile(id) {
             if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
             const qc=item.quality==='legendary'?'#f1c40f':item.quality==='epic'?'#e67e22':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
             const itemData=escHtml(JSON.stringify(item));
-            return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${qc}33;background:rgba(255,255,255,0.03);cursor:default"
+            return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${hexToRgba(qc, 0.2)};background:rgba(255,255,255,0.03);cursor:default"
                 data-item="${itemData}"
                 data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip">
                 ${itemIcon(item,'1.2rem')}
@@ -11239,7 +11239,12 @@ async function loadInbox() {
             <button class="inbox-tab" ${actionAttrs('filterInbox', 'battles')}>⚔️ Battles (${battlesList.length})</button>
             <button class="inbox-tab" ${actionAttrs('filterInbox', 'missions')}>🎯 Missions (${missionsList.length})</button>
         </div>
-        <div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button></div>
+        <div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button>
+            <div style="display:flex;gap:6px;margin-left:8px">
+                <button class="btn-sm" ${actionAttrs('markAllInboxRead')} title="Mark every message as read">✓ Mark All Read</button>
+                <button class="btn-sm danger" ${actionAttrs('deleteAllMessages')} title="Delete every message">🗑 Delete All</button>
+            </div>
+        </div>
         <div id="inbox-filtered-content"></div>`;
 
         // Store for filtering
@@ -11445,6 +11450,28 @@ async function markInboxRead(id, refreshInbox = true) {
     }
 }
 async function deleteMessage(id) { try { await api('DELETE',`/game/messages/${id}`); loadInbox(); } catch(e) { alert(e.message); } }
+async function markAllInboxRead() {
+    try {
+        await api('POST', '/game/messages/read-all');
+        loadInbox();
+    } catch (e) { alert(e.message); }
+}
+window.markAllInboxRead = markAllInboxRead;
+async function deleteAllMessages() {
+    const ok = await openGameConfirmDialog({
+        title: 'Delete All Messages?',
+        message: 'This permanently removes <strong>every</strong> message, battle report and mission report from your inbox.<br><br>Unclaimed rewards attached to messages will be lost. This cannot be undone.',
+        confirmLabel: 'Delete All',
+        cancelLabel: 'Cancel',
+        danger: true
+    });
+    if (!ok) return;
+    try {
+        await api('DELETE', '/game/messages/all');
+        loadInbox();
+    } catch (e) { alert(e.message); }
+}
+window.deleteAllMessages = deleteAllMessages;
 async function claimMessageReward(id) {
     try {
         const result = await api('POST', `/game/messages/${id}/claim-reward`);
@@ -12841,6 +12868,15 @@ function formatDate(ts) {
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
 }
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+// Convert '#rgb'/'#rrggbb' to rgba() with the given alpha — keeps inline styles
+// statically valid (no 8-digit hex, no string-concat colors).
+function hexToRgba(hex, alpha) {
+    let h = String(hex || '').replace('#', '');
+    if (h.length === 3 || h.length === 4) h = h.slice(0, 3).split('').map(ch => ch + ch).join('');
+    const num = parseInt(h.slice(0, 6), 16);
+    if (Number.isNaN(num)) return hex;
+    return `rgba(${(num >> 16) & 255},${(num >> 8) & 255},${num & 255},${alpha})`;
+}
 function classRuneHtml(className) {
     const c = String(className || '').toLowerCase();
     return `<img src="/images/class/${c}rune.png" style="height:20px;width:auto;vertical-align:middle;display:inline-block" alt="${c}">`;
