@@ -10682,7 +10682,7 @@ async function openProfile(id) {
           <div class="profile-header">
             <div style="display:flex;align-items:center;gap:12px">
               <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;${avatarPos(p.profile_pic_offset)};border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
-              <div><div class="profile-name">${classIconHtml} ${name}</div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
+              <div style="min-width:0"><div class="profile-name">${classIconHtml} <span class="profile-name-text">${name}</span></div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
             </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
