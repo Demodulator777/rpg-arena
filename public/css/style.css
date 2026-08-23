@@ -5058,7 +5058,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .battle-log-line.separator { color: rgba(255,255,255,0.15); text-align: center; }
 
 .profile-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.profile-name { font-family: 'Cinzel',serif; font-size: 1.35rem; color: var(--text-bright); }
+/* Icon + name stay on one row; long names shrink (ellipsis) instead of wrapping. */
+.profile-name {
+    font-family: 'Cinzel',serif;
+    font-size: 1.35rem;
+    color: var(--text-bright);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+    white-space: nowrap;
+}
+.profile-name img { flex-shrink: 0; }
+.profile-name-text { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .profile-class { font-style: italic; color: var(--text-dim); font-size: 0.86rem; }
 .profile-actions {
     display: flex;
@@ -5126,7 +5138,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .profile-scene .class-scene-content { padding: 14px; }
     .profile-modal-box { padding: 8px; }
     .profile-header > div { min-width: 0; }
-    .profile-name { font-size: 1.05rem; line-height: 1.2; word-break: break-word; }
+    .profile-name { font-size: 1.05rem; line-height: 1.2; }
     .profile-class { font-size: 0.78rem; }
     .profile-card .stat-row {
         grid-template-columns: 16px 24px minmax(0, 1fr) 34px;
