@@ -11239,8 +11239,8 @@ async function loadInbox() {
             <button class="inbox-tab" ${actionAttrs('filterInbox', 'battles')}>⚔️ Battles (${battlesList.length})</button>
             <button class="inbox-tab" ${actionAttrs('filterInbox', 'missions')}>🎯 Missions (${missionsList.length})</button>
         </div>
-        <div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button>
-            <div style="display:flex;gap:6px;margin-left:8px">
+        <div class="inbox-header">
+            <div style="display:flex;gap:6px;margin-left:auto">
                 <button class="btn-sm" ${actionAttrs('markAllInboxRead')} title="Mark every message as read">✓ Mark All Read</button>
                 <button class="btn-sm danger" ${actionAttrs('deleteAllMessages')} title="Delete every message in this tab">🗑 Delete All</button>
             </div>
