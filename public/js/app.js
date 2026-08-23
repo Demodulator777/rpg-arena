@@ -11242,7 +11242,7 @@ async function loadInbox() {
         <div class="inbox-header"><button class="compose-btn" ${actionAttrs('openCompose', null, null)}>✉️ New Message</button>
             <div style="display:flex;gap:6px;margin-left:8px">
                 <button class="btn-sm" ${actionAttrs('markAllInboxRead')} title="Mark every message as read">✓ Mark All Read</button>
-                <button class="btn-sm danger" ${actionAttrs('deleteAllMessages')} title="Delete every message">🗑 Delete All</button>
+                <button class="btn-sm danger" ${actionAttrs('deleteAllMessages')} title="Delete every message in this tab">🗑 Delete All</button>
             </div>
         </div>
         <div id="inbox-filtered-content"></div>`;
@@ -11458,16 +11458,20 @@ async function markAllInboxRead() {
 }
 window.markAllInboxRead = markAllInboxRead;
 async function deleteAllMessages() {
+    const filter = window._currentInboxFilter || 'messages';
+    const list = (window._inboxData || {})[filter] || [];
+    if (!list.length) return;
+    const label = { messages: 'messages', battles: 'battle reports', missions: 'mission reports' }[filter] || 'messages';
     const ok = await openGameConfirmDialog({
-        title: 'Delete All Messages?',
-        message: 'This permanently removes <strong>every</strong> message, battle report and mission report from your inbox.<br><br>Unclaimed rewards attached to messages will be lost. This cannot be undone.',
+        title: `Delete All ${capitalize(label)}?`,
+        message: `This permanently removes all <strong>${list.length}</strong> ${label} in this tab.<br><br>Unclaimed rewards attached to them will be lost. This cannot be undone.`,
         confirmLabel: 'Delete All',
         cancelLabel: 'Cancel',
         danger: true
     });
     if (!ok) return;
     try {
-        await api('DELETE', '/game/messages/all');
+        await api('DELETE', '/game/messages/bulk', { ids: list.map(m => m.id) });
         loadInbox();
     } catch (e) { alert(e.message); }
 }
