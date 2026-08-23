@@ -16564,14 +16564,19 @@ router.post('/messages/:id/claim-reward', auth, async (req, res) => {
         res.status(500).json({ error: e.message });
     }
 });
-// Bulk: soft-delete every inbox message (must be defined before /messages/:id).
-router.delete('/messages/all', auth, async (req, res) => {
+// Bulk: soft-delete selected inbox messages by id (must be defined before /messages/:id).
+router.delete('/messages/bulk', auth, async (req, res) => {
     try {
         const db = await getDb();
         await purgeExpiredMessages(db);
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ ok: false });
-        const result = await dbRun(db, 'UPDATE messages SET hidden=1 WHERE receiver_id=? AND hidden=0', [char.id]);
+        const ids = Array.isArray(req.body?.ids)
+            ? req.body.ids.map(Number).filter(n => Number.isInteger(n) && n > 0).slice(0, 1000)
+            : [];
+        if (!ids.length) return res.json({ ok: true, deleted: 0 });
+        const placeholders = ids.map(() => '?').join(',');
+        const result = await dbRun(db, `UPDATE messages SET hidden=1 WHERE receiver_id=? AND hidden=0 AND id IN (${placeholders})`, [char.id, ...ids]);
         res.json({ ok: true, deleted: result?.rowsAffected ?? result?.changes ?? 0 });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
