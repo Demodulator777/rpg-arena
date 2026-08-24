@@ -3049,6 +3049,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .clan-base-icon:hover { opacity:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.9)); }
 .clan-base-wrap.owned .clan-base-icon { opacity:1; }
+/* Admin base-map editing mode */
+.clan-base-map.base-editing > div[data-action] { pointer-events: none; }
+.clan-base-map.base-editing .clan-base-wrap { pointer-events: auto; cursor: grab; }
+.clan-base-map.base-editing .clan-base-wrap:active { cursor: grabbing; }
+.clan-base-map.base-editing .clan-base-wrap:hover .clan-base-icon { opacity: 1; filter: drop-shadow(0 0 6px rgba(241,196,15,0.8)); }
 /* Kill the square tap/focus highlight on clickable base icons */
 .clan-base-map [data-action] {
     outline: none;
