@@ -1986,6 +1986,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .nav-btn-leaderboard { background-image: url('/images/leaderboard.png'); }
 .nav-btn-messages { background-image: url('/images/inbox.png'); }
 .nav-btn-icon {
+    display: none;
     position: absolute;
     top: 7px;
     left: 50%;
