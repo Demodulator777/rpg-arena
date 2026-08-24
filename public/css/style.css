@@ -1472,6 +1472,22 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     transition: filter 0.25s ease;
     filter: drop-shadow(0 0 5px rgba(201,146,42,0.3));
 }
+/* Pop-out head: duplicate portrait stacked ABOVE the frame, clipped to the
+   shield's top region only — the head overlaps the frame edge while the rest
+   of the body stays behind it (base portrait + frame render as before). */
+.avatar-frame .avatar-frame-pop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border: none;
+    clip-path: url(#shield-clip-pop);
+    transform: scale(0.94);
+    pointer-events: none;
+    z-index: 4;
+}
 /* Hover lights up frame + character together (overrides the bare-avatar hover) */
 .avatar-frame:hover { filter: brightness(1.07); cursor: pointer; }
 .avatar-frame:hover .topbar-avatar,
