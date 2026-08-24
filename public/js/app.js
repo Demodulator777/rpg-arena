@@ -2822,6 +2822,7 @@ function renderTopBar() {
         if (pop) {
             pop.src = el.src;
             pop.style.objectPosition = el.style.objectPosition;
+            alignAvatarPop(pop);
         }
     });
     set('topbar-hp-fill',el=>{ el.style.width=hpPct+'%'; el.style.background=hpColor; });
@@ -13007,6 +13008,40 @@ function framedAvatar(src, sizePx, opts = {}) {
         `<img src="/images/assets/frame.png" class="avatar-frame-img" alt="" data-error-hide="true">` +
     `</span>`;
 }
+
+// Extend the pop layer above the frame box so the head rises past the ring,
+// keeping it pixel-aligned with the base portrait at the seam: the taller box
+// would otherwise change the cover-crop scale/offset, so we compensate the
+// object-position and the scale(0.94) transform-origin explicitly.
+function alignAvatarPop(pop) {
+    const base = pop.previousElementSibling;
+    if (!base || !base.clientWidth || !base.clientHeight) return;
+    if (!base.naturalWidth) {
+        base.addEventListener('load', () => alignAvatarPop(pop), { once: true });
+        return;
+    }
+    const W = base.clientWidth, H = base.clientHeight;
+    const s = Math.max(W / base.naturalWidth, H / base.naturalHeight);
+    const overflow = base.naturalHeight * s - H;
+    const E = Math.max(0, Math.min(9, overflow - 1));
+    const m = (base.style.objectPosition || '').match(/([\d.]+)%\s+([\d.]+)%/);
+    const px = m ? m[1] : '50';
+    const py = m ? parseFloat(m[2]) / 100 : 0.5;
+    pop.style.top = (-E) + 'px';
+    pop.style.height = (H + E) + 'px';
+    const cut = (E + 0.45 * H).toFixed(2);
+    pop.style.clipPath = `polygon(9% 0, 91% 0, 91% ${cut}px, 9% ${cut}px)`;
+    pop.style.transformOrigin = `50% ${(H / 2 - (0.94 / 0.06) * E).toFixed(2)}px`;
+    if (E <= 0) { pop.style.objectPosition = (m ? `${px}% ${m[2]}%` : '50% 50%'); return; }
+    const oy = overflow * py;
+    const py2 = (oy - E) / (overflow - E);
+    pop.style.objectPosition = `${px}% ${(py2 * 100).toFixed(3)}%`;
+}
+document.addEventListener('load', e => {
+    const t = e.target;
+    if (t && t.classList && t.classList.contains('avatar-frame-pop')) alignAvatarPop(t);
+}, true);
+document.querySelectorAll('.avatar-frame-pop').forEach(alignAvatarPop);
 
 // ── Utils ─────────────────────────────────────────────────────────────────
 function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.toggle('hidden',!msg);}
