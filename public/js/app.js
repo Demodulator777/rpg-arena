@@ -1228,6 +1228,7 @@ const I18N_PHRASES = {
         'New Message': 'Nova mensagem', 'Compose': 'Escrever', 'Feed': 'Alimentar', 'Upgrade': 'Melhorar',
         // Titles / screens
         'Character': 'Personagem', 'Leaderboard': 'Classificação', 'Inbox': 'Caixa de Entrada',
+        'World': 'Mundo', 'Equipment': 'Equipamento',
         'Shop': 'Loja', 'Forge': 'Forja', 'Inventory': 'Inventário', 'Missions': 'Missões',
         'Dungeon': 'Dungeon', 'Tournament': 'Torneio', 'Achievements': 'Conquistas',
         'Settings': 'Configurações', 'Premium': 'Premium', 'Skills': 'Skills', 'Training': 'Treino',
