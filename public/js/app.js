@@ -10322,7 +10322,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
-            <img src="${lbImg}" alt="${p.class}" class="lb-class-img" style="width:36px;height:36px;border-radius:50%;object-fit:cover;${lbPos};border:2px solid rgba(255,255,255,0.12);flex-shrink:0" data-class="${p.class}" data-profile-pic="${profilePic || ''}">
+            ${framedAvatar(lbImg, 36, { imgClass: 'lb-class-img', errorHide: false, alt: p.class, data: `data-class="${p.class}" data-profile-pic="${profilePic || ''}"`, imgStyle: `object-fit:cover;${lbPos}` })}
             <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
@@ -10666,10 +10666,10 @@ async function openProfile(id) {
         <div class="class-scene-glow"></div>
         <div class="class-scene-content">
           <div class="profile-header">
-            <div style="display:flex;align-items:center;gap:12px">
-              <img src="${profilePicSrc(p.profile_pic || p.class + '.png')}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;${avatarPos(p.profile_pic_offset)};border:2px solid rgba(255,255,255,0.15)" data-error-hide="true">
-              <div style="min-width:0"><div class="profile-name">${classIconHtml} <span class="profile-name-text">${name}</span></div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
-            </div>
+              <div style="min-width:0;display:flex;align-items:center;gap:12px">
+                ${framedAvatar(profilePicSrc(p.profile_pic || p.class + '.png'), 52, { alt: 'avatar', imgStyle: 'object-fit:cover;' + avatarPos(p.profile_pic_offset) })}
+                <div><div class="profile-name">${classIconHtml} <span class="profile-name-text">${name}</span></div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
+              </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
           <div class="profile-grid">
@@ -12844,6 +12844,16 @@ function matIcon(nameOrId, emoji, size='1.4rem') {
     const src = getAssetImagePath(nameOrId);
     if (!src) return `<span style="font-size:${size};line-height:1;flex-shrink:0">${emoji||'📦'}</span>`;
     return `<img src="${src}" alt="" style="width:${size};height:${size};object-fit:contain;display:inline-block;vertical-align:middle;flex-shrink:0" data-error-hide="true" data-error-next-display="inline-block"><span style="display:none;font-size:${size};line-height:1">${emoji||'📦'}</span>`;
+}
+
+// Shield-framed avatar: portrait clipped via #shield-clip, frame.png overlay on
+// top. Overlay hides itself if the asset is missing (plain circle remains).
+function framedAvatar(src, sizePx, opts = {}) {
+    return `<span class="avatar-frame" style="width:${sizePx}px;height:${sizePx}px;${opts.wrapStyle||''}">` +
+        `<img src="${src}" class="avatar-frame-portrait ${opts.imgClass||''}" style="${opts.imgStyle||''}" alt="${opts.alt||''}"` +
+        `${opts.errorHide === false ? '' : ' data-error-hide="true"'} ${opts.data||''}>` +
+        `<img src="/images/assets/frame.png" class="avatar-frame-img" alt="" data-error-hide="true">` +
+    `</span>`;
 }
 
 // ── Utils ─────────────────────────────────────────────────────────────────
