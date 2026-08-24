@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-22-tut-overlay"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-22-avatar-frame"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -679,7 +679,10 @@
         <div class="topbar">
             <div class="topbar-left">
         <div class="topbar-avatar-wrap" data-action="showTab" data-args='["character"]' title="Open character page" style="cursor:pointer">
-                    <img id="topbar-avatar" class="topbar-avatar" src="" alt="avatar">
+                    <div class="avatar-frame">
+                        <img id="topbar-avatar" class="topbar-avatar" src="" alt="avatar" data-error-next-display="">
+                        <img class="avatar-frame-img" src="/images/assets/frame.png" alt="" data-error-hide="true">
+                    </div>
                     <div class="topbar-avatar-info">
                         <span id="topbar-name" class="topbar-name">Hero</span>
                         <span id="topbar-level" class="topbar-level">Lv.1</span>
