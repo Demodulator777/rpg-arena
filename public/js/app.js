@@ -7228,7 +7228,7 @@ function renderInventory(data) {
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
             const maxCan = Math.floor(fragmentCount / rate.fragmentCost);
             return `<div class="mat-card" data-eid="${id}" style="position: relative;">
-                        <div style="font-size: 2rem; margin-bottom: 8px;">${rate.emoji}</div>
+                        <div style="margin-bottom: 8px; height: 2rem; display:flex; align-items:center; justify-content:center;">${matIcon(rate.name, rate.emoji, '2rem')}</div>
                         <div class="mat-name">${rate.name}</div>
                         <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐ each</div>
                         <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">You can afford: ${maxCan}</div>
