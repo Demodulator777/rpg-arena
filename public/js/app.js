@@ -1171,6 +1171,10 @@ const I18N = {
     }
 };
 let CURRENT_LANG = localStorage.getItem('rpg_lang') || 'en';
+const LANGUAGES = {
+    en: { label: 'English', flag: '<svg viewBox="0 0 60 40" aria-hidden="true"><rect width="60" height="40" fill="#012169"/><path d="M0 0L60 40M60 0L0 40" stroke="#fff" stroke-width="8"/><path d="M0 0L60 40M60 0L0 40" stroke="#C8102E" stroke-width="4"/><path d="M30 0V40M0 20H60" stroke="#fff" stroke-width="13"/><path d="M30 0V40M0 20H60" stroke="#C8102E" stroke-width="7"/></svg>' },
+    pt: { label: 'Português', flag: '<svg viewBox="0 0 60 40" aria-hidden="true"><rect width="60" height="40" fill="#DA291C"/><rect width="24" height="40" fill="#046A38"/><circle cx="24" cy="20" r="7.5" fill="#FFE900"/><circle cx="24" cy="20" r="4.5" fill="#DA291C" stroke="#fff" stroke-width="1"/></svg>' }
+};
 function t(key, enFallback) {
     const dict = I18N[CURRENT_LANG];
     return (dict && dict[key]) || enFallback;
@@ -1184,6 +1188,7 @@ async function changeLanguage(args, event, trigger) {
     location.reload();
 }
 window.changeLanguage = changeLanguage;
+let langOutsideClose = null;
 
 // Static HTML text sweep (nav labels, auth screen), keyed by exact text.
 const STATIC_I18N = {
@@ -1336,6 +1341,7 @@ function renderTopbarMenu() {
     const referralLink = referralCode ? getReferralLink(referralCode) : '';
     const switcherLabel = `${t('menu.switchCharacter', 'Switch Character')} (${accountCharacters.length}/${maxCharacterSlots})`;
     const onOff = v => v ? t('common.on', 'On') : t('common.off', 'Off');
+    const currentLang = LANGUAGES[CURRENT_LANG] || LANGUAGES.en;
     const mpLabel = unlocked
         ? `${t('menu.skillsUnlockedToday', 'Skills unlocked today')} · ${mp}/${mpMax} MP`
         : `${t('menu.spendMoreMp', 'Spend {n} more MP to unlock skills').replace('{n}', remaining)} · ${mp}/${mpMax} MP`;
@@ -1343,10 +1349,21 @@ function renderTopbarMenu() {
     content.innerHTML = `
         <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.language', 'Language')}</div>
-            <select id="lang-select" class="input-field" style="width:100%;margin:0;cursor:pointer">
-                <option value="en"${CURRENT_LANG === 'en' ? ' selected' : ''}>🇬🇧 English</option>
-                <option value="pt"${CURRENT_LANG === 'pt' ? ' selected' : ''}>🇵🇹 Português</option>
-            </select>
+            <div class="lang-dropdown" id="lang-dropdown">
+                <button type="button" id="lang-dropdown-btn" class="lang-dropdown-btn" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="lang-flag">${currentLang.flag}</span>
+                    <span class="lang-dropdown-name">${currentLang.label}</span>
+                    <span class="lang-dropdown-caret">▾</span>
+                </button>
+                <div id="lang-dropdown-list" class="lang-dropdown-list hidden" role="listbox">
+                    ${Object.entries(LANGUAGES).map(([code, l]) => `
+                    <button type="button" class="lang-dropdown-option${code === CURRENT_LANG ? ' selected' : ''}" role="option" aria-selected="${code === CURRENT_LANG}" data-lang="${code}">
+                        <span class="lang-flag">${l.flag}</span>
+                        <span class="lang-option-name">${l.label}</span>
+                        <span class="lang-option-check">${code === CURRENT_LANG ? '✓' : ''}</span>
+                    </button>`).join('')}
+                </div>
+            </div>
         </div>
         <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.liveStatus', 'Live Status')}</div>
@@ -1460,8 +1477,32 @@ function renderTopbarMenu() {
                 <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
             </div>
         </div>`;
-    const langSel = document.getElementById('lang-select');
-    if (langSel) langSel.addEventListener('change', () => changeLanguage(null, null, langSel));
+    const langWrap = document.getElementById('lang-dropdown');
+    if (langWrap) {
+        const langBtn = document.getElementById('lang-dropdown-btn');
+        const langList = document.getElementById('lang-dropdown-list');
+        const closeLangList = () => {
+            langList.classList.add('hidden');
+            langWrap.classList.remove('open');
+            langBtn.setAttribute('aria-expanded', 'false');
+        };
+        langBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const willOpen = langList.classList.contains('hidden');
+            langList.classList.toggle('hidden', !willOpen);
+            langWrap.classList.toggle('open', willOpen);
+            langBtn.setAttribute('aria-expanded', String(willOpen));
+        });
+        langList.querySelectorAll('.lang-dropdown-option').forEach(opt => {
+            opt.addEventListener('click', () => {
+                closeLangList();
+                changeLanguage([opt.dataset.lang]);
+            });
+        });
+        if (langOutsideClose) document.removeEventListener('click', langOutsideClose);
+        langOutsideClose = (e) => { if (!langWrap.contains(e.target)) closeLangList(); };
+        document.addEventListener('click', langOutsideClose);
+    }
 }
 
 function syncClientPreferencesFromCharacter() {
