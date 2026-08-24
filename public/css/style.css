@@ -4428,7 +4428,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .lb-rank.gold-rank   { color: #ffd700; text-shadow: 0 0 10px rgba(255,215,0,0.4); }
 .lb-rank.silver-rank { color: #c0c0c0; }
 .lb-rank.bronze-rank { color: #cd7f32; }
-.lb-row img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.12); justify-self: center; }
+.lb-row > img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(255,255,255,0.12); justify-self: center; }
 .lb-row .lb-squad-logo { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: none; }
 .lb-info { overflow: hidden; min-width: 0; }
 .lb-name { font-weight: 600; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
