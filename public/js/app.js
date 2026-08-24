@@ -9536,6 +9536,80 @@ function renderSquads() {
     }
 
     el.innerHTML = squadHeader + subTabsHtml + tabContent;
+    if (_squadSubTab === 'map') wireBaseMapEditor();
+}
+
+// ── Admin base-map editor (Forsaken only) ────────────────────────────────
+async function ensureBaseEditPermission() {
+    if (window._canEditBases !== undefined) return window._canEditBases;
+    try {
+        const r = await api('GET', '/game/admin/check');
+        window._canEditBases = !!r.isAdmin && String(r.username || '').toLowerCase() === 'forsaken';
+    } catch { window._canEditBases = false; }
+    return window._canEditBases;
+}
+function toggleBaseEditing() {
+    window._editingBases = !window._editingBases;
+    if (!window._editingBases) window._basePosChanges = {};
+    renderSquads();
+}
+window.toggleBaseEditing = toggleBaseEditing;
+async function saveBasePositions() {
+    const positions = Object.entries(window._basePosChanges || {}).map(([id, p]) => ({ id: Number(id), map_x: p.x, map_y: p.y }));
+    if (!positions.length) { window._editingBases = false; renderSquads(); return; }
+    try {
+        await api('POST', '/game/squads/bases/positions', { positions });
+        window._basePosChanges = {};
+        window._editingBases = false;
+        await loadClanData();
+        renderSquads();
+    } catch (e) { alert(e.message); }
+}
+window.saveBasePositions = saveBasePositions;
+function wireBaseMapEditor() {
+    ensureBaseEditPermission().then(can => {
+        if (!can) return;
+        if (!window._basePosChanges) window._basePosChanges = {};
+        if (!window._editingBases) { refreshSquadsIfPermitted(); return; }
+        const mapEl = document.getElementById('clan-base-map');
+        if (!mapEl) return;
+        mapEl.querySelectorAll('.clan-base-wrap').forEach(wrap => {
+            const holder = wrap.parentElement;
+            if (!holder || !holder.dataset.bid) return;
+            wrap.addEventListener('pointerdown', (e) => {
+                if (!window._editingBases) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = mapEl.getBoundingClientRect();
+                wrap.setPointerCapture?.(e.pointerId);
+                const move = (ev) => {
+                    const x = Math.max(0, Math.min(1000, Math.round((ev.clientX - rect.left) / rect.width * 1000)));
+                    const y = Math.max(0, Math.min(800, Math.round((ev.clientY - rect.top) / rect.height * 800)));
+                    holder.style.left = (x * 100 / 1000) + '%';
+                    holder.style.top = (y * 100 / 800) + '%';
+                    holder.dataset.px = x; holder.dataset.py = y;
+                };
+                const up = () => {
+                    window.removeEventListener('pointermove', move);
+                    window.removeEventListener('pointerup', up);
+                    window.removeEventListener('pointercancel', up);
+                    if (holder.dataset.px !== undefined) {
+                        window._basePosChanges[holder.dataset.bid] = { x: Number(holder.dataset.px), y: Number(holder.dataset.py) };
+                        renderSquads();
+                    }
+                };
+                window.addEventListener('pointermove', move);
+                window.addEventListener('pointerup', up);
+                window.addEventListener('pointercancel', up);
+            });
+        });
+    });
+}
+let _basePermRefreshed = false;
+function refreshSquadsIfPermitted() {
+    if (_basePermRefreshed) return;
+    _basePermRefreshed = true;
+    ensureBaseEditPermission().then(can => { if (can && _squadSubTab === 'map') renderSquads(); });
 }
 
 // ── Clan Base / War System ────────────────────────────────────────────────
@@ -9575,13 +9649,18 @@ function renderBaseMapContent() {
     const tierColors = { main: '#ff6b35', large: '#e74c3c', medium: '#f39c12', small: '#3498db' };
     return `<div class="squads-card" style="margin-top:0">
         <div class="squads-title">🗺️ Clan Base Map</div>
-        <div class="clan-base-map" style="position:relative;width:100%;height:500px;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat;border-radius:12px;overflow:hidden;margin-top:8px">
+        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;width:100%;height:500px;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat;border-radius:12px;overflow:hidden;margin-top:8px">
+            ${window._canEditBases ? `<div style="position:absolute;top:8px;right:8px;z-index:6;display:flex;gap:6px">
+                <button class="btn-sm" ${actionAttrs('toggleBaseEditing')}>${window._editingBases ? '✓ Done Moving' : '✥ Move Bases'}</button>
+                ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 Save Positions${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
+            </div>` : ''}
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
             ${(clanData.bases || []).map(b => {
         const color = tierColors[b.tier] || '#888';
         const isOwned = b.owner_squad_id && b.owner_squad_id === clanData.squad_id;
         const isOccupied = b.owner_squad_id && b.owner_squad_id !== clanData.squad_id;
-        return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" style="position:absolute;left:${b.map_x * 100 / 1000}%;top:${b.map_y * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
+        const moved = window._editingBases && window._basePosChanges && window._basePosChanges[b.id];
+        return `<div data-action="showClanBaseDetail" data-args="${encodeActionArgs([b.id])}" data-bid="${b.id}" style="position:absolute;left:${(moved ? window._basePosChanges[b.id].x : b.map_x) * 100 / 1000}%;top:${(moved ? window._basePosChanges[b.id].y : b.map_y) * 100 / 800}%;transform:translate(-50%,-50%);cursor:pointer;text-align:center" title="${escHtml(b.name)}${b.owner_name ? ' · ' + escHtml(b.owner_name) : ''}">
                     <div class="clan-base-wrap${isOwned ? ' owned' : ''}">
                         <img class="clan-base-icon icon-${b.tier}" src="/images/assets/base${b.tier}.png" style="height:auto;margin:0 auto;display:block">
                         ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
