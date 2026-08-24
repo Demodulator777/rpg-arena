@@ -206,8 +206,10 @@ function render(char, data) {
       ${t.mode === 'least_damage' && participants.some(p => p.dsq) ? '<div style="margin-top:10px;font-size:0.72rem;color:#e74c3c;text-align:center;font-style:italic">⚠ DSQ = dealt less damage than taken — excluded from rankings</div>' : ''}
     </div>
     <div id="tab-history" style="display:none">
-      <div class="history-section" id="history-list">
-        <div style="color:#8890a0;text-align:center;padding:20px;font-family:'IM Fell English',serif;font-style:italic">Loading history…</div>
+      <div class="history-wrap">
+        <div class="history-section" id="history-list">
+          <div style="color:#8890a0;text-align:center;padding:20px;font-family:'IM Fell English',serif;font-style:italic">Loading history…</div>
+        </div>
       </div>
     </div>
   `;
