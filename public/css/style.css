@@ -1472,9 +1472,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     transition: filter 0.25s ease;
     filter: drop-shadow(0 0 5px rgba(201,146,42,0.3));
 }
-/* Pop-out head: duplicate portrait stacked ABOVE the frame, clipped to the
-   shield's top region only — the head overlaps the frame edge while the rest
-   of the body stays behind it (base portrait + frame render as before). */
+/* Pop-out head: duplicate portrait stacked ABOVE the frame, showing only the
+   top ~45% at the shield's width — no top curve, so the head renders fully in
+   front of the frame edge while the body stays behind it (base + frame). */
 .avatar-frame .avatar-frame-pop {
     position: absolute;
     inset: 0;
@@ -1483,7 +1483,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     display: block;
     object-fit: cover;
     border: none;
-    clip-path: url(#shield-clip-pop);
+    border-radius: 6px 6px 0 0;
+    clip-path: polygon(9% 0, 91% 0, 91% 45%, 9% 45%);
     transform: scale(0.94);
     pointer-events: none;
     z-index: 4;
