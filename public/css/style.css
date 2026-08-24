@@ -17,6 +17,15 @@ input, textarea, [contenteditable] {
     user-select: text;
 }
 
+/* No tap/focus selection square on click, app-wide.
+   Inputs keep their gold border/box-shadow focus styles. */
+*, *::before, *::after {
+    -webkit-tap-highlight-color: transparent;
+}
+*:focus, *:focus-visible {
+    outline: none;
+}
+
 .hidden { display: none !important; }
 
 /* Event Banner Styles */
