@@ -975,518 +975,193 @@ function getSkillUnlockMenuState() {
     };
 }
 
+// ── i18n ──────────────────────────────────────────────────────────────────
+// t(key, englishFallback): returns the translation for the selected language,
+// falling back to the English inline text. Add new languages to I18N.
+const I18N = {
+    pt: {
+        'menu.language': 'Idioma',
+        'menu.liveStatus': 'Status ao Vivo',
+        'menu.activeEvent': 'Evento Ativo',
+        'menu.noEvent': 'Nenhum evento ativo no momento',
+        'menu.skillUnlock': 'Desbloqueio de Skills',
+        'menu.skillsUnlockedToday': 'Skills desbloqueadas hoje',
+        'menu.spendMoreMp': 'Gaste mais {n} MP para desbloquear skills',
+        'menu.openSkills': 'Abrir Skills',
+        'menu.goToSkills': 'Ir para Skills ({n}/60)',
+        'menu.quickActions': 'Ações Rápidas',
+        'menu.switchCharacter': 'Trocar Personagem',
+        'menu.openGameGuide': 'Abrir Guia do Jogo',
+        'menu.guideMeta': 'Como funcionam progressão, classes e builds',
+        'menu.weeklyTasks': 'Tarefas Semanais',
+        'menu.weeklyMeta': 'Ganhe gemas, ouro, materiais e loot boxes',
+        'menu.convertMp': 'Converter MP',
+        'menu.reportProblem': 'Reportar um Problema',
+        'menu.logout': 'Sair',
+        'menu.invitePlayers': 'Convidar Jogadores',
+        'menu.referralLink': 'Link de Convite',
+        'menu.unavailable': 'Indisponível',
+        'menu.registered': 'Registrados',
+        'menu.reachedLv5': 'Alcançaram Nv.5',
+        'menu.inviteUrl': 'URL de Convite',
+        'menu.copyInvite': 'Copiar Link de Convite',
+        'menu.settings': 'Configurações',
+        'menu.skipAnimations': 'Pular sempre as animações de batalha',
+        'menu.assistantHelper': 'Assistente',
+        'menu.chatWidget': 'Widget de chat global',
+        'menu.badgeMessages': 'Aviso no inbox: mensagens',
+        'menu.badgeBattles': 'Aviso no inbox: relatórios de batalha',
+        'menu.badgeMissions': 'Aviso no inbox: relatórios de missões',
+        'menu.upgradeTab': 'Aba Upgrade no menu do personagem',
+        'menu.keepMissions': 'Manter os últimos 10 relatórios de missões',
+        'menu.recoveryEmail': 'Email de Recuperação (Opcional)',
+        'menu.recoveryEmailMeta': 'Usado apenas para redefinir a senha. Deixe em branco para desativar.',
+        'menu.save': 'Salvar',
+        'common.on': 'Ligado',
+        'common.off': 'Desligado'
+    }
+};
+let CURRENT_LANG = localStorage.getItem('rpg_lang') || 'en';
+function t(key, enFallback) {
+    const dict = I18N[CURRENT_LANG];
+    return (dict && dict[key]) || enFallback;
+}
+function changeLanguage(lang) {
+    if (!lang || lang === CURRENT_LANG) return;
+    localStorage.setItem('rpg_lang', lang);
+    location.reload();
+}
+window.changeLanguage = changeLanguage;
+
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
-    const eventName = character?.active_event?.name || 'No active event right now';
+    const eventName = character?.active_event?.name || t('menu.noEvent', 'No active event right now');
     const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
     const referralCode = character?.referral_code || username || '';
     const referralLink = referralCode ? getReferralLink(referralCode) : '';
-    const switcherLabel = `🧭 Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
+    const switcherLabel = `${t('menu.switchCharacter', 'Switch Character')} (${accountCharacters.length}/${maxCharacterSlots})`;
+    const onOff = v => v ? t('common.on', 'On') : t('common.off', 'Off');
     const mpLabel = unlocked
-        ? `Skills unlocked today · ${mp}/${mpMax} MP`
-        : `Spend ${remaining} more MP to unlock skills · ${mp}/${mpMax} MP`;
+        ? `${t('menu.skillsUnlockedToday', 'Skills unlocked today')} · ${mp}/${mpMax} MP`
+        : `${t('menu.spendMoreMp', 'Spend {n} more MP to unlock skills').replace('{n}', remaining)} · ${mp}/${mpMax} MP`;
 
     content.innerHTML = `
         <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Live Status</div>
+            <div class="topbar-menu-label">${t('menu.language', 'Language')}</div>
+            <select class="input-field" data-change-action="changeLanguage" style="width:100%;margin:0;cursor:pointer">
+                <option value="en"${CURRENT_LANG === 'en' ? ' selected' : ''}>🇬🇧 English</option>
+                <option value="pt"${CURRENT_LANG === 'pt' ? ' selected' : ''}>🇵🇹 Português</option>
+            </select>
+        </div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">${t('menu.liveStatus', 'Live Status')}</div>
             <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">Active Event</div>
+                <div class="topbar-menu-info-title">${t('menu.activeEvent', 'Active Event')}</div>
                 <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
             </div>
             <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">Skill Unlock</div>
+                <div class="topbar-menu-info-title">${t('menu.skillUnlock', 'Skill Unlock')}</div>
                 <div class="topbar-menu-info-value">${escHtml(mpLabel)}</div>
                 <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'skills')}>
-                    ${unlocked ? 'Open Skills' : `Go to Skills (${dailySpent}/60)`}
+                    ${unlocked ? t('menu.openSkills', 'Open Skills') : `${t('menu.goToSkills', 'Go to Skills ({n}/60)').replace('{n}', dailySpent)}`}
                 </button>
             </div>
         </div>
-<div class="topbar-menu-section">
-            <div class="topbar-menu-label">Quick Actions</div>
+        <div class="topbar-menu-section">
+            <div class="topbar-menu-label">${t('menu.quickActions', 'Quick Actions')}</div>
             <div class="topbar-menu-grid">
                 <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
                     🧭 ${switcherLabel}
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openGameGuide')}>
-                    📘 Open Game Guide
-                    <span class="topbar-menu-meta">How progression, classes, and builds work</span>
-                </button>
-                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'event')}>
-                    🎴 Active Event
-                    <span class="topbar-menu-meta">Limited time banner pulls</span>
+                    📘 ${t('menu.openGameGuide', 'Open Game Guide')}
+                    <span class="topbar-menu-meta">${t('menu.guideMeta', 'How progression, classes, and builds work')}</span>
                 </button>
                 <button class="topbar-menu-action ${character.weekly_claimable_count > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openWeeklyTasksModal')}>
-                    📅 Weekly Tasks
+                    📅 ${t('menu.weeklyTasks', 'Weekly Tasks')}
                     ${character.weekly_claimable_count > 0 ? '<span class="exclamation-point">!</span>' : ''}
-                    <span class="topbar-menu-meta">Earn gems, gold, materials, and loot boxes</span>
+                    <span class="topbar-menu-meta">${t('menu.weeklyMeta', 'Earn gems, gold, materials, and loot boxes')}</span>
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
-                    💎✨ Convert MP
+                    💎✨ ${t('menu.convertMp', 'Convert MP')}
                     <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🚩 Report a Problem
+                    🚩 ${t('menu.reportProblem', 'Report a Problem')}
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
-                    Logout
-                </button>
-            </div>
-        </div>
-                <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🚩 Report a Problem
-                </button>
-                <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
-                    Logout
+                    ${t('menu.logout', 'Logout')}
                 </button>
             </div>
         </div>
         <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Invite Players</div>
+            <div class="topbar-menu-label">${t('menu.invitePlayers', 'Invite Players')}</div>
             <div class="topbar-menu-info-card topbar-menu-referral-card">
-                <span class="topbar-menu-referral-kicker">Referral Link</span>
+                <span class="topbar-menu-referral-kicker">${t('menu.referralLink', 'Referral Link')}</span>
                 <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
                 <div class="topbar-menu-referral-stats">
                     <div class="topbar-menu-referral-stat">
-                        <span class="topbar-menu-referral-stat-label">Registered</span>
+                        <span class="topbar-menu-referral-stat-label">${t('menu.registered', 'Registered')}</span>
                         <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_registered || 0)}</span>
                     </div>
                     <div class="topbar-menu-referral-stat">
-                        <span class="topbar-menu-referral-stat-label">Reached Lv.5</span>
+                        <span class="topbar-menu-referral-stat-label">${t('menu.reachedLv5', 'Reached Lv.5')}</span>
                         <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_level5 || 0)}</span>
                     </div>
                 </div>
                 <div class="topbar-menu-referral-link-wrap">
-                    <span class="topbar-menu-referral-link-label">Invite URL</span>
-                    <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
-                </div>
-                <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
-                    Copy Invite Link
-                </button>
-                <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
-            </div>
-        </div>
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Settings</div>
-            <button class="topbar-menu-toggle ${alwaysSkipBattleAnimations ? 'active' : ''}" ${actionAttrs('toggleAlwaysSkipBattleAnimations')}>
-                <span>Always skip battle animations</span>
-                <span class="topbar-menu-toggle-state">${alwaysSkipBattleAnimations ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
-                <span>Assistant helper</span>
-                <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${chatEnabled ? 'active' : ''}" ${actionAttrs('toggleChatEnabled')}>
-                <span>Global chat widget</span>
-                <span class="topbar-menu-toggle-state">${chatEnabled ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
-                <span>Inbox badge: messages</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_badge_battles !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'battles')}>
-                <span>Inbox badge: battle reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_battles !== false ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
-                <span>Inbox badge: mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
-            </button>
-            ${getServerId() === 'server1' ? '' : `<button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
-                <span>Upgrade tab in character menu</span>
-                <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
-            </button>`}
-            <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
-                <span>Keep last 10 mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
-            </button>
-            <div class="topbar-menu-info-card" style="margin-top:10px">
-                <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
-                <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
-                <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-                    <input id="settings-email" class="input-field" style="flex:1;margin:0" placeholder="you@example.com" value="${escHtml(character?.email || '')}">
-                    <button class="topbar-menu-inline-btn" style="flex-shrink:0" ${actionAttrs('saveRecoveryEmail')}>Save</button>
-                </div>
-                <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
-            </div>
-        </div>`;
-}
-
-function renderTopbarMenu() {
-    const content = document.getElementById('topbar-menu-content');
-    if (!content || !character) return;
-    const eventName = character?.active_event?.name || 'No active event right now';
-    const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
-    const referralCode = character?.referral_code || username || '';
-    const referralLink = referralCode ? getReferralLink(referralCode) : '';
-    const switcherLabel = `Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
-    const mpLabel = unlocked
-        ? `Skills unlocked today · ${mp}/${mpMax} MP`
-        : `Spend ${remaining} more MP to unlock skills · ${mp}/${mpMax} MP`;
-
-    content.innerHTML = `
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Live Status</div>
-            <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
-            </div>
-            <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">Skill Unlock</div>
-                <div class="topbar-menu-info-value">${escHtml(mpLabel)}</div>
-                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'skills')}>
-                    ${unlocked ? 'Open Skills' : `Go to Skills (${dailySpent}/60)`}
-                </button>
-            </div>
-        </div>
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Quick Actions</div>
-            <div class="topbar-menu-grid">
-                <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
-                    🧭 ${switcherLabel}
-                </button>
-                <button class="topbar-menu-action" ${actionAttrs('openGameGuide')}>
-                    📘 Open Game Guide
-                    <span class="topbar-menu-meta">How progression, classes, and builds work</span>
-                </button>
-                <button class="topbar-menu-action ${character.weekly_claimable_count > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openWeeklyTasksModal')}>
-                    📅 Weekly Tasks
-                    ${character.weekly_claimable_count > 0 ? '<span class="exclamation-point">!</span>' : ''}
-                    <span class="topbar-menu-meta">Earn gems, gold, materials, and loot boxes</span>
-                </button>
-                <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
-                    💎✨ Convert MP
-                    <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
-                </button>
-                <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🚩 Report a Problem
-                </button>
-                <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
-                    Logout
-                </button>
-            </div>
-        </div>
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Invite Players</div>
-            <div class="topbar-menu-info-card topbar-menu-referral-card">
-                <span class="topbar-menu-referral-kicker">Referral Link</span>
-                <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
-                <span class="topbar-menu-meta">Registered: ${Number(character?.referrals_registered || 0)} · Reached Lv.5: ${Number(character?.referrals_level5 || 0)}</span>
-                <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
-                    Copy Invite Link
-                </button>
-                <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
-                <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
-            </div>
-        </div>
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Settings</div>
-            <button class="topbar-menu-toggle ${alwaysSkipBattleAnimations ? 'active' : ''}" ${actionAttrs('toggleAlwaysSkipBattleAnimations')}>
-                <span>Always skip battle animations</span>
-                <span class="topbar-menu-toggle-state">${alwaysSkipBattleAnimations ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
-                <span>Assistant helper</span>
-                <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${chatEnabled ? 'active' : ''}" ${actionAttrs('toggleChatEnabled')}>
-                <span>Global chat widget</span>
-                <span class="topbar-menu-toggle-state">${chatEnabled ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
-                <span>Inbox badge: messages</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_badge_battles !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'battles')}>
-                <span>Inbox badge: battle reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_battles !== false ? 'On' : 'Off'}</span>
-            </button>
-            <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
-                <span>Inbox badge: mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
-            </button>
-            ${getServerId() === 'server1' ? '' : `<button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
-                <span>Upgrade tab in character menu</span>
-                <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
-            </button>`}
-            <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
-                <span>Keep last 10 mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
-            </button>
-            <div class="topbar-menu-info-card" style="margin-top:10px">
-                <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
-                <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
-                <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
-                    <input id="settings-email" class="input-field" style="flex:1;margin:0" placeholder="you@example.com" value="${escHtml(character?.email || '')}">
-                    <button class="topbar-menu-inline-btn" style="flex-shrink:0" ${actionAttrs('saveRecoveryEmail')}>Save</button>
-                </div>
-                <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
-            </div>
-        </div>`;
-}
-
-async function openTopbarMenu() {
-    await syncActiveCharacterState();
-    renderTopbarMenu();
-    enhanceTopbarReferralSection();
-    document.getElementById('topbar-menu-modal')?.classList.remove('hidden');
-}
-
-function closeTopbarMenu() {
-    document.getElementById('topbar-menu-modal')?.classList.add('hidden');
-}
-
-function showTabAndCloseMenu(tabName) {
-    closeTopbarMenu();
-    showTab(tabName);
-}
-window.showTabAndCloseMenu = showTabAndCloseMenu;
-
-function openBugReportFromMenu() {
-    closeTopbarMenu();
-    openBugReport();
-}
-
-function logoutFromMenu() {
-    closeTopbarMenu();
-    logout();
-}
-
-function getReferralLink(referralCode) {
-    if (!referralCode) return '';
-    const url = new URL(window.location.href);
-    url.searchParams.set('ref', referralCode.replace(/^@+/, ''));
-    return url.toString();
-}
-
-function setTopbarMenuFlash(message, isError = false) {
-    const flash = document.getElementById('topbar-menu-flash');
-    if (!flash) return;
-    if (flash._hideTimer) {
-        clearTimeout(flash._hideTimer);
-        flash._hideTimer = null;
-    }
-    flash.textContent = message;
-    flash.classList.remove('hidden');
-    flash.classList.toggle('error', !!isError);
-    flash._hideTimer = setTimeout(() => {
-        flash.classList.add('hidden');
-        flash.classList.remove('error');
-        flash._hideTimer = null;
-    }, isError ? 3200 : 2200);
-}
-
-function enhanceTopbarReferralSection() {
-    const card = document.querySelector('#topbar-menu-content .topbar-menu-referral-card');
-    if (!card) return;
-
-    card.querySelectorAll('.topbar-menu-referral-pending, .topbar-menu-referral-claim-note, .topbar-menu-inline-btn-claim').forEach(el => el.remove());
-
-    const pendingGold = Number(character?.pending_referral_gold || 0);
-    const pendingGems = Number(character?.pending_referral_gems || 0);
-    if (pendingGold <= 0 && pendingGems <= 0) return;
-
-    const actions = card.querySelector('.topbar-menu-referral-actions');
-    const flash = card.querySelector('#topbar-menu-flash');
-    if (!actions || !flash) return;
-
-    const pendingWrap = document.createElement('div');
-    pendingWrap.className = 'topbar-menu-referral-stats topbar-menu-referral-pending';
-
-    if (pendingGold > 0) {
-        const goldRow = document.createElement('div');
-        goldRow.className = 'topbar-menu-referral-stat topbar-menu-referral-stat-claimable';
-        goldRow.innerHTML = `
-            <span class="topbar-menu-referral-stat-label">Pending Gold</span>
-            <span class="topbar-menu-referral-stat-value">${pendingGold.toLocaleString()}</span>
-        `;
-        pendingWrap.appendChild(goldRow);
-    }
-
-    if (pendingGems > 0) {
-        const gemsRow = document.createElement('div');
-        gemsRow.className = 'topbar-menu-referral-stat topbar-menu-referral-stat-claimable';
-        gemsRow.innerHTML = `
-            <span class="topbar-menu-referral-stat-label">Pending Gems</span>
-            <span class="topbar-menu-referral-stat-value">${pendingGems.toLocaleString()}</span>
-        `;
-        pendingWrap.appendChild(gemsRow);
-    }
-
-    const note = document.createElement('div');
-    note.className = 'topbar-menu-referral-claim-note';
-    note.textContent = 'Claim on this character to send the rewards here.';
-
-    const claimBtn = document.createElement('button');
-    claimBtn.className = 'topbar-menu-inline-btn topbar-menu-inline-btn-claim';
-    claimBtn.setAttribute('type', 'button');
-    claimBtn.setAttribute('data-action', 'claimReferralRewards');
-    claimBtn.textContent = 'Claim Rewards';
-
-    card.insertBefore(pendingWrap, flash);
-    card.insertBefore(note, flash);
-    actions.insertBefore(claimBtn, actions.firstChild);
-}
-
-async function copyReferralLink() {
-    const referralCode = character?.referral_code || username || '';
-    const referralLink = getReferralLink(referralCode);
-    if (!referralLink) return;
-
-    try {
-        if (navigator.clipboard?.writeText) {
-            await navigator.clipboard.writeText(referralLink);
-        } else {
-            const input = document.createElement('input');
-            input.value = referralLink;
-            document.body.appendChild(input);
-            input.select();
-            document.execCommand('copy');
-            input.remove();
-        }
-        setTopbarMenuFlash('Referral link copied.');
-    } catch (e) {
-        setTopbarMenuFlash('Could not copy the referral link.', true);
-    }
-}
-
-async function claimReferralRewards() {
-    try {
-        const response = await api('POST', '/game/referrals/claim');
-        if (response?.character) {
-            character = response.character;
-            syncClientPreferencesFromCharacter();
-            renderTopBar();
-            renderTopbarMenu();
-            enhanceTopbarReferralSection();
-        }
-        setTopbarMenuFlash(response?.message || 'Referral rewards claimed.');
-    } catch (e) {
-        setTopbarMenuFlash(e.message || 'Could not claim referral rewards.', true);
-    }
-}
-
-function renderTopbarMenu() {
-    const content = document.getElementById('topbar-menu-content');
-    if (!content || !character) return;
-    const eventName = character?.active_event?.name || 'No active event right now';
-    const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
-    const referralCode = character?.referral_code || username || '';
-    const referralLink = referralCode ? getReferralLink(referralCode) : '';
-    const switcherLabel = `Switch Character (${accountCharacters.length}/${maxCharacterSlots})`;
-    const mpLabel = unlocked
-        ? `Skills unlocked today · ${mp}/${mpMax} MP`
-        : `Spend ${remaining} more MP to unlock skills · ${mp}/${mpMax} MP`;
-
-    content.innerHTML = `
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Live Status</div>
-            <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">Active Event</div>
-                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
-            </div>
-            <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">Skill Unlock</div>
-                <div class="topbar-menu-info-value">${escHtml(mpLabel)}</div>
-                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'skills')}>
-                    ${unlocked ? 'Open Skills' : `Go to Skills (${dailySpent}/60)`}
-                </button>
-            </div>
-        </div>
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Quick Actions</div>
-            <div class="topbar-menu-grid">
-                <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
-                    🧭 ${switcherLabel}
-                </button>
-                <button class="topbar-menu-action" ${actionAttrs('openGameGuide')}>
-                    📘 Open Game Guide
-                    <span class="topbar-menu-meta">How progression, classes, and builds work</span>
-                </button>
-                <button class="topbar-menu-action ${character.weekly_claimable_count > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openWeeklyTasksModal')}>
-                    📅 Weekly Tasks
-                    ${character.weekly_claimable_count > 0 ? '<span class="exclamation-point">!</span>' : ''}
-                    <span class="topbar-menu-meta">Earn gems, gold, materials, and loot boxes</span>
-                </button>
-                <button class="topbar-menu-action topbar-menu-action-mp" ${actionAttrs('convertMpToPotion')}>
-                    💎✨ Convert MP
-                    <span class="topbar-menu-meta">${specialManaPotionCount}/5 Special Mana Potions</span>
-                </button>
-                <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
-                    🚩 Report a Problem
-                </button>
-                <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
-                    Logout
-                </button>
-            </div>
-        </div>
-        <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Invite Players</div>
-            <div class="topbar-menu-info-card topbar-menu-referral-card">
-                <span class="topbar-menu-referral-kicker">Referral Link</span>
-                <span class="topbar-menu-referral-code">@${escHtml(referralCode || 'Unavailable')}</span>
-                <div class="topbar-menu-referral-stats">
-                    <div class="topbar-menu-referral-stat">
-                        <span class="topbar-menu-referral-stat-label">Registered</span>
-                        <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_registered || 0)}</span>
-                    </div>
-                    <div class="topbar-menu-referral-stat">
-                        <span class="topbar-menu-referral-stat-label">Reached Lv.5</span>
-                        <span class="topbar-menu-referral-stat-value">${Number(character?.referrals_level5 || 0)}</span>
-                    </div>
-                </div>
-                <div class="topbar-menu-referral-link-wrap">
-                    <span class="topbar-menu-referral-link-label">Invite URL</span>
+                    <span class="topbar-menu-referral-link-label">${t('menu.inviteUrl', 'Invite URL')}</span>
                     <span class="topbar-menu-referral-link">${escHtml(referralLink)}</span>
                 </div>
                 <div class="topbar-menu-referral-actions">
                     <button class="topbar-menu-inline-btn" ${actionAttrs('copyReferralLink')}>
-                        Copy Invite Link
+                        ${t('menu.copyInvite', 'Copy Invite Link')}
                     </button>
                 </div>
                 <div id="topbar-menu-flash" class="topbar-menu-flash hidden"></div>
             </div>
         </div>
         <div class="topbar-menu-section">
-            <div class="topbar-menu-label">Settings</div>
+            <div class="topbar-menu-label">${t('menu.settings', 'Settings')}</div>
             <button class="topbar-menu-toggle ${alwaysSkipBattleAnimations ? 'active' : ''}" ${actionAttrs('toggleAlwaysSkipBattleAnimations')}>
-                <span>Always skip battle animations</span>
-                <span class="topbar-menu-toggle-state">${alwaysSkipBattleAnimations ? 'On' : 'Off'}</span>
+                <span>${t('menu.skipAnimations', 'Always skip battle animations')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(alwaysSkipBattleAnimations)}</span>
             </button>
             <button class="topbar-menu-toggle ${assistantEnabled ? 'active' : ''}" ${actionAttrs('toggleAssistant')}>
-                <span>Assistant helper</span>
-                <span class="topbar-menu-toggle-state">${assistantEnabled ? 'On' : 'Off'}</span>
+                <span>${t('menu.assistantHelper', 'Assistant helper')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(assistantEnabled)}</span>
             </button>
             <button class="topbar-menu-toggle ${chatEnabled ? 'active' : ''}" ${actionAttrs('toggleChatEnabled')}>
-                <span>Global chat widget</span>
-                <span class="topbar-menu-toggle-state">${chatEnabled ? 'On' : 'Off'}</span>
+                <span>${t('menu.chatWidget', 'Global chat widget')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(chatEnabled)}</span>
             </button>
             <button class="topbar-menu-toggle ${character?.inbox_badge_messages !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'messages')}>
-                <span>Inbox badge: messages</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_messages !== false ? 'On' : 'Off'}</span>
+                <span>${t('menu.badgeMessages', 'Inbox badge: messages')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(character?.inbox_badge_messages !== false)}</span>
             </button>
             <button class="topbar-menu-toggle ${character?.inbox_badge_battles !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'battles')}>
-                <span>Inbox badge: battle reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_battles !== false ? 'On' : 'Off'}</span>
+                <span>${t('menu.badgeBattles', 'Inbox badge: battle reports')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(character?.inbox_badge_battles !== false)}</span>
             </button>
             <button class="topbar-menu-toggle ${character?.inbox_badge_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxBadgeSetting', 'missions')}>
-                <span>Inbox badge: mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_badge_missions !== false ? 'On' : 'Off'}</span>
+                <span>${t('menu.badgeMissions', 'Inbox badge: mission reports')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(character?.inbox_badge_missions !== false)}</span>
             </button>
             ${getServerId() === 'server1' ? '' : `<button class="topbar-menu-toggle ${showUpgradeTab ? 'active' : ''}" ${actionAttrs('toggleUpgradeTab')}>
-                <span>Upgrade tab in character menu</span>
-                <span class="topbar-menu-toggle-state">${showUpgradeTab ? 'On' : 'Off'}</span>
+                <span>${t('menu.upgradeTab', 'Upgrade tab in character menu')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(showUpgradeTab)}</span>
             </button>`}
             <button class="topbar-menu-toggle ${character?.inbox_prune_missions !== false ? 'active' : ''}" ${actionAttrs('toggleInboxPruneMissions')}>
-                <span>Keep last 10 mission reports</span>
-                <span class="topbar-menu-toggle-state">${character?.inbox_prune_missions !== false ? 'On' : 'Off'}</span>
+                <span>${t('menu.keepMissions', 'Keep last 10 mission reports')}</span>
+                <span class="topbar-menu-toggle-state">${onOff(character?.inbox_prune_missions !== false)}</span>
             </button>
             <div class="topbar-menu-info-card" style="margin-top:10px">
-                <div class="topbar-menu-info-title">Recovery Email (Optional)</div>
-                <div class="topbar-menu-meta" style="margin-top:2px">Used only for password reset. Leave blank to disable recovery email.</div>
+                <div class="topbar-menu-info-title">${t('menu.recoveryEmail', 'Recovery Email (Optional)')}</div>
+                <div class="topbar-menu-meta" style="margin-top:2px">${t('menu.recoveryEmailMeta', 'Used only for password reset. Leave blank to disable recovery email.')}</div>
                 <div style="display:flex;gap:8px;margin-top:10px;align-items:center">
                     <input id="settings-email" class="input-field" style="flex:1;margin:0" placeholder="you@example.com" value="${escHtml(character?.email || '')}">
-                    <button class="topbar-menu-inline-btn" style="flex-shrink:0" ${actionAttrs('saveRecoveryEmail')}>Save</button>
+                    <button class="topbar-menu-inline-btn" style="flex-shrink:0" ${actionAttrs('saveRecoveryEmail')}>${t('menu.save', 'Save')}</button>
                 </div>
                 <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
             </div>
