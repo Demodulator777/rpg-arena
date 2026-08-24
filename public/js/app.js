@@ -12997,10 +12997,13 @@ function matIcon(nameOrId, emoji, size='1.4rem') {
 
 // Shield-framed avatar: portrait clipped via #shield-clip, frame.png overlay on
 // top. Overlay hides itself if the asset is missing (plain circle remains).
+// A duplicate "pop" layer renders the head above the frame (see .avatar-frame-pop).
 function framedAvatar(src, sizePx, opts = {}) {
+    const errHide = opts.errorHide === false ? '' : ' data-error-hide="true"';
     return `<span class="avatar-frame" style="width:${sizePx}px;height:${sizePx}px;${opts.wrapStyle||''}">` +
         `<img src="${src}" class="avatar-frame-portrait ${opts.imgClass||''}" style="${opts.imgStyle||''}" alt="${opts.alt||''}"` +
-        `${opts.errorHide === false ? '' : ' data-error-hide="true"'} ${opts.data||''}>` +
+        `${errHide} ${opts.data||''}>` +
+        `<img src="${src}" class="avatar-frame-pop ${opts.imgClass||''}" style="${opts.imgStyle||''}" alt=""${errHide}>` +
         `<img src="/images/assets/frame.png" class="avatar-frame-img" alt="" data-error-hide="true">` +
     `</span>`;
 }
