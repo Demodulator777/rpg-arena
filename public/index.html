@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-22-map-polish"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-24-nav-icons"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -745,8 +745,9 @@
         </div>
         <div class="sidebar-buttons">
             <div class="nav-hub-group">
-                <button id="character-hub-trigger" class="nav-btn" data-action="toggleCharacterHubInline" aria-label="Character Navigation">
-                    <img src="/images/character.png" alt="Character">
+                <button id="character-hub-trigger" class="nav-btn nav-btn-character" data-action="toggleCharacterHubInline" aria-label="Character Navigation">
+                    <img class="nav-btn-icon" src="/images/assets/charactericon.png" alt="">
+                    <span class="nav-btn-label">Character</span>
                 </button>
                 <div id="character-inline-hub" class="character-inline-hub hidden">
                     <button class="nav-btn nav-sub-btn" title="Character" data-action="navigateCharacterHub" data-args='["character"]'>
@@ -770,8 +771,9 @@
                 </div>
             </div>
             <div class="nav-hub-group">
-                <button id="missions-hub-trigger" class="nav-btn" aria-label="Mission Navigation">
-                    <img src="/images/missions.png" alt="Missions">
+                <button id="missions-hub-trigger" class="nav-btn nav-btn-world" aria-label="World Navigation">
+                    <img class="nav-btn-icon" src="/images/assets/worldicon.png" alt="">
+                    <span class="nav-btn-label">World</span>
                 </button>
                 <div id="missions-inline-hub" class="character-inline-hub hidden">
                     <button class="nav-btn nav-sub-btn" title="Missions" data-action="navigateMissionsHub" data-args='["missions"]'>
@@ -789,8 +791,9 @@
                 </div>
             </div>
             <div class="nav-hub-group">
-                <button id="inventory-hub-trigger" class="nav-btn" aria-label="Inventory Navigation">
-                    <img src="/images/inventory.png" alt="Inventory">
+                <button id="inventory-hub-trigger" class="nav-btn nav-btn-equipment" aria-label="Equipment Navigation">
+                    <img class="nav-btn-icon" src="/images/assets/equipmenticon.png" alt="">
+                    <span class="nav-btn-label">Equipment</span>
                 </button>
                 <div id="inventory-inline-hub" class="character-inline-hub hidden">
                     <button class="nav-btn nav-sub-btn" title="Inventory" data-action="navigateInventoryHub" data-args='["inventory"]'>
@@ -804,11 +807,13 @@
                     </button>
                 </div>
             </div>
-            <button class="nav-btn" data-action="showTab" data-args='["leaderboard"]'>
-                <img src="/images/leaderboard.png" alt="Leaderboard">
+            <button class="nav-btn nav-btn-leaderboard" data-action="showTab" data-args='["leaderboard"]'>
+                <img class="nav-btn-icon" src="/images/assets/leaderboardicon.png" alt="">
+                <span class="nav-btn-label">Leaderboard</span>
             </button>
-            <button class="nav-btn" data-action="showTab" data-args='["inbox"]'>
-                <img src="/images/inbox.png" alt="Inbox">
+            <button class="nav-btn nav-btn-messages" data-action="showTab" data-args='["inbox"]'>
+                <img class="nav-btn-icon" src="/images/assets/inboxicon.png" alt="">
+                <span class="nav-btn-label">Messages</span>
                 <span id="unread-badge" class="unread-badge hidden"></span>
             </button>
         </div>
