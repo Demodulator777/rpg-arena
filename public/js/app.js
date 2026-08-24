@@ -537,7 +537,7 @@ const COMPONENT_UPGRADE_VALUES = {
     frost_core: { bonus: 3, goldCost: 150, name: 'Frost Core', emoji: '🧊', recipe: { frost_essence: 2 }, source: 'Mountains' },
     mithril_ingot: { bonus: 4, goldCost: 80, name: 'Mithril Ingot', emoji: '⚙️', recipe: { mithril_ore: 3 }, source: 'Mountains, Ruins' },
     arcane_shard: { bonus: 4, goldCost: 120, name: 'Arcane Shard', emoji: '💠', recipe: { swamp_crystal: 2, arcane_dust: 1 }, source: 'Swamp, Ruins, Dark City' },
-    dragon_plate: { bonus: 6, goldCost: 300, name: 'Dragon Plate', emoji: '🛡️', recipe: { dragon_scale_shard: 3, mithril_ore: 2 }, source: 'Mountains' },
+    dragon_plate: { bonus: 6, goldCost: 300, name: 'Dragon Plate Mat', emoji: '🛡️', recipe: { dragon_scale_shard: 3, mithril_ore: 2 }, source: 'Mountains' },
     void_crystal: { bonus: 6, goldCost: 500, name: 'Void Crystal', emoji: '🔮', recipe: { void_shard: 2, rune_fragment: 1 }, source: 'Ruins, Dark City' },
     shadow_weave: { bonus: 8, goldCost: 800, name: 'Shadow Weave', emoji: '🕸️', recipe: { shadow_essence: 2, arcane_dust: 2 }, source: 'Dark City' },
     demon_alloy: { bonus: 10, goldCost: 1200, name: 'Demon Alloy', emoji: '⚡', recipe: { demon_core: 1, mithril_ore: 3 }, source: 'Dark City' },
