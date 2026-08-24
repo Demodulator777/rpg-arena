@@ -3043,12 +3043,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .icon-small  { width: 60px; }
 .clan-base-icon:hover { opacity:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.9)); }
 .clan-base-wrap.owned .clan-base-icon { opacity:1; }
-/* Map sizing: PC keeps classic full-width 500px; small screens switch to a
-   true 1000:800 canvas with horizontal scroll (no squash). */
-.clan-base-map { width: 100%; height: 500px; }
-@media (max-width: 760px) {
-    .clan-base-map { width: 100%; min-width: 640px; height: auto; aspect-ratio: 1000 / 800; }
-}
+/* Map sizing: CONSTANT 1000:800 canvas (640×512 px) on every device —
+   basemap art and icon positions stay pixel-identical across resolutions.
+   Phones/narrow panels pan horizontally via the .clan-base-scroll wrapper;
+   on wide screens it centers. PC keeps full-width? No — consistent canvas. */
+.clan-base-map { width: 640px; height: 512px; margin: 0 auto; }
 
 /* Admin base-map editing mode */
 .clan-base-scroll {
