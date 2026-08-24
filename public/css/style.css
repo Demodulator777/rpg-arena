@@ -1474,13 +1474,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 /* Pop-out head: duplicate portrait stacked ABOVE the frame, showing only the
    top ~45% at the shield's width — no top curve, so the head renders fully in
-   front of the frame edge while the body stays behind it (base + frame). */
+   front of the frame edge while the body stays behind it (base + frame).
+   alignAvatarPop() extends the layer above the frame box (top/height/clip/
+   transform-origin/object-position) so the head rises past the ring with no
+   straight-line cut, while staying pixel-aligned with the body at the seam. */
 .avatar-frame .avatar-frame-pop {
     position: absolute;
-    inset: 0;
-    width: 100%;
+    left: 0;
+    right: 0;
+    top: 0;
     height: 100%;
-    display: block;
     object-fit: cover;
     border: none;
     border-radius: 6px 6px 0 0;
