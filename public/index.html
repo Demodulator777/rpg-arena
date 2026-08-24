@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-22-avatar-frame2"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-22-shield-clip"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -51,6 +51,12 @@
     </style>
 </head>
 <body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <!-- Shield-shaped clip for framed avatars (objectBoundingBox units = scales to any size) -->
+  <clipPath id="shield-clip" clipPathUnits="objectBoundingBox">
+    <path d="M0.5,0.005 C0.72,0.02 0.9,0.04 0.91,0.075 L0.91,0.43 C0.91,0.71 0.73,0.89 0.5,0.985 C0.27,0.89 0.09,0.71 0.09,0.43 L0.09,0.075 C0.1,0.04 0.28,0.02 0.5,0.005 Z"/>
+  </clipPath>
+</defs></svg>
 <div id="loading-overlay">
     <canvas id="loading-stars"></canvas>
     <div class="loading-tendrils">
