@@ -13043,15 +13043,17 @@ function alignAvatarPop(pop, attempt) {
     pop.style.height = renderedH.toFixed(2) + 'px';
     pop.style.left = (-ox).toFixed(2) + 'px';
     pop.style.top = (-oy).toFixed(2) + 'px';
-    // Above the frame box the window is full width (head/staff may rise freely);
-    // inside the box it narrows to 13%-87% so the character tucks BEHIND the
-    // frame's side rings, and ends at 30% height — only the top arc gets
-    // overlapped, never the sides.
-    const xL2 = (0.13 * W + ox).toFixed(2), xR2 = (0.87 * W + ox).toFixed(2);
-    const yTop = (oy - E).toFixed(2), y0 = oy.toFixed(2), yCut = (oy + 0.30 * H).toFixed(2);
+    // Above the frame box the window is full width (head/staff may rise freely).
+    // RIGHT side only: narrows to 13%-87% and ends at 30% height so wide gear
+    // (shields/weapons) tucks behind the frame's right ring. LEFT side keeps the
+    // original wide 9% down to 45%. The diagonal between the two cuts is
+    // invisible — pop and base are the same rendered image below it.
+    const xL = (0.09 * W + ox).toFixed(2), xR2 = (0.87 * W + ox).toFixed(2);
+    const yTop = (oy - E).toFixed(2), y0 = oy.toFixed(2);
+    const yCutR = (oy + 0.30 * H).toFixed(2), yCutL = (oy + 0.45 * H).toFixed(2);
     pop.style.clipPath = `polygon(${ox.toFixed(2)}px ${yTop}px, ${(W + ox).toFixed(2)}px ${yTop}px, ` +
-        `${(W + ox).toFixed(2)}px ${y0}px, ${xR2}px ${y0}px, ${xR2}px ${yCut}px, ` +
-        `${xL2}px ${yCut}px, ${xL2}px ${y0}px, ${ox.toFixed(2)}px ${y0}px)`;
+        `${(W + ox).toFixed(2)}px ${y0}px, ${xR2}px ${y0}px, ${xR2}px ${yCutR}px, ` +
+        `${xL}px ${yCutL}px, ${xL}px ${y0}px, ${ox.toFixed(2)}px ${y0}px)`;
     pop.style.transformOrigin = `${(W / 2 + ox).toFixed(2)}px ${(H / 2 + oy).toFixed(2)}px`;
 }
 document.addEventListener('load', e => {
