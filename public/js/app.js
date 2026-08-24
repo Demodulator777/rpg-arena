@@ -7227,12 +7227,12 @@ function renderInventory(data) {
             <div class="mat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
             const maxCan = Math.floor(fragmentCount / rate.fragmentCost);
-            return `<div class="mat-card" data-eid="${id}" style="position: relative;">
+            return `<div class="mat-card" data-eid="${id}" style="position: relative; display: flex; flex-direction: column;">
                         <div style="margin-bottom: 8px; height: 2rem; display:flex; align-items:center; justify-content:center;">${matIcon(rate.name, rate.emoji, '2rem')}</div>
                         <div class="mat-name">${rate.name}</div>
                         <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐ each</div>
                         <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">You can afford: ${maxCan}</div>
-                        <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
+                        <div style="display:flex; align-items:center; gap:4px; margin-top:auto; padding-top:8px;">
                             <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, -1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">−</button>
                             <input type="number" class="mat-qty-input" data-eid="${id}" value="${maxCan >= 1 ? 1 : 0}" min="0" max="${maxCan}"
                                 style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
