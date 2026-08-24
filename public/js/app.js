@@ -9569,6 +9569,7 @@ async function saveBasePositions() {
 }
 window.saveBasePositions = saveBasePositions;
 function wireBaseMapEditor() {
+    const mapEl = document.getElementById('clan-base-map');
     // PC convenience: vertical wheel scrolls the map horizontally
     const scroller = document.getElementById('clan-base-scroll');
     if (scroller && !scroller._wheelBound) {
@@ -9579,6 +9580,21 @@ function wireBaseMapEditor() {
                 scroller.scrollLeft += e.deltaY;
             }
         }, { passive: false });
+    }
+    // Spawn centered on the map (phones, where the canvas overflows)
+    if (scroller && !window._editingBases) {
+        requestAnimationFrame(() => {
+            scroller.scrollLeft = Math.max(0, (scroller.scrollWidth - scroller.clientWidth) / 2);
+        });
+    }
+    // Keep icons proportional to the canvas height
+    if (mapEl && scroller && !scroller._scaleBound) {
+        scroller._scaleBound = true;
+        const applyScale = () => {
+            mapEl.style.setProperty('--map-scale', String(Math.max(0.3, mapEl.clientHeight / 512)));
+        };
+        applyScale();
+        if (window.ResizeObserver) new ResizeObserver(applyScale).observe(mapEl);
     }
     // Drag-to-pan fallback (works on touch + mouse even if native gestures are
     // intercepted elsewhere). Skipped while dragging a base icon in edit mode.
