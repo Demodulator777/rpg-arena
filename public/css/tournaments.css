@@ -754,8 +754,10 @@
 
 .history-item {
   display: grid;
-  /* date | mode | level group | fighters | winner */
-  grid-template-columns: auto auto auto 1fr auto;
+  /* Fixed tracks for every column so nothing shifts between rows
+     (winner names are clamped with ellipsis):
+     date | mode | level group | fighters | winner */
+  grid-template-columns: 104px 26px 74px 110px 1fr;
   align-items: center;
   gap: 12px;
   background: var(--t-bg-card);
@@ -769,7 +771,14 @@
   transition: all 0.2s;
   color: var(--t-silver);
 }
-.history-item > span:nth-child(5) { text-align: right; white-space: nowrap; }
+.history-item > span:nth-child(4) { white-space: nowrap; }
+.history-item > span:nth-child(5) {
+  text-align: right;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 .history-item:hover {
   border-color: var(--t-border-purple);
   background: rgba(192,96,240,0.05);
