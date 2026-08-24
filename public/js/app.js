@@ -1159,7 +1159,14 @@ const I18N = {
         'menu.recoveryEmail': 'Email de Recuperação (Opcional)',
         'menu.recoveryEmailMeta': 'Usado apenas para redefinir a senha. Deixe em branco para desativar.',
         'menu.save': 'Salvar',
-        'common.on': 'Ligado',
+        'menu.save': 'Salvar',
+'inbox.messages': 'Mensagens', 'inbox.battles': 'Batalhas', 'inbox.missions': 'Missões',
+'sq.squad': 'Esquadrão', 'sq.members': 'Membros', 'sq.baseMap': 'Mapa de Bases',
+'msn.small': 'Pequena', 'msn.medium': 'Média', 'msn.large': 'Grande',
+'msn.smallDesc': 'Missão rápida, recompensas padrão',
+'msn.mediumDesc': 'Missão mais longa, melhores recompensas',
+'msn.largeDesc': 'Missão épica, melhores recompensas',
+'common.on': 'Ligado',
         'common.off': 'Desligado'
     }
 };
@@ -1168,12 +1175,41 @@ function t(key, enFallback) {
     const dict = I18N[CURRENT_LANG];
     return (dict && dict[key]) || enFallback;
 }
-function changeLanguage(lang) {
+async function changeLanguage(args, event, trigger) {
+    const lang = (trigger && trigger.value) || (Array.isArray(args) && args[0]) || '';
     if (!lang || lang === CURRENT_LANG) return;
+    CURRENT_LANG = lang;
     localStorage.setItem('rpg_lang', lang);
+    try { await api('POST', '/game/settings/language', { lang }); } catch {}
     location.reload();
 }
 window.changeLanguage = changeLanguage;
+
+// Static HTML text sweep (nav labels, auth screen), keyed by exact text.
+const STATIC_I18N = {
+    pt: {
+        'CHARACTER': 'PERSONAGEM', 'UPGRADE': 'MELHORIAS', 'LOADOUT': 'EQUIPAMENTO',
+        'SKILLS': 'SKILLS', 'TRAINING': 'TREINO', 'PREMIUM': 'PREMIUM',
+        'MISSIONS': 'MISSÕES', 'DUNGEON': 'DUNGEON', 'SQUADS': 'ESQUADRÕES',
+        'TOURNAMENT': 'TORNEIO', 'INVENTORY': 'INVENTÁRIO', 'FORGE': 'FORJA', 'SHOP': 'LOJA',
+        'Login': 'Entrar', 'Register': 'Registrar'
+    }
+};
+function applyStaticI18n() {
+    if (CURRENT_LANG === 'en') return;
+    const map = STATIC_I18N[CURRENT_LANG];
+    if (!map) return;
+    document.querySelectorAll('.sub-btn-label').forEach(el => {
+        const v = map[el.textContent.trim()];
+        if (v) el.textContent = v;
+    });
+    document.querySelectorAll('.tab-btn').forEach(el => {
+        const v = map[el.textContent.trim()];
+        if (v) el.textContent = v;
+    });
+}
+document.addEventListener('DOMContentLoaded', applyStaticI18n);
+if (document.readyState !== 'loading') applyStaticI18n();
 
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
@@ -1556,6 +1592,13 @@ window.addEventListener('DOMContentLoaded', async () => {
     window._setLoadingProgress(10, 'Connecting to server...');
     if (token) {
         try {
+            try {
+                const langData = await api('GET', '/game/user-lang');
+                if (langData?.lang && I18N[langData.lang]) {
+                    CURRENT_LANG = langData.lang;
+                    localStorage.setItem('rpg_lang', CURRENT_LANG);
+                }
+            } catch {}
             window._setLoadingProgress(30, 'Loading character data...');
             const [charData] = await Promise.all([
                 api('GET','/game/character'),
@@ -4764,9 +4807,9 @@ function openSpotMissions(zoneId, spotId) {
     const isTutorial = isTutorialCharacter(character);
 
     const sizes = [
-        { key: 'small', label: 'Small', mpCost: 20, duration: isTutorial ? '10s' : '10 min', mult: '1×', desc: 'Quick mission, standard rewards' },
-        { key: 'medium', label: 'Medium', mpCost: 40, duration: '20 min', mult: '1.8×', desc: 'Longer mission, better rewards' },
-        { key: 'large', label: 'Large', mpCost: 60, duration: '30 min', mult: '2.5×', desc: 'Epic mission, best rewards' },
+        { key: 'small', label: t('msn.small','Small'), mpCost: 20, duration: isTutorial ? '10s' : '10 min', mult: '1×', desc: t('msn.smallDesc','Quick mission, standard rewards') },
+        { key: 'medium', label: t('msn.medium','Medium'), mpCost: 40, duration: '20 min', mult: '1.8×', desc: t('msn.mediumDesc','Longer mission, better rewards') },
+        { key: 'large', label: t('msn.large','Large'), mpCost: 60, duration: '30 min', mult: '2.5×', desc: t('msn.largeDesc','Epic mission, best rewards') },
     ];
 
     activeEl.innerHTML = `
@@ -9244,9 +9287,9 @@ function renderSquads() {
 
     // Subtab navigation
     const subTabsHtml = `<div class="squad-subtabs" style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'squad' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'squad' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'squad' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">Squad</button>
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'members' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'members' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'members' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">Members (${members.length})</button>
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'map' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'map' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'map' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">Base Map</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'squad' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'squad' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'squad' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">${t('sq.squad', 'Squad')}</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'members' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'members' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'members' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">${t('sq.members', 'Members')} (${members.length})</button>
+        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'map' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'map' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'map' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">${t('sq.baseMap', 'Base Map')}</button>
     </div>`;
 
     // Tab content
@@ -11177,9 +11220,9 @@ async function loadInbox() {
         missionsList.sort((a,b) => (b.sent_at || 0) - (a.sent_at || 0));
 
         let html=`<div class="inbox-tabs">
-            <button class="inbox-tab active" ${actionAttrs('filterInbox', 'messages')}>💬 Messages (${messagesList.length})</button>
-            <button class="inbox-tab" ${actionAttrs('filterInbox', 'battles')}>⚔️ Battles (${battlesList.length})</button>
-            <button class="inbox-tab" ${actionAttrs('filterInbox', 'missions')}>🎯 Missions (${missionsList.length})</button>
+            <button class="inbox-tab active" ${actionAttrs('filterInbox', 'messages')}>💬 ${t('inbox.messages', 'Messages')} (${messagesList.length})</button>
+            <button class="inbox-tab" ${actionAttrs('filterInbox', 'battles')}>⚔️ ${t('inbox.battles', 'Battles')} (${battlesList.length})</button>
+            <button class="inbox-tab" ${actionAttrs('filterInbox', 'missions')}>🎯 ${t('inbox.missions', 'Missions')} (${missionsList.length})</button>
         </div>
         <div class="inbox-header">
             <div style="display:flex;gap:6px;margin-left:auto">
