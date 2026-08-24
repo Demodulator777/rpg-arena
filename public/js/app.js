@@ -2818,6 +2818,11 @@ function renderTopBar() {
         el.dataset.errorHide='true';
         el.style.cursor = 'pointer';
         el.onclick = (e) => { e.stopPropagation(); showProfilePicSelector(); };
+        const pop = document.getElementById('topbar-avatar-pop');
+        if (pop) {
+            pop.src = el.src;
+            pop.style.objectPosition = el.style.objectPosition;
+        }
     });
     set('topbar-hp-fill',el=>{ el.style.width=hpPct+'%'; el.style.background=hpColor; });
     const setTopbarValue = (id, current, max) => {
