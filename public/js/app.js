@@ -1211,6 +1211,121 @@ function applyStaticI18n() {
 document.addEventListener('DOMContentLoaded', applyStaticI18n);
 if (document.readyState !== 'loading') applyStaticI18n();
 
+// ── Full-game DOM translation (exact-match phrases + pattern rules) ───────
+// Walks every text node once, then watches for newly rendered content.
+// Exact matches preserve surrounding whitespace; regex rules handle
+// interpolated fragments (counts, names).
+const I18N_PHRASES = {
+    pt: {
+        // Common actions
+        'Attack': 'Atacar', 'Close': 'Fechar', 'Cancel': 'Cancelar', 'Confirm': 'Confirmar',
+        'Save': 'Salvar', 'Buy': 'Comprar', 'Sell': 'Vender', 'Equip': 'Equipar',
+        'Unequip': 'Desequipar', 'Claim': 'Resgatar', 'Claimed': 'Resgatado', 'Collect': 'Coletar',
+        'Start': 'Iniciar', 'Stop': 'Parar', 'Send': 'Enviar', 'Reply': 'Responder',
+        'Delete': 'Excluir', 'Search players...': 'Pesquisar jogadores...', 'Search': 'Pesquisar',
+        'Open Skills': 'Abrir Skills', 'Go to Missions': 'Ir para Missões', 'Skip Tutorial': 'Pular Tutorial',
+        'Mark Read': 'Marcar como lido', 'Mark All Read': 'Marcar tudo como lido', 'Delete All': 'Excluir tudo',
+        'New Message': 'Nova mensagem', 'Compose': 'Escrever', 'Feed': 'Alimentar', 'Upgrade': 'Melhorar',
+        // Titles / screens
+        'Character': 'Personagem', 'Leaderboard': 'Classificação', 'Inbox': 'Caixa de Entrada',
+        'Shop': 'Loja', 'Forge': 'Forja', 'Inventory': 'Inventário', 'Missions': 'Missões',
+        'Dungeon': 'Dungeon', 'Tournament': 'Torneio', 'Achievements': 'Conquistas',
+        'Settings': 'Configurações', 'Premium': 'Premium', 'Skills': 'Skills', 'Training': 'Treino',
+        'Loadout': 'Equipamento', 'Squads': 'Esquadrões', 'Weekly Tasks': 'Tarefas Semanais',
+        'Game Guide': 'Guia do Jogo', 'Profile Badges': 'Emblemas de Perfil',
+        // Stats / record
+        'Wins': 'Vitórias', 'Losses': 'Derrotas', 'Draws': 'Empates', 'Win rate': 'Taxa de vitória',
+        'Strength': 'Força', 'Defense': 'Defesa', 'Agility': 'Agilidade', 'Magic': 'Magia',
+        'Vitality': 'Vitalidade', 'Crit Chance': 'Chance de Crítico', 'Hit Chance': 'Chance de Acerto',
+        'Damage Dealt': 'Dano Causado', 'Damage Taken': 'Dano Recebido', 'Dealt': 'Causado', 'Taken': 'Recebido',
+        'Level': 'Nível', 'Gold': 'Ouro', 'Gems': 'Gemas', 'Champion': 'Campeão',
+        'Combat Stats': 'Estatísticas de Combate', 'Record': 'Histórico', 'Class': 'Classe',
+        'Dungeon Floor': 'Andar da Dungeon', 'Tournament Wins': 'Vitórias em Torneios',
+        // Battle / results
+        'Victory': 'Vitória', 'Defeat': 'Derrota', 'Draw': 'Empate',
+        // Missions
+        'Small': 'Pequena', 'Medium': 'Média', 'Large': 'Grande',
+        'Mission in progress': 'Missão em andamento', 'Travel in progress': 'Viagem em andamento',
+        // Squad
+        'Leader': 'Líder', 'Officer': 'Oficial', 'Member': 'Membro', 'Members': 'Membros',
+        'Kick': 'Expulsar', 'Leave': 'Sair', 'Join': 'Entrar', 'Create Squad': 'Criar Esquadrão',
+        'Squad': 'Esquadrão', 'Base Map': 'Mapa de Bases', 'Your rank': 'Seu rank',
+        // Tournament
+        'Participants': 'Participantes', 'History': 'Histórico', 'Standings': 'Classificação',
+        'Join Tournament': 'Entrar no Torneio', 'fighters': 'lutadores',
+        // Shop / forge
+        'Price': 'Preço', 'Components': 'Componentes', 'Materials': 'Materiais', 'Weapons': 'Armas',
+        'Armor': 'Armadura', 'Sets': 'Conjuntos', 'Feed Materials': 'Alimentar Materiais',
+        'Your Materials': 'Seus Materiais', 'Raw Material': 'Material Bruto', 'Component': 'Componente',
+        // Misc
+        'Registered': 'Registrados', 'Reached Lv.5': 'Alcançaram Nv.5',
+        'No active mission': 'Nenhuma missão ativa', 'Active Event': 'Evento Ativo',
+        'Report a Problem': 'Reportar um Problema', 'Logout': 'Sair',
+        'Messages': 'Mensagens', 'Battles': 'Batalhas', 'You': 'Você', 'NPC': 'NPC'
+    }
+};
+const I18N_RULES = {
+    pt: [
+        [/^Lv\.(\d+)$/, 'Nv.$1'],
+        [/^(\d+)\s+fighters$/, '$1 lutadores'],
+        [/^(\d+)\s+members$/, '$1 membros'],
+        [/^(\d+)\s+achievements$/, '$1 conquistas'],
+        [/^Your rank: #(\d+)/, 'Seu rank: #$1'],
+        [/^Cost: (\d+) ⭐ each$/, 'Custo: $1 ⭐ cada'],
+        [/^You can afford: (\d+)$/, 'Você pode comprar: $1']
+    ]
+};
+let _i18nActive = false;
+function __ptTranslateTextNode(node) {
+    const raw = node.nodeValue;
+    if (!raw || raw.length > 120) return;
+    const key = raw.trim();
+    if (!key || /\d{4}/.test(key)) return;
+    const dict = I18N_PHRASES[CURRENT_LANG];
+    const hit = dict && dict[key];
+    if (hit && hit !== key) { node.nodeValue = raw.replace(key, hit); return; }
+    const rules = I18N_RULES[CURRENT_LANG];
+    if (rules) {
+        for (const [re, to] of rules) {
+            if (re.test(key)) { node.nodeValue = raw.replace(key, key.replace(re, to)); return; }
+        }
+    }
+}
+function __ptWalk(root) {
+    if (!_i18nActive || !root) return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+        acceptNode(n) {
+            if (!n.nodeValue || !n.nodeValue.trim()) return NodeFilter.FILTER_REJECT;
+            const p = n.parentElement;
+            if (!p) return NodeFilter.FILTER_REJECT;
+            const tag = p.tagName;
+            if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT') return NodeFilter.FILTER_REJECT;
+            return NodeFilter.FILTER_ACCEPT;
+        }
+    });
+    let n;
+    while ((n = walker.nextNode())) __ptTranslateTextNode(n);
+}
+function startDomI18n() {
+    if (_i18nActive || CURRENT_LANG === 'en') return;
+    _i18nActive = true;
+    const queue = [];
+    let scheduled = false;
+    const flush = () => { while (queue.length) __ptWalk(queue.shift()); scheduled = false; };
+    const obs = new MutationObserver((muts) => {
+        for (const m of muts) {
+            for (const n of m.addedNodes) {
+                if (n.nodeType === 3) queue.push(n.parentElement || document.body);
+                else if (n.nodeType === 1) queue.push(n);
+            }
+        }
+        if (!scheduled && queue.length) { scheduled = true; setTimeout(flush, 60); }
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
+    __ptWalk(document.body);
+}
+startDomI18n();
+
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
