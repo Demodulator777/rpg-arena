@@ -13016,11 +13016,18 @@ function framedAvatar(src, sizePx, opts = {}) {
 // at the same place, it stays pixel-aligned with the body at the seam for ANY
 // source aspect ratio; transform-origin is pinned to the frame center so the
 // shared scale(0.94) maps both layers identically.
-function alignAvatarPop(pop) {
+function alignAvatarPop(pop, attempt) {
     const base = pop.previousElementSibling;
-    if (!base || !base.clientWidth || !base.clientHeight) return;
-    if (!base.naturalWidth) {
-        base.addEventListener('load', () => alignAvatarPop(pop), { once: true });
+    if (!base) return;
+    // Retry while the portrait hasn't loaded or layout is not measurable yet
+    // (e.g. refresh flow where the game screen is still hidden) — otherwise a
+    // missed first attempt would leave the pop unaligned for the whole session.
+    if (!base.clientWidth || !base.clientHeight || !base.naturalWidth) {
+        if (!pop._popLoadHooked) {
+            pop._popLoadHooked = true;
+            base.addEventListener('load', () => alignAvatarPop(pop), { once: true });
+        }
+        if ((attempt || 0) < 300) requestAnimationFrame(() => alignAvatarPop(pop, (attempt || 0) + 1));
         return;
     }
     const W = base.clientWidth, H = base.clientHeight;
