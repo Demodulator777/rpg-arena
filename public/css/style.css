@@ -1443,13 +1443,15 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 /* Framed portrait: shield-clipped so it can't poke out of shield-shaped
    frames — narrower at the sides, tapering toward the bottom point. */
-.avatar-frame .topbar-avatar {
+.avatar-frame .topbar-avatar,
+.avatar-frame .avatar-frame-portrait {
     border: none;
     border-radius: 6px 6px 50% 50%;
     clip-path: url(#shield-clip);
     transform: scale(0.94);
     box-shadow: inset 0 0 10px rgba(0,0,0,0.35);
 }
+.avatar-frame .avatar-frame-portrait { width: 100%; height: 100%; display: block; }
 .avatar-frame-img {
     position: absolute;
     inset: -5px;
@@ -1463,7 +1465,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 /* Hover lights up frame + character together (overrides the bare-avatar hover) */
 .avatar-frame:hover { filter: brightness(1.07); cursor: pointer; }
-.avatar-frame:hover .topbar-avatar { box-shadow: inset 0 0 10px rgba(0,0,0,0.35), 0 0 16px rgba(232,184,75,0.45); }
+.avatar-frame:hover .topbar-avatar,
+.avatar-frame:hover .avatar-frame-portrait { box-shadow: inset 0 0 10px rgba(0,0,0,0.35), 0 0 16px rgba(232,184,75,0.45); }
 .avatar-frame:hover .avatar-frame-img { filter: drop-shadow(0 0 9px rgba(232,184,75,0.7)) drop-shadow(0 0 3px rgba(245,208,112,0.8)); }
 
 .topbar-avatar:hover {
