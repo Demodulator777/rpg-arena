@@ -9567,6 +9567,17 @@ async function saveBasePositions() {
 }
 window.saveBasePositions = saveBasePositions;
 function wireBaseMapEditor() {
+    // PC convenience: vertical wheel scrolls the map horizontally
+    const scroller = document.getElementById('clan-base-scroll');
+    if (scroller && !scroller._wheelBound) {
+        scroller._wheelBound = true;
+        scroller.addEventListener('wheel', (e) => {
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                e.preventDefault();
+                scroller.scrollLeft += e.deltaY;
+            }
+        }, { passive: false });
+    }
     ensureBaseEditPermission().then(can => {
         if (!can) return;
         if (!window._basePosChanges) window._basePosChanges = {};
@@ -9653,8 +9664,8 @@ function renderBaseMapContent() {
             <button class="btn-sm" ${actionAttrs('toggleBaseEditing')}>${window._editingBases ? '✓ Done Moving' : '✥ Move Bases'}</button>
             ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 Save Positions${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
         </div>` : ''}
-        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;margin-top:8px">
-        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;width:100%;min-width:640px;aspect-ratio:1000/800;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat;border-radius:12px">
+        <div id="clan-base-scroll" class="clan-base-scroll">
+        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;width:100%;min-width:640px;aspect-ratio:1000/800;overflow:hidden;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat">
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
             ${(clanData.bases || []).map(b => {
         const color = tierColors[b.tier] || '#888';
