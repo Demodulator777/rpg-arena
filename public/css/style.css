@@ -1441,9 +1441,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     flex-shrink: 0;
     transition: filter 0.25s ease;
 }
-/* Framed portrait: no own ring — the frame art is the border */
+/* Framed portrait: shield-clipped so it can't poke out of shield-shaped
+   frames — narrower at the sides, tapering toward the bottom point. */
 .avatar-frame .topbar-avatar {
     border: none;
+    border-radius: 6px 6px 50% 50%;
+    clip-path: url(#shield-clip);
+    transform: scale(0.94);
     box-shadow: inset 0 0 10px rgba(0,0,0,0.35);
 }
 .avatar-frame-img {
