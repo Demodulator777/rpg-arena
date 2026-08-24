@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-24-no-tap-square"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-24-avatar-pop"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
@@ -55,6 +55,9 @@
   <!-- Shield-shaped clip for framed avatars (objectBoundingBox units = scales to any size) -->
   <clipPath id="shield-clip" clipPathUnits="objectBoundingBox">
     <path d="M0.5,0.005 C0.72,0.02 0.9,0.04 0.91,0.075 L0.91,0.43 C0.91,0.71 0.73,0.89 0.5,0.985 C0.27,0.89 0.09,0.71 0.09,0.43 L0.09,0.075 C0.1,0.04 0.28,0.02 0.5,0.005 Z"/>
+  </clipPath>
+  <clipPath id="shield-clip-pop" clipPathUnits="objectBoundingBox">
+    <path d="M0.5,0.005 C0.72,0.02 0.9,0.04 0.91,0.075 L0.91,0.45 L0.09,0.45 L0.09,0.075 C0.1,0.04 0.28,0.02 0.5,0.005 Z"/>
   </clipPath>
 </defs></svg>
 <div id="loading-overlay">
@@ -687,6 +690,7 @@
         <div class="topbar-avatar-wrap" data-action="showTab" data-args='["character"]' title="Open character page" style="cursor:pointer">
                     <div class="avatar-frame">
                         <img id="topbar-avatar" class="topbar-avatar" src="" alt="avatar" data-error-next-display="">
+                        <img id="topbar-avatar-pop" class="avatar-frame-pop" src="" alt="" data-error-hide="true">
                         <img class="avatar-frame-img" src="/images/assets/frame.png" alt="" data-error-hide="true">
                     </div>
                     <div class="topbar-avatar-info">
@@ -1273,7 +1277,7 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-08-24-lang-dropdown"></script>
+<script src="/js/app.js?v=2026-08-24-avatar-pop"></script>
 <script src="/js/skills-tree.js?v=2026-04-15-guide-fix"></script>
 <script src="/js/dungeon.js?v=2026-08-22-mat-icons"></script>
 <script src="/js/tournaments.js?v=2026-08-22-hist-wrap"></script>
