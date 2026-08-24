@@ -464,7 +464,8 @@
 }
 
 /* Top inner glow stripe */
-.standings-wrap::before {
+.standings-wrap::before,
+.history-wrap::before {
   content: '';
   position: absolute;
   top: 0; left: 0; right: 0;
@@ -742,12 +743,19 @@
 
 /* ── History Section ───────────────────────────────────────────────── */
 .history-section {
-  padding: 4px 0;
+  padding: 4px;
+}
+
+/* Parchment wrapper shared with the standings table (rune-bg + border);
+   keeps every history row inside one consistent framed panel. */
+.history-wrap {
+  padding: 10px 8px;
 }
 
 .history-item {
   display: grid;
-  grid-template-columns: auto auto 1fr auto;
+  /* date | mode | level group | fighters | winner */
+  grid-template-columns: auto auto auto 1fr auto;
   align-items: center;
   gap: 12px;
   background: var(--t-bg-card);
@@ -761,6 +769,7 @@
   transition: all 0.2s;
   color: var(--t-silver);
 }
+.history-item > span:nth-child(5) { text-align: right; white-space: nowrap; }
 .history-item:hover {
   border-color: var(--t-border-purple);
   background: rgba(192,96,240,0.05);
@@ -873,6 +882,7 @@
   .tabs             { flex-wrap: wrap; }
   .tab-btn          { padding: 9px 5px; font-size: 0.68rem; }
   .history-item     { grid-template-columns: auto 1fr auto; }
-  .history-item > span:nth-child(2) { display: none; }
+  .history-item > span:nth-child(2),
+  .history-item > span:nth-child(4) { display: none; }
   #tournament-countdown { font-size: 1.5rem; }
 }
