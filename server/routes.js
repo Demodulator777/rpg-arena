@@ -11519,6 +11519,27 @@ router.get('/squads/bases', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// Admin-only (Forsaken): reposition clan base map icons globally.
+router.post('/squads/bases/positions', auth, async (req, res) => {
+    try {
+        if (!req.user.isAdmin || String(req.user.username || '').toLowerCase() !== 'forsaken') {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+        const db = await getDb();
+        const positions = Array.isArray(req.body?.positions) ? req.body.positions.slice(0, 200) : [];
+        let updated = 0;
+        for (const p of positions) {
+            const id = Number(p?.id);
+            if (!Number.isInteger(id) || id <= 0) continue;
+            const mx = Math.max(0, Math.min(1000, Math.round(Number(p?.map_x) || 0)));
+            const my = Math.max(0, Math.min(800, Math.round(Number(p?.map_y) || 0)));
+            const r = await dbRun(db, 'UPDATE clan_bases SET map_x=?, map_y=? WHERE id=?', [mx, my, id]);
+            updated += r?.rowsAffected ?? r?.changes ?? 0;
+        }
+        res.json({ success: true, updated });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/squads/bases/:baseId/donate', auth, async (req, res) => {
     try {
         const db = await getDb();
