@@ -986,6 +986,7 @@ const WEEKLY_TASKS = [
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN lang TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
             'ALTER TABLE elementals ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN user_session TEXT DEFAULT NULL',
@@ -17242,6 +17243,24 @@ router.post('/admin/flagged/:charName/confirm', auth, async (req, res) => {
             args: [confirmed ? 1 : 0, req.params.charName]
         });
         res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Per-user language
+router.get('/user-lang', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const u = await dbGet(db, 'SELECT lang FROM users WHERE id = ?', [req.user.userId]);
+        res.json({ lang: u?.lang || 'en' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+router.post('/settings/language', auth, async (req, res) => {
+    try {
+        const lang = ['en', 'pt'].includes(req.body?.lang) ? req.body.lang : null;
+        if (!lang) return res.status(400).json({ error: 'Invalid language' });
+        const db = await getDb();
+        await dbRun(db, 'UPDATE users SET lang=? WHERE id=?', [lang, req.user.userId]);
+        res.json({ success: true, lang });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
