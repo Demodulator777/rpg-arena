@@ -3017,7 +3017,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     #tab-squads .squads-actions { gap: 6px; flex-wrap: nowrap; }
     #tab-squads .squads-actions .input-field { min-width: 0; flex: 1; width: auto; }
     #tab-squads .squads-card { max-width: 100%; box-sizing: border-box; overflow-x: hidden; }
-    .clan-base-map { height: 300px !important; }
+    /* Map keeps its 1000:800 aspect (scrolls horizontally on small screens) */
     .squad-row { gap: 6px; }
     .squad-info { min-width: 0; }
     .squad-name { white-space: normal; overflow: visible; text-overflow: clip; word-break: break-word; }
