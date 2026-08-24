@@ -6580,7 +6580,7 @@ async function openWeaponFeedDialog(dialog, weap) {
             <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
                 ${entries.map(([id, mat]) =>
         `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
-                        <span style="font-size:1.1rem;flex-shrink:0">${mat.emoji||'📦'}</span>
+                        ${matIcon(mat.name || id, mat.emoji, '1.1rem')}
                         <span style="flex:1;min-width:0">${mat.name||id}</span>
                         <span style="color:var(--text-dim);font-size:0.7rem;flex-shrink:0">×${mat.qty}</span>
                         <span style="font-size:0.6rem;padding:1px 4px;border-radius:4px;flex-shrink:0;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
@@ -8789,7 +8789,7 @@ async function doBannerPull() {
 
         const itemsHtml = data.items.map(item => {
             if (item.type === 'raw_mat') {
-                return `<div class="event-item event-item-${item.rarity || 'common'}">${item.emoji || '📦'} ${item.qty}x ${item.name}</div>`;
+                return `<div class="event-item event-item-${item.rarity || 'common'}">${matIcon(item.name, item.emoji, '1.2rem')} ${item.qty}x ${item.name}</div>`;
             } else {
                 return `<div class="event-item event-item-${item.rarity || 'common'}">${item.emoji || '🎁'} ${item.name}</div>`;
             }
@@ -12838,6 +12838,14 @@ function itemIcon(item, size='2rem') {
     return `<span style="${sStyle}">${item.emoji||'📦'}</span>`;
 }
 
+// Inline icon for materials/components: tries /images/assets/<slug>.png
+// (e.g. 'Wolf Pelt' -> wolf-pelt.png), falls back to the emoji on 404.
+function matIcon(nameOrId, emoji, size='1.4rem') {
+    const src = getAssetImagePath(nameOrId);
+    if (!src) return `<span style="font-size:${size};line-height:1;flex-shrink:0">${emoji||'📦'}</span>`;
+    return `<img src="${src}" alt="" style="width:${size};height:${size};object-fit:contain;display:inline-block;vertical-align:middle;flex-shrink:0" data-error-hide="true" data-error-next-display="inline-block"><span style="display:none;font-size:${size};line-height:1">${emoji||'📦'}</span>`;
+}
+
 // ── Utils ─────────────────────────────────────────────────────────────────
 function setError(id,msg){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.classList.toggle('hidden',!msg);}
 function showMsg(id,msg,isError=false){const el=document.getElementById(id);if(!el)return;el.textContent=msg;el.style.background=isError?'rgba(192,57,43,0.1)':'';el.style.borderColor=isError?'rgba(192,57,43,0.4)':'';el.style.color=isError?'var(--red-light)':'';el.classList.remove('hidden');setTimeout(()=>el.classList.add('hidden'),4000);}
@@ -13997,7 +14005,7 @@ async function openUpgradeModal(inventoryId) {
                     const has = ownedRawMats[mat] || 0;
                     const color = has >= qty ? '#2ecc71' : '#e74c3c';
                     const matName = RAW_MATERIAL_INFO[mat]?.name || mat.replace(/_/g, ' ');
-                    return `<span style="color:${color}">${qty} ${matName}</span>`;
+                    return `<span style="color:${color};white-space:nowrap">${matIcon(RAW_MATERIAL_INFO[mat]?.name || mat, null, '0.85rem')} ${qty} ${matName}</span>`;
                 }).join(', ')}</div>`;
             }
 
@@ -14005,7 +14013,7 @@ async function openUpgradeModal(inventoryId) {
                 <div class="upgrade-component-card ${owned > 0 ? '' : 'unowned'} ${selectedComponentId === id ? 'selected' : ''}" 
                      ${owned > 0 ? actionAttrs('selectComponent', id, info.name, owned) : ''}>
                     <div class="component-icon-wrap">
-                        <div class="component-icon">${info.emoji || '🔧'}</div>
+                        <div class="component-icon">${matIcon(info.name, info.emoji, '2rem')}</div>
                         <div class="component-owned-badge">${owned}</div>
                     </div>
                     <div class="component-info">
