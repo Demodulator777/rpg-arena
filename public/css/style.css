@@ -5661,6 +5661,41 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         justify-content: flex-end;
     }
 }
+/* Desktop (>700px): the tutorial card floats top-right as an assistant-style
+   overlay instead of occupying a slot in the page flow. Mobile keeps inline. */
+@media (min-width: 701px) {
+    .event-banner.event-banner--tutorial {
+        position: fixed;
+        top: calc(var(--topbar-h) + 8px);
+        right: 14px;
+        left: auto;
+        z-index: 1200;
+        padding: 0;
+        background: transparent;
+        border-bottom: 0;
+        text-align: left;
+        animation: none;
+        pointer-events: none;
+    }
+    .event-banner.event-banner--tutorial .tutorial-banner {
+        width: 330px;
+        margin-left: 0;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-radius: 16px;
+        border-color: rgba(212, 176, 95, 0.18);
+        background:
+            linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0)),
+            linear-gradient(135deg, rgba(17,23,34,0.96), rgba(11,16,26,0.94));
+        box-shadow: 0 18px 40px rgba(0,0,0,0.32);
+        backdrop-filter: blur(10px);
+        pointer-events: auto;
+    }
+    .event-banner.event-banner--tutorial .tutorial-copy { flex: 1 1 100%; }
+    .event-banner.event-banner--tutorial .tutorial-progress { margin-right: auto; }
+}
 @keyframes bannerPulse { 0%,100%{opacity:0.85}50%{opacity:1} }
 
 .badge { display: inline-block; background: var(--red-light); color: #fff; border-radius: 10px; padding: 1px 7px; font-size: 0.62rem; font-weight: 700; margin-left: 4px; }
