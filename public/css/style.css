@@ -1430,6 +1430,31 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     transition: box-shadow 0.3s;
 }
 
+/* ── Custom avatar frame ───────────────────────────────────────────
+   The portrait stays clipped in its circle (no overflow); frame.png
+   overlays on top, slightly larger than the circle. If the PNG is
+   missing the overlay hides itself and the plain ring remains. */
+.avatar-frame {
+    position: relative;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+}
+.avatar-frame .topbar-avatar {
+    border-width: 1px;
+    box-shadow: 0 0 12px rgba(201,146,42,0.18);
+}
+.avatar-frame-img {
+    position: absolute;
+    inset: -5px;
+    width: calc(100% + 10px);
+    height: calc(100% + 10px);
+    object-fit: contain;
+    pointer-events: none;
+    z-index: 3;
+    filter: drop-shadow(0 0 6px rgba(201,146,42,0.35));
+}
+
 .topbar-avatar:hover {
     box-shadow:
         0 0 0 2px rgba(201,146,42,0.6),
@@ -5969,7 +5994,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .topbar::before { display: none; }
     .topbar-left { width: 100%; flex: none; gap: 10px; align-items: center; }
     .topbar-avatar-wrap { flex-shrink: 0; gap: 8px; }
+    .avatar-frame { width: 38px; height: 38px; }
     .topbar-avatar { width: 38px; height: 38px; }
+    .avatar-frame-img { inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); }
     .topbar-avatar-info { gap: 2px; }
     .topbar-name { font-size: 0.78rem; }
     .topbar-level { font-size: 0.55rem; padding: 1px 6px; }
