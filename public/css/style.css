@@ -3043,11 +3043,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .icon-small  { width: 60px; }
 .clan-base-icon:hover { opacity:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.9)); }
 .clan-base-wrap.owned .clan-base-icon { opacity:1; }
-/* Map sizing: CONSTANT 1000:800 canvas (640×512 px) on every device —
-   basemap art and icon positions stay pixel-identical across resolutions.
-   Phones/narrow panels pan horizontally via the .clan-base-scroll wrapper;
-   on wide screens it centers. PC keeps full-width? No — consistent canvas. */
-.clan-base-map { width: 640px; height: 512px; margin: 0 auto; }
+/* Map sizing: canvas matches the real basemap.png art ratio (1957×528),
+   stretched edge-to-edge — zero cropping, identical icon alignment on all
+   devices. Narrow screens pan horizontally at 640px width. */
+.clan-base-map { width: 100%; aspect-ratio: 1957 / 528; border-radius: 12px; }
+@media (max-width: 760px) {
+    .clan-base-map { width: 640px; height: auto; margin: 0 auto; }
+}
 
 /* Admin base-map editing mode */
 .clan-base-scroll {
@@ -4709,10 +4711,31 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     max-width: 760px;
     width: 100%;
 }
-.achievements-modal-box .modal-header {
-    position: sticky; top: 0; z-index: 10;
-    background: linear-gradient(145deg, var(--bg2), var(--bg3));
+/* Achievements modal: only the ✕ stays pinned; title + content scroll. */
+#achievements-modal .achievements-modal-box {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;   /* the inner .achievements-scroll does the scrolling */
 }
+#achievements-modal .modal-header { margin-bottom: 10px; padding-right: 46px; }
+#achievements-modal .modal-float-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 30;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: rgba(8,12,22,0.78);
+    border: 1px solid rgba(201,146,42,0.4);
+    backdrop-filter: blur(6px);
+    font-size: 1rem;
+}
+#achievements-modal .achievements-scroll { overflow-y: auto; min-height: 0; }
 .character-switch-modal-box {
     max-width: 720px;
     width: 100%;
