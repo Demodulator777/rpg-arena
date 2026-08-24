@@ -890,7 +890,7 @@
   .match-card::before { display: none; }
   .tabs             { flex-wrap: wrap; }
   .tab-btn          { padding: 9px 5px; font-size: 0.68rem; }
-  .history-item     { grid-template-columns: auto 1fr auto; }
+  .history-item     { grid-template-columns: auto auto 1fr; gap: 8px; padding: 10px 12px; }
   .history-item > span:nth-child(2),
   .history-item > span:nth-child(4) { display: none; }
   #tournament-countdown { font-size: 1.5rem; }
