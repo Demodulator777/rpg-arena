@@ -1227,7 +1227,7 @@ function renderTopbarMenu() {
     content.innerHTML = `
         <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.language', 'Language')}</div>
-            <select class="input-field" data-change-action="changeLanguage" style="width:100%;margin:0;cursor:pointer">
+            <select id="lang-select" class="input-field" style="width:100%;margin:0;cursor:pointer">
                 <option value="en"${CURRENT_LANG === 'en' ? ' selected' : ''}>🇬🇧 English</option>
                 <option value="pt"${CURRENT_LANG === 'pt' ? ' selected' : ''}>🇵🇹 Português</option>
             </select>
@@ -1344,6 +1344,8 @@ function renderTopbarMenu() {
                 <div id="settings-email-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
             </div>
         </div>`;
+    const langSel = document.getElementById('lang-select');
+    if (langSel) langSel.addEventListener('change', () => changeLanguage(null, null, langSel));
 }
 
 function syncClientPreferencesFromCharacter() {
