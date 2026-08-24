@@ -9665,7 +9665,7 @@ function renderBaseMapContent() {
             ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 Save Positions${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
         </div>` : ''}
         <div id="clan-base-scroll" class="clan-base-scroll">
-        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;width:100%;min-width:640px;aspect-ratio:1000/800;overflow:hidden;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat">
+        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;overflow:hidden;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat">
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
             ${(clanData.bases || []).map(b => {
         const color = tierColors[b.tier] || '#888';
