@@ -3055,7 +3055,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     overflow-x: auto;
     overflow-y: hidden;
     -webkit-overflow-scrolling: touch;
-    touch-action: pan-x;
+    /* Let vertical page scroll pass through freely; keep horizontal edge
+       swipes from being hijacked by browser back/forward navigation */
+    overscroll-behavior-x: contain;
     border-radius: 12px;
     margin-top: 8px;
 }
