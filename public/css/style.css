@@ -3036,11 +3036,12 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .squads-member-sub { display:block; font-size: 0.74rem; color: var(--text-dim); margin-top: 2px; }
 .online-dot { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-right:2px; }
 .clan-base-icon { opacity:0.55; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.9)); transition:opacity .2s ease, filter .2s ease; }
-/* Same icon scale on all devices — map keeps a constant 1000:800 canvas */
-.icon-main   { width: 96px; }
-.icon-large  { width: 84px; }
-.icon-medium { width: 72px; }
-.icon-small  { width: 60px; }
+/* Icon sizes scale with the canvas (--map-scale = canvasHeight/512, set by JS)
+   so they stay proportional on every screen size */
+.icon-small  { width: calc(60px * var(--map-scale, 1)); }
+.icon-medium { width: calc(72px * var(--map-scale, 1)); }
+.icon-large  { width: calc(84px * var(--map-scale, 1)); }
+.icon-main   { width: calc(96px * var(--map-scale, 1)); }
 .clan-base-icon:hover { opacity:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.9)); }
 .clan-base-wrap.owned .clan-base-icon { opacity:1; }
 /* Map sizing: canvas matches the real basemap.png art ratio (1957×528),
