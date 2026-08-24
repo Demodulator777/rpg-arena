@@ -5016,8 +5016,12 @@ global.debugDungeonDetails = function() {
     for (const inv of mats) {
       const d = typeof inv.item_data === 'string' ? JSON.parse(inv.item_data) : inv.item_data;
       const qty = d.qty || 1;
+      const iconSrc = typeof getAssetImagePath === 'function' ? getAssetImagePath(d.name || d.id) : null;
+      const iconHtml = iconSrc
+        ? `<img src="${iconSrc}" alt="" style="width:1.1rem;height:1.1rem;object-fit:contain;display:inline-block;vertical-align:middle;margin-right:4px" data-error-hide="true" data-error-next-display="inline-block"><span style="display:none">${d.emoji || '📦'}</span>`
+        : `${d.emoji || '📦'} `;
       html += `<div class="dungeon-elem-feed-row" ${actionAttrs('dungeonFeedElemental', inv.id)} style="cursor:pointer">
-        <span>${d.emoji || '📦'} ${d.name} (${qty})</span>
+        <span>${iconHtml}${d.name} (${qty})</span>
       </div>`;
     }
 
