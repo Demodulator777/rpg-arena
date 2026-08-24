@@ -9578,6 +9578,22 @@ function wireBaseMapEditor() {
             }
         }, { passive: false });
     }
+    // Drag-to-pan fallback (works on touch + mouse even if native gestures are
+    // intercepted elsewhere). Skipped while dragging a base icon in edit mode.
+    if (scroller && !scroller._panBound) {
+        scroller._panBound = true;
+        let down = false, startX = 0, startLeft = 0;
+        scroller.addEventListener('pointerdown', (e) => {
+            if (window._editingBases && e.target.closest && e.target.closest('.clan-base-wrap')) return;
+            down = true; startX = e.clientX; startLeft = scroller.scrollLeft;
+        });
+        window.addEventListener('pointermove', (e) => {
+            if (!down) return;
+            scroller.scrollLeft = startLeft - (e.clientX - startX);
+        });
+        window.addEventListener('pointerup', () => { down = false; });
+        window.addEventListener('pointercancel', () => { down = false; });
+    }
     ensureBaseEditPermission().then(can => {
         if (!can) return;
         if (!window._basePosChanges) window._basePosChanges = {};
