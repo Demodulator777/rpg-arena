@@ -9649,11 +9649,12 @@ function renderBaseMapContent() {
     const tierColors = { main: '#ff6b35', large: '#e74c3c', medium: '#f39c12', small: '#3498db' };
     return `<div class="squads-card" style="margin-top:0">
         <div class="squads-title">🗺️ Clan Base Map</div>
-        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;width:100%;height:500px;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat;border-radius:12px;overflow:hidden;margin-top:8px">
-            ${window._canEditBases ? `<div style="position:absolute;top:8px;right:8px;z-index:6;display:flex;gap:6px">
-                <button class="btn-sm" ${actionAttrs('toggleBaseEditing')}>${window._editingBases ? '✓ Done Moving' : '✥ Move Bases'}</button>
-                ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 Save Positions${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
-            </div>` : ''}
+        ${window._canEditBases ? `<div style="display:flex;gap:6px;justify-content:flex-end;margin:8px 0">
+            <button class="btn-sm" ${actionAttrs('toggleBaseEditing')}>${window._editingBases ? '✓ Done Moving' : '✥ Move Bases'}</button>
+            ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 Save Positions${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
+        </div>` : ''}
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:12px;margin-top:8px">
+        <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;width:100%;min-width:640px;aspect-ratio:1000/800;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/cover no-repeat;border-radius:12px">
             <div style="position:absolute;top:0;left:0;width:100%;height:100%;background-image:radial-gradient(circle,rgba(255,255,255,0.03) 1px,transparent 1px);background-size:40px 40px"></div>
             ${(clanData.bases || []).map(b => {
         const color = tierColors[b.tier] || '#888';
@@ -9668,6 +9669,7 @@ function renderBaseMapContent() {
                     </div>
                 </div>`;
     }).join('')}
+        </div>
         </div>
     </div>`;
 }
