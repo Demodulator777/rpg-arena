@@ -13009,10 +13009,13 @@ function framedAvatar(src, sizePx, opts = {}) {
     `</span>`;
 }
 
-// Extend the pop layer above the frame box so the head rises past the ring,
-// keeping it pixel-aligned with the base portrait at the seam: the taller box
-// would otherwise change the cover-crop scale/offset, so we compensate the
-// object-position and the scale(0.94) transform-origin explicitly.
+// Extend the pop layer above the frame box so the head rises past the ring.
+// The pop renders the FULL image at exactly the base portrait's cover-scale
+// and position (same rendered geometry, no object-fit of its own), then a clip
+// polygon re-opens the window above the frame. Being the same rendered image
+// at the same place, it stays pixel-aligned with the body at the seam for ANY
+// source aspect ratio; transform-origin is pinned to the frame center so the
+// shared scale(0.94) maps both layers identically.
 function alignAvatarPop(pop) {
     const base = pop.previousElementSibling;
     if (!base || !base.clientWidth || !base.clientHeight) return;
@@ -13022,20 +13025,21 @@ function alignAvatarPop(pop) {
     }
     const W = base.clientWidth, H = base.clientHeight;
     const s = Math.max(W / base.naturalWidth, H / base.naturalHeight);
-    const overflow = base.naturalHeight * s - H;
-    const E = Math.max(0, Math.min(9, overflow - 1));
+    const renderedW = base.naturalWidth * s, renderedH = base.naturalHeight * s;
     const m = (base.style.objectPosition || '').match(/([\d.]+)%\s+([\d.]+)%/);
-    const px = m ? m[1] : '50';
+    const px = m ? parseFloat(m[1]) / 100 : 0.5;
     const py = m ? parseFloat(m[2]) / 100 : 0.5;
-    pop.style.top = (-E) + 'px';
-    pop.style.height = (H + E) + 'px';
-    const cut = (E + 0.45 * H).toFixed(2);
-    pop.style.clipPath = `polygon(9% 0, 91% 0, 91% ${cut}px, 9% ${cut}px)`;
-    pop.style.transformOrigin = `50% ${(H / 2 - (0.94 / 0.06) * E).toFixed(2)}px`;
-    if (E <= 0) { pop.style.objectPosition = (m ? `${px}% ${m[2]}%` : '50% 50%'); return; }
-    const oy = overflow * py;
-    const py2 = (oy - E) / (overflow - E);
-    pop.style.objectPosition = `${px}% ${(py2 * 100).toFixed(3)}%`;
+    const ox = (renderedW - W) * px;
+    const oy = (renderedH - H) * py;
+    const E = 9;
+    pop.style.width = renderedW.toFixed(2) + 'px';
+    pop.style.height = renderedH.toFixed(2) + 'px';
+    pop.style.left = (-ox).toFixed(2) + 'px';
+    pop.style.top = (-oy).toFixed(2) + 'px';
+    const xL = (0.09 * W + ox).toFixed(2), xR = (0.91 * W + ox).toFixed(2);
+    const yTop = (oy - E).toFixed(2), yBot = (oy + 0.45 * H).toFixed(2);
+    pop.style.clipPath = `polygon(${xL}px ${yTop}px, ${xR}px ${yTop}px, ${xR}px ${yBot}px, ${xL}px ${yBot}px)`;
+    pop.style.transformOrigin = `${(W / 2 + ox).toFixed(2)}px ${(H / 2 + oy).toFixed(2)}px`;
 }
 document.addEventListener('load', e => {
     const t = e.target;
