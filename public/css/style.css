@@ -2111,9 +2111,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     
     .sidebar-inner {
+        position: relative;
         width: 100%;
         height: 40px;
         justify-content: center;
+        padding: 0 13px;
     }
     
     .sidebar-left,
@@ -2125,6 +2127,25 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .sidebar-right img {
         height: 40px;
     }
+
+    .sidebar-inner::before,
+    .sidebar-inner::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 8px;
+        border-radius: 5px;
+        background:
+            radial-gradient(circle at 50% 50%, #a5ccff 0 1.5px, #3f7fd6 3px, rgba(63,127,214,0) 4.5px) no-repeat center,
+            linear-gradient(180deg, #46516a, #151b28 45%, #46516a);
+        border: 1px solid rgba(201,146,42,0.45);
+        box-shadow: 0 0 8px rgba(0,0,0,0.55), inset 0 1px 2px rgba(255,255,255,0.12);
+        pointer-events: none;
+        z-index: 2;
+    }
+    .sidebar-inner::before { left: 0; }
+    .sidebar-inner::after { right: 0; }
 
     .sidebar-buttons {
         width: 100%;
@@ -2202,6 +2223,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
         display: block;
         width: 100%;
     }
+}
+
+@media (max-width: 360px) {
+    .sidebar-inner { padding: 0 10px; }
+    .sidebar-inner::before,
+    .sidebar-inner::after { width: 7px; }
+    .nav-btn { width: 60px; }
+    .nav-btn-label { font-size: 0.42rem; letter-spacing: 0.01em; }
 }
 /* ════════════════════════════════════════════════════════════════════════
    TAB CONTENT AREA
