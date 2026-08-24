@@ -3036,20 +3036,22 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .squads-member-sub { display:block; font-size: 0.74rem; color: var(--text-dim); margin-top: 2px; }
 .online-dot { display:inline-block; width:10px; height:10px; border-radius:50%; vertical-align:middle; margin-right:2px; }
 .clan-base-icon { opacity:0.55; filter:drop-shadow(0 2px 6px rgba(0,0,0,0.9)); transition:opacity .2s ease, filter .2s ease; }
-/* Desktop: 3× the old inline sizes (main 32 / large 28 / medium 24 / small 20) */
+/* Same icon scale on all devices — map keeps a constant 1000:800 canvas */
 .icon-main   { width: 96px; }
 .icon-large  { width: 84px; }
 .icon-medium { width: 72px; }
 .icon-small  { width: 60px; }
-@media (max-width: 520px) {
-    .icon-main   { width: 32px; }
-    .icon-large  { width: 28px; }
-    .icon-medium { width: 24px; }
-    .icon-small  { width: 20px; }
-}
 .clan-base-icon:hover { opacity:1; filter:drop-shadow(0 2px 8px rgba(0,0,0,0.9)); }
 .clan-base-wrap.owned .clan-base-icon { opacity:1; }
 /* Admin base-map editing mode */
+.clan-base-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
+    border-radius: 12px;
+    margin-top: 8px;
+}
 .clan-base-map.base-editing > div[data-action] { pointer-events: none; }
 .clan-base-map.base-editing .clan-base-wrap { pointer-events: auto; cursor: grab; }
 .clan-base-map.base-editing .clan-base-wrap:active { cursor: grabbing; }
