@@ -4569,11 +4569,14 @@ function renderUpgrade() {
 
 function _ttPos(tooltip, r, tw, th) {
     const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    let left = r.right/zf+12, top = r.top/zf;
-    if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
+    const rl=r.left/zf, rr=r.right/zf, rt=r.top/zf, rw=r.width/zf, rh=r.height/zf;
+    let left = rl-tw-12, top = rt+rh/2-th/2;
+    if (left < 8) left = rr+12;
+    if (left+tw>window.innerWidth-8) left = Math.max(8,window.innerWidth-tw-8);
+    if (top < 8) top = 8;
     if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
-    tooltip.style.left = Math.max(8,left)+'px';
-    tooltip.style.top  = Math.max(8,top)+'px';
+    tooltip.style.left = Math.round(Math.max(8,left))+'px';
+    tooltip.style.top  = Math.round(top)+'px';
 }
 let _upgradingStats = {};
 function showStatUpgradeInfo(btn, noAutoHide) {
