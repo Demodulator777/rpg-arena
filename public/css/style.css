@@ -1493,26 +1493,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     z-index: 4;
     transition: filter 0.25s ease;
 }
-/* Hover: ONE glow overlay above every layer (frame, portrait, pop head) so the
-   whole avatar lights up evenly — no stacked per-layer glows, no double-lit
-   background, and the raised head is lit exactly like the body. */
-.avatar-frame::after {
-    content: '';
-    position: absolute;
-    inset: -9px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 50% 42%,
-        rgba(245,208,112,0.30) 0%,
-        rgba(232,184,75,0.16) 45%,
-        rgba(232,184,75,0.05) 68%,
-        transparent 80%);
-    opacity: 0;
-    pointer-events: none;
-    z-index: 5;
-    transition: opacity 0.25s ease;
-}
-.avatar-frame:hover { filter: brightness(1.07); cursor: pointer; }
-.avatar-frame:hover::after { opacity: 1; }
+/* Hover: ONE glow on the whole container — the filter composites frame +
+   portrait + pop head first, so the halo follows their real alpha silhouette
+   (no visible circle, no stacked glows, head lit exactly like the body). */
+.avatar-frame:hover { filter: brightness(1.07) drop-shadow(0 0 12px rgba(232,184,75,0.5)); cursor: pointer; }
 
 .topbar-avatar:hover {
     box-shadow:
