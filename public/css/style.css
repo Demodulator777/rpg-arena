@@ -6,12 +6,6 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* PC: scale the whole UI up (equivalent of ~125% browser zoom). Mobile keeps
-   its own layout untouched. */
-@media (min-width: 641px) {
-    html { zoom: 1.25; }
-}
-
 /* Prevent text selection / Tap to Search app-wide — re-enable on editable fields */
 *, *::before, *::after {
     -webkit-user-select: none;
