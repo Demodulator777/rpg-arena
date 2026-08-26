@@ -196,6 +196,7 @@ const {
     computeActiveCombatEffects,
     computeClassModifiers,
     rogueHasDualWield,
+    getEvolutionInfo,
     // NEW progressive functions
     computePassiveBonusesWithProgress,
     computeActiveCombatEffectsWithProgress,
@@ -1101,6 +1102,22 @@ const WEEKLY_TASKS = [
                 squad_win_top10_data TEXT NOT NULL DEFAULT '[]'
             )`,
             `ALTER TABLE characters ADD COLUMN last_gatekeeper_time INTEGER DEFAULT 0`,
+            `CREATE TABLE IF NOT EXISTS vouchers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                code TEXT NOT NULL UNIQUE,
+                reward_payload TEXT,
+                active INTEGER NOT NULL DEFAULT 1,
+                max_uses INTEGER DEFAULT NULL,
+                use_count INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL
+            )`,
+            `CREATE TABLE IF NOT EXISTS voucher_redemptions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                voucher_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                redeemed_at INTEGER NOT NULL,
+                UNIQUE(voucher_id, user_id)
+            )`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -10362,6 +10379,9 @@ async function buildCharacterResponse(char, db) {
         inbox_autoread_missions: Number(userSettings?.inbox_autoread_missions ?? 0) !== 0,
         inbox_prune_missions: Number(userSettings?.inbox_prune_missions ?? 1) !== 0,
         profile_pic: char.profile_pic || `${char.class}.png`,
+        evolvedClass: char.evolved_class || null,
+        evolvedClassName: char.evolved_class ? (getEvolutionInfo(char.evolved_class)?.name || null) : null,
+        unlockedClasses: (() => { try { return JSON.parse(char.unlocked_classes || '[]'); } catch { return []; } })(),
         profile_pic_offset: (() => {
             try { return JSON.parse(char.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; }
         })(),
@@ -10592,7 +10612,7 @@ router.get('/profile-pics', auth, async (req, res) => {
     try {
         const db = await getDb();
         await ensurePendingProfilePicsTable(db);
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, class, unlocked_profile_pics');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, class, unlocked_profile_pics, unlocked_classes');
         if (!char) return res.status(404).json({ error: 'No character found' });
 
         const unlocked = JSON.parse(char.unlocked_profile_pics || '[]');
@@ -10601,6 +10621,21 @@ router.get('/profile-pics', auth, async (req, res) => {
         const allPics = [
             { id: defaultPic, name: 'Default', class: char.class, unlocked: true, url: '/images/class/' + defaultPic }
         ];
+
+        // Evolved class avatars (unlocked via branch evolution trainings)
+        let unlockedClasses = [];
+        try { unlockedClasses = JSON.parse(char.unlocked_classes || '[]'); } catch {}
+        for (const classId of unlockedClasses) {
+            const evo = getEvolutionInfo(classId);
+            if (!evo) continue;
+            allPics.push({
+                id: evo.avatar + '.png',
+                name: evo.name,
+                class: char.class,
+                unlocked: true,
+                url: '/images/class/' + evo.avatar + '.png'
+            });
+        }
 
         // Add unlocked themed pics
         for (const picId of unlocked) {
@@ -16491,6 +16526,165 @@ router.post('/messages/:id/read', auth, async (req, res) => {
         res.json({ ok:true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
+// ── Voucher codes ────────────────────────────────────────────────────────────
+// Grant a voucher's rewards directly to a character (gold, gems, materials —
+// no XP). Mirrors the inbox reward-claim pipeline without the letter.
+async function grantVoucherRewardToChar(db, charRow, reward) {
+    if (reward.gold) {
+        const gold = Math.max(0, Number(reward.gold || 0));
+        if (gold > 0) {
+            await dbRun(db, 'UPDATE characters SET gold=gold+?, total_gold_earned=total_gold_earned+? WHERE id=?', [gold, gold, charRow.id]);
+        }
+    }
+    if (reward.gems) {
+        const gems = Math.max(0, Number(reward.gems || 0));
+        if (gems > 0) {
+            await dbRun(db, 'UPDATE characters SET gems=gems+?, total_gems_earned=COALESCE(total_gems_earned,0)+? WHERE id=?', [gems, gems, charRow.id]);
+        }
+    }
+    if (reward.material?.id && reward.material?.qty) {
+        const normalizedMaterialId = normalizeRewardMaterialId(reward.material.id);
+        const preferredType = reward.material.type === 'component' ? 'component' : 'raw_mat';
+        const preferredMap = preferredType === 'component' ? COMPONENTS : RAW_MATERIALS;
+        const fallbackType = preferredType === 'component' ? 'raw_mat' : 'component';
+        const fallbackMap = fallbackType === 'component' ? COMPONENTS : RAW_MATERIALS;
+        const resolvedType = preferredMap?.[normalizedMaterialId] ? preferredType : (fallbackMap?.[normalizedMaterialId] ? fallbackType : null);
+        const resolvedDef = preferredMap?.[normalizedMaterialId] || fallbackMap?.[normalizedMaterialId] || null;
+        if (resolvedType && resolvedDef) {
+            await addStackableInventoryItem(
+                db,
+                charRow.id,
+                resolvedType,
+                { id: normalizedMaterialId, ...resolvedDef },
+                Math.max(1, Number(reward.material.qty || 1))
+            );
+        }
+    }
+}
+
+router.post('/voucher/redeem', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const code = String(req.body?.code || '').trim().toUpperCase();
+        if (!code) return res.status(400).json({ error: 'Enter a voucher code.' });
+
+        const voucher = await dbGet(db, 'SELECT * FROM vouchers WHERE code = ?', [code]);
+        if (!voucher) return res.status(404).json({ error: 'Invalid voucher code.' });
+        if (!Number(voucher.active)) return res.status(400).json({ error: 'This voucher is no longer active.' });
+
+        const already = await dbGet(db, 'SELECT id FROM voucher_redemptions WHERE voucher_id = ? AND user_id = ?', [voucher.id, req.user.userId]);
+        if (already) return res.status(400).json({ error: 'You already redeemed this voucher.' });
+        if (voucher.max_uses !== null && voucher.max_uses !== undefined && Number(voucher.use_count || 0) >= Number(voucher.max_uses)) {
+            return res.status(400).json({ error: 'This voucher has expired.' });
+        }
+
+        let reward = null;
+        try { reward = JSON.parse(voucher.reward_payload || 'null'); } catch {}
+        if (!reward || typeof reward !== 'object') return res.status(400).json({ error: 'This voucher has no rewards.' });
+
+        const chars = await dbAll(db, 'SELECT * FROM characters WHERE user_id = ?', [req.user.userId]);
+        if (!chars.length) return res.status(400).json({ error: 'No characters found on this account.' });
+
+        for (const c of chars) {
+            await grantVoucherRewardToChar(db, c, reward);
+        }
+
+        try {
+            await dbRun(db, 'INSERT INTO voucher_redemptions (voucher_id, user_id, redeemed_at) VALUES (?,?,?)',
+                [voucher.id, req.user.userId, Math.floor(Date.now() / 1000)]);
+        } catch (e) {
+            // Concurrent double-submit lost the UNIQUE(voucher_id, user_id) race —
+            // the first request already delivered the rewards.
+            return res.status(400).json({ error: 'You already redeemed this voucher.' });
+        }
+        await dbRun(db, 'UPDATE vouchers SET use_count = use_count + 1 WHERE id = ?', [voucher.id]);
+
+        res.json({
+            success: true,
+            message: `Voucher redeemed: ${describeAdminRewardPayload(reward)} — delivered to ${chars.length} character${chars.length === 1 ? '' : 's'}.`
+        });
+    } catch (e) {
+        console.error('voucher redeem error', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/admin/vouchers', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const rows = await dbAll(db, `
+            SELECT v.*, (
+                SELECT COUNT(*) FROM voucher_redemptions r WHERE r.voucher_id = v.id
+            ) AS redemption_count
+            FROM vouchers v ORDER BY v.created_at DESC, v.id DESC
+        `);
+        const list = rows.map(v => {
+            let reward = null;
+            try { reward = JSON.parse(v.reward_payload || 'null'); } catch {}
+            return { ...v, reward_summary: describeAdminRewardPayload(reward) };
+        });
+        res.json(list);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/vouchers/create', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const code = String(req.body?.code || '').trim().toUpperCase();
+        if (!/^[A-Z0-9_-]{3,32}$/.test(code)) {
+            return res.status(400).json({ error: 'Code must be 3-32 characters (letters, numbers, - or _).' });
+        }
+        const rewardPayload = buildAdminRewardPayload({
+            gold: req.body?.gold,
+            gems: req.body?.gems,
+            materialType: req.body?.materialType,
+            materialId: req.body?.materialId,
+            materialQty: req.body?.materialQty
+        });
+        if (!rewardPayload) {
+            return res.status(400).json({ error: 'Add at least one reward: gold, gems, or material (type + id + quantity).' });
+        }
+        const existing = await dbGet(db, 'SELECT id FROM vouchers WHERE code = ?', [code]);
+        if (existing) return res.status(400).json({ error: 'A voucher with this code already exists.' });
+
+        let maxUses = null;
+        if (req.body?.maxUses !== undefined && req.body?.maxUses !== null && String(req.body.maxUses).trim() !== '') {
+            maxUses = Math.max(1, Number(req.body.maxUses) || 1);
+        }
+        await dbRun(db,
+            'INSERT INTO vouchers (code, reward_payload, active, max_uses, use_count, created_at) VALUES (?, ?, 1, ?, 0, ?)',
+            [code, JSON.stringify(rewardPayload), maxUses, Math.floor(Date.now() / 1000)]
+        );
+        res.json({ success: true, message: `Voucher ${code} created.` });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/vouchers/toggle', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const id = Number(req.body?.id);
+        if (!id) return res.status(400).json({ error: 'Voucher id required.' });
+        await dbRun(db, 'UPDATE vouchers SET active = CASE WHEN active = 1 THEN 0 ELSE 1 END WHERE id = ?', [id]);
+        const v = await dbGet(db, 'SELECT active FROM vouchers WHERE id = ?', [id]);
+        res.json({ success: true, active: !!Number(v?.active) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/admin/vouchers/delete', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Access denied' });
+    try {
+        const db = await getDb();
+        const id = Number(req.body?.id);
+        if (!id) return res.status(400).json({ error: 'Voucher id required.' });
+        await dbRun(db, 'DELETE FROM voucher_redemptions WHERE voucher_id = ?', [id]);
+        await dbRun(db, 'DELETE FROM vouchers WHERE id = ?', [id]);
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/messages/:id/claim-reward', auth, async (req, res) => {
     try {
         const db = await getDb();
