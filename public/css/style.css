@@ -660,6 +660,7 @@ body.modal-lock .topbar {
 }
 .auth-server-select button.server-select-btn:hover { border-color: var(--gold, #c9926a); }
 .auth-server-select button.server-select-btn:focus { outline: none; border-color: var(--gold, #c9926a); }
+select.auth-lang-select { cursor: pointer; appearance: auto; width: auto; min-width: 130px; }
 .server-caret { opacity: 0.6; font-size: 0.7rem; }
 
 .server-picker-box { max-width: 360px; text-align: left; }
