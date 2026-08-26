@@ -4590,7 +4590,13 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     tt.style.width = '';
     tt.classList.remove('hidden');
     const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 80;
-    _ttPos(tt, btn.getBoundingClientRect(), tw, th);
+    const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const r = btn.getBoundingClientRect();
+    let left = r.right/zf+12, top = r.top/zf;
+    if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
+    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    tt.style.left = Math.max(8,left)+'px';
+    tt.style.top  = Math.max(8,top)+'px';
     clearTimeout(tt._hideTimer);
     if (!noAutoHide) tt._hideTimer = setTimeout(() => tt.classList.add('hidden'), 3000);
 }
