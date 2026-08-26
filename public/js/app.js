@@ -1634,7 +1634,7 @@ function renderCharacterSwitcher() {
                     <img src="/images/class/${c.class}.png" alt="${c.class}" class="character-switch-avatar" data-error-hide="true">
                     <div class="character-switch-info">
                         <div class="character-switch-name">${escHtml(c.name)}</div>
-                        <div class="character-switch-meta">Lv.${c.level} ${capitalize(c.class)}</div>
+                        <div class="character-switch-meta">Lv.${c.level} ${c.evolvedClassName || capitalize(c.class)}</div>
                     </div>
                     <div class="character-switch-state">${isActive ? 'Active' : 'Play'}</div>
                 </button>`;
@@ -2440,6 +2440,16 @@ function showTab(name) {
     if (name === 'event')       loadBannerEvent();
 }
 
+// CSS root zoom (PC scale-up) makes getBoundingClientRect() return VISUAL px,
+// while fixed-position coordinates inside the zoomed root are plain CSS px —
+// convert visual px to CSS px so fixed dropdowns stay docked to their buttons.
+function uiZoomFactor() {
+    try {
+        const z = parseFloat(getComputedStyle(document.documentElement).zoom);
+        return Number.isFinite(z) && z > 0 ? z : 1;
+    } catch { return 1; }
+}
+
 function toggleCharacterHubInline() {
     const trigger = document.getElementById('character-hub-trigger');
     if (!trigger) return;
@@ -2454,14 +2464,15 @@ function toggleCharacterHubInline() {
         // Create a new fixed hub element
         const triggerRect = trigger.getBoundingClientRect();
         const characterFrameHeight = getCharacterDropdownFrameHeight();
+        const zf = uiZoomFactor();
 
         const hub = document.createElement('div');
         hub.id = 'character-inline-hub-fixed';
         hub.className = 'character-inline-hub';
         hub.style.position = 'fixed';
-        hub.style.left = Math.round(triggerRect.left) + 'px';
-        hub.style.top = Math.round(triggerRect.bottom - 2) + 'px';
-        hub.style.width = Math.round(triggerRect.width) + 'px';
+        hub.style.left = Math.round(triggerRect.left / zf) + 'px';
+        hub.style.top = Math.round((triggerRect.bottom - 2) / zf) + 'px';
+        hub.style.width = Math.round(triggerRect.width / zf) + 'px';
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
@@ -2532,14 +2543,15 @@ function toggleInventoryHubInline() {
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
         const characterFrameHeight = getCharacterDropdownFrameHeight();
+        const zf = uiZoomFactor();
 
         const hub = document.createElement('div');
         hub.id = 'inventory-inline-hub-fixed';
         hub.className = 'character-inline-hub';
         hub.style.position = 'fixed';
-        hub.style.left = Math.round(triggerRect.left) + 'px';
-        hub.style.top = Math.round(triggerRect.bottom - 2) + 'px';
-        hub.style.width = Math.round(triggerRect.width) + 'px';
+        hub.style.left = Math.round(triggerRect.left / zf) + 'px';
+        hub.style.top = Math.round((triggerRect.bottom - 2) / zf) + 'px';
+        hub.style.width = Math.round(triggerRect.width / zf) + 'px';
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
@@ -2617,14 +2629,15 @@ function toggleMissionsHubInline() {
     if (shouldOpen) {
         const triggerRect = trigger.getBoundingClientRect();
         const characterFrameHeight = getCharacterDropdownFrameHeight();
+        const zf = uiZoomFactor();
 
         const hub = document.createElement('div');
         hub.id = 'missions-inline-hub-fixed';
         hub.className = 'character-inline-hub';
         hub.style.position = 'fixed';
-        hub.style.left = Math.round(triggerRect.left) + 'px';
-        hub.style.top = Math.round(triggerRect.bottom - 2) + 'px';
-        hub.style.width = Math.round(triggerRect.width) + 'px';
+        hub.style.left = Math.round(triggerRect.left / zf) + 'px';
+        hub.style.top = Math.round((triggerRect.bottom - 2) / zf) + 'px';
+        hub.style.width = Math.round(triggerRect.width / zf) + 'px';
         hub.style.zIndex = '99999';
         hub.style.display = 'flex';
         hub.style.flexDirection = 'column';
@@ -3199,7 +3212,7 @@ function renderCharacter() {
       <div class="class-scene-content char-grid">
         <div id="char-msg" class="msg hidden" style="grid-column:1/-1;margin-bottom:8px"></div>
         <div class="char-panel">
-          <h3>STATS</h3>
+          <h3>STATS ${c.evolvedClassName ? `<span style="font-size:0.62rem;letter-spacing:0.06em;color:#f1c40f;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:2px 8px;margin-left:8px;vertical-align:middle">🧬 ${escHtml(c.evolvedClassName)}</span>` : ''}</h3>
           ${renderTempStatBuffs(c.temp_stat_buffs)}
           ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr > 0)}
           ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef > 0)}
@@ -4228,6 +4241,13 @@ async function checkTrainingStatus() {
         if (trainingInterval) {
             clearInterval(trainingInterval);
             trainingInterval = null;
+        }
+        if (status && status.evolved) {
+            try { character = await api('GET', '/game/character'); } catch {}
+            renderTopBar();
+            if (typeof renderCharacter === 'function') renderCharacter();
+            if (typeof renderSkillTreeTab === 'function') renderSkillTreeTab();
+            showMsg('skill-tree-msg', `🧬 Evolution complete — you are now a ${status.evolved.name}! New avatar unlocked in your profile pics.`);
         }
     } catch(e) {
         console.error('Failed to check training status:', e);
