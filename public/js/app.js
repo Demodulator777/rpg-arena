@@ -4567,6 +4567,14 @@ function renderUpgrade() {
     }).join('');
 }
 
+function _ttPos(tooltip, r, tw, th) {
+    const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    let left = r.right/zf+12, top = r.top/zf;
+    if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
+    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    tooltip.style.left = Math.max(8,left)+'px';
+    tooltip.style.top  = Math.max(8,top)+'px';
+}
 let _upgradingStats = {};
 function showStatUpgradeInfo(btn, noAutoHide) {
     const stat = btn.dataset.stat;
@@ -4581,12 +4589,7 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     tt.style.width = '';
     tt.classList.remove('hidden');
     const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 80;
-    const r = btn.getBoundingClientRect();
-    let left = r.right + 12, top = r.top;
-    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
-    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
-    tt.style.left = Math.max(8, left) + 'px';
-    tt.style.top = Math.max(8, top) + 'px';
+    _ttPos(tt, btn.getBoundingClientRect(), tw, th);
     clearTimeout(tt._hideTimer);
     if (!noAutoHide) tt._hideTimer = setTimeout(() => tt.classList.add('hidden'), 3000);
 }
@@ -6936,12 +6939,7 @@ function showRaidGearTooltip(event, declJson) {
     tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth || 240;
     const th = tooltip.offsetHeight || 220;
-    let left = r.right + 12;
-    let top = r.top;
-    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
-    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
-    tooltip.style.left = Math.max(8, left) + 'px';
-    tooltip.style.top = Math.max(8, top) + 'px';
+    _ttPos(tooltip, r, tw, th);
 }
 
 // ── Inventory ─────────────────────────────────────────────────────────────
@@ -7522,11 +7520,7 @@ function hoverElemTooltip(el, event) {
     const r = el.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth || 220;
-    let left = r.right + 12, top = r.top;
-    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
-    if (top + tooltip.offsetHeight > window.innerHeight - 8) top = window.innerHeight - tooltip.offsetHeight - 8;
-    tooltip.style.left = Math.max(8, left) + 'px';
-    tooltip.style.top = Math.max(8, top) + 'px';
+    _ttPos(tooltip, r, tw, tooltip.offsetHeight || 220);
 }
 
 function hoverShopItemTooltip(el, event) {
@@ -7617,11 +7611,7 @@ function showItemTooltip(event, itemId) {
     const r = event.currentTarget.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||340;
-    let left = r.right+12, top = r.top;
-    if (left+tw>window.innerWidth-8) left = r.left-tw-12;
-    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
-    tooltip.style.left = Math.max(8,left)+'px';
-    tooltip.style.top  = Math.max(8,top)+'px';
+    _ttPos(tooltip, r, tw, th);
 }
 
 function showEqTooltip(event, itemJson) {
@@ -7660,11 +7650,7 @@ function showEqTooltip(event, itemJson) {
     const r = event.currentTarget.getBoundingClientRect();
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||300;
-    let left = r.right+12, top = r.top;
-    if (left+tw>window.innerWidth-8) left = r.left-tw-12;
-    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
-    tooltip.style.left = Math.max(8,left)+'px';
-    tooltip.style.top  = Math.max(8,top)+'px';
+    _ttPos(tooltip, r, tw, th);
 }
 
 function showForgeItemTooltip(event, itemJson) {
@@ -7734,12 +7720,7 @@ function showForgeItemTooltip(event, itemJson) {
     tooltip.style.top = '-9999px';
     const tw = tooltip.offsetWidth || 220;
     const th = tooltip.offsetHeight || 340;
-    let left = r.right + 12;
-    let top = r.top;
-    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
-    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
-    tooltip.style.left = Math.max(8, left) + 'px';
-    tooltip.style.top = Math.max(8, top) + 'px';
+    _ttPos(tooltip, r, tw, th);
 }
 // ============================================
 // LOOT BOX MODAL SYSTEM WITH IMAGE SUPPORT
@@ -13878,15 +13859,7 @@ function showShopItemTooltip(event, itemJson) {
 
     const tw = tooltip.offsetWidth || 220;
     const th = tooltip.offsetHeight || 340;
-
-    let left = r.right + 12;
-    let top = r.top;
-
-    if (left + tw > window.innerWidth - 8) left = r.left - tw - 12;
-    if (top + th > window.innerHeight - 8) top = window.innerHeight - th - 8;
-
-    tooltip.style.left = Math.max(8, left) + 'px';
-    tooltip.style.top = Math.max(8, top) + 'px';
+    _ttPos(tooltip, r, tw, th);
 }
 
 function toggleScreenshotUpload() {
