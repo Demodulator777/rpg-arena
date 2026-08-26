@@ -14,6 +14,8 @@
 // ── State ─────────────────────────────────────────────────────────────────────
 let _stData      = null;   // last fetched skill tree response
 let _stLoading   = false;
+let _stTips      = [];     // tooltip payloads for the current render
+let _stTipHideTimer = null;
 
 // ── Entry point — called by showTab('train') in app.js ───────────────────────
 async function renderSkillTreeTab() {
@@ -39,7 +41,7 @@ function renderSkillTreeUI(root) {
     const classColors = { warrior:'#e74c3c', mage:'#9b59b6', rogue:'#2ecc71', paladin:'#f1c40f' };
     const accent = classColors[charClass] || '#3498db';
 
-    // ── Header ─────────────────────────────────────────────────────────────────
+// ── Header ────────────────────────────────────────────────────────────────────
     let html = `
     <div style="padding:0 0 20px">
 
@@ -56,7 +58,7 @@ function renderSkillTreeUI(root) {
                 </div>
             </div>
             <div style="text-align:right;font-size:0.72rem;color:rgba(255,255,255,0.35)">
-                <div><span style="color:var(--gold)">💰 ${(character.gold||0).toLocaleString()}</span></div>
+            <div><span style="color:var(--gold)">💰 ${(character.gold||0).toLocaleString()}</span></div>
                 <div style="margin-top:3px">${learned.length} skill${learned.length!==1?'s':''} learned</div>
             </div>
         </div>
@@ -68,7 +70,7 @@ function renderSkillTreeUI(root) {
             🌳 <strong>Living skill tree</strong> — train a skill to reveal the next step of its path. Master a full path to unlock its evolution.
         </div>`;
 
-    // ── Class stat modifier notice ─────────────────────────────────────────────
+// ── Class stat modifier notice ─────────────────────────────────────────────
     const penalties = upgradePenalties  || {};
     const discounts = upgradeDiscounts  || {};
     if (Object.keys(penalties).length || Object.keys(discounts).length) {
@@ -83,10 +85,10 @@ function renderSkillTreeUI(root) {
         </div>`;
     }
 
-    // ── Mage path notice ──────────────────────────────────────────────────────
+// ── Mage path notice ──────────────────────────────────────────────────────
     if (charClass === 'mage' && mPath) {
         const pathColor = mPath === 'shadow' ? '#9b59b6' : '#f1c40f';
-        const pathName  = mPath === 'shadow' ? '🌑 Shadow Path' : '☀️ Light Path';
+    const pathName  = mPath === 'shadow' ? '🌑 Shadow Path' : '☀️ Light Path';
         html += `
         <div style="padding:8px 14px;border-radius:8px;border:1px solid ${pathColor}55;
                     background:${pathColor}11;font-size:0.78rem;color:${pathColor};
@@ -95,7 +97,7 @@ function renderSkillTreeUI(root) {
         </div>`;
     }
 
-    // ── Rogue dual-wield notice ───────────────────────────────────────────────
+// ── Rogue dual-wield notice ───────────────────────────────────────────────
     if (charClass === 'rogue') {
         if (dualWieldUnlocked) {
             html += `<div style="padding:8px 14px;border-radius:8px;border:1px solid #2ecc7155;
@@ -111,7 +113,7 @@ function renderSkillTreeUI(root) {
                  </div>`;
     }
 
-    // ── Active training session ───────────────────────────────────────────────
+// ── Active training session ───────────────────────────────────────────────
     if (activeTraining) {
         const done = activeTraining.done;
         const left = activeTraining.timeLeft || 0;
@@ -136,7 +138,7 @@ function renderSkillTreeUI(root) {
         </div>`;
     }
 
-    // ── Skill tree graph ──────────────────────────────────────────────────────
+// ── Skill tree graph ──────────────────────────────────────────────────────
     if (!tree.branches || !Object.keys(tree.branches).length) {
         html += `<p style="color:rgba(255,255,255,0.4);padding:20px;text-align:center">No branches found for ${charClass}.</p>`;
     } else {
@@ -145,10 +147,11 @@ function renderSkillTreeUI(root) {
 
     html += `</div>`;
     root.innerHTML = html;
+    stAttachSkillTips(root);
 }
 
-// ── Branch renderer ───────────────────────────────────────────────────────────
-// ═══ Skill tree graph — starter → branch paths → doctrine splits ═══
+// ── Branch renderer ───────────────────────────────────────────────────────
+// ═══ Skill tree graph — starter → rail → branch paths → doctrine splits ═══
 function stTreeCss() {
     return `<style>
     .st-tree { --st-line: rgba(255,255,255,0.16); --st-line-lit: rgba(232,184,75,0.6); }
@@ -200,6 +203,7 @@ function stBranchColor(branchId, accent) {
 }
 
 // Square skill node: skill image with emoji fallback, name, progress, train controls.
+// Square skill node: skill image with emoji fallback, name, progress, train controls.
 function stSkillBlob(sk, bc, activeTraining, busyState) {
     const skillKey = sk.id;
     const learned = sk.learned;
@@ -214,17 +218,15 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
     else if (trainable) { borderColor = bc + '99'; bg = bc + '0a'; }
     if (isEvo && !learned) { borderColor = trainable ? '#f1c40f' : 'rgba(241,196,15,0.35)'; bg = trainable ? 'rgba(241,196,15,0.06)' : 'rgba(241,196,15,0.02)'; nameColor = trainable ? '#f1c40f' : 'rgba(241,196,15,0.5)'; }
 
-    const icon = `<div class="st-blob-icon"><img src="/images/assets/skills/${skillKey}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:2rem;line-height:1">${sk.emoji || '⚔️'}</span></div>`;
-
     let sub = '';
     let progressHtml = '';
     if (training && activeTraining) {
         const tp = (activeTraining.progressPercent ?? activeTraining.progressCurrent ?? activeTraining.progress ?? 0);
         const gain = Math.max(0, tp - Number(activeTraining.progressStart ?? activeTraining.progress_start ?? tp));
+        const gainTxt = gain >= 0.1 ? `· +${gain.toFixed(1)}%` : '';
         sub = `⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || 0)} left`;
         progressHtml = `<div class="st-progress"><div style="width:${tp}%;background:#f1c40f"></div></div>
-            <div class="st-blob-sub">${tp < 10 ? tp.toFixed(1) : Math.floor(tp)}%${gain >= 0.1 ? ` · +${gain.toFixed(1)}%` : ''}</div>`;
-    } else if (progress > 0 && progress < 100 && !learned) {
+            <div class="st-blob-sub">${tp < 10 ? tp.toFixed(1) : Math.floor(tp)}%${gainTxt}</div>`;
         sub = `${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% learned`;
         progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
     } else if (learned) {
@@ -258,15 +260,30 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         }
     }
 
-    const badge = learned ? `<span class="st-badge" style="color:${bc}">✓</span>`
-        : training ? `<span class="st-badge" style="color:#f1c40f">⏳</span>`
+        const badge = learned ? `<span class="st-badge" style="color:${bc}">✓</span>`
+        : training ? `<span class="st-badge" style="color:#f1c40f">⚡</span>`
         : isEvo ? `<span class="st-badge" style="color:rgba(241,196,15,0.6)">🧬</span>` : '';
 
-    const tip = stEscapeAttr(`${sk.name}${sk.desc ? ' — ' + sk.desc : ''}${sk.effects?.length ? ' (' + stEffectSummary(sk.effects) + ')' : ''}`);
+    const stateText = training ? 'Training in progress'
+        : learned ? 'Mastered'
+        : trainable ? 'Ready to train'
+        : (sk.locked && sk.unlockConditionDesc) ? sk.unlockConditionDesc
+        : (progress > 0 ? 'In progress' : 'Locked');
+    const tipIdx = _stTips.length;
+    _stTips.push({
+        emoji: sk.emoji || '⚔️',
+        img: `/images/assets/skills/${skillKey}.png`,
+        name: sk.name,
+        color: isEvo ? '#f1c40f' : bc,
+        meta: `Tier ${sk.tier || '?'}${isEvo ? ' · Evolution' : ''}`,
+        desc: sk.desc || '',
+        effects: stEffectParts(sk.effects),
+        state: stateText
+    });
 
-    return `<div class="st-blob${training ? ' st-state-training' : ''}" style="border-color:${borderColor};background:${bg}" title="${tip}">
+    return `<div class="st-blob${training ? ' st-state-training' : ''}" style="border-color:${borderColor};background:${bg};cursor:help" data-sttip="${tipIdx}">
         ${badge}
-        ${icon}
+        <div class="st-blob-icon"><img src="/images/assets/skills/${skillKey}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:2rem;line-height:1">${sk.emoji || '⚔️'}</span></div>
         <div class="st-blob-name" style="color:${nameColor}">${sk.name}</div>
         ${sub ? `<div class="st-blob-sub">${sub}</div>` : ''}
         ${progressHtml}
@@ -276,7 +293,17 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
 
 // Dimmed placeholder showing the path continues without leaking the skill.
 function stFutureBlob() {
-    return `<div class="st-blob st-future" title="Keep training to reveal">
+    const tipIdx = _stTips.length;
+    _stTips.push({
+        emoji: '❓',
+        name: '???',
+        color: 'rgba(255,255,255,0.4)',
+        meta: 'Unknown skill',
+        desc: 'Keep training this path to reveal the next step.',
+        effects: [],
+        state: ''
+    });
+    return `<div class="st-blob st-future" style="cursor:help" data-sttip="${tipIdx}">
         <div class="st-blob-icon" style="color:rgba(255,255,255,0.25)">❓</div>
         <div class="st-blob-name" style="color:rgba(255,255,255,0.3)">???</div>
     </div>`;
@@ -288,8 +315,17 @@ function stBranchBlob(branchId, branch, bc, accent) {
     const learnedCount = skills.filter(s => s.learned).length;
     const total = skills.length;
     const canUnlearn = Object.values(branch.skills).some(s => (s.progress || 0) > 0) && !branch.isStarter;
-    const tip = stEscapeAttr(branch.description || branch.name);
-    return `<div class="st-blob" style="border-color:${bc}66;background:${bc}0d" title="${tip}">
+    const tipIdx = _stTips.length;
+    _stTips.push({
+        emoji: branch.emoji || '⚔️',
+        name: branch.name,
+        color: bc,
+        meta: 'Skill path',
+        desc: branch.description || '',
+        effects: [],
+        state: `${learnedCount}/${total} mastered${branch.exclusiveLocked ? ' · forever closed' : ''}`
+    });
+    return `<div class="st-blob" style="border-color:${bc}66;background:${bc}0d;cursor:help" data-sttip="${tipIdx}">
         <div class="st-blob-icon" style="font-size:1.5rem">${branch.emoji || '⚔️'}</div>
         <div class="st-blob-name" style="color:${bc}">${branch.name}</div>
         <div class="st-blob-sub">${learnedCount}/${total} mastered</div>
@@ -298,8 +334,82 @@ function stBranchBlob(branchId, branch, bc, accent) {
     </div>`;
 }
 
-function stEscapeAttr(s) {
-    return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// ── Game-styled hover tooltip (reuses #item-tooltip) ─────────────────────────
+function stEffectParts(effects) {
+    const parts = [];
+    for (const eff of effects || []) {
+        if (eff.type === 'passive_stat') parts.push('+ ' + eff.value + ' ' + String(eff.stat).replace(/_/g, ' '));
+        else if (eff.type === 'passive_pct' && eff.value > 0) parts.push('+' + Math.round(eff.value * 100) + '% ' + String(eff.stat).replace(/_/g, ' '));
+        else if (eff.type === 'passive_pct' && eff.value < 0) parts.push(Math.round(eff.value * 100) + '% ' + String(eff.stat).replace(/_/g, ' '));
+        else if (eff.type === 'resist_bonus') parts.push('+' + eff.value + ' all resists');
+        else if (eff.type === 'active_combat') parts.push('⚡ ' + String(eff.id).replace(/_/g, ' '));
+        else if (eff.type === 'class_modifier') parts.push('🔧 ' + String(eff.id).replace(/_/g, ' '));
+    }
+    return parts;
+}
+
+function stPushTip(data) { _stTips.push(data); return _stTips.length - 1; }
+
+function stHideTipNow() {
+    const t = document.getElementById('item-tooltip');
+    if (t) t.classList.add('hidden');
+}
+function stHideTipSoon() {
+    if (_stTipHideTimer) clearTimeout(_stTipHideTimer);
+    _stTipHideTimer = setTimeout(stHideTipNow, 150);
+}
+function stCancelHideTip() {
+    if (_stTipHideTimer) { clearTimeout(_stTipHideTimer); _stTipHideTimer = null; }
+}
+
+function stShowTipFor(el) {
+    const d = _stTips[Number(el.getAttribute('data-sttip'))];
+    if (!d) return;
+    stCancelHideTip();
+    let tip = document.getElementById('item-tooltip');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'item-tooltip';
+        tip.className = 'item-tooltip hidden';
+        document.body.appendChild(tip);
+    }
+    const effectLines = (d.effects || []).map(p =>
+        '<div class="tt-stat"><span class="tt-stat-name" style="text-transform:none">' + p + '</span></div>'
+    ).join('');
+    tip.innerHTML =
+        '<div class="tt-preview" style="padding:12px">' +
+            (d.img
+                ? '<img src="' + d.img + '" alt="" data-error-hide="true" data-error-next-display="inline-flex" style="width:80px;height:80px"><span class="tt-preview-emoji" style="display:none;font-size:3rem">' + (d.emoji || '') + '</span>'
+                : '<span class="tt-preview-emoji" style="font-size:3rem">' + (d.emoji || '') + '</span>') +
+        '</div>' +
+        '<div class="tt-body">' +
+            '<div class="tt-name" style="color:' + (d.color || 'var(--text-bright)') + '">' + d.name + '</div>' +
+            (d.meta ? '<div class="tt-meta">' + d.meta + '</div>' : '') +
+            (d.desc ? '<div class="tt-desc">' + d.desc + '</div>' : '') +
+            (effectLines ? '<div class="tt-stats">' + effectLines + '</div>' : '') +
+            (d.state ? '<div class="tt-vs">' + d.state + '</div>' : '') +
+        '</div>';
+    tip.classList.remove('hidden');
+    tip.style.height = '';
+    const r = el.getBoundingClientRect();
+    const zf = (typeof uiZoomFactor === 'function') ? uiZoomFactor() : 1;
+    const vw = window.innerWidth / zf, vh = window.innerHeight / zf;
+    const tw = tip.offsetWidth || 220, th = tip.offsetHeight || 260;
+    let left = r.right / zf + 12, top = r.top / zf;
+    if (left + tw > vw - 8) left = r.left / zf - tw - 12;
+    if (top + th > vh - 8) top = vh - th - 8;
+    if (top < 8) top = 8;
+    tip.style.left = Math.max(8, Math.round(left)) + 'px';
+    tip.style.top = Math.round(top) + 'px';
+}
+
+function stAttachSkillTips(root) {
+    if (!root) return;
+    root.querySelectorAll('[data-sttip]').forEach(el => {
+        el.addEventListener('mouseenter', () => stShowTipFor(el));
+        el.addEventListener('mouseleave', stHideTipSoon);
+    });
 }
 
 // Vertical chain of skill blobs with lit/dim connectors. Reveals the path as
@@ -326,6 +436,7 @@ function stChain(branch, bc, activeTraining, busyState, branchId) {
 
 // Full tree: starter → rail → branch columns (→ doctrine splits).
 function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
+    _stTips = [];
     const branches = tree.branches;
     const ids = Object.keys(branches);
     const starterId = ids.find(id => branches[id].isStarter);
@@ -367,7 +478,7 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
 
         if (closed) {
             html += `<div class="st-link"></div><div class="st-blob st-future" style="padding:16px 8px">
-                <div class="st-closed-note">🔒 PATH<br>CLOSED</div></div>`;
+            <div class="st-closed-note">🔒 PATH<br>CLOSED</div></div>`;
         } else {
             html += `<div class="st-link"></div>`;
             html += stChain(branch, bc, activeTraining, busyState, branchId);
@@ -436,7 +547,7 @@ function stFormatTime(seconds) {
     return `${m}m`;
 }
 
-// ── Spinner ───────────────────────────────────────────────────────────────────
+// ── Spinner ──────────────────────────────────────────────────────────────────
 function stSpinner(msg) {
     return `<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.35)">${msg}</div>`;
 }
@@ -506,7 +617,7 @@ async function updateTrainingStatus() {
             const remaining = formatTime(status.remainingSeconds || status.remaining || 0);
             document.getElementById('training-indicator').innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
-                    <span>⚔️ Training: ${progress}%</span>
+            <span>⚔️ Training: ${progress}%</span>
                     <div style="width: 60px; background: rgba(255,255,255,0.2); border-radius: 4px; height: 4px;">
                         <div style="width: ${progress}%; background: #9b59b6; height: 4px; border-radius: 4px;"></div>
                     </div>
@@ -597,7 +708,7 @@ async function stUnlearnStep(branchId) {
     }
 }
 
-// ── Poll training timer (updates once per minute while tab is visible) ────────
+// ── Poll training timer (updates once per minute while tab is visible) ───────
 let _stPollTimer = null;
 function startSkillTreePoll() {
     stopSkillTreePoll();
@@ -618,7 +729,7 @@ function stopSkillTreePoll() {
     if (_stPollTimer) { clearInterval(_stPollTimer); _stPollTimer = null; }
 }
 
-// ── Hook into existing showTab ────────────────────────────────────────────────
+// ── Hook into existing showTab ───────────────────────────────────────────────
 // Monkey-patch the existing showTab so we intercept the 'train' tab.
 (function patchShowTab() {
     const _orig = window.showTab;
@@ -633,7 +744,7 @@ function stopSkillTreePoll() {
     };
 })();
 
-// ── Expose globals ────────────────────────────────────────────────────────────
+// ── Expose globals ───────────────────────────────────────────────────────────
 window.renderSkillTreeTab = renderSkillTreeTab;
 window.stStartTrain       = stStartTrain;
 window.stCollect          = stCollect;
