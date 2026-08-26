@@ -440,17 +440,19 @@ function stShowTipFor(el) {
     const tw = tip.offsetWidth || 220, th = tip.offsetHeight || 260;
     const isNarrow = vw < 500;
     const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const rl=r.left/zf, rt=r.top/zf, rw=r.width/zf, rh=r.height/zf;
     let left, top;
     if (isNarrow) {
-        left = Math.max(8, Math.round(r.left / zf + r.width / zf / 2 - tw / 2));
+        left = Math.max(8, Math.round(rl + rw / 2 - tw / 2));
         top = Math.round(r.bottom / zf + 8);
     } else {
-        left = r.right / zf + 12;
-        top = r.top / zf;
-        if (left + tw > vw - 8) left = r.left / zf - tw - 12;
+        left = rl + rw / 2 - tw / 2;
+        top = rt - th - 12;
+        if (top < 8) top = r.bottom / zf + 8;
+        if (left + tw > vw - 8) left = vw - tw - 8;
     }
-    if (top + th > vh - 8) top = vh - th - 8;
     if (top < 8) top = 8;
+    if (top + th > vh - 8) top = vh - th - 8;
     tip.style.left = Math.max(8, Math.round(left)) + 'px';
     tip.style.top = Math.round(top) + 'px';
 }
