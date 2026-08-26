@@ -159,6 +159,9 @@ function stTreeCss() {
     .st-starter-row { display:flex; justify-content:center; }
     .st-rail-row { position:relative; height:26px; min-width:100%; }
     .st-rail { position:absolute; top:24px; height:2px; background:var(--st-line); }
+    .st-rail-seg { position:absolute; top:24px; height:2px; }
+    .st-rail-seg-inner { position:absolute; top:0; height:2px; background:var(--st-line); }
+    .st-rail-seg-inner.lit { background:var(--st-line-lit); }
     .st-branches { display:flex; align-items:stretch; }
     .st-branch-col { flex:1 1 0; min-width:158px; display:flex; flex-direction:column; align-items:center; padding:0 5px; }
     .st-stub { width:2px; height:24px; background:var(--st-line); flex-shrink:0; }
@@ -291,7 +294,7 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
     </div>`;
 }
 
-// Dimmed placeholder showing the path continues without leaking the skill.
+// Dimmed placeholder for a skill whose data is not yet known.
 function stFutureBlob() {
     const tipIdx = _stTips.length;
     _stTips.push({
@@ -306,6 +309,26 @@ function stFutureBlob() {
     return `<div class="st-blob st-future" style="cursor:help" data-sttip="${tipIdx}">
         <div class="st-blob-icon" style="color:rgba(255,255,255,0.25)">❓</div>
         <div class="st-blob-name" style="color:rgba(255,255,255,0.3)">???</div>
+    </div>`;
+}
+
+// Dimmed but informative locked blob — shows real skill name, icon, and effects
+// but styled as locked so the player knows it exists and what they'd get.
+function stLockedBlob(sk, bc) {
+    const tipIdx = stPushTip({
+        emoji: sk.emoji || '⚔️',
+        img: `/images/assets/skills/${sk.id}.png`,
+        name: sk.name,
+        color: bc,
+        meta: `Tier ${sk.tier || '?'} · Locked`,
+        desc: sk.desc || sk.description || '',
+        effects: stEffectParts(sk.effects),
+        state: '🔒 Complete previous skill to unlock'
+    });
+    return `<div class="st-blob st-future" style="border-color:${bc}22;background:${bc}06;cursor:help" data-sttip="${tipIdx}">
+        <div class="st-blob-icon" style="opacity:0.45"><img src="/images/assets/skills/${sk.id}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1.6rem;line-height:1">${sk.emoji || '⚔️'}</span></div>
+        <div class="st-blob-name" style="color:rgba(255,255,255,0.45)">${sk.name || '???'}</div>
+        <div class="st-blob-sub" style="color:rgba(255,255,255,0.3)">🔒</div>
     </div>`;
 }
 
@@ -325,12 +348,15 @@ function stBranchBlob(branchId, branch, bc, accent) {
         effects: [],
         state: `${learnedCount}/${total} mastered${branch.exclusiveLocked ? ' · forever closed' : ''}`
     });
-    return `<div class="st-blob" style="border-color:${bc}66;background:${bc}0d;cursor:help" data-sttip="${tipIdx}">
-        <div class="st-blob-icon" style="font-size:1.5rem">${branch.emoji || '⚔️'}</div>
-        <div class="st-blob-name" style="color:${bc}">${branch.name}</div>
-        <div class="st-blob-sub">${learnedCount}/${total} mastered</div>
-        ${canUnlearn ? `<div style="margin-top:6px"><button ${actionAttrs('stUnlearnStep', branchId)} title="Unlearn the last skill of this path (50% gold refund)"
-            style="font-size:0.56rem;padding:2px 8px;background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩ Unlearn</button></div>` : ''}
+    return `<div style="width:100%;margin:4px 0 0;cursor:help" data-sttip="${tipIdx}">
+        <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;background:${bc}0d;border:1px solid ${bc}33">
+            <span style="font-size:1.2rem;line-height:1">${branch.emoji || '⚔️'}</span>
+            <span style="font-size:0.78rem;font-weight:700;color:${bc}">${branch.name}</span>
+            <span style="font-size:0.6rem;color:${bc}99;margin-left:auto;white-space:nowrap">${learnedCount}/${total}</span>
+            ${canUnlearn ? `<button ${actionAttrs('stUnlearnStep', branchId)} title="Unlearn the last skill of this path (50% gold refund)"
+                style="font-size:0.52rem;padding:1px 6px;background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩</button>` : ''}
+            ${branch.exclusiveLocked ? `<span style="font-size:0.52rem;color:#e74c3c;background:rgba(231,76,60,0.12);border-radius:4px;padding:1px 5px;white-space:nowrap">🔒 CLOSED</span>` : ''}
+        </div>
     </div>`;
 }
 
@@ -392,12 +418,21 @@ function stShowTipFor(el) {
         '</div>';
     tip.classList.remove('hidden');
     tip.style.height = '';
+    tip.style.pointerEvents = 'none';
     const r = el.getBoundingClientRect();
     const zf = (typeof uiZoomFactor === 'function') ? uiZoomFactor() : 1;
     const vw = window.innerWidth / zf, vh = window.innerHeight / zf;
     const tw = tip.offsetWidth || 220, th = tip.offsetHeight || 260;
-    let left = r.right / zf + 12, top = r.top / zf;
-    if (left + tw > vw - 8) left = r.left / zf - tw - 12;
+    const isNarrow = vw < 500;
+    let left, top;
+    if (isNarrow) {
+        left = Math.max(8, Math.round(r.left / zf + r.width / zf / 2 - tw / 2));
+        top = Math.round(r.bottom / zf + 8);
+    } else {
+        left = r.right / zf + 12;
+        top = r.top / zf;
+        if (left + tw > vw - 8) left = r.left / zf - tw - 12;
+    }
     if (top + th > vh - 8) top = vh - th - 8;
     if (top < 8) top = 8;
     tip.style.left = Math.max(8, Math.round(left)) + 'px';
@@ -423,7 +458,8 @@ function stChain(branch, bc, activeTraining, busyState, branchId) {
     for (const [id, sk] of entries) {
         const isRevealed = revealed && (sk.started || sk.learned || sk.trainable || sk.prereqsMet);
         if (!isRevealed) {
-            html += `<div class="st-link"></div>` + stFutureBlob();
+            if (html) html += `<div class="st-link"></div>`;
+            html += (sk.name || sk.effects) ? stLockedBlob(sk, bc) : stFutureBlob();
             revealed = false;
             continue;
         }
@@ -459,9 +495,21 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
         }
     }
 
-    // Rail between first and last branch centers
+    // Rail between first and last branch centers — segment the rail so only the
+    // selected path's section is lit.
     if (mains.length) {
-        html += `<div class="st-rail-row"><div class="st-rail" style="left:${railSide}%;right:${railSide}%"></div></div>`;
+        const activeBranchId = mains.find(id => branchTreeHasProgressLocal(tree.branches[id], tree, id));
+        html += `<div class="st-rail-row">`;
+        for (let mi = 0; mi < mains.length; mi++) {
+            const isActive = mains[mi] === activeBranchId;
+            const segLeft = mi === 0 ? railSide : (100 / n) * mi + railSide - 0.5;
+            const segRight = mi === mains.length - 1 ? railSide : 100 - ((100 / n) * (mi + 1) + railSide) + 0.5;
+            // Left portion of the rail segment: from previous branch center to this branch center
+            // Actually simpler: each branch gets a centered segment; the rail is one continuous line
+            // but we can overlay a lit segment on the active branch's span.
+            html += `<div class="st-rail-seg" style="left:${(100 / n) * mi}%;width:${100 / n}%;"><div class="st-rail-seg-inner${isActive ? ' lit' : ''}" style="left:${railSide}%;right:${railSide}%"></div></div>`;
+        }
+        html += `</div>`;
     }
 
     // Branch columns
