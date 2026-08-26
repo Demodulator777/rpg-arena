@@ -6368,14 +6368,16 @@ function renderForge() {
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc||''}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
                 <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold each</div>
-                <div style="display:flex; align-items:center; gap:4px; margin-top:8px;">
-                    <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, -1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">−</button>
-                    <input type="number" class="forge-qty-input" data-eid="${c.id}" value="${maxQty >= 1 ? 1 : 0}" min="0" max="${maxQty}"
-                        style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
-                    <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, 1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">+</button>
-                    <button class="btn-sm" ${actionAttrs('forgeQtySetMax', c.id)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 40px; padding:2px 0;">MAX</button>
+                <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, -1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">−</button>
+                        <input type="number" class="forge-qty-input" data-eid="${c.id}" value="${maxQty >= 1 ? 1 : 0}" min="0" max="${maxQty}"
+                            style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
+                        <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, 1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">+</button>
+                        <button class="btn-sm" ${actionAttrs('forgeQtySetMax', c.id)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 40px; padding:2px 0;">MAX</button>
+                    </div>
+                    <button class="btn-forge" ${actionAttrs('refineInput', c.id)} ${maxQty < 1 ? 'disabled' : ''}>${maxQty >= 1 ? 'Refine' : 'Cannot Refine'}</button>
                 </div>
-                <button class="btn-forge" style="margin-top:auto" ${actionAttrs('refineInput', c.id)} ${maxQty < 1 ? 'disabled' : ''}>${maxQty >= 1 ? 'Refine' : 'Cannot Refine'}</button>
             </div>`;
         }).join('')}</div>`;
         return;
