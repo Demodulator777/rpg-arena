@@ -2029,20 +2029,20 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .nav-btn-label {
     position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: 9px;
-    height: 18px;
+    left: 10px;
+    right: 10px;
+    bottom: 12px;
+    height: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 4px;
     background: linear-gradient(to bottom, #1e3550, #0f1f33);
     /*border: 1px solid rgba(201,146,42,0.45);*/
-    border-radius: 8px;
+    /*border-radius: 8px;*/
     box-shadow: 0 2px 6px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08);
     color: #E8DCC6;
-    font-size: 0.62rem;
+    font-size: 0.55rem;
     font-weight: 900;
     letter-spacing: 0.04em;
     text-transform: uppercase;
