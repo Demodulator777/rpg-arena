@@ -447,7 +447,8 @@ function stShowTipFor(el) {
         top = Math.round(r.bottom / zf + 8);
     } else {
         left = rl + rw / 2 - tw / 2;
-        top = rt + rh / 2 - th / 2;
+        top = rt - th - 12;
+        if (top < 8) top = r.bottom / zf + 8;
         if (left + tw > vw - 8) left = vw - tw - 8;
     }
     if (top < 8) top = 8;
