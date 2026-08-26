@@ -31,6 +31,14 @@
    scale (zoom off + uncompensated viewport units). */
 html.ui-zoom-off { zoom: 1; }
 html.ui-zoom-off { --vph: 100vh; --vpw: 100vw; --svph: 100svh; }
+/* Modals keep their original size under the PC zoom: counter-zoom the box
+   (0.8 × 1.25 = 1.0). The overlay dim itself stays full-screen. */
+@media (min-width: 641px) {
+    .modal-overlay .modal-box,
+    #char-avatar-editor > div {
+        zoom: 0.8;
+    }
+}
 
 /* Prevent text selection / Tap to Search app-wide — re-enable on editable fields */
 *, *::before, *::after {
