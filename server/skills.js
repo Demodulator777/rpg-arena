@@ -1675,7 +1675,11 @@ const EVOLUTIONS = {
 // behaves like a regular progressive skill: hidden until every skill of the
 // branch is fully learned (static `requires`), trained through the normal
 // /train/start flow, and its completion evolves the character.
+// Evolutions are disabled on Server 1 (game-server1.db) until they have been
+// tested on the beta server — the skills simply don't exist in the s1 trees.
+const EVOLUTIONS_ENABLED = !/game-server1\.db/i.test(process.env.TURSO_DATABASE_URL || '');
 for (const [className, branchEvolutions] of Object.entries(EVOLUTIONS)) {
+    if (!EVOLUTIONS_ENABLED) break;
     const tree = SKILL_TREES[className];
     if (!tree) continue;
     for (const [branchId, evo] of Object.entries(branchEvolutions)) {
@@ -2048,6 +2052,7 @@ async function clearLockedBranchId(db, charId) {
 // unlock its avatar in the profile-pic selector. characters.class intentionally
 // stays the base class so every existing skill-tree bonus keeps applying.
 async function unlockEvolution(db, char, skillId) {
+    if (!EVOLUTIONS_ENABLED) return null;
     if (!String(skillId || '').startsWith('evolve_')) return null;
     const branchId = String(skillId).slice('evolve_'.length);
     const evo = (EVOLUTIONS[char.class] || {})[branchId];
@@ -2656,6 +2661,9 @@ router.post('/train/start', async (req, res) => {
         let evolutionGold = 0;
         let evolutionMats = null;
         if (sk.type === 'evolution') {
+            if (!EVOLUTIONS_ENABLED) {
+                return res.status(400).json({ error: 'Evolutions are not available on this server yet.' });
+            }
             evolutionGold = Number(sk.evolutionGoldCost || 0);
             evolutionMats = sk.evolutionCost || {};
             for (const [matId, qty] of Object.entries(evolutionMats)) {
