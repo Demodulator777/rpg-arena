@@ -2031,7 +2031,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     position: absolute;
     left: 8px;
     right: 8px;
-    bottom: 6px;
+    bottom: 9px;
     height: 18px;
     display: flex;
     align-items: center;
