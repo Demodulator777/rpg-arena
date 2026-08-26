@@ -6359,8 +6359,10 @@ function renderForge() {
             maxQty = Math.max(0, maxQty);
             const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{
                 const have=(forgeData.mats[mat]?.qty||0);
-                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${mat.replace(/_/g,' ')} (have ${have})</span>`;
-            }).join(', ');
+                const matData = forgeData.mats[mat] || {};
+                const matName = matData.name || mat.replace(/_/g,' ');
+                return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
+            }).join(' ');
             return `<div class="forge-card" data-eid="${c.id}" style="display:flex;flex-direction:column;min-height:240px">
                 <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div>
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc||''}</div>
@@ -6488,8 +6490,10 @@ const sets = forgeData.sets || {};
             const forgeItemData = escHtml(JSON.stringify(r));
             const compStr = Object.entries(r.components).map(([comp,qty]) => {
                 const have = (forgeData.mats[comp]?.qty||0);
-                return `<span style="color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${comp.replace(/_/g,' ')} (have ${have})</span>`;
-            }).join(', ');
+                const matData = forgeData.mats[comp] || {};
+                const matName = matData.name || comp.replace(/_/g,' ');
+                return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
+            }).join(' ');
 
             return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?hexToRgba(qColor, 0.4):'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
                 <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
