@@ -1631,6 +1631,83 @@ const SKILL_TREES = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// EVOLUTIONS — branch mastery → advanced class + avatar
+// ═══════════════════════════════════════════════════════════════════════════════
+// Once every skill of a branch is fully trained, an additional "Evolve" training
+// becomes available on that branch. Completing it unlocks an advanced class and
+// its avatar. The evolved class keeps ALL bonuses of the previous class skill
+// tree (characters.class stays the base class; evolved_class is display-only for
+// now). Switching to the new class skill trees ("evolve") stays locked until
+// those trees are developed.
+const EVOLUTION_THRESHOLDS = createThresholds({
+    10: {}, 25: { demon_core: 1 }, 50: { demon_alloy: 2 }, 75: { eternal_essence: 2 }, 100: { eternal_essence: 3 }
+});
+
+const EVOLUTIONS = {
+    warrior: {
+        berserker:        { class: 'berserker',   name: 'Berserker',   emoji: '🔥', avatar: 'warrior-berserker',   description: 'Unbridled fury made flesh.' },
+        iron_guard:       { class: 'ironguard',   name: 'Ironguard',   emoji: '🏰', avatar: 'warrior-ironguard',   description: 'An immovable living fortress.' },
+        battle_commander: { class: 'commander',   name: 'Commander',   emoji: '📯', avatar: 'warrior-commander',   description: 'A tactician who owns the battlefield.' },
+        gladiator:        { class: 'gladiator',   name: 'Gladiator',   emoji: '🏟️', avatar: 'warrior-gladiator',   description: 'The undisputed champion of the arena.' },
+    },
+    mage: {
+        pyromancer:  { class: 'pyromancer',  name: 'Pyromancer',  emoji: '🔥', avatar: 'mage-pyromancer',  description: 'Fire incarnate.' },
+        cryomancer:  { class: 'cryomancer',  name: 'Cryomancer',  emoji: '❄️', avatar: 'mage-cryomancer',  description: 'Winter given will.' },
+        stormcaller: { class: 'stormcaller', name: 'Stormcaller', emoji: '⚡', avatar: 'mage-stormcaller', description: 'The storm answers only to you.' },
+        light_path:  { class: 'lightweaver', name: 'Lightweaver', emoji: '✨', avatar: 'mage-lightweaver', description: 'A saint woven from pure light.' },
+        shadow_path: { class: 'voidcaller',  name: 'Voidcaller',  emoji: '🌑', avatar: 'mage-voidcaller',  description: 'A herald of the endless void.' },
+    },
+    rogue: {
+        assassin:     { class: 'assassin',    name: 'Assassin',    emoji: '🗡️', avatar: 'rogue-assassin',    description: 'Death, delivered quietly.' },
+        trickster:    { class: 'trickster',   name: 'Trickster',   emoji: '🎭', avatar: 'rogue-trickster',   description: 'The fight is over before they notice.' },
+        shadowblade:  { class: 'shadowblade', name: 'Shadowblade', emoji: '🌑', avatar: 'rogue-shadowblade', description: 'One with the shadows.' },
+        dual_wielder: { class: 'duelist',     name: 'Duelist',     emoji: '⚔️', avatar: 'rogue-duelist',     description: 'A blade in each hand, no equal in sight.' },
+    },
+    paladin: {
+        protector:      { class: 'guardian',   name: 'Guardian',   emoji: '🛡️', avatar: 'paladin-guardian',   description: 'The wall that never falls.' },
+        divine_warrior: { class: 'templar',    name: 'Templar',    emoji: '⚔️', avatar: 'paladin-templar',    description: 'Justice wielded like a blade.' },
+        inquisitor:     { class: 'inquisitor', name: 'Inquisitor', emoji: '🔎', avatar: 'paladin-inquisitor', description: 'No sin escapes judgment.' },
+        crusader:       { class: 'crusader',   name: 'Crusader',   emoji: '🕊️', avatar: 'paladin-crusader',   description: 'Holy fire given purpose.' },
+    },
+};
+
+// Inject an evolution pseudo-skill into each branch that has an evolution. It
+// behaves like a regular progressive skill: hidden until every skill of the
+// branch is fully learned (static `requires`), trained through the normal
+// /train/start flow, and its completion evolves the character.
+for (const [className, branchEvolutions] of Object.entries(EVOLUTIONS)) {
+    const tree = SKILL_TREES[className];
+    if (!tree) continue;
+    for (const [branchId, evo] of Object.entries(branchEvolutions)) {
+        const branch = tree.branches[branchId];
+        if (!branch) continue;
+        const requiredSkillIds = Object.keys(branch.skills);
+        branch.skills[`evolve_${branchId}`] = {
+            id: `evolve_${branchId}`, tier: 6, name: `Evolve: ${evo.name}`, emoji: '🧬',
+            type: 'evolution',
+            desc: `Master every technique of this path to evolve into a ${evo.name}. Keeps all current bonuses and unlocks the ${evo.name} avatar.`,
+            effects: [],
+            requires: requiredSkillIds,
+            unlockCondition: null,
+            thresholds: EVOLUTION_THRESHOLDS,
+            evolutionGoldCost: 25000,
+            evolutionCost: { demon_core: 2, demon_alloy: 3, eternal_essence: 5 },
+            evolution: { class: evo.class, name: evo.name, avatar: evo.avatar },
+        };
+    }
+}
+
+function getEvolutionInfo(evolvedClassId) {
+    if (!evolvedClassId) return null;
+    for (const branchEvolutions of Object.values(EVOLUTIONS)) {
+        for (const evo of Object.values(branchEvolutions)) {
+            if (evo.class === evolvedClassId) return evo;
+        }
+    }
+    return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // HELPERS (same as before, but computePassiveBonuses needs to handle percentage)
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1693,7 +1770,9 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
             // Build unlock description - ALWAYS show for any skill that exists
             let unlockDesc = '';
             if (isLocked) {
-                if (!condMet && sk.unlockCondition) {
+                if (sk.type === 'evolution') {
+                    unlockDesc = 'Fully train every skill in this path to unlock your evolution';
+                } else if (!condMet && sk.unlockCondition) {
                     const match = sk.unlockCondition.match(/level_(\d+)/);
                     if (match) {
                         unlockDesc = 'Reach Level ' + match[1];
@@ -1917,7 +1996,9 @@ const SKILL_TREE_MIGRATIONS = [
     `ALTER TABLE characters ADD COLUMN wins_without_shield INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN elemental_kills INTEGER DEFAULT 0`,
     `ALTER TABLE characters ADD COLUMN dungeon_no_death_runs INTEGER DEFAULT 0`,
-    `ALTER TABLE characters ADD COLUMN training_cooldown_until INTEGER DEFAULT 0`
+    `ALTER TABLE characters ADD COLUMN training_cooldown_until INTEGER DEFAULT 0`,
+    `ALTER TABLE characters ADD COLUMN evolved_class TEXT DEFAULT NULL`,
+    `ALTER TABLE characters ADD COLUMN unlocked_classes TEXT DEFAULT '[]'`
 ];
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1961,6 +2042,34 @@ async function setLockedBranchId(db, char, branchId) {
 
 async function clearLockedBranchId(db, charId) {
     await dbRun(db, 'DELETE FROM character_skill_paths WHERE char_id = ?', [charId]);
+}
+
+// Finalize an evolution: mark the advanced class as unlocked + active, and
+// unlock its avatar in the profile-pic selector. characters.class intentionally
+// stays the base class so every existing skill-tree bonus keeps applying.
+async function unlockEvolution(db, char, skillId) {
+    if (!String(skillId || '').startsWith('evolve_')) return null;
+    const branchId = String(skillId).slice('evolve_'.length);
+    const evo = (EVOLUTIONS[char.class] || {})[branchId];
+    if (!evo) return null;
+
+    let unlocked = [];
+    try { unlocked = JSON.parse(char.unlocked_classes || '[]'); } catch {}
+    if (!unlocked.includes(evo.class)) unlocked.push(evo.class);
+    await dbRun(db, 'UPDATE characters SET unlocked_classes = ?, evolved_class = ? WHERE id = ?',
+        [JSON.stringify(unlocked), evo.class, char.id]);
+
+    let pics = [];
+    try { pics = JSON.parse(char.unlocked_profile_pics || '[]'); } catch {}
+    if (!pics.includes(evo.avatar)) {
+        pics.push(evo.avatar);
+        await dbRun(db, 'UPDATE characters SET unlocked_profile_pics = ? WHERE id = ?', [JSON.stringify(pics), char.id]);
+    }
+
+    char.unlocked_classes = JSON.stringify(unlocked);
+    char.evolved_class = evo.class;
+    char.unlocked_profile_pics = JSON.stringify(pics);
+    return evo;
 }
 
 function branchRequirementMet(branch, learnedMap = {}, progressMap = {}, char = {}, extraStats = {}) {
@@ -2113,6 +2222,7 @@ router.get('/tree', async (req, res) => {
 
         let trainingRow = await dbGet(db, 'SELECT * FROM skill_training WHERE char_id=?', [char.id]);
         const now = Math.floor(Date.now() / 1000);
+        let evolutionJustUnlocked = null;
         if (trainingRow && now >= Number(trainingRow.ends_at || 0)) {
             const currentProgress = getTrainingProgressNow(trainingRow, now);
             await dbRun(
@@ -2124,6 +2234,7 @@ router.get('/tree', async (req, res) => {
             if (currentProgress >= 100) {
                 learnedMap[trainingRow.skill_id] = true;
                 if (!learned.includes(trainingRow.skill_id)) learned.push(trainingRow.skill_id);
+                evolutionJustUnlocked = await unlockEvolution(db, char, trainingRow.skill_id);
             }
             await dbRun(db, 'DELETE FROM skill_training WHERE char_id = ?', [char.id]);
             trainingRow = null;
@@ -2172,6 +2283,10 @@ router.get('/tree', async (req, res) => {
             busyState,
             cooldownUntil: Number(char.training_cooldown_until || 0),
             cooldownRemaining: Math.max(0, Number(char.training_cooldown_until || 0) - now),
+            evolvedClass: char.evolved_class || null,
+            unlockedClasses: (() => { try { return JSON.parse(char.unlocked_classes || '[]'); } catch { return []; } })(),
+            evolutionJustUnlocked: evolutionJustUnlocked ? { class: evolutionJustUnlocked.class, name: evolutionJustUnlocked.name, avatar: evolutionJustUnlocked.avatar } : null,
+            evolveLocked: true,
             extraStats,
         });
     } catch (e) {
@@ -2355,7 +2470,11 @@ router.get('/training/status', async (req, res) => {
         if (remaining === 0) {
             await dbRun(db, 'UPDATE character_skill_tree SET progress = MAX(progress, ?), learned_at = CASE WHEN ? >= 100 THEN COALESCE(NULLIF(learned_at, 0), ?) ELSE learned_at END WHERE char_id = ? AND skill_id = ?', [currentProgress, currentProgress, now, char.id, training.skill_id]);
             await dbRun(db, 'DELETE FROM skill_training WHERE char_id = ?', [char.id]);
-            return res.json({ active: false, finished: true, skillId: training.skill_id, skill_id: training.skill_id, progressCurrent: currentProgress, progressPercent: currentProgress, fullyLearned: currentProgress >= 100, cooldownUntil, cooldownRemaining });
+            let evolved = null;
+            if (currentProgress >= 100) {
+                evolved = await unlockEvolution(db, char, training.skill_id);
+            }
+            return res.json({ active: false, finished: true, skillId: training.skill_id, skill_id: training.skill_id, progressCurrent: currentProgress, progressPercent: currentProgress, fullyLearned: currentProgress >= 100, evolved: evolved ? { class: evolved.class, name: evolved.name, avatar: evolved.avatar } : null, cooldownUntil, cooldownRemaining });
         }
 
         res.json({
@@ -2416,6 +2535,9 @@ router.post('/unlearn-step', async (req, res) => {
         }
 
         const latest = branchEntries[0];
+        if (latest.skill.type === 'evolution') {
+            return res.status(400).json({ error: 'Evolution training cannot be unlearned' });
+        }
         const refund = Math.floor((latest.skill.goldCost || 0) * 0.5);
 
         await dbRun(db, 'DELETE FROM character_skill_tree WHERE char_id = ? AND skill_id = ?', [char.id, latest.skillId]);
@@ -2530,6 +2652,25 @@ router.post('/train/start', async (req, res) => {
             return res.status(400).json({ error: `Unlock requirement not met: ${cond?.desc || sk.unlockCondition}` });
         }
 
+        // Evolution trainings carry a one-time gold + material cost, paid up front.
+        let evolutionGold = 0;
+        let evolutionMats = null;
+        if (sk.type === 'evolution') {
+            evolutionGold = Number(sk.evolutionGoldCost || 0);
+            evolutionMats = sk.evolutionCost || {};
+            for (const [matId, qty] of Object.entries(evolutionMats)) {
+                if (!qty) continue;
+                const matRow = await db.execute({
+                    sql: `SELECT * FROM inventory WHERE char_id=? AND (item_type='raw_mat' OR item_type='component') AND json_extract(item_data,'$.id')=?`,
+                    args: [char.id, matId]
+                });
+                const have = matRow.rows[0] ? (JSON.parse(matRow.rows[0].item_data).qty || 1) : 0;
+                if (have < qty) {
+                    return res.status(400).json({ error: `Need ${qty}× ${matId.replace(/_/g, ' ')} (you have ${have})` });
+                }
+            }
+        }
+
         const lockedBranchId = await getLockedBranchId(db, char.id);
         const branchRootId = getBranchRootId(tree, branchId);
         if (lockedBranchId && !branch.isStarter && lockedBranchId !== branchRootId) {
@@ -2540,8 +2681,27 @@ router.post('/train/start', async (req, res) => {
         }
 
         const extraGoldCost = doubleSpeed ? chosenHours * 500 : 0;
-        if ((char.gold || 0) < extraGoldCost) {
-            return res.status(400).json({ error: `Need ${extraGoldCost} gold for double speed` });
+        if ((char.gold || 0) < extraGoldCost + evolutionGold) {
+            return res.status(400).json({ error: `Need ${extraGoldCost + evolutionGold} gold (you have ${char.gold || 0})` });
+        }
+        if (evolutionGold > 0) {
+            await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [evolutionGold, char.id]);
+            for (const [matId, qty] of Object.entries(evolutionMats)) {
+                if (!qty) continue;
+                const matRow = await db.execute({
+                    sql: `SELECT * FROM inventory WHERE char_id=? AND (item_type='raw_mat' OR item_type='component') AND json_extract(item_data,'$.id')=?`,
+                    args: [char.id, matId]
+                });
+                if (matRow.rows[0]) {
+                    const d = JSON.parse(matRow.rows[0].item_data);
+                    d.qty = (d.qty || 1) - qty;
+                    if (d.qty <= 0) {
+                        await dbRun(db, 'DELETE FROM inventory WHERE id=?', [matRow.rows[0].id]);
+                    } else {
+                        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), matRow.rows[0].id]);
+                    }
+                }
+            }
         }
         if (extraGoldCost > 0) {
             await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [extraGoldCost, char.id]);
@@ -2772,6 +2932,9 @@ module.exports = {
     magePath,
     meetsUnlockCondition,
     getVisibleSkillTree,
+    EVOLUTIONS,
+    getEvolutionInfo,
+    unlockEvolution,
     // NEW progressive functions
     computePassiveBonusesWithProgress,
     computeActiveCombatEffectsWithProgress,
