@@ -1218,6 +1218,23 @@ function applyStaticI18n() {
 document.addEventListener('DOMContentLoaded', applyStaticI18n);
 if (document.readyState !== 'loading') applyStaticI18n();
 
+// Auth-screen language selector: while logged out the choice lives in
+// localStorage only; once logged in it is pushed to the account (users.lang)
+// so the language change persists server-side too.
+function syncLangToServer() {
+    try { api('POST', '/game/settings/language', { lang: CURRENT_LANG }); } catch {}
+}
+(function initAuthLangSelect() {
+    const sel = document.getElementById('auth-lang-select');
+    if (!sel) return;
+    sel.value = CURRENT_LANG;
+    sel.addEventListener('change', () => {
+        CURRENT_LANG = sel.value || 'en';
+        localStorage.setItem('rpg_lang', CURRENT_LANG);
+        applyStaticI18n();
+    });
+})();
+
 // ── Full-game DOM translation (exact-match phrases + pattern rules) ───────
 // Walks every text node once, then watches for newly rendered content.
 // Exact matches preserve surrounding whitespace; regex rules handle
@@ -2084,6 +2101,7 @@ async function login() {
         window.__forcedLogoutShown = false;
         window.__auth401Seen = false;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
+        syncLangToServer();
         try {
             const [charData] = await Promise.all([
                 api('GET','/game/character'),
@@ -2112,6 +2130,7 @@ async function register() {
         window.__forcedLogoutShown = false;
         window.__auth401Seen = false;
         localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
+        syncLangToServer();
         showScreen('create');
     } catch(e) { setError('auth-error',e.message); }
 }
@@ -2130,6 +2149,7 @@ async function handleGoogleCredential(resp) {
         window.__forcedLogoutShown = false;
         window.__auth401Seen = false;
         localStorage.setItem('rpg_token', token); localStorage.setItem('rpg_username', username);
+        syncLangToServer();
         try {
             const [charData] = await Promise.all([
                 api('GET', '/game/character'),
