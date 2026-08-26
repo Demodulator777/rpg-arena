@@ -1123,8 +1123,6 @@ window.showTabAndCloseMenu = showTabAndCloseMenu;
 const I18N = {
     pt: {
         'menu.language': 'Idioma',
-        'menu.voucher': 'Código de Voucher',
-        'menu.redeem': 'Resgatar',
         'menu.liveStatus': 'Status ao Vivo',
         'menu.activeEvent': 'Evento Ativo',
         'menu.noEvent': 'Nenhum evento ativo no momento',
@@ -1368,14 +1366,6 @@ function renderTopbarMenu() {
             </div>
         </div>
         <div class="topbar-menu-section">
-            <div class="topbar-menu-label">${t('menu.voucher', 'Voucher Code')}</div>
-            <div style="display:flex;gap:8px">
-                <input id="voucher-code-input" class="input-field" style="flex:1;margin:0" placeholder="ENTER CODE" maxlength="32" autocomplete="off">
-                <button class="topbar-menu-inline-btn" style="flex-shrink:0" id="voucher-redeem-btn">${t('menu.redeem', 'Redeem')}</button>
-            </div>
-            <div id="voucher-msg" class="topbar-menu-flash hidden"></div>
-        </div>
-        <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.liveStatus', 'Live Status')}</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">${t('menu.activeEvent', 'Active Event')}</div>
@@ -1512,38 +1502,6 @@ function renderTopbarMenu() {
         if (langOutsideClose) document.removeEventListener('click', langOutsideClose);
         langOutsideClose = (e) => { if (!langWrap.contains(e.target)) closeLangList(); };
         document.addEventListener('click', langOutsideClose);
-    }
-
-    const voucherBtn = document.getElementById('voucher-redeem-btn');
-    const voucherInput = document.getElementById('voucher-code-input');
-    const voucherMsg = document.getElementById('voucher-msg');
-    if (voucherBtn && voucherInput) {
-        const showVoucherMsg = (msg, isError) => {
-            if (!voucherMsg) return;
-            voucherMsg.textContent = msg;
-            voucherMsg.classList.remove('hidden');
-            voucherMsg.classList.toggle('error', !!isError);
-        };
-        const redeemVoucher = async () => {
-            const code = voucherInput.value.trim();
-            if (!code) { showVoucherMsg('Enter a voucher code.', true); return; }
-            voucherBtn.disabled = true;
-            try {
-                const d = await api('POST', '/game/voucher/redeem', { code });
-                showVoucherMsg(d.message, false);
-                voucherInput.value = '';
-                try {
-                    character = await api('GET', '/game/character');
-                    renderTopBar();
-                } catch {}
-            } catch (e) {
-                showVoucherMsg(e.message, true);
-            } finally {
-                voucherBtn.disabled = false;
-            }
-        };
-        voucherBtn.addEventListener('click', redeemVoucher);
-        voucherInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); redeemVoucher(); } });
     }
 }
 
