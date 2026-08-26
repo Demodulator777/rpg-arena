@@ -6375,7 +6375,8 @@ function renderForge() {
                 const matName = matData.name || mat.replace(/_/g,' ');
                 return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
             }).join(' ');
-            return `<div class="forge-card" data-eid="${c.id}" style="display:flex;flex-direction:column;min-height:240px">
+            const bgImg = getAssetImagePath(c.name);
+            return `<div class="forge-card" data-eid="${c.id}" style="display:flex;flex-direction:column;min-height:240px;${bgImg?'--card-bg:url('+bgImg+')':''}">
                 <div class="forge-card-header">${matIcon(c.name, c.emoji, '1.3rem')}<span class="forge-card-name">${c.name}</span></div>
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc||''}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
@@ -6426,7 +6427,8 @@ const sets = forgeData.sets || {};
                 const cardHtml = pieces.map(({slot, piece})=>{
                     const canBuy = tokens >= cost;
                     const forgeDecl = escHtml(JSON.stringify({ setId, slot, name: piece.name }));
-                    return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:250px;border-color:rgba(241,196,15,0.15)">
+                    const raidBg = getAssetImagePath(piece.name);
+                    return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:250px;border-color:rgba(241,196,15,0.15);${raidBg?'--card-bg:url('+raidBg+')':''}">
                         <div class="forge-card-header" data-hover-action="hoverRaidGearTooltip" data-leave-action="scheduleHideTooltip" data-raidgear="${forgeDecl}" style="cursor:help">
                             <span style="display:flex;align-items:center;justify-content:center;min-width:34px"><img src="${getAssetImagePath(piece.name)}" data-error-hide="true" data-error-next-display="inline" style="display:inline;width:34px;height:34px;object-fit:contain"><span style="font-size:1.3rem;display:none">${piece.emoji||slotIcon[slot]||'🎖️'}</span></span>
                             <div>
@@ -6457,8 +6459,9 @@ const sets = forgeData.sets || {};
     }
 
     const weap = forgeData.weapon;
+    const weapBg = weap?.name ? getAssetImagePath(weap.name) : null;
     const weaponHtml = weap ? `
-        <button class="forge-card" style="margin-bottom:20px;border-color:rgba(241,196,15,0.27);display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;background:none;border-width:1px;border-style:solid;border-radius:12px" ${actionAttrs('openWeaponUpgrade')}>
+        <button class="forge-card" style="margin-bottom:20px;border-color:rgba(241,196,15,0.27);display:flex;align-items:center;gap:12px;padding:12px 16px;cursor:pointer;width:100%;text-align:left;font:inherit;color:inherit;background:none;border-width:1px;border-style:solid;border-radius:12px;${weapBg?'--card-bg:url('+weapBg+')':''}" ${actionAttrs('openWeaponUpgrade')}>
             <span style="font-size:1.5rem;flex-shrink:0">${itemIcon(weap,'2.2rem')}</span>
             <div style="flex:1;min-width:0">
                 <div style="display:flex;align-items:center;gap:8px">
@@ -6509,7 +6512,8 @@ const sets = forgeData.sets || {};
                 return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
             }).join(' ');
 
-            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?hexToRgba(qColor, 0.4):'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px">
+            const craftBg = r.img || getAssetImagePath(r.name);
+            return `<div class="forge-card ${locked?'locked':''}" style="border-color:${r.equipped?hexToRgba(qColor, 0.4):'rgba(255,255,255,0.08)'};display:flex;flex-direction:column;min-height:260px;${craftBg?'--card-bg:url('+craftBg+')':''}">
                 <div class="forge-card-header" data-hover-action="hoverForgeItemTooltip" data-leave-action="scheduleHideTooltip" data-forgeitem="${forgeItemData}" style="cursor:help">
                     <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
                     <div>
