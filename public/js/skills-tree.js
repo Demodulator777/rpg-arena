@@ -154,19 +154,17 @@ function renderSkillTreeUI(root) {
 // ═══ Skill tree graph — starter → rail → branch paths → doctrine splits ═══
 function stTreeCss() {
     return `<style>
-    .st-tree { --st-line: rgba(255,255,255,0.16); --st-line-lit: rgba(232,184,75,0.6); }
+    .st-tree { --st-line: rgba(255,255,255,0.22); --st-line-lit: rgba(232,184,75,0.7); }
     .st-scroll { overflow-x:auto; padding: 4px 2px 16px; }
-    .st-starter-row { display:flex; justify-content:center; }
-    .st-rail-row { position:relative; height:26px; min-width:100%; }
-    .st-rail { position:absolute; top:24px; height:2px; background:var(--st-line); }
-    .st-rail-seg { position:absolute; top:24px; height:2px; }
-    .st-rail-seg-inner { position:absolute; top:0; height:2px; background:var(--st-line); }
-    .st-rail-seg-inner.lit { background:var(--st-line-lit); }
+    .st-starter-row { display:flex; justify-content:center; padding-bottom:0; }
+    .st-stem { width:3px; height:20px; background:var(--st-line); margin:0 auto; }
+    .st-fork { position:relative; height:3px; margin:0 auto; background:var(--st-line); }
+    .st-fork-lit { position:absolute; top:0; height:3px; background:var(--st-line-lit); border-radius:2px; }
     .st-branches { display:flex; align-items:stretch; }
     .st-branch-col { flex:1 1 0; min-width:158px; display:flex; flex-direction:column; align-items:center; padding:0 5px; }
-    .st-stub { width:2px; height:24px; background:var(--st-line); flex-shrink:0; }
+    .st-stub { width:3px; height:20px; background:var(--st-line); flex-shrink:0; }
     .st-stub.lit { background:var(--st-line-lit); }
-    .st-link { width:2px; height:20px; background:var(--st-line); flex-shrink:0; }
+    .st-link { width:3px; height:16px; background:var(--st-line); flex-shrink:0; }
     .st-link.lit { background:var(--st-line-lit); }
     .st-blob { width:100%; max-width:150px; border-radius:12px; border:1px solid rgba(255,255,255,0.12);
                background:rgba(255,255,255,0.03); padding:10px 8px 9px; text-align:center; position:relative;
@@ -470,7 +468,7 @@ function stChain(branch, bc, activeTraining, busyState, branchId) {
     return html;
 }
 
-// Full tree: starter → rail → branch columns (→ doctrine splits).
+// Full tree: starter → stem → fork → branch columns (→ doctrine splits).
 function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
     _stTips = [];
     const branches = tree.branches;
@@ -480,7 +478,6 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
     const childrenOf = pid => ids.filter(id => branches[id].parent_branch === pid);
 
     const n = Math.max(1, mains.length);
-    const railSide = (100 / n) / 2;
 
     let html = `<div class="st-tree">${stTreeCss()}<div class="st-scroll">`;
 
@@ -495,65 +492,72 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
         }
     }
 
-    // Rail between first and last branch centers — segment the rail so only the
-    // selected path's section is lit.
+    // Stem: vertical line from starter down to the fork
+    if (mains.length) {
+        html += `<div class="st-stem"></div>`;
+    }
+
+    // Fork: horizontal bar spanning all branch column centers
     if (mains.length) {
         const activeBranchId = mains.find(id => branchTreeHasProgressLocal(tree.branches[id], tree, id));
-        html += `<div class="st-rail-row">`;
+        const forkLeftPct  = ((2 * 0 + 1) / (2 * n)) * 100;
+        const forkRightPct = ((2 * (n - 1) + 1) / (2 * n)) * 100;
+        const activeIdx = activeBranchId ? mains.indexOf(activeBranchId) : -1;
+        const litCenterPct = activeIdx >= 0 ? ((2 * activeIdx + 1) / (2 * n)) * 100 : -1;
+
+        // Horizontal fork bar (full width, sits between stem and branch columns)
+        html += `<div style="position:relative;height:3px;margin:0 0 0">
+            <div style="position:absolute;top:0;left:${forkLeftPct}%;right:${100 - forkRightPct}%;height:3px;background:var(--st-line);border-radius:2px"></div>
+            ${litCenterPct >= 0 ? `<div style="position:absolute;top:0;height:3px;background:var(--st-line-lit);border-radius:2px;left:${forkLeftPct}%;width:${Math.max(0.5, litCenterPct - forkLeftPct + 0.5)}%"></div>` : ''}
+        </div>`;
+
+        // Branch columns
+        html += `<div class="st-branches">`;
         for (let mi = 0; mi < mains.length; mi++) {
+            const branchId = mains[mi];
+            const branch = branches[branchId];
+            const bc = stBranchColor(branchId, accent);
+            const closed = !!branch.exclusiveLocked;
+            const doctrineIds = childrenOf(branchId).filter(id => branches[id]);
             const isActive = mains[mi] === activeBranchId;
-            const segLeft = mi === 0 ? railSide : (100 / n) * mi + railSide - 0.5;
-            const segRight = mi === mains.length - 1 ? railSide : 100 - ((100 / n) * (mi + 1) + railSide) + 0.5;
-            // Left portion of the rail segment: from previous branch center to this branch center
-            // Actually simpler: each branch gets a centered segment; the rail is one continuous line
-            // but we can overlay a lit segment on the active branch's span.
-            html += `<div class="st-rail-seg" style="left:${(100 / n) * mi}%;width:${100 / n}%;"><div class="st-rail-seg-inner${isActive ? ' lit' : ''}" style="left:${railSide}%;right:${railSide}%"></div></div>`;
-        }
-        html += `</div>`;
-    }
 
-    // Branch columns
-    html += `<div class="st-branches">`;
-    for (const branchId of mains) {
-        const branch = branches[branchId];
-        const bc = stBranchColor(branchId, accent);
-        const closed = !!branch.exclusiveLocked;
-        const doctrineIds = childrenOf(branchId).filter(id => branches[id]);
+            html += `<div class="st-branch-col">`;
+            html += `<div class="st-stub${isActive ? ' lit' : ''}"></div>`;
+            html += stBranchBlob(branchId, branch, bc, accent);
 
-        html += `<div class="st-branch-col">`;
-        html += `<div class="st-stub${branchTreeHasProgressLocal(branch, tree, branchId) ? ' lit' : ''}"></div>`;
-        html += stBranchBlob(branchId, branch, bc, accent);
+            if (closed) {
+                html += `<div class="st-link"></div><div class="st-blob st-future" style="padding:16px 8px">
+                <div class="st-closed-note">🔒 PATH<br>CLOSED</div></div>`;
+            } else {
+                html += `<div class="st-link"></div>`;
+                html += stChain(branch, bc, activeTraining, busyState, branchId);
 
-        if (closed) {
-            html += `<div class="st-link"></div><div class="st-blob st-future" style="padding:16px 8px">
-            <div class="st-closed-note">🔒 PATH<br>CLOSED</div></div>`;
-        } else {
-            html += `<div class="st-link"></div>`;
-            html += stChain(branch, bc, activeTraining, busyState, branchId);
-
-            // Doctrine split below the parent chain
-            if (doctrineIds.length > 1 || (doctrineIds.length === 1 && branchTreeHasProgressLocal(branches[doctrineIds[0]], tree, doctrineIds[0]))) {
-                const subN = doctrineIds.length;
-                const subSide = (100 / subN) / 2;
-                html += `<div class="st-link"></div>
-                    <div class="st-doctrines">`;
-                for (const dId of doctrineIds) {
-                    const dBranch = branches[dId];
-                    const dbc = stBranchColor(dId, accent);
-                    html += `<div class="st-sub-col">
-                        <div class="st-sub-rail-row"><div class="st-sub-rail" style="left:${subSide}%;right:${subSide}%"></div></div>
-                        <div class="st-stub"></div>
-                        ${stBranchBlob(dId, dBranch, dbc, accent)}
-                        <div class="st-link"></div>
-                        ${stChain(dBranch, dbc, activeTraining, busyState, dId)}
-                    </div>`;
+                // Doctrine split below the parent chain
+                if (doctrineIds.length > 1 || (doctrineIds.length === 1 && branchTreeHasProgressLocal(branches[doctrineIds[0]], tree, doctrineIds[0]))) {
+                    const subN = doctrineIds.length;
+                    const subSide = (100 / subN) / 2;
+                    html += `<div class="st-link"></div>
+                        <div class="st-doctrines">`;
+                    for (const dId of doctrineIds) {
+                        const dBranch = branches[dId];
+                        const dbc = stBranchColor(dId, accent);
+                        html += `<div class="st-sub-col">
+                            <div class="st-sub-rail-row"><div class="st-sub-rail" style="left:${subSide}%;right:${subSide}%"></div></div>
+                            <div class="st-stub"></div>
+                            ${stBranchBlob(dId, dBranch, dbc, accent)}
+                            <div class="st-link"></div>
+                            ${stChain(dBranch, dbc, activeTraining, busyState, dId)}
+                        </div>`;
+                    }
+                    html += `</div>`;
                 }
-                html += `</div>`;
             }
+            html += `</div>`;
         }
         html += `</div>`;
     }
-    html += `</div></div></div>`;
+
+    html += `</div></div>`;
     return html;
 }
 
