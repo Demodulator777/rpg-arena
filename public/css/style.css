@@ -660,7 +660,19 @@ body.modal-lock .topbar {
 }
 .auth-server-select button.server-select-btn:hover { border-color: var(--gold, #c9926a); }
 .auth-server-select button.server-select-btn:focus { outline: none; border-color: var(--gold, #c9926a); }
-select.auth-lang-select { cursor: pointer; appearance: auto; width: auto; min-width: 130px; }
+select.auth-lang-select {
+    cursor: pointer; width: auto; min-width: 130px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--gold-light, #f1c40f);
+    font-family: 'Cinzel', serif;
+    font-size: 0.82rem;
+    padding: 7px 12px;
+}
+select.auth-lang-select:hover { border-color: var(--gold, #c9926a); }
+select.auth-lang-select:focus { outline: none; border-color: var(--gold, #c9926a); }
+select.auth-lang-select option { background: #1a1a2e; color: #fff; }
 .server-caret { opacity: 0.6; font-size: 0.7rem; }
 
 .server-picker-box { max-width: 360px; text-align: left; }
