@@ -1493,15 +1493,26 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     z-index: 4;
     transition: filter 0.25s ease;
 }
-/* Hover lights up frame + character together (overrides the bare-avatar hover) */
+/* Hover: ONE glow overlay above every layer (frame, portrait, pop head) so the
+   whole avatar lights up evenly — no stacked per-layer glows, no double-lit
+   background, and the raised head is lit exactly like the body. */
+.avatar-frame::after {
+    content: '';
+    position: absolute;
+    inset: -9px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 50% 42%,
+        rgba(245,208,112,0.30) 0%,
+        rgba(232,184,75,0.16) 45%,
+        rgba(232,184,75,0.05) 68%,
+        transparent 80%);
+    opacity: 0;
+    pointer-events: none;
+    z-index: 5;
+    transition: opacity 0.25s ease;
+}
 .avatar-frame:hover { filter: brightness(1.07); cursor: pointer; }
-.avatar-frame:hover .topbar-avatar,
-.avatar-frame:hover .avatar-frame-portrait { box-shadow: inset 0 0 10px rgba(0,0,0,0.35), 0 0 16px rgba(232,184,75,0.45); }
-.avatar-frame:hover .avatar-frame-img { filter: drop-shadow(0 0 9px rgba(232,184,75,0.7)) drop-shadow(0 0 3px rgba(245,208,112,0.8)); }
-/* The pop layer sits ABOVE the frame, so the frame's glow can't wash over the
-   head — but a full-strength glow here would double-light the background around
-   it. A subtle warm tint is enough to blend the head with the glowing body. */
-.avatar-frame:hover .avatar-frame-pop { filter: drop-shadow(0 0 3px rgba(245,208,112,0.35)); }
+.avatar-frame:hover::after { opacity: 1; }
 
 .topbar-avatar:hover {
     box-shadow:
