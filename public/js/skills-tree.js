@@ -375,7 +375,7 @@ function stBranchBlob(branchId, branch, bc, accent) {
 }
 
 
-// ── Game-styled hover tooltip (reuses #item-tooltip) ─────────────────────────
+// ── Game-styled hover tooltip (#st-tooltip, separate from #item-tooltip) ──
 function stEffectParts(effects) {
     const parts = [];
     for (const eff of effects || []) {
@@ -391,8 +391,10 @@ function stEffectParts(effects) {
 
 function stPushTip(data) { _stTips.push(data); return _stTips.length - 1; }
 
+const _ST_TT_ID = 'st-tooltip';
+
 function stHideTipNow() {
-    const t = document.getElementById('item-tooltip');
+    const t = document.getElementById(_ST_TT_ID);
     if (t) t.classList.add('hidden');
 }
 function stHideTipSoon() {
@@ -407,10 +409,10 @@ function stShowTipFor(el) {
     const d = _stTips[Number(el.getAttribute('data-sttip'))];
     if (!d) return;
     stCancelHideTip();
-    let tip = document.getElementById('item-tooltip');
+    let tip = document.getElementById(_ST_TT_ID);
     if (!tip) {
         tip = document.createElement('div');
-        tip.id = 'item-tooltip';
+        tip.id = _ST_TT_ID;
         tip.className = 'item-tooltip hidden';
         document.body.appendChild(tip);
     }
