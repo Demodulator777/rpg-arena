@@ -237,6 +237,11 @@ function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, ch
         bgColor = 'rgba(255,255,255,0.02)';
         labelColor = 'rgba(255,255,255,0.2)';
     }
+    const isEvolution = sk.type === 'evolution';
+    if (isEvolution) {
+        if (learned) { borderColor = '#f1c40f'; bgColor = 'rgba(241,196,15,0.10)'; labelColor = '#f1c40f'; }
+        else if (trainable) { borderColor = '#f1c40f'; bgColor = 'rgba(241,196,15,0.06)'; labelColor = '#f1c40f'; }
+    }
 
     let displayName = sk.name;
 let displayDesc = sk.desc;
@@ -289,12 +294,18 @@ const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) :
 
     let costHtml = '';
     if (!learned && !training && trainable) {
-        costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
+        if (sk.type === 'evolution') {
+            const evoMats = Object.entries(sk.evolutionCost || {}).filter(([, v]) => v).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
+            costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
+            💰 ${(sk.evolutionGoldCost || 0).toLocaleString()}${evoMats.length ? ` · ${evoMats.join(', ')}` : ''}</div>`;
+        } else {
+            costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
             💰 ${(sk.goldCost || 0).toLocaleString()}`;
-        const mats = sk.materials || {};
-        const matStrs = Object.entries(mats).filter(([, v]) => v).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
-        if (matStrs.length) costHtml += ` · ${matStrs.join(', ')}`;
-        costHtml += `</div>`;
+            const mats = sk.materials || {};
+            const matStrs = Object.entries(mats).filter(([, v]) => v).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
+            if (matStrs.length) costHtml += ` · ${matStrs.join(', ')}`;
+            costHtml += `</div>`;
+        }
     } else if (locked) {
         costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.15);margin-top:3px">???</div>`;
     }
