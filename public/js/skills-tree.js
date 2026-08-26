@@ -148,6 +148,17 @@ function renderSkillTreeUI(root) {
     html += `</div>`;
     root.innerHTML = html;
     stAttachSkillTips(root);
+
+    // On mobile the tree-wrap may be wider than the viewport. Center the
+    // starter blob in the scroll so the player doesn't have to hunt for it.
+    const scroll = root.querySelector('.st-scroll');
+    const starterRow = root.querySelector('.st-starter-row');
+    if (scroll && starterRow && scroll.scrollWidth > scroll.clientWidth) {
+        const sr = starterRow.getBoundingClientRect();
+        const sl = scroll.getBoundingClientRect();
+        const offsetInScroll = sr.left - sl.left + sr.width / 2 - scroll.clientWidth / 2;
+        scroll.scrollLeft = Math.max(0, offsetInScroll);
+    }
 }
 
 // ── Branch renderer ───────────────────────────────────────────────────────
@@ -354,7 +365,7 @@ function stBranchBlob(branchId, branch, bc, accent) {
     return `<div style="width:100%;margin:4px 0 0;cursor:help" data-sttip="${tipIdx}">
         <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;background:${bc}0d;border:1px solid ${bc}33">
             <span style="font-size:1.2rem;line-height:1">${branch.emoji || '⚔️'}</span>
-            <span style="font-size:0.78rem;font-weight:700;color:${bc}">${branch.name}</span>
+            <span style="font-size:0.78rem;font-weight:700;color:${bc};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">${branch.name}</span>
             <span style="font-size:0.6rem;color:${bc}99;margin-left:auto;white-space:nowrap">${learnedCount}/${total}</span>
             ${canUnlearn ? `<button ${actionAttrs('stUnlearnStep', branchId)} title="Unlearn the last skill of this path (50% gold refund)"
                 style="font-size:0.52rem;padding:1px 6px;background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩</button>` : ''}
@@ -442,12 +453,30 @@ function stShowTipFor(el) {
     tip.style.top = Math.round(top) + 'px';
 }
 
+let _stTipActiveEl = null;
+let _stDocClickBound = false;
+let _stRootClickBound = null;
+
 function stAttachSkillTips(root) {
     if (!root) return;
     root.querySelectorAll('[data-sttip]').forEach(el => {
         el.addEventListener('mouseenter', () => stShowTipFor(el));
         el.addEventListener('mouseleave', stHideTipSoon);
+        el.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (_stTipActiveEl === el) { stHideTipNow(); _stTipActiveEl = null; return; }
+            _stTipActiveEl = el;
+            stShowTipFor(el);
+        });
     });
+    if (_stRootClickBound !== root) {
+        _stRootClickBound = root;
+        root.addEventListener('click', () => { stHideTipNow(); _stTipActiveEl = null; });
+    }
+    if (!_stDocClickBound) {
+        _stDocClickBound = true;
+        document.addEventListener('click', () => { stHideTipNow(); _stTipActiveEl = null; });
+    }
 }
 
 // Vertical chain of skill blobs with lit/dim connectors. Reveals the path as
