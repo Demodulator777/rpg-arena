@@ -6364,7 +6364,7 @@ function renderForge() {
                 return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
             }).join(' ');
             return `<div class="forge-card" data-eid="${c.id}" style="display:flex;flex-direction:column;min-height:240px">
-                <div class="forge-card-header"><span style="font-size:1.3rem">${c.emoji||'⚙️'}</span><span class="forge-card-name">${c.name}</span></div>
+                <div class="forge-card-header">${matIcon(c.name, c.emoji, '1.3rem')}<span class="forge-card-name">${c.name}</span></div>
                 <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc||''}</div>
                 <div class="forge-recipe">Requires: ${recipeStr}</div>
                 <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold each</div>
