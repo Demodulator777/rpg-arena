@@ -2188,14 +2188,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     }
     
     .nav-btn-label {
-        left: 3px;
-        right: 3px;
-        bottom: 3px;
-        height: 13px;
+        left: 6px;
+        right: 6px;
+        bottom: 8px;
+        height: 8px;
         padding: 0 2px;
-        font-size: 0.45rem;
+        font-size: 0.38rem;
         letter-spacing: 0.02em;
-        border-radius: 5px;
+        /*border-radius: 5px;*/
         box-shadow: 0 1px 3px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
     }
 
