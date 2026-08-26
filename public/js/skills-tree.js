@@ -454,8 +454,8 @@ function stShowTipFor(el) {
 }
 
 let _stTipActiveEl = null;
-let _stDocClickBound = false;
 let _stRootClickBound = null;
+let _stDocBlurBound = false;
 
 function stAttachSkillTips(root) {
     if (!root) return;
@@ -473,9 +473,11 @@ function stAttachSkillTips(root) {
         _stRootClickBound = root;
         root.addEventListener('click', () => { stHideTipNow(); _stTipActiveEl = null; });
     }
-    if (!_stDocClickBound) {
-        _stDocClickBound = true;
-        document.addEventListener('click', () => { stHideTipNow(); _stTipActiveEl = null; });
+    if (!_stDocBlurBound) {
+        _stDocBlurBound = true;
+        document.addEventListener('pointerdown', (e) => {
+            if (!root.contains(e.target)) _stTipActiveEl = null;
+        });
     }
 }
 
