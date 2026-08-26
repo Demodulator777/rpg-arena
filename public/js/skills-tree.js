@@ -156,10 +156,12 @@ function stTreeCss() {
     return `<style>
     .st-tree { --st-line: rgba(255,255,255,0.22); --st-line-lit: rgba(232,184,75,0.7); }
     .st-scroll { overflow-x:auto; padding: 4px 2px 16px; }
-    .st-starter-row { display:flex; justify-content:center; padding-bottom:0; }
-    .st-stem { width:3px; height:20px; background:var(--st-line); margin:0 auto; }
-    .st-fork { position:relative; height:3px; margin:0 auto; background:var(--st-line); }
-    .st-fork-lit { position:absolute; top:0; height:3px; background:var(--st-line-lit); border-radius:2px; }
+    .st-tree-wrap { display:flex; flex-direction:column; align-items:center; width:max-content; margin:0 auto; }
+    .st-starter-row { display:flex; justify-content:center; padding-bottom:0; width:100%; }
+    .st-tree-stem { width:3px; height:20px; background:var(--st-line); }
+    .st-fork-row { position:relative; width:100%; height:3px; }
+    .st-fork-line { position:absolute; top:0; height:3px; background:var(--st-line); border-radius:2px; }
+    .st-fork-lit { position:absolute; top:0; height:3px; background:var(--st-line-lit); border-radius:2px; z-index:1; }
     .st-branches { display:flex; align-items:stretch; }
     .st-branch-col { flex:1 1 0; min-width:158px; display:flex; flex-direction:column; align-items:center; padding:0 5px; }
     .st-stub { width:3px; height:20px; background:var(--st-line); flex-shrink:0; }
@@ -232,6 +234,9 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
     } else if (learned) {
         sub = '✓ Mastered';
+    } else if (progress > 0) {
+        sub = `${progress}% learned`;
+        progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
     } else if (sk.locked && sk.unlockConditionDesc) {
         sub = '🔒 ' + sk.unlockConditionDesc;
     }
@@ -481,6 +486,13 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
 
     let html = `<div class="st-tree">${stTreeCss()}<div class="st-scroll">`;
 
+    // All tree content shares a single wrapper so starter, stem, fork, and columns
+    // have the same width context (critical for mobile alignment).
+    const hasBranches = mains.length > 0;
+    if (hasBranches) {
+        html += `<div class="st-tree-wrap">`;
+    }
+
     // Starter node
     if (starterId) {
         const starter = branches[starterId];
@@ -492,23 +504,23 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
         }
     }
 
-    // Stem: vertical line from starter down to the fork
-    if (mains.length) {
-        html += `<div class="st-stem"></div>`;
+    // Stem
+    if (hasBranches) {
+        html += `<div class="st-tree-stem"></div>`;
     }
 
     // Fork: horizontal bar spanning all branch column centers
-    if (mains.length) {
+    if (hasBranches) {
         const activeBranchId = mains.find(id => branchTreeHasProgressLocal(tree.branches[id], tree, id));
         const forkLeftPct  = ((2 * 0 + 1) / (2 * n)) * 100;
         const forkRightPct = ((2 * (n - 1) + 1) / (2 * n)) * 100;
         const activeIdx = activeBranchId ? mains.indexOf(activeBranchId) : -1;
         const litCenterPct = activeIdx >= 0 ? ((2 * activeIdx + 1) / (2 * n)) * 100 : -1;
 
-        // Horizontal fork bar (full width, sits between stem and branch columns)
-        html += `<div style="position:relative;height:3px;margin:0 0 0">
-            <div style="position:absolute;top:0;left:${forkLeftPct}%;right:${100 - forkRightPct}%;height:3px;background:var(--st-line);border-radius:2px"></div>
-            ${litCenterPct >= 0 ? `<div style="position:absolute;top:0;height:3px;background:var(--st-line-lit);border-radius:2px;left:${forkLeftPct}%;width:${Math.max(0.5, litCenterPct - forkLeftPct + 0.5)}%"></div>` : ''}
+        // Fork bar
+        html += `<div class="st-fork-row">
+            <div class="st-fork-line" style="left:${forkLeftPct}%;right:${100 - forkRightPct}%"></div>
+            ${litCenterPct >= 0 ? `<div class="st-fork-lit" style="left:${forkLeftPct}%;width:${Math.max(0.5, litCenterPct - forkLeftPct + 0.5)}%"></div>` : ''}
         </div>`;
 
         // Branch columns
@@ -557,6 +569,7 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
         html += `</div>`;
     }
 
+    if (hasBranches) html += `</div>`;
     html += `</div></div>`;
     return html;
 }
