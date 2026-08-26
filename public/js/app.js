@@ -1202,17 +1202,19 @@ const STATIC_I18N = {
         'Login': 'Entrar', 'Register': 'Registrar'
     }
 };
+const _i18nOrig = new WeakMap();
 function applyStaticI18n() {
-    if (CURRENT_LANG === 'en') return;
     const map = STATIC_I18N[CURRENT_LANG];
-    if (!map) return;
-    document.querySelectorAll('.sub-btn-label').forEach(el => {
-        const v = map[el.textContent.trim()];
-        if (v) el.textContent = v;
-    });
-    document.querySelectorAll('.tab-btn').forEach(el => {
-        const v = map[el.textContent.trim()];
-        if (v) el.textContent = v;
+    document.querySelectorAll('.sub-btn-label, .tab-btn').forEach(el => {
+        const orig = _i18nOrig.get(el);
+        if (map) {
+            if (!orig) _i18nOrig.set(el, el.textContent);
+            const v = map[el.textContent.trim()];
+            if (v) el.textContent = v;
+        } else if (orig) {
+            el.textContent = orig;
+            _i18nOrig.delete(el);
+        }
     });
 }
 document.addEventListener('DOMContentLoaded', applyStaticI18n);
@@ -10876,7 +10878,7 @@ async function openProfile(id) {
             })() : ''}
                 </div>` : '';
             const item = profileResolvedEq[slot];
-            if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot"><span class="eq-slot-icon">${icon}</span></div>`;
+            if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot" data-action="showTabAndCloseMenu" data-args='["inventory"]' style="cursor:pointer"><span class="eq-slot-icon">${icon}</span></div>`;
             const itemData = escHtml(JSON.stringify(item));
             return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                 data-item="${itemData}"
