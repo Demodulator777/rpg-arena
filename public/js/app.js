@@ -3244,7 +3244,7 @@ function renderCharacter() {
         </div>` : '';
         const item = resolvedEq[slot];
         if (!item) return avatarDiv + `
-        <div class="eq-slot eq-slot--${slot} empty">
+        <div class="eq-slot eq-slot--${slot} empty" data-action="showTabAndCloseMenu" data-args='["inventory"]' style="cursor:pointer">
             <span class="eq-slot-icon">${icon}</span>
             <span class="eq-slot-label">${label}</span>
         </div>`;
@@ -10871,7 +10871,7 @@ async function openProfile(id) {
             })() : ''}
                 </div>` : '';
             const item = profileResolvedEq[slot];
-            if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot" data-action="showTabAndCloseMenu" data-args='["inventory"]' style="cursor:pointer"><span class="eq-slot-icon">${icon}</span></div>`;
+            if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot" style="pointer-events:none"><span class="eq-slot-icon">${icon}</span></div>`;
             const itemData = escHtml(JSON.stringify(item));
             return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                 data-item="${itemData}"
