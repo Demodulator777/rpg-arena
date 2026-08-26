@@ -6,8 +6,9 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-24-pop-hover-glow"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-24-modal-original-size"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
+    <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-08-24-vph-fix"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
         #app { display: none; }
@@ -170,6 +171,14 @@
                 <button type="button" id="server-select" class="server-select-btn" data-action="openServerPicker">
                     <span id="server-select-label">…</span><span class="server-caret"> ▾</span>
                 </button>
+            </div>
+
+            <div class="auth-server-select">
+                <label for="auth-lang-select">Language</label>
+                <select id="auth-lang-select" class="server-select-btn auth-lang-select">
+                    <option value="en">English</option>
+                    <option value="pt">Português</option>
+                </select>
             </div>
 
             <div class="auth-tabs">
@@ -1274,7 +1283,7 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-08-24-evolutions"></script>
+<script src="/js/app.js?v=2026-08-24-auth-lang"></script>
 <script src="/js/skills-tree.js?v=2026-08-24-evolutions"></script>
 <script src="/js/dungeon.js?v=2026-08-22-mat-icons"></script>
 <script src="/js/tournaments.js?v=2026-08-22-hist-wrap"></script>
