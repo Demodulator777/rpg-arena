@@ -467,6 +467,7 @@ function stAttachSkillTips(root) {
         el.addEventListener('mouseenter', () => stShowTipFor(el));
         el.addEventListener('mouseleave', stHideTipSoon);
         el.addEventListener('click', (e) => {
+            if (e.target.closest('button, select, a')) return;
             e.stopPropagation();
             if (_stTipActiveEl === el) { stHideTipNow(); _stTipActiveEl = null; return; }
             _stTipActiveEl = el;
