@@ -2400,6 +2400,10 @@ function showTab(name) {
 
     if (name === 'upgrade' && getServerId() === 'server1') name = 'character';
 
+    // The dungeon page always runs at original scale — the UI zoom breaks its
+    // canvas/coordinate math.
+    document.documentElement.classList.toggle('ui-zoom-off', name === 'dungeon');
+
     document.querySelectorAll('.game-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`tab-${name}`)?.classList.add('active');
