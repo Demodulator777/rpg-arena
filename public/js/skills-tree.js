@@ -61,12 +61,11 @@ function renderSkillTreeUI(root) {
             </div>
         </div>
         
-        <!-- DISCOVERY MESSAGE - ADD THIS HERE -->
+        <!-- DISCOVERY MESSAGE -->
         <div style="padding:8px 14px;border-radius:8px;background:rgba(155,89,182,0.08);
                   border:1px solid rgba(155,89,182,0.25);margin-bottom:14px;font-size:0.72rem;
                   color:rgba(255,255,255,0.5);text-align:center">
-            🔍 <strong>Discovery-based skill tree</strong> — Only trainable skills are visible. 
-            Experiment to uncover hidden paths!
+            🌳 <strong>Living skill tree</strong> — train a skill to reveal the next step of its path. Master a full path to unlock its evolution.
         </div>`;
 
     // ── Class stat modifier notice ─────────────────────────────────────────────
@@ -137,13 +136,11 @@ function renderSkillTreeUI(root) {
         </div>`;
     }
 
-    // ── Branches ──────────────────────────────────────────────────────────────
+    // ── Skill tree graph ──────────────────────────────────────────────────────
     if (!tree.branches || !Object.keys(tree.branches).length) {
         html += `<p style="color:rgba(255,255,255,0.4);padding:20px;text-align:center">No branches found for ${charClass}.</p>`;
     } else {
-        for (const [branchId, branch] of Object.entries(tree.branches)) {
-            html += renderBranch(branchId, branch, accent, activeTraining, charClass, busyState);
-        }
+        html += stRenderTree(tree, accent, activeTraining, charClass, busyState);
     }
 
     html += `</div>`;
@@ -151,12 +148,46 @@ function renderSkillTreeUI(root) {
 }
 
 // ── Branch renderer ───────────────────────────────────────────────────────────
-function renderBranch(branchId, branch, accent, activeTraining, charClass, busyState) {
-    const learnedCount = Object.values(branch.skills).filter(s => s.learned).length;
-    const total        = Object.keys(branch.skills).length;
-    const branchProgressCount = Object.values(branch.skills).filter(s => (s.progress || 0) > 0).length;
+// ═══ Skill tree graph — starter → branch paths → doctrine splits ═══
+function stTreeCss() {
+    return `<style>
+    .st-tree { --st-line: rgba(255,255,255,0.16); --st-line-lit: rgba(232,184,75,0.6); }
+    .st-scroll { overflow-x:auto; padding: 4px 2px 16px; }
+    .st-starter-row { display:flex; justify-content:center; }
+    .st-rail-row { position:relative; height:26px; min-width:100%; }
+    .st-rail { position:absolute; top:24px; height:2px; background:var(--st-line); }
+    .st-branches { display:flex; align-items:stretch; }
+    .st-branch-col { flex:1 1 0; min-width:158px; display:flex; flex-direction:column; align-items:center; padding:0 5px; }
+    .st-stub { width:2px; height:24px; background:var(--st-line); flex-shrink:0; }
+    .st-stub.lit { background:var(--st-line-lit); }
+    .st-link { width:2px; height:20px; background:var(--st-line); flex-shrink:0; }
+    .st-link.lit { background:var(--st-line-lit); }
+    .st-blob { width:100%; max-width:150px; border-radius:12px; border:1px solid rgba(255,255,255,0.12);
+               background:rgba(255,255,255,0.03); padding:10px 8px 9px; text-align:center; position:relative;
+               box-sizing:border-box; }
+    .st-blob-icon { width:44px; height:44px; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; font-size:2rem; line-height:1; }
+    .st-blob-icon img { width:100%; height:100%; object-fit:contain; }
+    .st-blob-name { font-size:0.72rem; font-weight:700; line-height:1.25; color:rgba(255,255,255,0.82); }
+    .st-blob-sub { font-size:0.6rem; color:rgba(255,255,255,0.42); margin-top:4px; line-height:1.35; }
+    .st-progress { height:4px; border-radius:3px; background:rgba(255,255,255,0.1); overflow:hidden; margin-top:6px; }
+    .st-progress > div { height:100%; border-radius:3px; }
+    .st-badge { position:absolute; top:6px; right:7px; font-size:0.62rem; line-height:1; }
+    .st-train-row { display:flex; gap:3px; margin-top:8px; }
+    .st-train-row select { flex:0 0 46px; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.22); border-radius:4px; color:#fff; font-size:0.62rem; padding:3px 2px; }
+    .st-train-row button { flex:1; border-radius:4px; font-size:0.62rem; font-weight:700; padding:4px 2px; cursor:pointer; }
+    .st-state-training { animation: stPulse 1.8s ease-in-out infinite; }
+    @keyframes stPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(241,196,15,0); } 50% { box-shadow: 0 0 14px 2px rgba(241,196,15,0.35); } }
+    .st-future { border-style:dashed; opacity:0.55; }
+    .st-doctrines { display:flex; gap:10px; width:100%; }
+    .st-sub-col { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; }
+    .st-sub-rail-row { position:relative; height:20px; width:100%; }
+    .st-sub-rail { position:absolute; top:18px; height:2px; background:var(--st-line); }
+    .st-sub-col .st-blob { max-width:none; width:100%; }
+    .st-closed-note { font-size:0.58rem; color:rgba(224,82,82,0.8); letter-spacing:0.08em; font-weight:700; }
+    </style>`;
+}
 
-    // Branch header colour
+function stBranchColor(branchId, accent) {
     const branchColors = {
         berserker:'#e74c3c', iron_guard:'#5dade2', battle_commander:'#f39c12',
         gladiator:'#f1c40f', arcane_foundation:'#9b59b6', pyromancer:'#e74c3c',
@@ -165,251 +196,218 @@ function renderBranch(branchId, branch, accent, activeTraining, charClass, busyS
         shadowblade:'#636e72', dual_wielder:'#fd79a8', protector:'#74b9ff',
         divine_warrior:'#fdcb6e', inquisitor:'#a29bfe', crusader:'#e17055',
     };
-    const bc = branchColors[branchId] || accent;
+    return branchColors[branchId] || accent;
+}
 
-    let html = `
-    <div style="margin-bottom:24px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding-bottom:8px;
-                    border-bottom:1px solid ${bc}33">
-            <span style="font-size:1.4rem">${branch.emoji || '⚔️'}</span>
-            <div style="flex:1">
-                <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:${bc}">
-                    ${branch.name}
-                    ${(!activeTraining && !branch.isStarter && branchProgressCount > 0) ? `<button class="btn-respec-branch" ${actionAttrs('stUnlearnStep', branchId)} style="font-size:0.6rem;padding:2px 8px;margin-left:8px;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩ Unlearn Last</button>` : ''}
-                    ${branch.exclusive_with
-                        ? `<span style="font-size:0.6rem;padding:2px 6px;background:${bc}22;border-radius:4px;color:${bc};margin-left:6px;font-family:sans-serif">EXCLUSIVE</span>`
-                        : ''}
-                    ${branch.hidden
-                        ? `<span style="font-size:0.6rem;padding:2px 6px;background:rgba(255,255,255,0.06);border-radius:4px;color:rgba(255,255,255,0.4);margin-left:6px;font-family:sans-serif">SECRET</span>`
-                        : ''}
-                </div>
-                <div style="font-size:0.7rem;color:rgba(255,255,255,0.4)">${branch.description || ''}</div>
-            </div>
-            <div style="font-size:0.68rem;color:${bc}">
-                ${learnedCount}/${total}
-            </div>
-        </div>
+// Square skill node: skill image with emoji fallback, name, progress, train controls.
+function stSkillBlob(sk, bc, activeTraining, busyState) {
+    const skillKey = sk.id;
+    const learned = sk.learned;
+    const trainable = sk.trainable;
+    const training = (activeTraining?.skillId || activeTraining?.skill_id) === skillKey;
+    const progress = Math.floor(sk.progress || 0);
+    const isEvo = sk.type === 'evolution';
 
-        <div style="display:flex;flex-wrap:nowrap;gap:8px;overflow-x:auto;padding-bottom:4px">
-    `;
+    let borderColor = 'rgba(255,255,255,0.12)', bg = 'rgba(255,255,255,0.03)', nameColor = 'rgba(255,255,255,0.82)';
+    if (learned) { borderColor = bc; bg = bc + '14'; nameColor = bc; }
+    else if (training) { borderColor = '#f1c40f'; bg = 'rgba(241,196,15,0.07)'; nameColor = '#f1c40f'; }
+    else if (trainable) { borderColor = bc + '99'; bg = bc + '0a'; }
+    if (isEvo && !learned) { borderColor = trainable ? '#f1c40f' : 'rgba(241,196,15,0.35)'; bg = trainable ? 'rgba(241,196,15,0.06)' : 'rgba(241,196,15,0.02)'; nameColor = trainable ? '#f1c40f' : 'rgba(241,196,15,0.5)'; }
 
-    // Render skills in tier order - FIX: Use Object.entries to get both key and value
-    const sortedEntries = Object.entries(branch.skills).sort(([,a], [,b]) => (a.tier || 0) - (b.tier || 0));
-    for (let i = 0; i < sortedEntries.length; i++) {
-        const [skillKey, sk] = sortedEntries[i];
-        if (i > 0) html += renderConnector(sortedEntries[i-1][1], sk);
-        html += renderSkillCard(skillKey, sk, bc, activeTraining, branchId, charClass, busyState);
+    const icon = `<div class="st-blob-icon"><img src="/images/assets/skills/${skillKey}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:2rem;line-height:1">${sk.emoji || '⚔️'}</span></div>`;
+
+    let sub = '';
+    let progressHtml = '';
+    if (training && activeTraining) {
+        const tp = (activeTraining.progressPercent ?? activeTraining.progressCurrent ?? activeTraining.progress ?? 0);
+        const gain = Math.max(0, tp - Number(activeTraining.progressStart ?? activeTraining.progress_start ?? tp));
+        sub = `⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || 0)} left`;
+        progressHtml = `<div class="st-progress"><div style="width:${tp}%;background:#f1c40f"></div></div>
+            <div class="st-blob-sub">${tp < 10 ? tp.toFixed(1) : Math.floor(tp)}%${gain >= 0.1 ? ` · +${gain.toFixed(1)}%` : ''}</div>`;
+    } else if (progress > 0 && progress < 100 && !learned) {
+        sub = `${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% learned`;
+        progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
+    } else if (learned) {
+        sub = '✓ Mastered';
+    } else if (sk.locked && sk.unlockConditionDesc) {
+        sub = '🔒 ' + sk.unlockConditionDesc;
     }
 
-    html += `</div></div>`;
+    let controls = '';
+    if (trainable && !training && !learned) {
+        const missionActive = !!busyState?.missionBusy;
+        const cooldown = Number(busyState?.battleCooldownRemaining || 0) > 0;
+        const traveling = !!busyState?.traveling;
+        const missionCollect = !!busyState?.missionReadyToCollect;
+        if (missionActive || cooldown || traveling || missionCollect) {
+            const label = missionCollect ? 'Collect mission' : missionActive ? 'Mission active' : cooldown ? 'Battle cooldown' : 'Traveling';
+            controls = `<div class="st-blob-sub" style="margin-top:7px">🔒 ${label}</div>`;
+        } else {
+            const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
+            const maxHours = hasArcaneReservoir ? 12 : 8;
+            let opts = '';
+            for (let h = 1; h <= maxHours; h++) opts += `<option value="${h}">${h}h</option>`;
+            controls = `
+            <div class="st-train-row">
+                <select id="train-hours-${skillKey}">${opts}</select>
+                <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, false)}
+                    style="border:1px solid ${bc}88;background:${bc}18;color:${bc}">Train</button>
+                <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, true)} title="2x speed (500 gold/hour)"
+                    style="border:1px solid #f1c40f66;background:rgba(241,196,15,0.15);color:#f1c40f">2x</button>
+            </div>`;
+        }
+    }
+
+    const badge = learned ? `<span class="st-badge" style="color:${bc}">✓</span>`
+        : training ? `<span class="st-badge" style="color:#f1c40f">⏳</span>`
+        : isEvo ? `<span class="st-badge" style="color:rgba(241,196,15,0.6)">🧬</span>` : '';
+
+    const tip = stEscapeAttr(`${sk.name}${sk.desc ? ' — ' + sk.desc : ''}${sk.effects?.length ? ' (' + stEffectSummary(sk.effects) + ')' : ''}`);
+
+    return `<div class="st-blob${training ? ' st-state-training' : ''}" style="border-color:${borderColor};background:${bg}" title="${tip}">
+        ${badge}
+        ${icon}
+        <div class="st-blob-name" style="color:${nameColor}">${sk.name}</div>
+        ${sub ? `<div class="st-blob-sub">${sub}</div>` : ''}
+        ${progressHtml}
+        ${controls}
+    </div>`;
+}
+
+// Dimmed placeholder showing the path continues without leaking the skill.
+function stFutureBlob() {
+    return `<div class="st-blob st-future" title="Keep training to reveal">
+        <div class="st-blob-icon" style="color:rgba(255,255,255,0.25)">❓</div>
+        <div class="st-blob-name" style="color:rgba(255,255,255,0.3)">???</div>
+    </div>`;
+}
+
+// Branch header node.
+function stBranchBlob(branchId, branch, bc, accent) {
+    const skills = Object.values(branch.skills).filter(s => s.type !== 'evolution');
+    const learnedCount = skills.filter(s => s.learned).length;
+    const total = skills.length;
+    const canUnlearn = Object.values(branch.skills).some(s => (s.progress || 0) > 0) && !branch.isStarter;
+    const tip = stEscapeAttr(branch.description || branch.name);
+    return `<div class="st-blob" style="border-color:${bc}66;background:${bc}0d" title="${tip}">
+        <div class="st-blob-icon" style="font-size:1.5rem">${branch.emoji || '⚔️'}</div>
+        <div class="st-blob-name" style="color:${bc}">${branch.name}</div>
+        <div class="st-blob-sub">${learnedCount}/${total} mastered</div>
+        ${canUnlearn ? `<div style="margin-top:6px"><button ${actionAttrs('stUnlearnStep', branchId)} title="Unlearn the last skill of this path (50% gold refund)"
+            style="font-size:0.56rem;padding:2px 8px;background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩ Unlearn</button></div>` : ''}
+    </div>`;
+}
+
+function stEscapeAttr(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// Vertical chain of skill blobs with lit/dim connectors. Reveals the path as
+// skills get trained: unrevealed tail renders as dimmed "???" blobs.
+function stChain(branch, bc, activeTraining, busyState, branchId) {
+    const entries = Object.entries(branch.skills)
+        .map(([id, sk]) => [id, Object.assign({ _branchId: branchId }, sk)])
+        .sort(([, a], [, b]) => (a.tier || 0) - (b.tier || 0));
+    let html = '';
+    let revealed = true;
+    for (const [id, sk] of entries) {
+        const isRevealed = revealed && (sk.started || sk.learned || sk.trainable || sk.prereqsMet);
+        if (!isRevealed) {
+            html += `<div class="st-link"></div>` + stFutureBlob();
+            revealed = false;
+            continue;
+        }
+        const litLink = sk.learned || (sk.progress || 0) > 0;
+        if (html) html += `<div class="st-link${litLink ? ' lit' : ''}"></div>`;
+        html += stSkillBlob(sk, bc, activeTraining, busyState);
+    }
     return html;
 }
 
-function renderSkillCard(skillKey, sk, branchColor, activeTraining, branchId, charClass, busyState) {
-    const learned = sk.learned;
-    const trainable = sk.trainable;
-    const locked = sk.locked;
-    const activeSkillId = activeTraining?.skillId || activeTraining?.skill_id;
-    const training = activeSkillId === skillKey;
-    const progress = Math.floor(sk.progress || 0);
-    const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
-    const maxHours = hasArcaneReservoir ? 12 : 8;
-    const missionActive = !!busyState?.missionBusy;
-    const missionReadyToCollect = !!busyState?.missionReadyToCollect;
-    const battleCooldownRemaining = Number(busyState?.battleCooldownRemaining || 0);
-    const isTraveling = !!busyState?.traveling;
-    const isBusy = missionActive || battleCooldownRemaining > 0 || isTraveling;
-    let borderColor, bgColor, labelColor;
-    if (learned) {
-        borderColor = branchColor;
-        bgColor = `${branchColor}18`;
-        labelColor = branchColor;
-    } else if (training) {
-        borderColor = '#f1c40f';
-        bgColor = 'rgba(241,196,15,0.08)';
-        labelColor = '#f1c40f';
-    } else if (trainable) {
-        borderColor = `${branchColor}88`;
-        bgColor = `${branchColor}08`;
-        labelColor = 'rgba(255,255,255,0.75)';
-    } else {
-        borderColor = 'rgba(255,255,255,0.06)';
-        bgColor = 'rgba(255,255,255,0.02)';
-        labelColor = 'rgba(255,255,255,0.2)';
-    }
-    const isEvolution = sk.type === 'evolution';
-    if (isEvolution) {
-        if (learned) { borderColor = '#f1c40f'; bgColor = 'rgba(241,196,15,0.10)'; labelColor = '#f1c40f'; }
-        else if (trainable) { borderColor = '#f1c40f'; bgColor = 'rgba(241,196,15,0.06)'; labelColor = '#f1c40f'; }
-    }
+// Full tree: starter → rail → branch columns (→ doctrine splits).
+function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
+    const branches = tree.branches;
+    const ids = Object.keys(branches);
+    const starterId = ids.find(id => branches[id].isStarter);
+    const mains = ids.filter(id => id !== starterId && !branches[id].parent_branch);
+    const childrenOf = pid => ids.filter(id => branches[id].parent_branch === pid);
 
-    let displayName = sk.name;
-let displayDesc = sk.desc;
-let displayEmoji = sk.emoji || '⚔️';
+    const n = Math.max(1, mains.length);
+    const railSide = (100 / n) / 2;
 
-// Hide description for locked skills, show only unlock requirement
-if (locked && !learned && !training) {
-    displayName = '🔒 ' + displayName;
-    displayDesc = sk.unlockConditionDesc ? '⏳ ' + sk.unlockConditionDesc : '';
-}
+    let html = `<div class="st-tree">${stTreeCss()}<div class="st-scroll">`;
 
-const effectSummary = (!locked || learned) ? stEffectSummary(sk.effects || []) : '';
-
-    let progressHtml = '';
-    if (training && activeTraining) {
-        const trainProgress = (activeTraining.progressPercent ?? activeTraining.progressCurrent ?? activeTraining.progress_current ?? activeTraining.progress ?? 0);
-        const trainStart = Number(activeTraining.progressStart ?? activeTraining.progress_start ?? trainProgress);
-        const trainGain = Math.max(0, trainProgress - trainStart);
-        progressHtml = `
-            <div style="margin-top: 8px;">
-                <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 4px; overflow: hidden;">
-                    <div style="width: ${trainProgress}%; height: 100%; background: ${branchColor}; border-radius: 4px; transition: width 0.3s;"></div>
-                </div>
-                <div style="font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-top: 2px; text-align: center;">
-                    ${trainProgress < 10 ? trainProgress.toFixed(1) : Math.floor(trainProgress)}% total learned${trainGain >= 0.1 ? ` · +${trainGain.toFixed(1)}% this session` : ''}
-                </div>
-                <div style="font-size: 0.55rem; color: #f1c40f; text-align: center; margin-top: 2px;">
-                    ⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || activeTraining.timeLeft || 0)} remaining · ${(activeTraining.hoursToFull ?? 0).toFixed(1)}h to full
-                </div>
-            </div>
-        `;
-    } else if (progress > 0 && progress < 100 && !learned) {
-        progressHtml = `
-            <div style="margin-top: 8px;">
-                <div style="background: rgba(255,255,255,0.1); border-radius: 4px; height: 4px; overflow: hidden;">
-                    <div style="width: ${progress}%; height: 100%; background: ${branchColor}; border-radius: 4px;"></div>
-                </div>
-                <div style="font-size: 0.6rem; color: rgba(255,255,255,0.4); margin-top: 2px; text-align: center;">
-                    ${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% total learned
-                </div>
-            </div>
-        `;
-    }
-    
-    let thresholdHtml = '';
-    if (trainable && sk.nextThresholdCost && Object.keys(sk.nextThresholdCost).length > 0) {
-        const matStrs = Object.entries(sk.nextThresholdCost).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
-        thresholdHtml = `<div style="font-size: 0.6rem; color: #f39c12; margin-top: 4px; text-align: center;">🔓 Next: ${matStrs.join(', ')}</div>`;
-    }
-
-    let costHtml = '';
-    if (!learned && !training && trainable) {
-        if (sk.type === 'evolution') {
-            const evoMats = Object.entries(sk.evolutionCost || {}).filter(([, v]) => v).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
-            costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
-            💰 ${(sk.evolutionGoldCost || 0).toLocaleString()}${evoMats.length ? ` · ${evoMats.join(', ')}` : ''}</div>`;
-        } else {
-            costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:3px">
-            💰 ${(sk.goldCost || 0).toLocaleString()}`;
-            const mats = sk.materials || {};
-            const matStrs = Object.entries(mats).filter(([, v]) => v).map(([k, v]) => `${v}× ${k.replace(/_/g, ' ')}`);
-            if (matStrs.length) costHtml += ` · ${matStrs.join(', ')}`;
-            costHtml += `</div>`;
+    // Starter node
+    if (starterId) {
+        const starter = branches[starterId];
+        const firstSkill = Object.values(starter.skills)[0];
+        if (firstSkill) {
+            html += `<div class="st-starter-row">
+                ${stSkillBlob(Object.assign({ _branchId: starterId }, firstSkill), accent, activeTraining, busyState)}
+            </div>`;
         }
-    } else if (locked) {
-        costHtml = `<div style="font-size:0.62rem;color:rgba(255,255,255,0.15);margin-top:3px">???</div>`;
     }
 
-    let trainOptionsHtml = '';
-if (trainable && !training && !learned && !isBusy) {  // Added && !isBusy
-    const hoursOptions = [];
-    for (let h = 1; h <= maxHours; h++) {
-        hoursOptions.push(`<option value="${h}">${h}h</option>`);
-    }
-    trainOptionsHtml = `
-        <div style="display: flex; gap: 4px; margin-top: 8px;">
-            <select id="train-hours-${skillKey}" style="background: rgba(0,0,0,0.6); border: 1px solid ${branchColor}66; border-radius: 4px; padding: 4px; color: white; font-size: 0.65rem; width: 55px;">
-                ${hoursOptions.join('')}
-            </select>
-            <button ${actionAttrs('stStartTrain', skillKey, branchId, false)} 
-                style="flex:1; padding: 5px 6px; border-radius: 4px; border: 1px solid ${branchColor}66;
-                       background: ${branchColor}18; color: ${branchColor}; font-size: 0.65rem; font-weight: 600;
-                       cursor: pointer; transition: all 0.15s;">
-                Train
-            </button>
-            <button ${actionAttrs('stStartTrain', skillKey, branchId, true)} 
-                style="padding: 5px 6px; border-radius: 4px; border: 1px solid #f1c40f66;
-                       background: rgba(241,196,15,0.15); color: #f1c40f; font-size: 0.65rem; font-weight: 600;
-                       cursor: pointer; transition: all 0.15s;"
-                title="2x speed (costs 500 gold per hour)">
-                2x
-            </button>
-        </div>
-    `;
-} else if (trainable && !training && !learned && isBusy) {  // Added this else if
-    let busyLabel = 'Busy';
-    if (missionReadyToCollect) busyLabel = 'Collect mission reward first';
-    else if (missionActive) busyLabel = 'Mission in progress';
-    else if (battleCooldownRemaining > 0) busyLabel = 'Battle cooldown active';
-    else if (isTraveling) busyLabel = 'Traveling';
-
-    trainOptionsHtml = `
-        <div style="margin-top: 8px; text-align: center; font-size: 0.6rem; color: rgba(255,255,255,0.3); padding: 5px;">
-            🔒 ${busyLabel}
-        </div>
-    `;
-}
-
-    let btnHtml = '';
-    if (learned) {
-        btnHtml = `<div style="text-align:center;font-size:0.62rem;font-weight:700;color:${branchColor};margin-top:8px;letter-spacing:0.06em">✓ LEARNED</div>`;
-    } else if (training) {
-        btnHtml = `<button ${actionAttrs('stCancel')}
-            style="width:100%;margin-top:8px;padding:5px 8px;border-radius:6px;border:1px solid #e74c3c66;
-                   background:rgba(231,76,60,0.15);color:#e74c3c;font-size:0.68rem;font-weight:700;
-                   cursor:pointer;transition:all 0.15s">
-            Cancel Training
-        </button>`;
-    } else if (trainable) {
-        btnHtml = trainOptionsHtml;
-    } else {
-        btnHtml = `<div style="text-align:center;font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:8px">???</div>`;
+    // Rail between first and last branch centers
+    if (mains.length) {
+        html += `<div class="st-rail-row"><div class="st-rail" style="left:${railSide}%;right:${railSide}%"></div></div>`;
     }
 
-    return `
-    <div style="min-width:150px;max-width:170px;flex-shrink:0;
-                border:1px solid ${borderColor};border-radius:10px;
-                background:${bgColor};padding:12px;position:relative">
-        <div style="text-align:center;font-size:2rem;margin-bottom:6px;line-height:1">${displayEmoji}</div>
-        <div style="font-size:0.74rem;font-weight:700;color:${labelColor};text-align:center;line-height:1.2;margin-bottom:5px">${displayName}</div>
-        <div style="font-size:0.64rem;color:rgba(255,255,255,0.4);line-height:1.35;margin-bottom:4px">${displayDesc}</div>
-        ${effectSummary ? `<div style="font-size:0.6rem;color:${branchColor};margin-top:4px;font-weight:600">${effectSummary}</div>` : ''}
-        ${progressHtml}
-        ${thresholdHtml}
-        ${costHtml}
-        ${btnHtml}
-        ${!locked && sk.tier ? `<div style="position:absolute;top:6px;right:6px;font-size:0.55rem;color:rgba(255,255,255,0.2);font-weight:700">T${sk.tier}</div>` : ''}
-    </div>`;
-}
-async function stCancelLegacy() {
-    const ok = await openGameConfirmDialog({
-        title: 'Cancel Training?',
-        message: 'Cancel current training?',
-        confirmLabel: 'Cancel Training',
-        cancelLabel: 'Keep Training',
-        danger: true,
-    });
-    if (!ok) return;
-    try {
-        await api('POST', '/skills/cancel');
-        hideTrainingOverlay();           // ← Important
-        await renderSkillTreeTab();
-        character = await api('GET', '/game/character');
-        renderTopBar();
-        showMsg('skill-tree-msg', 'Training cancelled.');
-    } catch (e) {
-        showMsg('skill-tree-msg', e.message, true);
+    // Branch columns
+    html += `<div class="st-branches">`;
+    for (const branchId of mains) {
+        const branch = branches[branchId];
+        const bc = stBranchColor(branchId, accent);
+        const closed = !!branch.exclusiveLocked;
+        const doctrineIds = childrenOf(branchId).filter(id => branches[id]);
+
+        html += `<div class="st-branch-col">`;
+        html += `<div class="st-stub${branchTreeHasProgressLocal(branch, tree, branchId) ? ' lit' : ''}"></div>`;
+        html += stBranchBlob(branchId, branch, bc, accent);
+
+        if (closed) {
+            html += `<div class="st-link"></div><div class="st-blob st-future" style="padding:16px 8px">
+                <div class="st-closed-note">🔒 PATH<br>CLOSED</div></div>`;
+        } else {
+            html += `<div class="st-link"></div>`;
+            html += stChain(branch, bc, activeTraining, busyState, branchId);
+
+            // Doctrine split below the parent chain
+            if (doctrineIds.length > 1 || (doctrineIds.length === 1 && branchTreeHasProgressLocal(branches[doctrineIds[0]], tree, doctrineIds[0]))) {
+                const subN = doctrineIds.length;
+                const subSide = (100 / subN) / 2;
+                html += `<div class="st-link"></div>
+                    <div class="st-doctrines">`;
+                for (const dId of doctrineIds) {
+                    const dBranch = branches[dId];
+                    const dbc = stBranchColor(dId, accent);
+                    html += `<div class="st-sub-col">
+                        <div class="st-sub-rail-row"><div class="st-sub-rail" style="left:${subSide}%;right:${subSide}%"></div></div>
+                        <div class="st-stub"></div>
+                        ${stBranchBlob(dId, dBranch, dbc, accent)}
+                        <div class="st-link"></div>
+                        ${stChain(dBranch, dbc, activeTraining, busyState, dId)}
+                    </div>`;
+                }
+                html += `</div>`;
+            }
+        }
+        html += `</div>`;
     }
+    html += `</div></div></div>`;
+    return html;
 }
 
-// ── Arrow connector ───────────────────────────────────────────────────────────
-function renderConnector(prevSk, nextSk) {
-    const bothLearned = prevSk.learned && nextSk.learned;
-    const color = bothLearned ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.12)';
-    return `<div style="display:flex;align-items:center;align-self:center;flex-shrink:0;color:${color};font-size:1rem;padding:0 2px">→</div>`;
+function branchTreeHasProgressLocal(branch, tree, branchId) {
+    if (!branch) return false;
+    if (Object.values(branch.skills || {}).some(s => (s.progress || 0) > 0)) return true;
+    for (const [id, b] of Object.entries(tree?.branches || {})) {
+        if (b.parent_branch === branchId && Object.values(b.skills || {}).some(s => (s.progress || 0) > 0)) return true;
+    }
+    return false;
 }
 
-// ── Effect summary helper ─────────────────────────────────────────────────────
+
 function stEffectSummary(effects) {
     const parts = [];
     for (const eff of effects) {
