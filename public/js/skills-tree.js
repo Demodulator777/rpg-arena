@@ -436,18 +436,17 @@ function stShowTipFor(el) {
     tip.style.height = '';
     tip.style.pointerEvents = 'none';
     const r = el.getBoundingClientRect();
-    const zf = (typeof uiZoomFactor === 'function') ? uiZoomFactor() : 1;
-    const vw = window.innerWidth / zf, vh = window.innerHeight / zf;
+    const vw = window.innerWidth, vh = window.innerHeight;
     const tw = tip.offsetWidth || 220, th = tip.offsetHeight || 260;
     const isNarrow = vw < 500;
     let left, top;
     if (isNarrow) {
-        left = Math.max(8, Math.round(r.left / zf + r.width / zf / 2 - tw / 2));
-        top = Math.round(r.bottom / zf + 8);
+        left = Math.max(8, Math.round(r.left + r.width / 2 - tw / 2));
+        top = Math.round(r.bottom + 8);
     } else {
-        left = r.right / zf + 12;
-        top = r.top / zf;
-        if (left + tw > vw - 8) left = r.left / zf - tw - 12;
+        left = r.right + 12;
+        top = r.top;
+        if (left + tw > vw - 8) left = r.left - tw - 12;
     }
     if (top + th > vh - 8) top = vh - th - 8;
     if (top < 8) top = 8;
