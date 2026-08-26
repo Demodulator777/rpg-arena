@@ -7462,8 +7462,9 @@ function showItemTooltip(event, itemId) {
     const finalH = Math.min(Math.max(220, th), maxH);
     tooltip.style.height = finalH + 'px';
     const th2 = tooltip.offsetHeight || finalH;
-    let left = r.right+12, top = r.top;
-    if (left+tw>window.innerWidth-8) left = r.left-tw-12;
+    const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    let left = r.right/zf+12, top = r.top/zf;
+    if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
     if (top+th2>window.innerHeight-8) top = window.innerHeight-th2-8;
     tooltip.style.left = Math.max(8,left)+'px';
     tooltip.style.top  = Math.max(8,top)+'px';
