@@ -66,6 +66,7 @@ function renderLayout() {
         tabs.push(
             { id: 'banners', label: 'Banners' },
             { id: 'rewards', label: 'Rewards' },
+            { id: 'vouchers', label: 'Vouchers' },
             { id: 'weekly', label: 'Weekly Stats' },
             { id: 'db', label: 'Database' },
             { id: 'tournaments', label: 'Tournaments' },
@@ -105,6 +106,7 @@ function loadTab(name) {
     else if (name === 'bugs') loadBugs();
     else if (name === 'banners') loadBanners();
     else if (name === 'rewards') loadRewards();
+    else if (name === 'vouchers') loadVouchers();
     else if (name === 'db') loadDbAdmin();
     else if (name === 'tournaments') loadTournaments();
     else if (name === 'actions') loadActions();
@@ -1893,5 +1895,96 @@ function updatePendingBadge() {
     API('/admin/pending-profile-pics/count').then(function(res) {
         var tab = document.querySelector('[data-tab="profile-pic-review"]');
         if (tab) tab.textContent = 'Profile Pic Review (' + res.count + ')';
+    });
+}
+
+// ── Voucher codes ───────────────────────────────────────────────────────────
+function voucherPost(path, body) {
+    return fetch('/api/game' + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+        body: JSON.stringify(body || {})
+    }).then(function(r) {
+        return r.json().then(function(j) {
+            if (!r.ok) throw new Error(j.error || ('HTTP ' + r.status));
+            return j;
+        });
+    });
+}
+
+function loadVouchers() {
+    var el = document.getElementById('tab-vouchers');
+    if (!el) return;
+    el.innerHTML = '<div class="loading">Loading vouchers...</div>';
+    API('/admin/vouchers').then(function(list) {
+        var rows = (list || []).map(function(v) {
+            var status = Number(v.active) ? '<span style="color:#2ecc71;font-weight:700">Active</span>' : '<span style="color:#e74c3c;font-weight:700">Inactive</span>';
+            var uses = v.use_count + (v.max_uses ? ' / ' + v.max_uses : '');
+            return '<tr>' +
+                '<td style="font-family:monospace;font-weight:700;color:#c8a86e">' + escHtml(v.code) + '</td>' +
+                '<td>' + escHtml(v.reward_summary || '') + '</td>' +
+                '<td>' + status + '</td>' +
+                '<td>' + uses + '</td>' +
+                '<td>' + (v.redemption_count || 0) + '</td>' +
+                '<td>' + (v.created_at ? new Date(v.created_at * 1000).toLocaleString() : '') + '</td>' +
+                '<td style="white-space:nowrap">' +
+                    '<button data-voucher-toggle="' + v.id + '" style="padding:4px 10px;margin-right:4px;border:1px solid #c8a86e;background:#1a1a28;color:#c8a86e;border-radius:4px;cursor:pointer;font-size:11px">' + (Number(v.active) ? 'Deactivate' : 'Activate') + '</button>' +
+                    '<button data-voucher-delete="' + v.id + '" data-voucher-code="' + escHtml(v.code) + '" style="padding:4px 10px;border:1px solid #e74c3c;background:#1a1a28;color:#e74c3c;border-radius:4px;cursor:pointer;font-size:11px">Delete</button>' +
+                '</td>' +
+            '</tr>';
+        }).join('');
+        el.innerHTML =
+            '<h2 style="margin-top:0">Voucher Codes</h2>' +
+            '<p style="color:#8a8a90;font-size:12px">Rewards are delivered directly to <b>every character</b> of the redeeming account (gold, gems, materials). Each account can redeem a code once; optional max-uses caps total redemptions.</p>' +
+            '<div style="background:#14141e;border:1px solid #2a2a35;border-radius:8px;padding:14px;margin-bottom:16px">' +
+                '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;align-items:end">' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Code</label><input id="voucher-new-code" placeholder="SUMMER2026" maxlength="32" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"></div>' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Gold</label><input id="voucher-new-gold" type="number" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"></div>' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Gems</label><input id="voucher-new-gems" type="number" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"></div>' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Material type</label><select id="voucher-new-mtype" style="width:100%;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"><option value="">None</option><option value="raw_mat">Raw material</option><option value="component">Component</option></select></div>' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Material id</label><input id="voucher-new-mid" placeholder="demon_alloy" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"></div>' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Material qty</label><input id="voucher-new-mqty" type="number" min="0" placeholder="0" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"></div>' +
+                    '<div><label style="display:block;font-size:11px;color:#8a8a90;margin-bottom:4px">Max uses (blank = unlimited)</label><input id="voucher-new-maxuses" type="number" min="1" placeholder="Unlimited" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid #2a2a35;background:#0a0a0f;color:#e0dcd0"></div>' +
+                    '<button id="voucher-create-btn" style="padding:8px 16px;background:linear-gradient(180deg,#2ecc71,#1f8b4d);border:none;border-radius:6px;color:#fff;font-weight:700;cursor:pointer">Create</button>' +
+                '</div>' +
+                '<div id="voucher-create-msg" style="margin-top:10px;font-size:12px;color:#8a8a90;min-height:14px"></div>' +
+            '</div>' +
+            '<div class="table-wrap"><table><thead><tr style="text-align:left;color:#8a8a90">' +
+                '<th style="padding:8px">Code</th><th style="padding:8px">Rewards</th><th style="padding:8px">Status</th><th style="padding:8px">Uses</th><th style="padding:8px">Accounts</th><th style="padding:8px">Created</th><th style="padding:8px">Actions</th>' +
+            '</tr></thead><tbody>' + (rows || '<tr><td colspan="7" style="padding:12px;color:#8a8a90">No vouchers yet.</td></tr>') + '</tbody></table></div>';
+
+        var msgEl = document.getElementById('voucher-create-msg');
+        var post = function(path, body, okMsg) {
+            return voucherPost(path, body).then(function(d) {
+                msgEl.textContent = d.message || okMsg || 'Done.';
+                msgEl.style.color = '#2ecc71';
+                loadVouchers();
+            }).catch(function(e) {
+                msgEl.textContent = e.message;
+                msgEl.style.color = '#e06060';
+            });
+        };
+        document.getElementById('voucher-create-btn').addEventListener('click', function() {
+            post('/admin/vouchers/create', {
+                code: document.getElementById('voucher-new-code').value,
+                gold: document.getElementById('voucher-new-gold').value,
+                gems: document.getElementById('voucher-new-gems').value,
+                materialType: document.getElementById('voucher-new-mtype').value,
+                materialId: document.getElementById('voucher-new-mid').value,
+                materialQty: document.getElementById('voucher-new-mqty').value,
+                maxUses: document.getElementById('voucher-new-maxuses').value
+            }, 'Voucher created.');
+        });
+        el.querySelectorAll('[data-voucher-toggle]').forEach(function(btn) {
+            btn.addEventListener('click', function() { post('/admin/vouchers/toggle', { id: Number(btn.dataset.voucherToggle) }, 'Updated.'); });
+        });
+        el.querySelectorAll('[data-voucher-delete]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (!confirm('Delete voucher ' + btn.dataset.voucherCode + '?')) return;
+                post('/admin/vouchers/delete', { id: Number(btn.dataset.voucherDelete) }, 'Deleted.');
+            });
+        });
+    }).catch(function(e) {
+        el.innerHTML = '<div class="loading">' + escHtml(e.message || 'Error loading vouchers') + '</div>';
     });
 }
