@@ -4045,6 +4045,21 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
     transition: border-color 0.2s, transform 0.15s;
 }
+.forge-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--card-bg) center/cover no-repeat;
+    opacity: 0.08;
+    pointer-events: none;
+}
+.forge-card::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: url('/images/rune-bg.png') center/cover no-repeat;
+    opacity: 0.04;
+    pointer-events: none;
+}
+.forge-card > * { position: relative; z-index: 1; }
 .forge-card:hover { border-color: var(--border-mid); transform: translateY(-1px); }
 .forge-card.locked { opacity: 0.52; }
 .forge-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
