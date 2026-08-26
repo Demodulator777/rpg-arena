@@ -27,6 +27,10 @@
         }
     }
 }
+/* The dungeon page is canvas/coordinate heavy — it always runs at original
+   scale (zoom off + uncompensated viewport units). */
+html.ui-zoom-off { zoom: 1; }
+html.ui-zoom-off { --vph: 100vh; --vpw: 100vw; --svph: 100svh; }
 
 /* Prevent text selection / Tap to Search app-wide — re-enable on editable fields */
 *, *::before, *::after {
