@@ -224,12 +224,32 @@
         }
     }
 
-    // Expose so init code can call it after first render
-    window._dismissOverlay = dismissOverlay;
+function tokenStorage() { return localStorage.getItem('rpg_remember_me') !== 'false' ? localStorage : sessionStorage; }
+
+function getToken() { return tokenStorage().getItem('rpg_token'); }
+function setToken(t) { tokenStorage().setItem('rpg_token', t); }
+function getUsername() { return tokenStorage().getItem('rpg_username'); }
+function setUsername(u) { tokenStorage().setItem('rpg_username', u); }
+function clearTokenStorage() { tokenStorage().removeItem('rpg_token'); tokenStorage().removeItem('rpg_username'); sessionStorage.removeItem('rpg_token'); sessionStorage.removeItem('rpg_username'); }
+function toggleRememberMe() {
+    const checked = document.getElementById('remember-me')?.checked !== false;
+    localStorage.setItem('rpg_remember_me', checked ? 'true' : 'false');
+    if (token) {
+        const s = checked ? localStorage : sessionStorage;
+        const other = checked ? sessionStorage : localStorage;
+        s.setItem('rpg_token', token);
+        s.setItem('rpg_username', username || '');
+        other.removeItem('rpg_token');
+        other.removeItem('rpg_username');
+    }
+}
+
+// Expose so init code can call it after first render
+window._dismissOverlay = dismissOverlay;
 })();
 // ── State ─────────────────────────────────────────────────────────────────
-let token = localStorage.getItem('rpg_token');
-let username = localStorage.getItem('rpg_username');
+let token = (() => { const s = tokenStorage(); return s.getItem('rpg_token'); })();
+let username = (() => { const s = tokenStorage(); return s.getItem('rpg_username'); })();
 let tabSession = sessionStorage.getItem('rpg_tab_session') || (() => { const id = Date.now().toString(36) + Math.random().toString(36).slice(2); sessionStorage.setItem('rpg_tab_session', id); return id; })();
 let character = null;
 let trainTimer = null, unreadTimer = null, topbarLiveTimer = null, chatPollTimer = null;
@@ -748,7 +768,7 @@ async function api(method, path, body=null) {
     }
 
     const opts = { method, headers: { 'Content-Type': 'application/json' } };
-    const storedToken = localStorage.getItem('rpg_token');
+    const storedToken = getToken();
     if (storedToken) opts.headers['Authorization'] = `Bearer ${storedToken}`;
     opts.headers['X-Build-Version'] = '2026-07-09-v1';
     if (window.tabSession) opts.headers['X-Tab-Session'] = window.tabSession;
@@ -769,7 +789,7 @@ async function api(method, path, body=null) {
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
-            var token2 = localStorage.getItem('rpg_token');
+            var token2 = getToken();
             if (token2) {
                 fetch('/api/game/admin/report-dom-mutation', {
                     method: 'POST',
@@ -1871,7 +1891,7 @@ window.addEventListener('DOMContentLoaded', async () => {
         }
         catch (e) {
             if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); if (window._dismissOverlay) window._dismissOverlay(); }
-            else { token=null; localStorage.removeItem('rpg_token'); showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
+            else { token=null; tokenStorage().removeItem('rpg_token'); showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
         }
     } else { showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
 });
@@ -1889,7 +1909,7 @@ document.addEventListener('securitypolicyviolation', (e) => {
         line_number: e.lineNumber,
         column_number: e.columnNumber
     };
-    const token = localStorage.getItem('rpg_token');
+    const token = getToken();
     if (token) {
         fetch('/api/game/admin/csp-violation', {
             method: 'POST',
@@ -1910,7 +1930,7 @@ document.addEventListener('securitypolicyviolation', (e) => {
         // Skip flushing when bot detection is disabled
         if (window.__botDetectionEnabled === false) { reportQueue = []; return; }
         var batch = reportQueue.splice(0);
-        var token = localStorage.getItem('rpg_token');
+        var token = getToken();
         if (!token) return;
         fetch('/api/game/admin/report-dom-mutation', {
             method: 'POST',
@@ -2004,7 +2024,7 @@ document.addEventListener('securitypolicyviolation', (e) => {
     document.addEventListener('touchstart', markHumanInput, { passive: true });
     function inputBeacon() {
         if (window.__botDetectionEnabled === false) return;
-        var token = localStorage.getItem('rpg_token');
+        var token = getToken();
         if (!token) return;
         var hasInput = (Date.now() - window._lastHumanInput) < 90000 ? 1 : 0;
         fetch('/api/game/admin/report-input-activity', {
@@ -2101,7 +2121,9 @@ async function login() {
         token=data.token; username=data.username;
         window.__forcedLogoutShown = false;
         window.__auth401Seen = false;
-        localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
+        const rememberMe = document.getElementById('remember-me')?.checked !== false;
+        localStorage.setItem('rpg_remember_me', rememberMe ? 'true' : 'false');
+        setToken(token); setUsername(username);
         syncLangToServer();
         try {
             const [charData] = await Promise.all([
@@ -2130,7 +2152,9 @@ async function register() {
         token=data.token; username=data.username;
         window.__forcedLogoutShown = false;
         window.__auth401Seen = false;
-        localStorage.setItem('rpg_token',token); localStorage.setItem('rpg_username',username);
+        const rememberMe = document.getElementById('remember-me')?.checked !== false;
+        localStorage.setItem('rpg_remember_me', rememberMe ? 'true' : 'false');
+        setToken(token); setUsername(username);
         syncLangToServer();
         showScreen('create');
     } catch(e) { setError('auth-error',e.message); }
@@ -2149,7 +2173,7 @@ async function handleGoogleCredential(resp) {
         token = data.token; username = data.username;
         window.__forcedLogoutShown = false;
         window.__auth401Seen = false;
-        localStorage.setItem('rpg_token', token); localStorage.setItem('rpg_username', username);
+        setToken(token); setUsername(username);
         syncLangToServer();
         try {
             const [charData] = await Promise.all([
@@ -2309,7 +2333,7 @@ async function submitPasswordReset() {
 }
 function logout() {
     // Save token for logout request before clearing
-    const storedToken = localStorage.getItem('rpg_token');
+    const storedToken = getToken();
 
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
@@ -2318,7 +2342,7 @@ function logout() {
     // or subsequent banned request instead of only on the first 403 after load.
     window.__banLockShown = false;
     window.__banWarningShown = false;
-    localStorage.removeItem('rpg_token'); localStorage.removeItem('rpg_username');
+    tokenStorage().removeItem('rpg_token'); tokenStorage().removeItem('rpg_username');
     [trainTimer, unreadTimer, topbarLiveTimer, chatPollTimer].forEach(t=>clearInterval(t));
     chatPollTimer = null;
     renderChatWidget();
@@ -4889,7 +4913,7 @@ async function enterAbyssGate() {
     const shadowfenUnlocked = unlockedAbyssZones.has('shadowfen');
     try {
         // Use a manual fetch so we can surface battle logs on non-200 responses.
-        const storedToken = localStorage.getItem('rpg_token');
+        const storedToken = getToken();
         const headers = { 'Content-Type': 'application/json' };
         if (storedToken) headers['Authorization'] = `Bearer ${storedToken}`;
         if (window.tabSession) headers['X-Tab-Session'] = window.tabSession;
@@ -9382,7 +9406,7 @@ async function renderPremium(data) {
     </div>`;
 
     let adminBtnHtml = '';
-    const storedToken = localStorage.getItem('rpg_token');
+    const storedToken = getToken();
     if (storedToken) {
         try {
             const adminRes = await fetch('/api/game/admin/check', {
@@ -15196,7 +15220,7 @@ async function uploadProfilePic(e) {
             try {
                 const formData = new FormData();
                 formData.append('profilePic', finalFile);
-                const token = localStorage.getItem('rpg_token');
+                const token = getToken();
                 const res = await fetch('/api/game/profile-pic/upload', {
                     method: 'POST',
                     headers: { 'Authorization': 'Bearer ' + token },
