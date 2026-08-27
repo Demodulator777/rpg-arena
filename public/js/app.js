@@ -4592,14 +4592,25 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 80;
     const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const r = btn.getBoundingClientRect();
-    let left = r.right/zf+12, top = r.top/zf;
+
+    // Try showing below first
+    let left = r.right/zf+12;
+    let top = r.bottom/zf+8; // Position below the button
+
+    // If it doesn't fit below, show above
+    if (top+th>window.innerHeight-8) {
+        top = r.top/zf - th - 8; // Show above
+    }
+
+    // Horizontal adjustment
     if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
-    // Fixed vertical positioning - account for zoom
-    if (top+th>window.innerHeight-8) top = (window.innerHeight - th - 8) / zf;
-    // Also ensure it doesn't go above the viewport
-    if (top < 8) top = 8;
-    tt.style.left = Math.max(8,left)+'px';
-    tt.style.top  = Math.max(8,top)+'px';
+
+    // Ensure it stays in viewport
+    top = Math.max(8, Math.min(top, (window.innerHeight - th - 8) / zf));
+    left = Math.max(8, left);
+
+    tt.style.left = left+'px';
+    tt.style.top  = top+'px';
     clearTimeout(tt._hideTimer);
     if (!noAutoHide) tt._hideTimer = setTimeout(() => tt.classList.add('hidden'), 3000);
 }
