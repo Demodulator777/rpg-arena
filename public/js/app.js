@@ -4594,7 +4594,10 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     const r = btn.getBoundingClientRect();
     let left = r.right/zf+12, top = r.top/zf;
     if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
-    if (top+th>window.innerHeight-8) top = window.innerHeight-th-8;
+    // Fixed vertical positioning - account for zoom
+    if (top+th>window.innerHeight-8) top = (window.innerHeight - th - 8) / zf;
+    // Also ensure it doesn't go above the viewport
+    if (top < 8) top = 8;
     tt.style.left = Math.max(8,left)+'px';
     tt.style.top  = Math.max(8,top)+'px';
     clearTimeout(tt._hideTimer);
