@@ -4570,12 +4570,12 @@ function renderUpgrade() {
 function _ttPos(tooltip, r, tw, th) {
     const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const rl=r.left/zf, rt=r.top/zf, rw=r.width/zf, rh=r.height/zf;
-    let left = rl+rw/2-tw/2, top = rt-th-12;
-    if (top < 8) top = rt+rh+8;
-    if (left+tw>window.innerWidth-8) left = window.innerWidth-tw-8;
+    let left = rl+rw/2-tw/2, top = rt+rh-th;
+    if (top < 8) top = 8;
     if (top+th>window.innerHeight-8) top = Math.max(8, window.innerHeight-th-8);
+    if (left+tw>window.innerWidth-8) left = window.innerWidth-tw-8;
     tooltip.style.left = Math.round(Math.max(8,left))+'px';
-    tooltip.style.top  = Math.round(Math.max(8,top))+'px';
+    tooltip.style.top  = Math.round(top)+'px';
 }
 let _upgradingStats = {};
 function showStatUpgradeInfo(btn, noAutoHide) {
@@ -6874,13 +6874,24 @@ function forgeQtyStep(id, step) {
     const max = parseInt(input.getAttribute('max') || '0', 10);
     let v = parseInt(input.value || '0', 10);
     if (isNaN(v)) v = 0;
-    input.value = Math.max(0, Math.min(v + step, max));
+    const next = Math.max(0, Math.min(v + step, max));
+    if (next === v) {
+        if (step > 0) showMsg('forge-msg', 'Maximum reached — not enough gold or materials to refine more', true);
+        else if (step < 0) showMsg('forge-msg', 'Quantity is already at minimum', true);
+        return;
+    }
+    input.value = next;
 }
 
 function forgeQtySetMax(id) {
     const input = getForgeQtyInput(id);
     if (!input) return;
-    input.value = parseInt(input.getAttribute('max') || '0', 10);
+    const max = parseInt(input.getAttribute('max') || '0', 10);
+    if (max < 1) {
+        showMsg('forge-msg', 'Cannot refine — not enough gold or materials', true);
+        return;
+    }
+    input.value = max;
 }
 
 async function refineInput(componentId) {
