@@ -7926,16 +7926,16 @@ function createLootboxModal() {
                 position: relative;
                 overflow: hidden;
             }
-            .lootbox-stage::before {
-                content: '';
+            .lootbox-stage-bg {
                 position: absolute; inset: 0;
                 background: var(--stage-bg, none) center/cover no-repeat;
-                opacity: 0.18;
+                opacity: 0.15;
                 pointer-events: none;
+                z-index: 0;
                 transform: translateZ(0);
-                transition: background-image 0.3s ease;
+                transition: opacity 0.3s ease;
             }
-            .lootbox-stage > * { position: relative; z-index: 1; }
+            .lootbox-stage > .lootbox-stage-bg + * { position: relative; z-index: 1; }
             
             /* Individual item reveal card with awesome pop effect */
             .lootbox-item-card {
@@ -8445,16 +8445,18 @@ function startSequentialReveal(result, boxName, onComplete) {
             } else {
                 stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">✨ All items collected! ✨</div>`;
             }
-            stage.style.removeProperty('--stage-bg');
             if (onComplete) onComplete();
             return;
         }
 
         const item = lootboxModalState.currentQueue[lootboxModalState.currentIndex];
         const stageImagePath = (item.type === 'item' && item.name) ? (getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`) : '';
-        if (stageImagePath) stage.style.setProperty('--stage-bg', `url('${stageImagePath}')`);
-        else stage.style.removeProperty('--stage-bg');
-        stage.innerHTML = renderSingleLootboxItem(item);
+        const cardHtml = renderSingleLootboxItem(item);
+        if (stageImagePath) {
+            stage.innerHTML = `<div class="lootbox-stage-bg" style="--stage-bg:url('${escHtml(stageImagePath)}')"></div>` + cardHtml;
+        } else {
+            stage.innerHTML = cardHtml;
+        }
         lootboxModalState.currentIndex++;
 
         if (!lootboxModalState.skipRequested && lootboxModalState.currentIndex < lootboxModalState.currentQueue.length) {
