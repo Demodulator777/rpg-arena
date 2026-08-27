@@ -7977,6 +7977,14 @@ function createLootboxModal() {
                 position: relative;
                 z-index: 1;
             }
+            .lootbox-card-bg {
+                position: absolute; inset: 0;
+                background: var(--card-bg) center/cover no-repeat;
+                opacity: 0.1;
+                pointer-events: none;
+                z-index: 0;
+                transform: translateZ(0);
+            }
             
             @keyframes lootboxPopIn {
                 0% {
@@ -8132,6 +8140,8 @@ function createLootboxModal() {
             }
             
             .lootbox-summary-row {
+                position: relative;
+                overflow: hidden;
                 display: flex;
                 align-items: center;
                 gap: 14px;
@@ -8139,6 +8149,15 @@ function createLootboxModal() {
                 border-bottom: 1px solid rgba(255, 200, 80, 0.2);
                 animation: lootboxFadeUp 0.2s ease;
             }
+            .lootbox-summary-row::before {
+                content: '';
+                position: absolute; inset: 0;
+                background: url('/images/rune-bg.png') center/cover no-repeat;
+                opacity: 0.06;
+                pointer-events: none;
+                transform: translateZ(0);
+            }
+            .lootbox-summary-row > * { position: relative; z-index: 1; }
             
             @keyframes lootboxFadeUp {
                 from { opacity: 0; transform: translateY(12px); }
@@ -8292,17 +8311,21 @@ function renderSingleLootboxItem(item) {
     const rarityClass = ['rare', 'epic', 'legendary'].includes(quality) ? ` lootbox-rarity-${quality}` : '';
 
     let imageHtml;
+    let bgImagePath = '';
     if (item.type === 'gold') {
         imageHtml = `<span class="lootbox-item-image lootbox-item-emoji">💰</span>`;
     } else if (item.type === 'gem') {
         imageHtml = `<span class="lootbox-item-image lootbox-item-emoji">💎</span>`;
     } else {
-        const imagePath = getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
-        imageHtml = `<img class="lootbox-item-image" src="${imagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">`;
+        bgImagePath = getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+        imageHtml = `<img class="lootbox-item-image" src="${bgImagePath}" alt="${escapeHtml(itemName)}" data-error-src="/images/assets/prize.png">`;
     }
+
+    const bgLayer = bgImagePath ? `<div class="lootbox-card-bg" style="--card-bg:url('${escHtml(bgImagePath)}')"></div>` : '';
 
     return `
         <div class="lootbox-item-card${rarityClass}">
+            ${bgLayer}
             ${imageHtml}
             <div class="lootbox-item-info">
                 <div class="lootbox-item-title">${escapeHtml(itemName)}${qtyText}</div>
