@@ -6867,7 +6867,21 @@ async function refine(componentId, quantity = 1) {
 function getForgeQtyInput(id) {
     return document.querySelector(`input.forge-qty-input[data-eid="${id}"]`);
 }
-
+function showForgeAlert(msg) {
+    let ov = document.getElementById('forge-alert-modal');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'forge-alert-modal';
+        ov.className = 'modal-overlay hidden';
+        ov.innerHTML = `<div class="modal-box" style="max-width:340px;text-align:center">
+            <div id="forge-alert-text" style="font-size:1rem;line-height:1.5;margin-bottom:14px"></div>
+            <button class="btn-sm" onclick="document.getElementById('forge-alert-modal').classList.add('hidden')" style="padding:6px 24px">OK</button>
+        </div>`;
+        document.body.appendChild(ov);
+    }
+    document.getElementById('forge-alert-text').textContent = msg;
+    ov.classList.remove('hidden');
+}
 function forgeQtyStep(id, step) {
     const input = getForgeQtyInput(id);
     if (!input) return;
@@ -6876,8 +6890,8 @@ function forgeQtyStep(id, step) {
     if (isNaN(v)) v = 0;
     const next = Math.max(0, Math.min(v + step, max));
     if (next === v) {
-        if (step > 0) showMsg('forge-msg', 'Maximum reached — not enough gold or materials to refine more', true);
-        else if (step < 0) showMsg('forge-msg', 'Quantity is already at minimum', true);
+        if (step > 0) showForgeAlert('Maximum reached — not enough gold or materials to refine more.');
+        else if (step < 0) showForgeAlert('Quantity is already at minimum.');
         return;
     }
     input.value = next;
@@ -6888,7 +6902,7 @@ function forgeQtySetMax(id) {
     if (!input) return;
     const max = parseInt(input.getAttribute('max') || '0', 10);
     if (max < 1) {
-        showMsg('forge-msg', 'Cannot refine — not enough gold or materials', true);
+        showForgeAlert('Cannot refine — not enough gold or materials.');
         return;
     }
     input.value = max;
