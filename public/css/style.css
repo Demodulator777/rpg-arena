@@ -6084,7 +6084,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
             linear-gradient(135deg, rgba(17,23,34,0.96), rgba(11,16,26,0.94));
         box-shadow: 0 18px 40px rgba(0,0,0,0.32);
         backdrop-filter: blur(10px);
-        pointer-events: auto;
+    pointer-events: none;
     }
     .event-banner.event-banner--tutorial .tutorial-copy { flex: 1 1 100%; }
     .event-banner.event-banner--tutorial .tutorial-progress { margin-right: auto; }
