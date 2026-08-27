@@ -4048,9 +4048,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .forge-card::before {
     content: '';
     position: absolute; inset: 0;
-    background: var(--card-bg) center/cover no-repeat;
+    background: var(--card-bg, none) center/cover no-repeat;
     opacity: 0.08;
     pointer-events: none;
+    transform: translateZ(0);
 }
 .forge-card::after {
     content: '';
@@ -4058,6 +4059,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: url('/images/rune-bg.png') center/cover no-repeat;
     opacity: 0.04;
     pointer-events: none;
+    transform: translateZ(0);
 }
 .forge-card > * { position: relative; z-index: 1; }
 .forge-card:hover { border-color: var(--border-mid); transform: translateY(-1px); }
