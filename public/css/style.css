@@ -4061,7 +4061,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     pointer-events: none;
     transform: translateZ(0);
 }
-.forge-card > * { position: relative; z-index: 1; }
+.forge-card > * { position: relative; z-index: 2; }
 .forge-card:hover { border-color: var(--border-mid); transform: translateY(-1px); }
 .forge-card.locked { opacity: 0.52; }
 .forge-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
@@ -4230,7 +4230,30 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: linear-gradient(145deg, rgba(201,146,42,0.12), rgba(255,255,255,0.03));
 }
 .mat-grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(108px,1fr)); gap: 9px; }
-.mat-card { background: var(--bg3); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px; text-align: center; }
+.mat-card {
+    position: relative; overflow: hidden;
+    background: linear-gradient(145deg, var(--bg2), var(--bg3));
+    border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 13px; text-align: center;
+    transition: border-color 0.2s, transform 0.15s;
+}
+.mat-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--card-bg, none) center/cover no-repeat;
+    opacity: 0.08;
+    pointer-events: none;
+    transform: translateZ(0);
+}
+.mat-card::after {
+    content: '';
+    position: absolute; inset: 0;
+    background: url('/images/rune-bg.png') center/cover no-repeat;
+    opacity: 0.04;
+    pointer-events: none;
+    transform: translateZ(0);
+}
+.mat-card > * { position: relative; z-index: 2; }
+.mat-card:hover { border-color: var(--border-mid); transform: translateY(-1px); }
 .mat-name { font-size: 0.74rem; color: var(--text-bright); margin: 5px 0 2px; }
 .mat-qty { font-size: 1.05rem; color: var(--gold); font-weight: 700; }
 
