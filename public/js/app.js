@@ -224,8 +224,11 @@
         }
     }
 
-function tokenStorage() { return localStorage.getItem('rpg_remember_me') !== 'false' ? localStorage : sessionStorage; }
+// Expose so init code can call it after first render
+window._dismissOverlay = dismissOverlay;
+})();
 
+function tokenStorage() { return localStorage.getItem('rpg_remember_me') !== 'false' ? localStorage : sessionStorage; }
 function getToken() { return tokenStorage().getItem('rpg_token'); }
 function setToken(t) { tokenStorage().setItem('rpg_token', t); }
 function getUsername() { return tokenStorage().getItem('rpg_username'); }
@@ -234,19 +237,17 @@ function clearTokenStorage() { tokenStorage().removeItem('rpg_token'); tokenStor
 function toggleRememberMe() {
     const checked = document.getElementById('remember-me')?.checked !== false;
     localStorage.setItem('rpg_remember_me', checked ? 'true' : 'false');
-    if (token) {
+    const currentToken = getToken();
+    const currentUser = getUsername();
+    if (currentToken || currentUser) {
         const s = checked ? localStorage : sessionStorage;
         const other = checked ? sessionStorage : localStorage;
-        s.setItem('rpg_token', token);
-        s.setItem('rpg_username', username || '');
+        if (currentToken) s.setItem('rpg_token', currentToken);
+        if (currentUser) s.setItem('rpg_username', currentUser);
         other.removeItem('rpg_token');
         other.removeItem('rpg_username');
     }
 }
-
-// Expose so init code can call it after first render
-window._dismissOverlay = dismissOverlay;
-})();
 // ── State ─────────────────────────────────────────────────────────────────
 let token = (() => { const s = tokenStorage(); return s.getItem('rpg_token'); })();
 let username = (() => { const s = tokenStorage(); return s.getItem('rpg_username'); })();
