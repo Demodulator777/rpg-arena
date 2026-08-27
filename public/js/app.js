@@ -6802,14 +6802,14 @@ async function openWeaponFeedDialog(dialog, weap) {
                     if (confirmed) {
                         const d2 = await api('POST','/game/forge/weapon/feed',{inventoryId: feedInvId, qty, confirmOverfeed: true});
                         forgeData = await api('GET','/game/forge/recipes');
-                        showMsg('forge-msg', d2.message);
+                        showTabAlert(d2.message);
                         buildWeaponDialog(dialog, forgeData.weapon);
                     }
                     dialog.showModal();
                     return;
                 }
                 forgeData = await api('GET','/game/forge/recipes');
-                showMsg('forge-msg', d.message);
+                showTabAlert(d.message);
                 buildWeaponDialog(dialog, forgeData.weapon);
             } catch(e) {
                 const feedErr = document.getElementById('feed-error-msg');
@@ -6830,9 +6830,9 @@ async function doWeaponLevelUp(dialog, weap) {
         renderTopBar();
         renderCharacter();
         forgeData = await api('GET','/game/forge/recipes');
-        showMsg('forge-msg', d.message);
+        showTabAlert(d.message);
         buildWeaponDialog(dialog, forgeData.weapon);
-    } catch(e) { showMsg('forge-msg', e.message, true); }
+    } catch(e) { showTabAlert(e.message); }
 }
 
 async function doApplyWeaponStats(dialog, weap) {
@@ -6846,8 +6846,8 @@ async function doApplyWeaponStats(dialog, weap) {
         renderCharacter();
         forgeData = await api('GET','/game/forge/recipes');
         buildWeaponDialog(dialog, forgeData.weapon);
-        showMsg('forge-msg','Stats applied!');
-    } catch(e) { showMsg('forge-msg', e.message, true); }
+        showTabAlert('Stats applied!');
+    } catch(e) { showTabAlert(e.message); }
 }
 
 async function refine(componentId, quantity = 1) {
@@ -6858,16 +6858,16 @@ async function refine(componentId, quantity = 1) {
         renderTopBar();
         renderCharacter();
         await loadForge();
-        showMsg('forge-msg', d.message);
+        showTabAlert(d.message);
     } catch(e) {
-        showMsg('forge-msg',e.message,true);
+        showTabAlert(e.message);
     }
 }
 
 function getForgeQtyInput(id) {
     return document.querySelector(`input.forge-qty-input[data-eid="${id}"]`);
 }
-function showForgeAlert(msg) {
+function showTabAlert(msg) {
     let ov = document.getElementById('forge-alert-modal');
     if (!ov) {
         ov = document.createElement('div');
@@ -6913,7 +6913,7 @@ async function refineInput(componentId) {
     const input = getForgeQtyInput(componentId);
     let qty = input ? parseInt(input.value || '0', 10) : 0;
     if (isNaN(qty) || qty < 1) {
-        showMsg('forge-msg', 'Enter a refine quantity of at least 1.', true);
+        showTabAlert('Enter a refine quantity of at least 1.');
         return;
     }
     await refine(componentId, qty);
@@ -6926,9 +6926,9 @@ async function craftItem(recipeId) {
         renderCharacter();
         await loadForge();
         await loadInventory();
-        showMsg('forge-msg', d.message);
+        showTabAlert(d.message);
     } catch(e) {
-        showMsg('forge-msg',e.message,true);
+        showTabAlert(e.message);
     }
 }
 async function buyRaidGear(setId, slot) {
@@ -6939,9 +6939,9 @@ async function buyRaidGear(setId, slot) {
         renderCharacter();
         await loadForge();
         await loadInventory();
-        showMsg('forge-msg', d.message);
+        showTabAlert(d.message);
     } catch(e) {
-        showMsg('forge-msg',e.message,true);
+        showTabAlert(e.message);
     }
 }
 function hoverRaidGearTooltip(el, event) {
@@ -9114,9 +9114,9 @@ async function claimMonthlyFreeGems() {
         renderCharacter();
         renderShopContent();
         renderFreeGemsModalContent();
-        showMsg('shop-msg', response.message || 'Claimed free gems.');
+        showTabAlert(response.message || 'Claimed free gems.');
     } catch (e) {
-        showMsg('shop-msg', e.message, true);
+        showTabAlert(e.message);
         await loadMonthlyFreeGemsStatus();
         renderFreeGemsModalContent();
     }
@@ -9206,15 +9206,15 @@ function renderShop() {
     }).join('');
 }
 async function buyItem(itemId) {
-    const item=shopInventory.find(i=>i.id===itemId); if(!item){showMsg('shop-msg','Item not found!',true);return;}
+    const item=shopInventory.find(i=>i.id===itemId); if(!item){showTabAlert('Item not found!');return;}
     const pt=item.priceType||'gold';
     const gemCost=item.gemCost||0;
     const staysInShop = !!(item.alwaysAvailable || item.consumable || item.category === 'premium');
-    if (character.level<(item.level||1)){showMsg('shop-msg',`Requires level ${item.level}!`,true);return;}
-    if (item.classes&&!item.classes.includes(character.class)){showMsg('shop-msg',`Not available for ${capitalize(character.class)}!`,true);return;}
-    if (pt==='gems'&&(character.gems||0)<item.price){showMsg('shop-msg','Not enough gems!',true);return;}
-    if (pt!=='gems'&&character.gold<item.price){showMsg('shop-msg','Not enough gold!',true);return;}
-    if (gemCost>0&&(character.gems||0)<gemCost){showMsg('shop-msg',`This item also costs ${gemCost} 💎 — not enough gems!`,true);return;}
+    if (character.level<(item.level||1)){showTabAlert(`Requires level ${item.level}!`);return;}
+    if (item.classes&&!item.classes.includes(character.class)){showTabAlert(`Not available for ${capitalize(character.class)}!`);return;}
+    if (pt==='gems'&&(character.gems||0)<item.price){showTabAlert('Not enough gems!');return;}
+    if (pt!=='gems'&&character.gold<item.price){showTabAlert('Not enough gold!');return;}
+    if (gemCost>0&&(character.gems||0)<gemCost){showTabAlert(`This item also costs ${gemCost} 💎 — not enough gems!`);return;}
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
     renderShop();
@@ -9225,7 +9225,7 @@ async function buyItem(itemId) {
         const refreshedChar = await api('GET','/game/character');
         character = refreshedChar;
 
-        showMsg('shop-msg',`✅ ${item.name} purchased and added to your inventory!`);
+        showTabAlert(`✅ ${item.name} purchased and added to your inventory!`);
         if (staysInShop) {
             item._buying=false;
         } else {
@@ -9246,7 +9246,7 @@ async function buyItem(itemId) {
     } catch(e) {
         item._buying=false;
         renderShop();
-        showMsg('shop-msg',e.message,true);
+        showTabAlert(e.message);
     }
 }
 function setShopCategory(category, btn) {
@@ -9385,7 +9385,7 @@ function updatePremiumCard(featureId) {
 // ── Shop Reroll ────────────────────────────────────────────────────────────
 async function rerollShop() {
     if (!character) return;
-    if ((character.gems || 0) < 1) { showMsg('shop-msg', 'Need 1 💎 gem to reroll the shop!', true); return; }
+    if ((character.gems || 0) < 1) { showTabAlert('Need 1 💎 gem to reroll the shop!'); return; }
     const ok = await openGameConfirmDialog({ title: '💎 Reroll Shop', message: 'Reroll the entire shop for 1 💎?' });
     if (!ok) return;
     try {
@@ -9394,8 +9394,8 @@ async function rerollShop() {
         character.gems = d.newGems;
         renderTopBar();
         renderShop();
-        showMsg('shop-msg', d.message);
-    } catch(e) { showMsg('shop-msg', e.message, true); }
+        showTabAlert(d.message);
+    } catch(e) { showTabAlert(e.message); }
 }
 
 // ── Leaderboard ───────────────────────────────────────────────────────────
