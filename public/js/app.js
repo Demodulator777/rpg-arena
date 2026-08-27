@@ -7923,7 +7923,19 @@ function createLootboxModal() {
                 align-items: center;
                 justify-content: center;
                 gap: 16px;
+                position: relative;
+                overflow: hidden;
             }
+            .lootbox-stage::before {
+                content: '';
+                position: absolute; inset: 0;
+                background: var(--stage-bg, none) center/cover no-repeat;
+                opacity: 0.08;
+                pointer-events: none;
+                transform: translateZ(0);
+                transition: background-image 0.3s ease;
+            }
+            .lootbox-stage > * { position: relative; z-index: 1; }
             
             /* Individual item reveal card with awesome pop effect */
             .lootbox-item-card {
@@ -8429,17 +8441,19 @@ function startSequentialReveal(result, boxName, onComplete) {
     function showNextItem() {
         if (lootboxModalState.skipRequested || lootboxModalState.currentIndex >= lootboxModalState.currentQueue.length) {
             if (lootboxModalState.skipRequested) {
-                // Skip mode: show summary with all items
                 stage.innerHTML = renderLootboxSummary(result, boxName);
             } else {
-                // Completed all items naturally
                 stage.innerHTML += `<div style="text-align:center; margin-top:12px; color:#ffd966;">✨ All items collected! ✨</div>`;
             }
+            stage.style.removeProperty('--stage-bg');
             if (onComplete) onComplete();
             return;
         }
 
         const item = lootboxModalState.currentQueue[lootboxModalState.currentIndex];
+        const stageImagePath = (item.type === 'item' && item.name) ? (getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`) : '';
+        if (stageImagePath) stage.style.setProperty('--stage-bg', `url('${stageImagePath}')`);
+        else stage.style.removeProperty('--stage-bg');
         stage.innerHTML = renderSingleLootboxItem(item);
         lootboxModalState.currentIndex++;
 
