@@ -7930,7 +7930,7 @@ function createLootboxModal() {
                 content: '';
                 position: absolute; inset: 0;
                 background: var(--stage-bg, none) center/cover no-repeat;
-                opacity: 0.08;
+                opacity: 0.18;
                 pointer-events: none;
                 transform: translateZ(0);
                 transition: background-image 0.3s ease;
@@ -7991,8 +7991,8 @@ function createLootboxModal() {
             }
             .lootbox-card-bg {
                 position: absolute; inset: 0;
-                background: var(--card-bg) center/cover no-repeat;
-                opacity: 0.1;
+                background: var(--card-bg, none) center/cover no-repeat;
+                opacity: 0.14;
                 pointer-events: none;
                 z-index: 0;
                 transform: translateZ(0);
