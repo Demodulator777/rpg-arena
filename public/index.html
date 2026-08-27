@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-24-modal-original-size"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-08-26-mat-card-bg"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-08-24-vph-fix"/>
     <style>
@@ -194,6 +194,10 @@
                 <label class="auth-password-toggle">
                     <input type="checkbox" data-change-action="togglePasswordVisibility" data-args='["login-pass"]'>
                     <span>Show password</span>
+                </label>
+                <label class="auth-remember-toggle" style="margin-top:4px; display:flex; align-items:center; gap:6px; font-size:0.85rem; color:rgba(255,255,255,0.7)">
+                    <input type="checkbox" id="remember-me" checked data-change-action="toggleRememberMe">
+                    <span>Keep me logged in</span>
                 </label>
                 <button class="btn-primary" data-action="login">Enter the Arena</button>
                 <div class="google-auth-divider"><span>or continue with</span></div>
@@ -1283,8 +1287,8 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-08-24-auth-lang"></script>
-<script src="/js/skills-tree.js?v=2026-08-24-evolutions"></script>
+<script src="/js/app.js?v=2026-08-26-keep-logged-in"></script>
+<script src="/js/skills-tree.js?v=2026-08-26-tooltip-zoom-fix"></script>
 <script src="/js/dungeon.js?v=2026-08-22-mat-icons"></script>
 <script src="/js/tournaments.js?v=2026-08-22-hist-wrap"></script>
 
