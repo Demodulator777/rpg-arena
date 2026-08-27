@@ -7929,7 +7929,7 @@ function createLootboxModal() {
             .lootbox-stage-bg {
                 position: absolute; inset: 0;
                 background: var(--stage-bg, none) center/cover no-repeat;
-                opacity: 0.15;
+                opacity: 0.07;
                 pointer-events: none;
                 z-index: 0;
                 transform: translateZ(0);
