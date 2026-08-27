@@ -4586,31 +4586,44 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     if (!tt) { tt = document.createElement('div'); tt.id = 'item-tooltip'; tt.className = 'item-tooltip hidden'; document.body.appendChild(tt); }
     const fmt = (n) => (n || 0).toLocaleString();
     tt.innerHTML = `<div style="padding:12px 14px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px;font-size:14px">${name}</div><div style="font-size:13px">💰 Upgrade Cost: <strong>${fmt(cost)}</strong> gold</div></div>`;
-    tt.style.height = '';
-    tt.style.width = '';
+
+    // CRITICAL FIX: Remove height constraints temporarily to measure full content
+    tt.style.height = 'auto';
+    tt.style.maxHeight = 'none';
+    tt.style.width = ''; // Remove fixed width constraint temporarily
     tt.classList.remove('hidden');
-    const tw = tt.offsetWidth || 200, th = tt.offsetHeight || 80;
+
+    // Get FULL content dimensions (not clipped)
+    const tw = tt.scrollWidth || 220;
+    const th = tt.scrollHeight || 80;
+
+    // Restore CSS constraints after measuring
+    tt.style.width = '220px'; // Restore from CSS
+    tt.style.maxHeight = 'calc(var(--vph) - 16px)';
+
     const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const r = btn.getBoundingClientRect();
 
-    // Try showing below first
-    let left = r.right/zf+12;
-    let top = r.bottom/zf+8; // Position below the button
+    // Try below first
+    let left = (r.right / zf) + 12;
+    let top = (r.bottom / zf) + 8;
 
-    // If it doesn't fit below, show above
-    if (top+th>window.innerHeight-8) {
-        top = r.top/zf - th - 8; // Show above
+    // If doesn't fit below, show above
+    if (top + th > window.innerHeight - 8) {
+        top = (r.top / zf) - th - 8;
     }
 
     // Horizontal adjustment
-    if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
+    if (left + tw > window.innerWidth - 8) {
+        left = (r.left / zf) - tw - 12;
+    }
 
-    // Ensure it stays in viewport
+    // Ensure within viewport
     top = Math.max(8, Math.min(top, (window.innerHeight - th - 8) / zf));
-    left = Math.max(8, left);
+    left = Math.max(8, Math.min(left, (window.innerWidth - tw - 8) / zf));
 
-    tt.style.left = left+'px';
-    tt.style.top  = top+'px';
+    tt.style.left = left + 'px';
+    tt.style.top = top + 'px';
     clearTimeout(tt._hideTimer);
     if (!noAutoHide) tt._hideTimer = setTimeout(() => tt.classList.add('hidden'), 3000);
 }
