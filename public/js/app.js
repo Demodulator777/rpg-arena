@@ -7234,7 +7234,7 @@ function renderInventory(data) {
             const d = i.item_data;
             const sp = getInventorySellPrice(d);
             const itemImage = d.image || getLootboxImagePath(d);
-            return `<div class="inv-consumable-card lootbox-card">
+            return `<div class="inv-consumable-card lootbox-card" style="${itemImage?'--card-bg:url('+escHtml(itemImage)+')':''}">
                 <div class="inv-consumable-top">
                     <div class="inv-consumable-icon">
                         <img src="${itemImage}" data-error-hide="true" data-error-next-display="inline">
@@ -7316,7 +7316,7 @@ function renderInventory(data) {
             ) : '';
             const sp = getInventorySellPrice(d);
             const itemImage = d.image || (d.effect ? getPotionImagePath(d) : null) || getItemImage(d.name);
-            return `<div class="inv-consumable-card">
+            return `<div class="inv-consumable-card" style="${itemImage?'--card-bg:url('+escHtml(itemImage)+')':''}">
                 <div class="inv-consumable-top">
                     <div class="inv-consumable-icon">
                         <img src="${itemImage}" data-error-hide="true" data-error-next-display="inline">
