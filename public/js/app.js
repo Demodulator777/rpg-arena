@@ -1298,7 +1298,6 @@ const I18N_RULES = {
         [/^(\d+)\s+members$/, '$1 membros'],
         [/^(\d+)\s+achievements$/, '$1 conquistas'],
         [/^Your rank: #(\d+)/, 'Seu rank: #$1'],
-        [/^Cost: (\d+) ⭐ each$/, 'Custo: $1 ⭐ cada'],
         [/^You can afford: (\d+)$/, 'Você pode comprar: $1']
     ]
 };
@@ -7385,7 +7384,7 @@ function renderInventory(data) {
         el.innerHTML = bulkBar + `
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
-                    <span style="font-size: 1.2rem;">⭐</span>
+                    ${matIcon('Legendary Fragment', '⭐', '1.2rem')}
                     <strong>Legendary Fragments: ${fragmentCount}</strong>
                 </div>
                 <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials below</div>
@@ -7396,7 +7395,7 @@ function renderInventory(data) {
                 ${ownedMaterials.map(i => {
             const d = i.item_data;
             const itemImage = d.image || getItemImage(d.name);
-            return `<div class="mat-card" style="position:relative">
+            return `<div class="mat-card" style="position:relative;${itemImage?'--card-bg:url('+escHtml(itemImage)+')':''}">
                         ${invBulkMode ? `<div style="position:absolute;top:4px;right:4px;font-size:0.7rem;color:var(--text-dim)">${getInventorySellPrice(d)}g</div>` : ''}
                         <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" data-error-hide="true" data-error-next-display="block">
                         <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
@@ -7408,14 +7407,15 @@ function renderInventory(data) {
         }).join('')}
             </div>
             
-            <div class="section-title" style="margin-top: 24px;">⭐ Exchange Fragments for Materials</div>
+            <div class="section-title" style="margin-top: 24px;">${matIcon('Legendary Fragment', '⭐', '1.1em')} Exchange Fragments for Materials</div>
             <div class="mat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
             const maxCan = Math.floor(fragmentCount / rate.fragmentCost);
-            return `<div class="mat-card" data-eid="${id}" style="position: relative; display: flex; flex-direction: column;">
+            const rateImg = getAssetImagePath(rate.name);
+            return `<div class="mat-card" data-eid="${id}" style="position: relative; display: flex; flex-direction: column;${rateImg?'--card-bg:url('+escHtml(rateImg)+')':''}">
                         <div style="margin-bottom: 8px; height: 2rem; display:flex; align-items:center; justify-content:center;">${matIcon(rate.name, rate.emoji, '2rem')}</div>
                         <div class="mat-name">${rate.name}</div>
-                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ⭐ each</div>
+                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ${matIcon('Legendary Fragment', '⭐', '0.9em')} each</div>
                         <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">You can afford: ${maxCan}</div>
                         <div style="display:flex; align-items:center; gap:4px; margin-top:auto; padding-top:8px;">
                             <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, -1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">−</button>
