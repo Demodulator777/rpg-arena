@@ -6872,8 +6872,8 @@ function showTabAlert(msg) {
     if (!ov) {
         ov = document.createElement('div');
         ov.id = 'forge-alert-modal';
-        ov.className = 'modal-overlay hidden';
-        ov.innerHTML = `<div class="modal-box" style="max-width:340px;text-align:center">
+        ov.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:200000;pointer-events:none;';
+        ov.innerHTML = `<div class="modal-box" style="max-width:340px;text-align:center;pointer-events:auto;">
             <div id="forge-alert-text" style="font-size:1rem;line-height:1.5;margin-bottom:14px"></div>
             <button class="btn-sm" data-action="closeForgeAlert" style="padding:6px 24px">OK</button>
         </div>`;
