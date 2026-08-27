@@ -8581,11 +8581,16 @@ async function openLootBox(itemId, itemName) {
                 const item = queue[currentIndex];
                 const isLastItem = (currentIndex === queue.length - 1);
 
-                // Create item display with button
                 const itemHtml = renderSingleLootboxItem(item);
                 const buttonText = isLastItem ? '✨ COMPLETE ✨' : '▶ NEXT ITEM ▶';
 
-                stage.innerHTML = `
+                let stageBgHtml = '';
+                if (item.type === 'item' && item.name) {
+                    const bgPath = getAssetImagePath(item.name) || `/images/assets/${item.name.toLowerCase().replace(/\s+/g, '-')}.png`;
+                    stageBgHtml = `<div class="lootbox-stage-bg" style="--stage-bg:url('${escHtml(bgPath)}')"></div>`;
+                }
+
+                stage.innerHTML = stageBgHtml + `
                     <div style="width:100%">
                         ${itemHtml}
                         <div style="display:flex; justify-content:center; margin-top:24px">
