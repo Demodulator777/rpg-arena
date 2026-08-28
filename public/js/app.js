@@ -2296,17 +2296,15 @@ function ensureGoogleLogin() {
         .catch(() => {});
 }
 
-// GIS renders a single branded iframe; move it between the login and register
-// tab containers as the user switches tabs (one button, two slots).
+// GIS renders a single branded iframe; move it into the active tab's container
+// as the user switches tabs (one button, two slots).
 function relocateGoogleButton(tab) {
     if (!__googleButtonEl) return;
-    const from = document.getElementById(tab === 'login' ? 'google-signin-btn' : 'google-signin-btn-register');
-    const to = document.getElementById(tab === 'login' ? 'google-signin-btn-register' : 'google-signin-btn');
-    if (from && to && to !== from) {
-        if (from === __googleButtonEl.parentNode) {
-            while (to.firstChild) to.removeChild(to.firstChild);
-            to.appendChild(__googleButtonEl);
-        }
+    const target = document.getElementById(tab === 'login' ? 'google-signin-btn' : 'google-signin-btn-register');
+    if (!target) return;
+    if (__googleButtonEl.parentNode !== target) {
+        while (target.firstChild) target.removeChild(target.firstChild);
+        target.appendChild(__googleButtonEl);
     }
 }
 document.addEventListener('DOMContentLoaded',()=>{
