@@ -540,7 +540,7 @@ body.modal-lock .topbar {
    ════════════════════════════════════════════════════════════════════════ */
 .screen { display: none; min-height: var(--vph); }
 .screen.active { display: block; }
-#screen-auth { overflow-x: hidden; }
+#screen-auth { overflow-x: hidden; display: flex; flex-direction: column; min-height: 100vh; }
 #screen-game.active { display: flex; flex-direction: column; height: var(--vph); overflow: hidden; }
 
 .auth-bg {
@@ -7985,16 +7985,6 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 
 
-.auth-top-right {
-    position: absolute; top: 20px; right: 20px;
-    display: flex; flex-direction: column; gap: 8px;
-    background: rgba(10, 15, 25, 0.4);
-    backdrop-filter: blur(8px);
-    padding: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 12px;
-    z-index: 10;
-}
 .auth-server-select { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 .auth-server-select label { font-size: 0.65rem; color: rgba(255,255,255,0.4); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
 .server-select-btn {
@@ -8007,5 +7997,25 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05);
     color: #eee; border-radius: 6px; padding: 3px 20px 3px 8px;
     font-size: 0.75rem; cursor: pointer; appearance: none;
+}
+
+
+.auth-top-nav {
+    display: flex; justify-content: flex-end; align-items: center; gap: 16px;
+    padding: 16px 24px;
+    background: rgba(10, 15, 25, 0.4);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+.auth-server-select { display: flex; align-items: center; gap: 8px; }
+.auth-server-select label { font-size: 0.7rem; color: rgba(255,255,255,0.4); font-weight: 700; text-transform: uppercase; }
+.server-select-btn, .auth-lang-select {
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+    color: #eee; border-radius: 6px; padding: 4px 10px;
+    font-size: 0.8rem; cursor: pointer;
+}
+
+#screen-auth {
+    display: flex; flex-direction: column; min-height: 100vh;
 }
 
