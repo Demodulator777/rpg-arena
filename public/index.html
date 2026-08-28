@@ -159,6 +159,22 @@
     <div id="screen-auth" class="screen active">
         <div class="auth-bg"></div>
 
+        <div class="auth-top-right" style="position:absolute;top:20px;right:24px;display:flex;gap:12px;align-items:center;z-index:5;">
+            <div class="auth-server-select" style="margin:0;">
+                <label for="server-select">Server</label>
+                <button type="button" id="server-select" class="server-select-btn" data-action="openServerPicker">
+                    <span id="server-select-label">…</span><span class="server-caret"> ▾</span>
+                </button>
+            </div>
+            <div class="auth-server-select" style="margin:0;">
+                <label for="auth-lang-select">Language</label>
+                <select id="auth-lang-select" class="server-select-btn auth-lang-select">
+                    <option value="en">English</option>
+                    <option value="pt">Português</option>
+                </select>
+            </div>
+        </div>
+
         <div class="auth-container">
             <div class="auth-left">
                 <img src="images/logo/logo.png" alt="MID-EVIL: BATTLE ARENA" class="game-logo" style="max-width:260px;margin-bottom:20px">
@@ -186,21 +202,6 @@
             </div>
             <div class="auth-right">
                 <div class="auth-beta-notice" style="margin-bottom:16px">Beta registration is limited to 500 total accounts.</div>
-
-                <div class="auth-server-select">
-                    <label for="server-select">Server</label>
-                    <button type="button" id="server-select" class="server-select-btn" data-action="openServerPicker">
-                        <span id="server-select-label">…</span><span class="server-caret"> ▾</span>
-                    </button>
-                </div>
-
-                <div class="auth-server-select">
-                    <label for="auth-lang-select">Language</label>
-                    <select id="auth-lang-select" class="server-select-btn auth-lang-select">
-                        <option value="en">English</option>
-                        <option value="pt">Português</option>
-                    </select>
-                </div>
 
                 <div class="auth-tabs">
                     <button class="tab-btn active" data-action="switchTab" data-args='["login"]'>Login</button>
