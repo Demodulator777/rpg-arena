@@ -8000,6 +8000,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     color: #eee; border-radius: 6px; padding: 4px 10px;
     font-size: 0.8rem; cursor: pointer;
 }
+.auth-lang-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
 .auth-lang-dropdown { position: relative; }
 .auth-lang-list {
     position: absolute;
@@ -8018,7 +8023,9 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .auth-lang-list.hidden { display: none; }
 .auth-lang-option {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 8px;
     width: 100%;
     text-align: left;
     padding: 6px 10px;
@@ -8032,6 +8039,14 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 }
 .auth-lang-option:hover { background: rgba(255,255,255,0.08); }
 .auth-lang-option.selected { background: rgba(212,168,67,0.15); color: #f1c40f; }
+.auth-lang-option-name { flex: 1; font-weight: 600; }
+.auth-lang-btn .lang-flag svg, .auth-lang-btn .auth-lang-flag svg {
+    width: 18px;
+    height: 12px;
+    display: block;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.18);
+}
 
 #screen-auth {
     position: relative;
