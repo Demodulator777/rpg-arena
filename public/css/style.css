@@ -8024,14 +8024,16 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     .auth-top-nav {
         padding: 8px 12px;
         gap: 10px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        flex-direction: row;
         justify-content: flex-end;
     }
-    .auth-server-select { gap: 5px; }
+    .auth-server-select { gap: 5px; flex-shrink: 0; }
     .auth-server-select label { font-size: 0.6rem; }
     .server-select-btn, .auth-lang-select {
         padding: 3px 8px;
         font-size: 0.7rem;
+        white-space: nowrap;
     }
     .auth-lang-select { padding: 3px 18px 3px 8px; }
 }
