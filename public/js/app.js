@@ -1248,14 +1248,45 @@ function syncLangToServer() {
     try { api('POST', '/game/settings/language', { lang: CURRENT_LANG }); } catch {}
 }
 (function initAuthLangSelect() {
-    const sel = document.getElementById('auth-lang-select');
-    if (!sel) return;
-    sel.value = CURRENT_LANG;
-    sel.addEventListener('change', () => {
-        CURRENT_LANG = sel.value || 'en';
-        localStorage.setItem('rpg_lang', CURRENT_LANG);
-        applyStaticI18n();
+    const btn = document.getElementById('auth-lang-select');
+    const wrap = document.getElementById('auth-lang-dropdown');
+    const list = document.getElementById('auth-lang-list');
+    if (!btn || !list || !wrap) return;
+    const label = document.getElementById('auth-lang-label');
+    const setLabel = () => {
+        const lang = LANGUAGES[CURRENT_LANG] || LANGUAGES.en;
+        if (label) label.textContent = lang.label;
+        list.querySelectorAll('.auth-lang-option').forEach(o => {
+            o.classList.toggle('selected', o.dataset.lang === CURRENT_LANG);
+        });
+    };
+    setLabel();
+    const close = () => {
+        list.classList.add('hidden');
+        wrap.classList.remove('open');
+        btn.setAttribute('aria-expanded', 'false');
+    };
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const willOpen = list.classList.contains('hidden');
+        list.classList.toggle('hidden', !willOpen);
+        wrap.classList.toggle('open', willOpen);
+        btn.setAttribute('aria-expanded', String(willOpen));
     });
+    list.querySelectorAll('.auth-lang-option').forEach(opt => {
+        opt.addEventListener('click', () => {
+            const lang = opt.dataset.lang || 'en';
+            if (lang !== CURRENT_LANG) {
+                CURRENT_LANG = lang;
+                localStorage.setItem('rpg_lang', lang);
+                applyStaticI18n();
+                setLabel();
+            }
+            close();
+        });
+    });
+    const outsideClose = (e) => { if (!wrap.contains(e.target)) close(); };
+    document.addEventListener('click', outsideClose);
 })();
 
 // ── Full-game DOM translation (exact-match phrases + pattern rules) ───────
