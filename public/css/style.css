@@ -8002,7 +8002,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .auth-top-nav {
     display: flex; flex-direction: row; justify-content: flex-end; align-items: center; gap: 16px;
-    width: 100%;
+    align-self: flex-end;
     padding: 16px 24px;
     background: rgba(10, 15, 25, 0.4);
     backdrop-filter: blur(8px);
