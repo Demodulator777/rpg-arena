@@ -8002,7 +8002,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 .auth-top-nav {
     display: flex; flex-direction: row; justify-content: flex-end; align-items: center; gap: 16px;
-    align-self: flex-end;
+    align-self: stretch;
+    width: 100%;
     padding: 16px 24px;
     background: rgba(10, 15, 25, 0.4);
     backdrop-filter: blur(8px);
@@ -8022,19 +8023,19 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 
 @media (max-width: 640px) {
     .auth-top-nav {
-        padding: 8px 12px;
-        gap: 10px;
+        padding: 6px 8px;
+        gap: 8px;
         flex-wrap: nowrap;
         flex-direction: row;
         justify-content: flex-end;
     }
-    .auth-server-select { gap: 5px; flex-shrink: 0; }
-    .auth-server-select label { font-size: 0.6rem; }
+    .auth-server-select { gap: 4px; flex-shrink: 0; }
+    .auth-server-select label { font-size: 0.55rem; }
     .server-select-btn, .auth-lang-select {
-        padding: 3px 8px;
-        font-size: 0.7rem;
+        padding: 3px 6px;
+        font-size: 0.65rem;
         white-space: nowrap;
     }
-    .auth-lang-select { padding: 3px 18px 3px 8px; }
+    .auth-lang-select { padding: 3px 14px 3px 6px; }
 }
 
