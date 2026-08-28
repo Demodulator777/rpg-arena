@@ -637,7 +637,7 @@ function buildCurvedRoutePath(fromPos, toPos, pairKey) {
 // ── API ───────────────────────────────────────────────────────────────────
 const GAME_SERVERS = [
   { id: 'beta',    label: 'Beta',            host: 'battle-online.com',      url: 'https://battle-online.com/' },
-  { id: 'server1', label: 'Server 1 (Global)', host: 's1.battle-online.com', url: 'https://s1.battle-online.com/' }
+  { id: 'server1', label: 'Server 1', host: 's1.battle-online.com', url: 'https://s1.battle-online.com/' }
 ];
 
 // Hoisted server detection (no GAME_SERVERS dependency so it can run before line-256 state init).
