@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login — RPG Arena (PC Test)</title>
+<link rel="stylesheet" href="/css/style.css?v=2026-08-26-keep-logged-in">
+<style>
+/* PC-optimized wider auth layout */
+.auth-bg { background: linear-gradient(135deg, rgba(15,20,30,0.95) 0%, rgba(8,10,18,1) 60%, rgba(20,30,45,0.7) 100%); }
+.auth-container { max-width: 960px; padding: 60px 48px; display: grid; grid-template-columns: 1fr 1.2fr; gap: 60px; align-items: start; }
+.auth-left { text-align: left; padding-top: 20px; }
+.auth-right { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 36px; }
+.auth-tabs .tab-btn { padding: 10px 28px; font-size: 0.9rem; }
+.input-field { padding: 14px 16px; font-size: 1rem; }
+.auth-lang-select { width: 100%; max-width: 300px; }
+</style>
+</head>
+<body>
+<div id="screen-auth" class="screen active">
+    <div class="auth-bg"></div>
+    <div class="auth-container">
+        <div class="auth-left">
+            <img src="images/logo/logo.png" alt="MID-EVIL: BATTLE ARENA" class="game-logo" style="max-width:320px;margin-bottom:24px">
+            <p class="game-subtitle" style="font-size:1.3rem;color:rgba(255,255,255,0.7);line-height:1.5">A turn-based arena of warriors, dungeons, and glory. Build your character. Train your skills. Conquer your rivals.</p>
+            <div style="margin-top:32px;color:rgba(255,255,255,0.4);font-size:0.85rem;line-height:1.7">
+                <strong>New:</strong> Elemental companions · Legendary fragments · Guild raids · Tournament seasons · Crafting & forging
+            </div>
+        </div>
+        <div class="auth-right">
+            <div class="auth-server-select" style="margin-bottom:18px">
+                <label for="auth-lang-select">Language</label>
+                <select id="auth-lang-select" class="server-select-btn auth-lang-select">
+                    <option value="en">English</option>
+                    <option value="pt">Português</option>
+                </select>
+            </div>
+            <div class="auth-tabs" style="margin-bottom:20px">
+                <button class="tab-btn active">Login</button>
+                <button class="tab-btn">Register</button>
+            </div>
+            <div id="auth-error" class="error-msg hidden"></div>
+            <div>
+                <input type="text" placeholder="Username" class="input-field" style="margin-bottom:12px;display:block;width:100%"/>
+                <input type="password" placeholder="Password" class="input-field" style="margin-bottom:8px;display:block;width:100%"/>
+                <label style="display:flex;align-items:center;gap:6px;font-size:0.85rem;color:rgba(255,255,255,0.6);margin-bottom:18px;cursor:pointer">
+                    <input type="checkbox" checked> <span>Keep me logged in</span>
+                </label>
+                <button class="btn-primary" style="width:100%;padding:14px">Enter the Arena</button>
+            </div>
+            <div style="margin-top:16px;text-align:center;color:rgba(255,255,255,0.4);font-size:0.8rem">PC-optimized layout test · <a href="/" style="color:rgba(255,255,255,0.5);text-decoration:underline">Back to mobile layout</a></div>
+        </div>
+    </div>
+</div>
+</body>
+</html>
