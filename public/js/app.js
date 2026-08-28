@@ -4636,7 +4636,7 @@ function renderUpgrade() {
 function _ttPos(tooltip, r, tw, th) {
     const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const rl=r.left/zf, rt=r.top/zf, rw=r.width/zf, rh=r.height/zf;
-    let left = rl+rw/2-tw/2, top = rt+rh-th;
+    let left = rl+rw/2-tw/2 + 150, top = rt+rh-th;
     if (top < 8) top = 8;
     if (top+th>window.innerHeight-8) top = Math.max(8, window.innerHeight-th-8);
     if (left+tw>window.innerWidth-8) left = window.innerWidth-tw-8;
