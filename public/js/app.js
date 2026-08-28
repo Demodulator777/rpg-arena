@@ -1253,13 +1253,25 @@ function syncLangToServer() {
     const list = document.getElementById('auth-lang-list');
     if (!btn || !list || !wrap) return;
     const label = document.getElementById('auth-lang-label');
+    const flagEl = document.getElementById('auth-lang-flag');
+    const renderOptions = () => {
+        list.innerHTML = Object.entries(LANGUAGES).map(([code, l]) => `
+            <button type="button" class="auth-lang-option${code === CURRENT_LANG ? ' selected' : ''}" role="option" data-lang="${code}">
+                <span class="lang-flag">${l.flag}</span>
+                <span class="auth-lang-option-name">${l.label}</span>
+                <span class="lang-option-check">${code === CURRENT_LANG ? '✓' : ''}</span>
+            </button>`).join('');
+    };
     const setLabel = () => {
         const lang = LANGUAGES[CURRENT_LANG] || LANGUAGES.en;
         if (label) label.textContent = lang.label;
+        if (flagEl) flagEl.innerHTML = lang.flag;
         list.querySelectorAll('.auth-lang-option').forEach(o => {
             o.classList.toggle('selected', o.dataset.lang === CURRENT_LANG);
+            o.querySelector('.lang-option-check').textContent = o.dataset.lang === CURRENT_LANG ? '✓' : '';
         });
     };
+    renderOptions();
     setLabel();
     const close = () => {
         list.classList.add('hidden');
