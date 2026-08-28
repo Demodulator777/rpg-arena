@@ -161,22 +161,8 @@
 
         <div class="auth-container">
             <div class="auth-left">
-                <img src="images/logo/logo.png" alt="MID-EVIL: BATTLE ARENA" class="game-logo">
+                <img src="images/logo/logo.png" alt="MID-EVIL: BATTLE ARENA" class="game-logo" style="max-width:260px;margin-bottom:20px">
                 <p class="game-subtitle">Build. Train. Conquer.</p>
-                <div class="android-app-block" style="margin-top:16px">
-                    <div class="android-app-card" style="padding:14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:14px">
-                        <div class="android-app-title" style="font-size:0.85rem;margin-bottom:8px">Mid-Evil: Battle Arena on Android</div>
-                        <div class="android-apply" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-                            <a href="https://play.google.com/store/apps/details?id=battle.arena.app" target="_blank" rel="noopener" style="flex:0 0 auto"><img src="images/assets/qr.png" alt="QR" style="width:48px;height:48px;border-radius:8px"></a>
-                            <div>
-                                <div style="font-size:0.75rem;color:rgba(255,255,255,0.7);line-height:1.4">Scan or tap to open the Android app. Apply to test from the Play Store.</div>
-                                <input type="email" id="android-apply-email" placeholder="yourname@gmail.com" class="input-field" style="margin-top:6px;font-size:0.8rem;padding:6px 10px;width:220px;max-width:100%"/>
-                                <button type="button" class="btn-sm" data-action="applyAndroidTesting" style="margin-top:6px;font-size:0.75rem;padding:4px 12px">Apply to Test</button>
-                                <div id="android-apply-msg" class="android-apply-msg" style="margin-top:4px;font-size:0.75rem"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
             <div class="auth-right">
                 <div class="auth-beta-notice" style="margin-bottom:16px">Beta registration is limited to 500 total accounts.</div>
@@ -241,11 +227,30 @@
                 </div>
             </div>
         </div>
+
+        <div class="android-app-block">
+            <div class="android-app-card">
+                <div class="android-app-title">Mid-Evil: Battle Arena on Android</div>
+                <div class="android-app-inner">
+                    <div class="android-qr-wrap">
+                        <a href="https://play.google.com/store/apps/details?id=battle.arena.app" target="_blank" rel="noopener" class="android-qr-link">
+                            <img src="images/assets/qr.png" alt="Scan to download the Android app" class="android-qr">
+                            <div class="android-qr-caption">Scan or tap to open the app</div>
+                        </a>
+                    </div>
+                    <div class="android-apply">
+                        <div class="android-apply-title">Apply to test the Android app</div>
+                        <p class="android-apply-text">Enter your Gmail and we'll add you to the closed testing group.</p>
+                        <input type="email" id="android-apply-email" placeholder="yourname@gmail.com" class="input-field"/>
+                        <button type="button" class="btn-primary" data-action="applyAndroidTesting">Apply to Test</button>
+                        <div id="android-apply-msg" class="android-apply-msg"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-</div>
-
-<div id="game-guide-modal" class="modal-overlay hidden">
+    <div id="game-guide-modal" class="modal-overlay hidden">
         <div class="modal-box game-guide-modal">
             <div class="modal-header auth-legal-header">
                 <h2>Mid-Evil: Battle Arena Guide</h2>
@@ -1305,7 +1310,6 @@ data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
             </button>
         </div>
     </div>
-</div>
 </div>
 </body>
 </html>
