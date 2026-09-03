@@ -427,6 +427,16 @@ router.post('/login', loginLimiter, async (req, res) => {
       args: [user.id]
     });
     
+    // Generate refresh token (persistent cookie) for long-term login
+    const refreshToken = crypto.randomBytes(32).toString('hex');
+    const refreshHash = sha256Hex(refreshToken);
+    const refreshExpires = Date.now() + 30 * 24 * 60 * 60 * 1000; // 30 days
+    await db.execute({
+      sql: 'UPDATE users SET refresh_token_hash = ?, refresh_token_expires = ? WHERE id = ?',
+      args: [refreshHash, refreshExpires, user.id]
+    });
+    res.cookie('rpg_refresh_token', refreshToken, { httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'Lax', secure: false });
+
     res.json({ token, username: user.username });
   } catch (e) {
     console.error('Login error:', e);
@@ -438,9 +448,10 @@ router.post('/logout', auth, async (req, res) => {
   try {
     const db = await getDb();
     await db.execute({
-      sql: 'UPDATE users SET user_session = NULL WHERE id = ?',
+      sql: 'UPDATE users SET user_session = NULL, refresh_token_hash = NULL, refresh_token_expires = NULL WHERE id = ?',
       args: [req.user.userId]
     });
+    res.clearCookie('rpg_refresh_token');
     res.json({ success: true });
   } catch (e) {
     res.status(500).json({ error: 'Server error' });
