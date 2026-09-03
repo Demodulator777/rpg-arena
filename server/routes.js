@@ -992,6 +992,8 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
             'ALTER TABLE elementals ADD COLUMN last_health_potion_at INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN user_session TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN refresh_token_hash TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN refresh_token_expires INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN skip_battle_animations INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN profile_pic TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN profile_pic TEXT DEFAULT NULL',
