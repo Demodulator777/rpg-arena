@@ -5155,6 +5155,8 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     max-height: 260px;
     overflow-y: auto;
     right: 0;
+    left: auto;
+    max-width: min(320px, calc(100vw - 48px));
 }
 .badge-dropdown .lang-dropdown-btn { padding: 9px 12px; font-size: 0.82rem; }
 .badge-dropdown .badge-dd-current {
@@ -5168,7 +5170,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     white-space: nowrap;
 }
 .badge-dropdown .lang-dropdown-option .badge-dd-icon { flex-shrink: 0; min-width: 1.4em; text-align: center; }
-.badge-dropdown .lang-dropdown-option .lang-option-name { min-width: 0; }
+.badge-dropdown .lang-dropdown-option .lang-option-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .topbar-menu-action,
 .topbar-menu-toggle {
     text-align: left;
