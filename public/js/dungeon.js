@@ -20,7 +20,6 @@
   const TRAVEL_BASE_MS    = 200;
   const TRAVEL_DISCOVERED_MS = 200;
   const RUN_ESCAPE_CHANCE = 0.75;
-  const STEAL_CHANCE      = 0.18;
   const ROOMS_PER_FLOOR   = 100;
   const DIR_IMGS = { up: 'uparrow.png', down: 'downarrow.png', left: 'leftarrow.png', right: 'rightarrow.png' };
 
@@ -425,32 +424,6 @@ function getBossForFloor(floor) {
     }
     return DUNGEON;
   }
-
-  // ── Loot Tables ────────────────────────────────────────────
-  const MINION_LOOT = [
-    { type:'gold',       weight:76, min:12, max:70  },
-    { type:'potion_hp',  weight:4,  icon:'??' },
-    { type:'potion_mp',  weight:1,  name:'Mana Potion',    icon:'??', mp:30    },
-    { type:'item_common',weight:12 },
-  ];
-
-  function getHealthPotionDropForFloor(floor) {
-    const safeFloor = Math.max(1, Number(floor) || 1);
-    if (safeFloor >= 25) {
-      return { name:'Major Health Potion', icon:'??', heal:500 };
-    }
-    if (safeFloor >= 12) {
-      return { name:'Greater Health Potion', icon:'??', heal:200 };
-    }
-    return { name:'Small Health Potion', icon:'??', heal:100 };
-  }
-
-  const COMMON_ITEMS = [
-    { name:'Pyro Cinder',       icon:'🔥', type:'material', rarity:'common' },
-    { name:'Water Droplet',     icon:'💧', type:'material', rarity:'common' },
-    { name:'Electro Spark',     icon:'⚡', type:'material', rarity:'common' },
-    { name:'Wind Feather',      icon:'🌪️', type:'material', rarity:'common' },
-  ];
 
   // ── State ──────────────────────────────────────────────────
 let D = {
@@ -1185,123 +1158,6 @@ function calcPlayerStats() {
   };
 }
 
-function runCombatRound(playerStats, monsters, currentMonsterIndex) {
-    const log = [];
-    const currentMonster = monsters[currentMonsterIndex];
-    
-    // Player attacks current monster
-    const pDmg = Math.max(1, Math.floor(playerStats.atk - currentMonster.def * 0.5 + rand(-3, 3)));
-    currentMonster.currentHp -= pDmg;
-    log.push({ actor: 'player', text: `You strike ${currentMonster.name} for ${pDmg} damage!`, dmg: pDmg });
-    
-    // ALL alive monsters attack back
-    let totalPlayerDmg = 0;
-    for (let i = 0; i < monsters.length; i++) {
-        const m = monsters[i];
-        if (m.currentHp > 0) {
-            const mDmg = Math.max(1, Math.floor(m.atk - playerStats.def * 0.5 + rand(-2, 2)));
-            totalPlayerDmg += mDmg;
-            log.push({ actor: 'monster', text: `${m.name} hits you for ${mDmg}!`, dmg: mDmg });
-        }
-    }
-    
-    const monsterDead = currentMonster.currentHp <= 0;
-    const allMonstersDead = monsters.every(m => m.currentHp <= 0);
-    
-    return { log, playerDmgTaken: totalPlayerDmg, monsterDead, allMonstersDead, currentMonsterIndex };
-}
-
-  function rollMinorLoot(dungeonId) {
-    const total = MINION_LOOT.reduce((s,l) => s+l.weight, 0);
-    let r = rand(0, total-1);
-    for (const entry of MINION_LOOT) {
-      r -= entry.weight;
-      if (r < 0) {
-        if (entry.type === 'gold') return { type:'gold', amount: rand(entry.min, entry.max) };
-        if (entry.type === 'potion_hp') return { type:'potion_hp', ...getHealthPotionDropForFloor(D.floor || 1) };
-        if (entry.type === 'item_common') return { type:'item', item: COMMON_ITEMS[rand(0, COMMON_ITEMS.length-1)] };
-        return { type: entry.type, ...entry };
-      }
-    }
-    return { type:'gold', amount: rand(12,35) };
-  }
-
-function rollBossLoot(bossDef) {
-  const l = bossDef.loot;
-  
-  // Generate premium feature (5-10 days)
-  const premiumFeatures = [
-    { id: 'arcane_reservoir', name: 'Arcane Reservoir', emoji: '🔮', desc: '2× max MP and 2× MP regen' },
-    { id: 'warlord', name: 'Warlord', emoji: '⚔️', desc: '+15% damage and +10% hit chance' },
-    { id: 'iron_fortress', name: 'Iron Fortress', emoji: '🏰', desc: '+10% agility and +15% armor' },
-    { id: 'apprentice', name: 'Apprentice', emoji: '📚', desc: 'All upgrade costs reduced by 20%' },
-    { id: 'vault_keeper', name: 'Vault Keeper', emoji: '🏦', desc: 'Lose only 5% gold on PvP defeat' },
-    { id: 'fortune_hunter', name: 'Fortune Hunter', emoji: '💰', desc: '+30% gold from missions, cooldowns 50% shorter' }
-  ];
-  
-  const randomFeature = premiumFeatures[Math.floor(Math.random() * premiumFeatures.length)];
-  const durationDays = rand(l.premiumDays[0], l.premiumDays[1]); // 5-10 days
-  
-  return {
-    gold: rand(l.gold[0], l.gold[1]),
-    gems: Math.min(15, rand(l.gems[0], l.gems[1])), // Cap gems at 15
-    premium: {
-      id: randomFeature.id,
-      name: randomFeature.name,
-      emoji: randomFeature.emoji,
-      days: durationDays,
-      seconds: durationDays * 24 * 3600,
-      desc: randomFeature.desc
-    }
-  };
-}
-
-  // ── Apply Loot (Syncs with server) ──────────────────────────
-  function applyLoot(loot) {
-  const c = getChar();
-  if (!c) return;
-  
-  if (loot.type === 'gold') {
-    // Add to dungeon gold (separate from main gold)
-    log(`💰 Found ${loot.amount} dungeon gold`, 'log-loot');
-    apiFetch('POST', '/game/dungeon/add-gold', { amount: loot.amount }).catch(e => console.error('Failed to sync dungeon gold:', e));
-    
-    // Also update local display if we have a dungeon gold display
-    updateDungeonGoldDisplay();
-  } 
-  else if (loot.type === 'potion_hp') {
-    const potion = { 
-      name: loot.name, 
-      icon: loot.icon, 
-      type: 'consumable', 
-      effect: { type: 'heal', value: loot.heal },
-      rarity: 'common',
-      qty: 1
-    };
-    apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
-    log(`🧪 Found ${loot.name}`, 'log-loot');
-  } 
-  else if (loot.type === 'potion_mp') {
-    const potion = { 
-      name: loot.name, 
-      icon: loot.icon, 
-      type: 'consumable', 
-      effect: { type: 'mp', value: loot.mp },
-      rarity: 'common',
-      qty: 1
-    };
-    apiFetch('POST', '/game/inventory/add', { item: potion }).catch(e => console.error('Failed to add item:', e));
-    log(`💧 Found ${loot.name}`, 'log-loot');
-  } 
-  else if (loot.type === 'item') {
-    apiFetch('POST', '/game/inventory/add', { item: loot.item }).catch(e => console.error('Failed to add item:', e));
-    log(`📦 Found ${loot.item.icon} ${loot.item.name}`, 'log-loot');
-  }
-  
-  // Refresh character to update UI
-  refreshCharacter();
-}
-
 function updateDungeonGoldDisplay() {
   const el = document.getElementById('dungeon-gold-count');
   if (el) {
@@ -1520,8 +1376,25 @@ function travelToRoom(targetIdx) {
 
         if (target.type === 'treasure' && !target.looted) {
             target.looted = true;
-            const loot = rollMinorLoot(D.activeDungeon);
-            applyLoot(loot);
+            apiFetch('POST', '/game/dungeon/treasure-loot', { floor: D.floor, roomIndex: targetIdx, floorRunId: D.floorRunId })
+                .then(res => {
+                    if (!res || !res.success) throw new Error(res?.error || 'Treasure loot failed.');
+                    if (Array.isArray(res.granted) && res.granted.length) {
+                        for (const it of res.granted) {
+                            if (it.type === 'dungeon_gold') log(`💰 +${it.amount} dungeon gold`, 'log-loot');
+                            else log(`🎁 Loot found: ${it.name || it.id || it.type}`, 'log-loot');
+                        }
+                        updateDungeonGoldDisplay();
+                    } else if (res.alreadyLooted) {
+                        log(`⚠️ This treasure was already collected — no loot gained.`, 'log-warning');
+                    } else {
+                        log(`🕳️ The chest is empty...`, 'log-loot');
+                    }
+                })
+                .catch(e => {
+                    console.error('Failed to collect treasure loot:', e);
+                    log(`⚠️ Could not collect treasure loot.`, 'log-warning');
+                });
         }
         if (!moveCrawlerAfterPlayerMove()) {
             renderDungeonView();
@@ -2037,142 +1910,6 @@ function fightRound() {
         return;
     }
 
-    const c = getChar();
-    if (!c) return;
-    
-    // hp_current can be 0; avoid `||` fallbacks (they "auto-heal" dead characters in UI).
-    const currentHp = Number(c.hp_current ?? c.hp ?? 100);
-    const pStats = { 
-        atk: calcPlayerStats().atk, 
-        def: calcPlayerStats().def, 
-        hp: currentHp, 
-        maxHp: Number(c.hp_max ?? 100) 
-    };
-    
-    const { log: roundLog, playerDmgTaken, monsterDead, allMonstersDead, currentMonsterIndex } = 
-        runCombatRound(pStats, D.combat.monsters, D.combat.currentMonsterIndex);
-    
-    D.combat.roundLog.push(...roundLog);
-    
-    if (playerDmgTaken > 0) {
-        const newHp = Math.max(0, currentHp - playerDmgTaken);
-        c.hp_current = newHp;
-        c.hp = newHp;
-        apiFetch('POST', '/game/dungeon/update-health', { hp: newHp }).catch(e => console.error('Failed to sync health:', e));
-        if (typeof renderTopBar === 'function') renderTopBar();
-    }
-    
-    if (c.hp_current <= 0) {
-        onPlayerDeath();
-        return;
-    }
-    
-    // Monster steal attempt
-    if (!monsterDead && D.combat.monsters[currentMonsterIndex].steal && chance(STEAL_CHANCE)) {
-        tryStealFromPlayer(D.combat.roomIdx, currentMonsterIndex);
-    }
-    
-    if (monsterDead) {
-    const defeatedMonster = D.combat.monsters[currentMonsterIndex];
-    log(`✅ ${defeatedMonster.name} defeated!`, 'log-success');
-
-    let nextIndex = -1;
-    for (let i = 0; i < D.combat.monsters.length; i++) {
-        if (D.combat.monsters[i].currentHp > 0) {
-            nextIndex = i;
-            break;
-        }
-    }
-
-    if (nextIndex === -1 || allMonstersDead) {
-        if (D.combat.isCrawler || defeatedMonster.isCrawler) {
-            onCrawlerDefeated();
-        } else if (defeatedMonster.isBoss) {
-            onBossDefeated();
-        } else {
-            onRoomCleared(D.combat.roomIdx);
-        }
-    } else {
-        // Save defeated monster card info BEFORE switching index or re-rendering
-        saveTargetRectForAnim();
-        const clDefeatedCard = document.querySelector('.monster-combat-card');
-        const clDefeatedHtml = clDefeatedCard ? clDefeatedCard.outerHTML : null;
-        const clOldRect = D.combat._prevMonsterRect;
-
-        // 1) Player lunge
-        const clPCard = document.querySelector('.combat-fighters > .fighter-card:first-child');
-        if (clPCard) {
-            const clAtk = D.combat._lastAttackType || 'regular';
-            if (clAtk === 'ultimate') {
-                clPCard.classList.add('combat-anim-player-ultimate');
-                const cp = document.querySelector('.dungeon-combat-panel');
-                if (cp) { cp.classList.add('combat-anim-screen-shake'); setTimeout(() => cp.classList.remove('combat-anim-screen-shake'), 400); }
-                setTimeout(() => clPCard.classList.remove('combat-anim-player-ultimate'), 1000);
-            } else if (clAtk === 'burst') {
-                clPCard.classList.add('combat-anim-player-burst');
-                setTimeout(() => clPCard.classList.remove('combat-anim-player-burst'), 800);
-            } else {
-                clPCard.classList.add('combat-anim-player-lunge');
-                setTimeout(() => clPCard.classList.remove('combat-anim-player-lunge'), 600);
-            }
-        }
-
-        // 2) Damage float at old monster position (t=400ms)
-        const clLastPlayerLog = D.combat.roundLog.slice().reverse().find(e => e.actor === 'player');
-        const clDmg = clLastPlayerLog
-            ? (clLastPlayerLog.text.match(/(\d+)\s*damage/i) || clLastPlayerLog.text.match(/for\s+(\d+)/i) || clLastPlayerLog.text.match(/(\d+)!/))
-            : null;
-        const clPlayerDmgVal = clDmg ? parseInt(clDmg[1]) : null;
-        const clAtkType = D.combat._lastAttackType || 'regular';
-        if (clPlayerDmgVal != null && clOldRect) {
-            setTimeout(() => {
-                const el = document.createElement('div');
-                let cls = 'combat-damage-float';
-                if (clAtkType === 'ultimate') cls += ' ultimate';
-                else if (clAtkType === 'burst') cls += ' burst';
-                el.className = cls;
-                el.textContent = `-${clPlayerDmgVal}`;
-                el.style.cssText = `position:fixed;left:${clOldRect.left + clOldRect.width/2 - 30}px;top:${clOldRect.top + 20}px;z-index:500000`;
-                document.body.appendChild(el);
-                setTimeout(() => el.remove(), 900);
-            }, 400);
-        }
-
-        // 3) Dissolve old card (t=600ms)
-        setTimeout(() => {
-            const pr = D.combat._prevMonsterRect;
-            if (clDefeatedCard && clDefeatedCard.parentNode) {
-                pixelDissolveCard(clDefeatedCard);
-            } else if (pr && clDefeatedHtml) {
-                const ghost = document.createElement('div');
-                ghost.style.cssText = `position:fixed;left:${pr.left}px;top:${pr.top}px;width:${pr.width}px;height:${pr.height}px;z-index:500000;pointer-events:none;overflow:hidden`;
-                ghost.innerHTML = clDefeatedHtml;
-                document.body.appendChild(ghost);
-                pixelDissolveCard(ghost);
-            } else if (pr) {
-                spawnFallbackParticles(pr.left + pr.width/2, pr.top + pr.height/2, 24);
-            }
-        }, 600);
-
-        // 4) After dissolve, swap to next monster + play counter-attacks (t=1800ms)
-        const clPlayerCount = roundLog.filter(e => e.actor === 'player').length;
-        const clPreRoundLen = D.combat.roundLog.length - roundLog.length;
-        const clLastPlayerLogIdx = clPreRoundLen + clPlayerCount - 1;
-
-        setTimeout(() => {
-            if (!D.combat) return;
-            D.combat.currentMonsterIndex = nextIndex;
-            renderCombatPanel();
-            D.combat._lastAnimatedLogIdx = clLastPlayerLogIdx;
-            triggerCombatAnimations();
-        }, 1800);
-    }
-} else {
-    saveTargetRectForAnim();
-    renderCombatPanel();
-    triggerCombatAnimations();
-}
-
   function onCrawlerDefeated() {
     if (!D.crawler) return;
     D.crawler.defeated = true;
@@ -2188,80 +1925,6 @@ function fightRound() {
     saveProgressToDB();
     renderDungeonView();
   }
-}
-
-function onRoomCleared(roomIdx) {
-    const room = D.rooms[roomIdx];
-    if (!room) return;
-
-    const monsters = Array.isArray(room.monsters) ? room.monsters : [];
-    const defeatedMonsters = monsters.reduce((acc, monster) => {
-        const key = monster.id || monster.name;
-        if (!key) return acc;
-        const existing = acc.find(entry => entry.id === key);
-        if (existing) existing.count += 1;
-        else acc.push({ id: monster.id || monster.name, name: monster.name || monster.id, count: 1 });
-        return acc;
-    }, []);
-
-    // Mark all monsters as killed
-    monsters.forEach(m => {
-        m.lastKilled = Date.now();
-        m.currentHp = 0;
-    });
-
-    // Clear evaded flag if it was set
-    room.monstersEvaded = false;
-
-    // Mark room as cleared on server FIRST to prevent double loot
-    apiFetch('POST', '/game/dungeon/room-clear', { floor: D.floor, roomIndex: roomIdx, floorRunId: D.floorRunId })
-        .then(res => {
-            // res.cleared means server says already cleared — no reward
-            if (res && res.cleared) {
-                const extra = res.serverError && res.error ? ` (${String(res.error).slice(0, 120)})` : '';
-                log(`⚠️ Room already cleared — no loot gained.${extra}`, 'log-warning');
-                room.monstersCleared = Date.now(); // sync local state
-                D.combat = null;
-                D._combatPrefetch = null;
-                saveState();
-                saveProgressToDB();
-                renderDungeonView();
-                return;
-            }
-
-            // Server confirmed this is the first clear — grant loot
-            let totalGold = 0;
-            for (const monster of monsters) {
-                const loot = rollMinorLoot(D.activeDungeon);
-                if (loot.type === 'gold') totalGold += loot.amount;
-                else applyLoot(loot);
-            }
-            if (totalGold > 0) applyLoot({ type: 'gold', amount: totalGold });
-
-            if (defeatedMonsters.length) {
-                apiFetch('POST', '/game/dungeon/monster-defeated', { monsters: defeatedMonsters })
-                    .catch(e => console.error('Failed to sync monster defeats:', e));
-            }
-
-            apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true })
-                .catch(e => console.error('Failed to release room:', e));
-
-            D.combat = null;
-            D._combatPrefetch = null;
-            saveState();
-            saveProgressToDB();
-            renderDungeonView();
-        })
-        .catch(e => {
-            // Network error or server rejection — do NOT grant loot
-            console.error('Failed to mark room cleared:', e);
-            log(`⚠️ Server error confirming room clear. No loot granted. Try reconnecting.`, 'log-warning');
-            D.combat = null;
-            D._combatPrefetch = null;
-            saveState();
-            saveProgressToDB();
-            renderDungeonView();
-        });
 }
 
 function tryRun(roomIdx) {
@@ -2468,43 +2131,6 @@ function cancelEscape() {
     renderCombatPanel();
 }
 
-function tryStealFromPlayer(roomIdx, monsterIndex) {
-    const c = getChar();
-    if (!c || !c.inventory || c.inventory.length === 0) return;
-    const invItems = c.inventory.filter(i => !i.equipped);
-    if (invItems.length === 0) return;
-    const stolen = invItems[rand(0, invItems.length-1)];
-    c.inventory = c.inventory.filter(i => i !== stolen);
-    D.combat.monsters[monsterIndex].stolenItems.push(stolen);
-    log(`💰 ${D.combat.monsters[monsterIndex].name} stole your ${stolen.name}!`, 'log-danger');
-}
-
-  function onMonsterDefeated(roomIdx) {
-    const room = D.rooms[roomIdx];
-    room.monster.lastKilled = Date.now();
-
-    let recovered = [];
-    if (room.monster.stolenItems && room.monster.stolenItems.length > 0) {
-      recovered = room.monster.stolenItems;
-      const c = getChar();
-      if (c) {
-        if (!c.inventory) c.inventory = [];
-        c.inventory.push(...recovered);
-      }
-      room.monster.stolenItems = [];
-      log(`🎒 Recovered stolen items: ${recovered.map(i=>i.name).join(', ')}!`, 'log-success');
-    }
-
-    const loot = rollMinorLoot(D.activeDungeon);
-    applyLoot(loot);
-
-    log(`✅ ${room.monster.name} defeated!`, 'log-success');
-    D.combat = null;
-    saveState();
-    saveProgressToDB();
-    renderDungeonView();
-  }
-
 function onPlayerDeath() {
     log(`💀 You have been slain! Progress saved.`, 'log-danger');
     if (D.combat && (D.combat.isCrawler || D.combat.monsters?.some(m => m.isCrawler))) {
@@ -2630,53 +2256,6 @@ async function fightBoss(roomIdx) {
             }
         });
     });
-}
-
-function onBossDefeated() {
-  const dungeonDef = getDungeonDef(D.activeDungeon);
-  const boss = dungeonDef.boss;
-  const loot = rollBossLoot(boss);
-
-  log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
-  log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | ✨ ${loot.premium.name} (${loot.premium.days} days)`, 'log-success');
-
-  const c = getChar();
-  if (c) {
-    c.gold = (c.gold||0) + loot.gold;
-    c.gems = (c.gems||0) + loot.gems;
-  }
-
-  D.floor++;
-  if (D.floor > (D.highestFloor||1)) D.highestFloor = D.floor;
-  
-  // Send to backend with proper premium data
-  apiFetch('POST', '/game/dungeon/boss-defeated', {
-    newFloor: D.floor,
-    highestFloor: D.highestFloor,
-    tokens: D.tokens,
-    bossId: boss.id || boss.name,
-    bossName: boss.name,
-    loot: {
-      gold: loot.gold,
-      gems: loot.gems,
-      premium: loot.premium  // Send full premium object
-    }
-  }).then(() => {
-    refreshCharacter();
-  }).catch(e => console.error('Failed to save boss defeat:', e));
-  
-  delete D.savedProgress['tower'];
-  D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
-  D.playerPos = D.rooms.findIndex(r => r.isStart);
-  D.exploredRooms = new Set([D.playerPos]);
-  D.crawler = spawnCrawlerForCurrentFloor();
-  D.floorRunId = createFloorRunId();
-  D.combat = null;
-  D._combatPrefetch = null;
-  saveState();
-  saveProgressToDB();
-
-  showBossVictoryModal(boss, loot);
 }
 
 function renderDungeonTab() {
