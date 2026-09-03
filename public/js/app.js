@@ -4898,21 +4898,23 @@ function wireBadgeDropdowns() {
         if (!btn || !list) return;
         const positionList = () => {
             const modalBox = wrap.closest('.modal-box') || document.getElementById('badge-picker-modal');
-            const wasHidden = list.classList.contains('hidden');
-            if (wasHidden) list.classList.remove('hidden');
-            const listH = list.offsetHeight || 260;
             const wrapRect = wrap.getBoundingClientRect();
             const bound = modalBox ? modalBox.getBoundingClientRect() : wrapRect;
-            const spaceBelow = bound.bottom - wrapRect.bottom;
-            const spaceAbove = wrapRect.top - bound.top;
-            if (spaceBelow < listH && spaceAbove >= listH) {
-                list.style.top = 'auto';
-                list.style.bottom = 'calc(100% + 6px)';
-            } else {
-                list.style.top = 'calc(100% + 6px)';
+            const gap = 6;
+            const spaceBelow = bound.bottom - wrapRect.bottom - gap;
+            const spaceAbove = wrapRect.top - bound.top - gap;
+            const maxCssH = 260;
+            let maxH;
+            if (spaceBelow >= 60 || spaceBelow >= spaceAbove) {
+                list.style.top = `calc(100% + ${gap}px)`;
                 list.style.bottom = 'auto';
+                maxH = Math.floor(spaceBelow);
+            } else {
+                list.style.top = 'auto';
+                list.style.bottom = `calc(100% + ${gap}px)`;
+                maxH = Math.floor(spaceAbove);
             }
-            if (wasHidden) list.classList.add('hidden');
+            list.style.maxHeight = Math.max(60, Math.min(maxCssH, maxH)) + 'px';
         };
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
