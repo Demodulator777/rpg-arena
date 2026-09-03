@@ -1729,11 +1729,14 @@ function renderTopbarMenu() {
     const voucherInput = document.getElementById('voucher-code-input');
     const voucherMsg = document.getElementById('voucher-msg');
     if (voucherBtn && voucherInput) {
+        let voucherHideTimer = null;
         const showVoucherMsg = (msg, isError) => {
             if (!voucherMsg) return;
             voucherMsg.textContent = msg;
             voucherMsg.classList.remove('hidden');
             voucherMsg.classList.toggle('error', !!isError);
+            if (voucherHideTimer) clearTimeout(voucherHideTimer);
+            voucherHideTimer = setTimeout(() => { voucherMsg.classList.add('hidden'); }, 5000);
         };
         const redeemVoucher = async () => {
             const code = voucherInput.value.trim();
@@ -1741,12 +1744,20 @@ function renderTopbarMenu() {
             voucherBtn.disabled = true;
             try {
                 const d = await api('POST', '/game/voucher/redeem', { code });
-                showVoucherMsg(d.message, false);
                 voucherInput.value = '';
                 try {
                     character = await api('GET', '/game/character');
                     renderTopBar();
                 } catch {}
+                // renderTopBar() rebuilds the topbar menu, wiping #voucher-msg; re-show it.
+                const freshMsg = document.getElementById('voucher-msg');
+                if (freshMsg) {
+                    freshMsg.textContent = d.message;
+                    freshMsg.classList.remove('hidden');
+                    freshMsg.classList.toggle('error', false);
+                    if (voucherHideTimer) clearTimeout(voucherHideTimer);
+                    voucherHideTimer = setTimeout(() => { freshMsg.classList.add('hidden'); }, 5000);
+                }
             } catch (e) {
                 showVoucherMsg(e.message, true);
             } finally {
@@ -4809,20 +4820,48 @@ function renderBadgePicker(data) {
     const items = (data?.items || []).filter(a => a?.completed);
     const current = Array.isArray(character?.profile_badges) ? character.profile_badges.slice(0, 3).map(String) : [];
 
-    const optionsHtml = [`<option value=\"\">${isPT ? '(Nenhuma)' : '(None)'}</option>`].concat(
-        items.map(a => `<option value="${escHtml(a.id)}">${escHtml(`${a.icon || '??'} ${getAchievementPt(a.id)?.name || a.name}`)}</option>`)
-    ).join('');
+    const noneLabel = isPT ? '(Nenhuma)' : '(None)';
+    // Build the option list: "(None)" + completed badges. Each option carries data-badge-id.
+    const buildOptions = () => `
+        <button type="button" class="lang-dropdown-option" data-badge-id="" role="option" aria-selected="false">
+            <span class="badge-dd-icon">—</span>
+            <span class="lang-option-name">${escHtml(noneLabel)}</span>
+            <span class="lang-option-check"></span>
+        </button>` + items.map(a => `
+        <button type="button" class="lang-dropdown-option" data-badge-id="${escHtml(a.id)}" role="option" aria-selected="false">
+            <span class="badge-dd-icon">${a.icon || '🏅'}</span>
+            <span class="lang-option-name">${escHtml(getAchievementPt(a.id)?.name || a.name)}</span>
+            <span class="lang-option-check"></span>
+        </button>`).join('');
 
-    const buildSelect = (idx) => `
+    const buildDropdown = (idx) => {
+        const curName = current[idx]
+            ? (getAchievementPt(current[idx])?.name
+               || ((data?.items || []).find(a => a.id === current[idx])?.name)
+               || current[idx])
+            : '';
+        const curIcon = current[idx]
+            ? ((data?.items || []).find(a => a.id === current[idx])?.icon || '🏅')
+            : '';
+        const btnLabel = current[idx] ? `${curIcon} ${curName}` : noneLabel;
+        return `
         <div style="display:flex;flex-direction:column;gap:6px">
             <div style="font-size:0.7rem;color:var(--text-dim);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">${isPT ? 'Insignia' : 'Badge'} ${idx + 1}</div>
-            <select id="badge-slot-${idx}" class="input-field" style="width:100%">${optionsHtml}</select>
+            <div class="lang-dropdown badge-dropdown" id="badge-dd-${idx}">
+                <button type="button" class="lang-dropdown-btn" data-badge-dd-toggle aria-haspopup="listbox" aria-expanded="false">
+                    <span class="badge-dd-current" id="badge-dd-current-${idx}">${escHtml(btnLabel)}</span>
+                    <span class="lang-dropdown-caret">▾</span>
+                </button>
+                <div class="lang-dropdown-list hidden" role="listbox">${buildOptions()}</div>
+                <input type="hidden" id="badge-slot-${idx}" value="">
+            </div>
         </div>`;
+    };
 
     content.innerHTML = `
         <div style="display:grid;grid-template-columns:1fr;gap:12px">
             <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
-                ${[0,1,2].map(buildSelect).join('')}
+                ${[0,1,2].map(buildDropdown).join('')}
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end">
                 <button class="btn-secondary" data-action="closeBadgePickerModal">${isPT ? 'Cancelar' : 'Cancel'}</button>
@@ -4833,10 +4872,60 @@ function renderBadgePicker(data) {
     `;
 
     for (let i = 0; i < 3; i++) {
-        const sel = document.getElementById(`badge-slot-${i}`);
-        if (!sel) continue;
-        sel.value = current[i] || '';
+        const hidden = document.getElementById(`badge-slot-${i}`);
+        if (hidden) hidden.value = current[i] || '';
     }
+    wireBadgeDropdowns();
+}
+
+let _badgeOutsideClose = null;
+function wireBadgeDropdowns() {
+    if (_badgeOutsideClose) { document.removeEventListener('click', _badgeOutsideClose); _badgeOutsideClose = null; }
+    const closeAll = () => {
+        document.querySelectorAll('#badge-picker-content .badge-dropdown.open').forEach(w => {
+            w.classList.remove('open');
+            const btn = w.querySelector('[data-badge-dd-toggle]');
+            const list = w.querySelector('.lang-dropdown-list');
+            if (list) list.classList.add('hidden');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        });
+    };
+    document.querySelectorAll('#badge-picker-content .badge-dropdown').forEach(wrap => {
+        const btn = wrap.querySelector('[data-badge-dd-toggle]');
+        const list = wrap.querySelector('.lang-dropdown-list');
+        const hidden = wrap.querySelector('input[type=hidden]');
+        const currentEl = wrap.querySelector('.badge-dd-current');
+        if (!btn || !list) return;
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeAll();
+            const willOpen = list.classList.contains('hidden');
+            if (willOpen) { wrap.classList.add('open'); list.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); }
+            else { closeAll(); }
+        });
+        list.querySelectorAll('.lang-dropdown-option').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = opt.getAttribute('data-badge-id') || '';
+                if (hidden) hidden.value = id;
+                const icon = (opt.querySelector('.badge-dd-icon') || {}).textContent || '';
+                const name = (opt.querySelector('.lang-option-name') || {}).textContent || '';
+                if (currentEl) currentEl.textContent = id ? `${icon} ${name}` : name;
+                list.querySelectorAll('.lang-dropdown-option').forEach(o => {
+                    const sel = o === opt;
+                    o.classList.toggle('selected', sel);
+                    o.setAttribute('aria-selected', String(sel));
+                    const check = o.querySelector('.lang-option-check');
+                    if (check) check.textContent = sel ? '✓' : '';
+                });
+                closeAll();
+            });
+        });
+    });
+    _badgeOutsideClose = (e) => {
+        if (!e.target.closest('.badge-dropdown')) closeAll();
+    };
+    document.addEventListener('click', _badgeOutsideClose);
 }
 
 async function saveProfileBadges() {
