@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-08-26-mat-card-bg"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-09-01-tt-wrap2"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-08-24-vph-fix"/>
     <style>
@@ -146,11 +146,11 @@
     <div class="coming-soon-box">
         <img src="images/logo/logo.png" alt="MID-EVIL: BATTLE ARENA" class="game-logo">
         <h1 class="coming-soon-title">Server 1 <span class="coming-soon-sub">(Global)</span></h1>
-        <p class="coming-soon-text">This server is not open yet.</p>
-        <p class="coming-soon-text">Registration opens in</p>
+        <p class="coming-soon-text" data-pt="Este servidor ainda não está aberto.">This server is not open yet.</p>
+        <p class="coming-soon-text" data-pt="O cadastro abre em">Registration opens in</p>
         <div id="s1-countdown" class="s1-countdown">--</div>
-        <p class="coming-soon-text">Join us on the Beta server in the meantime, or return when the countdown ends to create your account.</p>
-        <button type="button" class="btn-primary" data-action="returnToBeta">Return to Beta</button>
+        <p class="coming-soon-text" data-pt="Enquanto isso, junte-se a nós no servidor Beta, ou volte quando a contagem terminar para criar sua conta.">Join us on the Beta server in the meantime, or return when the countdown ends to create your account.</p>
+        <button type="button" class="btn-primary" data-action="returnToBeta" data-pt="Voltar ao Beta">Return to Beta</button>
     </div>
 </div>
 <div id="app">
@@ -161,13 +161,13 @@
 
         <nav class="auth-top-nav">
             <div class="auth-server-select">
-                <label for="server-select">Server</label>
+                <label for="server-select" data-pt="Servidor">Server</label>
                 <button type="button" id="server-select" class="server-select-btn" data-action="openServerPicker">
                     <span id="server-select-label">…</span><span class="server-caret"> ▾</span>
                 </button>
             </div>
             <div class="auth-server-select">
-                <label for="auth-lang-select">Language</label>
+                <label for="auth-lang-select" data-pt="Idioma">Language</label>
                 <div class="auth-lang-dropdown" id="auth-lang-dropdown">
                     <button type="button" id="auth-lang-select" class="server-select-btn auth-lang-btn" aria-haspopup="listbox" aria-expanded="false">
                         <span class="auth-lang-flag" id="auth-lang-flag"></span><span id="auth-lang-label">…</span><span class="server-caret"> ▾</span>
@@ -179,20 +179,20 @@
         <div class="auth-container">
             <div class="auth-left">
                 <img src="images/logo/logo.png" alt="MID-EVIL: BATTLE ARENA" class="game-logo" style="max-width:260px;margin-bottom:20px">
-                <p class="game-subtitle">Build. Train. Conquer.</p>
+                <p class="game-subtitle" data-pt="Construa. Treine. Conquiste.">Build. Train. Conquer.</p>
                 <div class="android-app-block">
                     <div class="android-app-card">
                         <div class="android-app-inner">
                             <div class="android-qr-wrap">
                                 <a href="https://play.google.com/store/apps/details?id=battle.arena.app" target="_blank" rel="noopener" class="android-qr-link">
-                                    <img src="images/assets/qr.png" alt="Scan to download the Android app" class="android-qr">
-                                    <div class="android-qr-caption">Scan or tap to open the app</div>
+                                    <img src="images/assets/qr.png" alt="Scan to download the Android app" class="android-qr" data-alt-pt="Escaneie para baixar o aplicativo Android">
+                                    <div class="android-qr-caption" data-pt="Escaneie ou toque para abrir o aplicativo">Scan or tap to open the app</div>
                                 </a>
                             </div>
                             <div class="android-apply">
-                                <div class="android-apply-title">Apply to test the Android app</div>
+                                <div class="android-apply-title" data-pt="Candidate-se para testar o aplicativo Android">Apply to test the Android app</div>
                                 <input type="email" id="android-apply-email" placeholder="yourname@gmail.com" class="input-field"/>
-                                <button type="button" class="btn-primary" data-action="applyAndroidTesting">Apply to Test</button>
+                                <button type="button" class="btn-primary" data-action="applyAndroidTesting" data-pt="Candidate-se para Testar">Apply to Test</button>
                                 <div id="android-apply-msg" class="android-apply-msg"></div>
                             </div>
                         </div>
@@ -200,1119 +200,1119 @@
                 </div>
             </div>
             <div class="auth-right">
-                <div class="auth-beta-notice" style="margin-bottom:16px">Beta registration is limited to 500 total accounts.</div>
+                <div class="auth-beta-notice" style="margin-bottom:16px" data-pt="O cadastro Beta é limitado a 500 contas no total.">Beta registration is limited to 500 total accounts.</div>
 
                 <div class="auth-tabs">
-                    <button class="tab-btn active" data-action="switchTab" data-args='["login"]'>Login</button>
-                    <button class="tab-btn" data-action="switchTab" data-args='["register"]'>Register</button>
+                    <button class="tab-btn active" data-action="switchTab" data-args='["login"]' data-pt="Entrar">Login</button>
+                    <button class="tab-btn" data-action="switchTab" data-args='["register"]' data-pt="Registrar">Register</button>
                 </div>
 
                 <div id="auth-error" class="error-msg hidden"></div>
 
                 <div id="tab-login" class="tab-content active">
-                    <input type="text" id="login-user" placeholder="Username" class="input-field"/>
-                    <input type="password" id="login-pass" placeholder="Password" class="input-field"/>
+                    <input type="text" id="login-user" placeholder="Username" class="input-field" data-ph-pt="Nome de usuário"/>
+                    <input type="password" id="login-pass" placeholder="Password" class="input-field" data-ph-pt="Senha"/>
                     <label class="auth-password-toggle">
                         <input type="checkbox" data-change-action="togglePasswordVisibility" data-args='["login-pass"]'>
-                        <span>Show password</span>
+                        <span data-pt="Mostrar senha">Show password</span>
                     </label>
                     <label class="auth-remember-toggle" style="margin-top:4px; display:flex; align-items:center; gap:6px; font-size:0.85rem; color:rgba(255,255,255,0.7)">
                         <input type="checkbox" id="remember-me" checked data-change-action="toggleRememberMe">
-                        <span>Keep me logged in</span>
+                        <span data-pt="Manter conectado">Keep me logged in</span>
                     </label>
-                    <button class="btn-primary" data-action="login">Enter the Arena</button>
-                    <div class="google-auth-divider"><span>or continue with</span></div>
+                    <button class="btn-primary" data-action="login" data-pt="Entrar na Arena">Enter the Arena</button>
+                    <div class="google-auth-divider"><span data-pt="ou continue com">or continue with</span></div>
                     <div id="google-signin-btn" class="google-signin-wrap"></div>
-                    <button class="auth-legal-link" style="margin-top:10px" data-action="openForgotPasswordModal">Forgot password?</button>
+                    <button class="auth-legal-link" style="margin-top:10px" data-action="openForgotPasswordModal" data-pt="Esqueceu a senha?">Forgot password?</button>
                     <div class="auth-legal-links">
-                        <button class="auth-legal-link" data-action="openGameGuide">Game Guide</button>
+                        <button class="auth-legal-link" data-action="openGameGuide" data-pt="Guia do Jogo">Game Guide</button>
                         <span class="auth-legal-sep">•</span>
-                        <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service & Privacy</button>
+                        <button class="auth-legal-link" data-action="openAuthLegalModal" data-pt="Termos de Serviço e Privacidade">Terms of Service & Privacy</button>
                     </div>
                 </div>
 
                 <div id="tab-register" class="tab-content">
-                    <input type="text" id="reg-user" placeholder="Choose a username (3-16 characters)" maxlength="16" class="input-field"/>
-                    <input type="password" id="reg-pass" placeholder="Choose a password" class="input-field"/>
-                    <input type="text" id="reg-email" placeholder="Recovery email (optional)" class="input-field"/>
-                    <input type="text" id="reg-referral" placeholder="Referral username (optional)" class="input-field"/>
-                    <div class="auth-referral-note">Invite code = the inviter's username. They get 1,000 gold when you register and 5 gems if you reach level 5.</div>
-                    <button class="btn-primary" data-action="register">Create Account</button>
-                    <div class="google-auth-divider"><span>or register with</span></div>
+                    <input type="text" id="reg-user" placeholder="Choose a username (3-16 characters)" maxlength="16" class="input-field" data-ph-pt="Escolha um nome de usuário (3-16 caracteres)"/>
+                    <input type="password" id="reg-pass" placeholder="Choose a password" class="input-field" data-ph-pt="Escolha uma senha"/>
+                    <input type="text" id="reg-email" placeholder="Recovery email (optional)" class="input-field" data-ph-pt="Email de recuperação (opcional)"/>
+                    <input type="text" id="reg-referral" placeholder="Referral username (optional)" class="input-field" data-ph-pt="Nome de usuário de convite (opcional)"/>
+                    <div class="auth-referral-note" data-pt="Código de convite = nome de usuário de quem convida. Ele ganha 1.000 de ouro quando você se registra e 5 gemas se você chegar ao nível 5.">Invite code = the inviter's username. They get 1,000 gold when you register and 5 gems if you reach level 5.</div>
+                    <button class="btn-primary" data-action="register" data-pt="Criar Conta">Create Account</button>
+                    <div class="google-auth-divider"><span data-pt="ou registre-se com">or register with</span></div>
                     <div id="google-signin-btn-register" class="google-signin-wrap"></div>
                     <div class="auth-legal-links">
-                        <button class="auth-legal-link" data-action="openGameGuide">Game Guide</button>
+                        <button class="auth-legal-link" data-action="openGameGuide" data-pt="Guia do Jogo">Game Guide</button>
                         <span class="auth-legal-sep">•</span>
-                        <button class="auth-legal-link" data-action="openAuthLegalModal">Terms of Service & Privacy</button>
+                        <button class="auth-legal-link" data-action="openAuthLegalModal" data-pt="Termos de Serviço e Privacidade">Terms of Service & Privacy</button>
                     </div>
-            </div>
+                </div>
 
+            </div>
+        </div>
+
+    </div>
+
+    <div id="game-guide-modal" class="modal-overlay hidden">
+        <div class="modal-box game-guide-modal">
+            <div class="modal-header auth-legal-header">
+                <h2 data-pt="Guia do Jogo: Mid-Evil: Battle Arena">Mid-Evil: Battle Arena Guide</h2>
+                <button class="modal-close" data-action="closeGameGuide">✕</button>
+            </div>
+            <div class="game-guide-body">
+                <div class="game-guide-hero">
+                    <div class="game-guide-kicker" data-pt="Comece Aqui">Start Here</div>
+                    <div class="game-guide-title" data-pt="O que é Mid-Evil: Battle Arena">What Mid-Evil: Battle Arena Is</div>
+                    <p data-pt="Mid-Evil: Battle Arena é um RPG centrado em builds, onde você evolui personagens através de missões, equipamentos, artesanato, masmorras e PvP. O coração do jogo é transformar uma classe em um build afiado em vez de distribuir tudo igualmente.">Mid-Evil: Battle Arena is a build-focused RPG where you raise characters through missions, gear, crafting, dungeon runs, and PvP. The heart of the game is turning one class into a sharp build instead of spreading everything evenly.</p>
+                </div>
+
+                <div class="game-guide-grid">
+                    <div class="game-guide-card">
+                        <h3 data-pt="Ciclo Principal">Core Loop</h3>
+                        <ul>
+                            <li data-pt="Crie um personagem e escolha uma direção para seus atributos.">Create a character and choose a direction for its stats.</li>
+                            <li data-pt="Faça missões para ganhar ouro, XP, gemas, materiais e conquistas.">Run missions for gold, XP, gems, materials, and achievements.</li>
+                            <li data-pt="Compre, crie e melhore equipamentos para fortalecer seu build.">Buy, craft, and upgrade gear to strengthen your build.</li>
+                            <li data-pt="Avançe no conteúdo de masmorras e teste seu personagem no PvP.">Push dungeon content and test your character in PvP.</li>
+                        </ul>
+                    </div>
+                    <div class="game-guide-card">
+                        <h3 data-pt="Slots de Personagem">Character Slots</h3>
+                        <ul>
+                            <li data-pt="Uma conta pode ter até quatro personagens, um por classe.">One account can hold up to four characters, one per class.</li>
+                            <li data-pt="Cada classe tem atributos iniciais, árvores de habilidades e prioridades de atributo diferentes.">Each class has different starting stats, skill trees, and best stat priorities.</li>
+                            <li data-pt="Você pode trocar de personagem depois pelo menu, então experimentar é incentivado.">You can swap characters later from the menu, so experimenting is encouraged.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Papéis das Classes">Class Roles</h3>
+                    <div class="guide-class-grid">
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Warrior</div>
+                            <p data-pt="Força inicial mais alta e Defesa forte. Ideal para dano físico simples e confiável e PvP sólido na linha de frente.">Highest early Strength and strong Defense. Best for simple, reliable physical damage and solid frontline PvP.</p>
+                            <div class="guide-class-tip" data-pt="Comece com Força, depois Defesa, depois Vitalidade.">Start with Strength, then Defense, then Vitality.</div>
+                        </div>
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Mage</div>
+                            <p data-pt="Mágica mais alta e menor PV. Ideal para dano elemental, redução de resistência e crescimento com equipamento mágico.">Highest Magic and lowest HP. Best for elemental damage, resist shredding, and scaling through magical gear.</p>
+                            <div class="guide-class-tip" data-pt="Comece com Mágica, depois Chance de Acerto ou Agilidade para consistência.">Start with Magic, then Hit Chance or Agility for consistency.</div>
+                        </div>
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Rogue</div>
+                            <p data-pt="Agilidade mais alta. Ideal para esquiva, pressão de crítico, builds rápidas e caminhos sem escudo.">Highest Agility. Best for dodge, crit pressure, fast builds, and no-shield progression paths.</p>
+                            <div class="guide-class-tip" data-pt="Comece com Agilidade, depois Crítico/Acerto, e Força suficiente para terminar as lutas.">Start with Agility, then Crit/Hit, then enough Strength to finish fights.</div>
+                        </div>
+                        <div class="guide-class-card">
+                            <div class="guide-class-name">Paladin</div>
+                            <p data-pt="Híbrido equilibrado com Defesa e PV fortes. Ótimo para sustento, reflexo e builds de dano misto duráveis.">Balanced hybrid with strong Defense and HP. Great for sustain, reflect, and durable mixed damage setups.</p>
+                            <div class="guide-class-tip" data-pt="Comece com Defesa e Vitalidade, depois incline para Força ou Mágica.">Start with Defense and Vitality, then lean toward Strength or Magic.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Como Funcionam os Builds">How Building Works</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Atributos Principais">Primary Stats</div>
+                            <ul>
+                                <li data-pt="<strong>Força</strong> impulsiona o dano físico."><strong>Strength</strong> drives physical damage.</li>
+                                <li data-pt="<strong>Defesa</strong> alimenta a armadura e ajuda contra golpes físicos."><strong>Defense</strong> feeds armor and helps against physical hits.</li>
+                                <li data-pt="<strong>Agilidade</strong> favorece builds evasivas e focadas em ladino."><strong>Agility</strong> supports evasive and rogue-heavy setups.</li>
+                                <li data-pt="<strong>Mágica</strong> importa para escalar mago/paladino e equipamentos elementais."><strong>Magic</strong> matters for mage/paladin scaling and elemental-focused gear.</li>
+                                <li data-pt="<strong>Vitalidade</strong> melhora a sobrevivência através do PV máximo."><strong>Vitality</strong> improves survivability through max HP value.</li>
+                            </ul>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Atributos de Suporte">Support Stats</div>
+                            <ul>
+                                <li data-pt="<strong>Chance de Acerto</strong> faz os ataques conectarem com mais confiabilidade."><strong>Hit Chance</strong> makes attacks connect more reliably.</li>
+                                <li data-pt="<strong>Chance de Crítico</strong> aumenta o dano em picos e a pressão."><strong>Crit Chance</strong> boosts burst and pressure.</li>
+                                <li data-pt="<strong>Armadura</strong> é construída principalmente de Defesa e equipamento."><strong>Armor</strong> is mostly built from Defense and gear.</li>
+                                <li data-pt="<strong>Dano/Resistência Elemental</strong> vêm principalmente de equipamento e bônus de conjunto."><strong>Elemental Damage / Resist</strong> mostly come from equipment and set bonuses.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Regras de Combate que Importam">Combat Rules That Matter</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li data-pt="Você prepara zonas de ataque e zonas de bloqueio no seu loadout.">You prepare attack zones and block zones in your loadout.</li>
+                            <li data-pt="As batalhas duram até 10 rounds.">Battles last up to 10 rounds.</li>
+                            <li data-pt="Se ninguém morrer, o vencedor é decidido pelo <strong>total de dano causado</strong>, não pelo PV restante.">If nobody dies, the winner is decided by <strong>total damage dealt</strong>, not remaining HP.</li>
+                            <li data-pt="Armadura reduz dano físico.">Armor reduces physical damage.</li>
+                            <li data-pt="Resistência elemental reduz o dano elemental por subtração fixa, então resistir é forte, mas não cria imunidade permanente.">Elemental resistance reduces elemental damage by flat subtraction, so resist is strong but does not create permanent immunity.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Missões e Progresso Diário">Missions and Daily Progress</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Pontos de Missão">Mission Points</div>
+                            <ul>
+                                <li data-pt="Missões pequenas custam 20 MP, médias 40 MP, grandes 60 MP.">Small missions cost 20 MP, Medium 40 MP, Large 60 MP.</li>
+                                <li data-pt="Você regenera MP com o tempo.">You regenerate MP over time.</li>
+                                <li data-pt="Gastar 60 MP em um dia desbloqueia o uso das habilidades de classe naquele dia.">Spending 60 MP in a day unlocks class skill use for that day.</li>
+                                <li data-pt="Você também pode converter MP em Poções de Mana Especial pelo menu.">You can also convert MP into Special Mana Potions from the menu.</li>
+                            </ul>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Progressão do Mundo">World Progression</div>
+                            <ul>
+                                <li data-pt="O mundo vai de Floresta para Pântano, Montanhas, Ruínas e Cidade Sombria.">The overworld moves from Forest to Swamp, Mountains, Ruins, and Dark City.</li>
+                                <li data-pt="Cada zona tem pontos de missão fáceis, médios e difíceis com recompensas diferentes.">Each zone has easy, medium, and hard mission spots with different rewards.</li>
+                                <li data-pt="As viagens são desbloqueadas por lutas de portão únicas; depois o deslocamento fica livre.">Travel unlocks are gated by one-time gatekeeper fights, then movement becomes free.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Equipamento, Artesanato e Conjuntos">Gear, Crafting, and Sets</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li data-pt="O equipamento da loja dá melhorias estáveis. Conjuntos criados dão poder mais especializado.">Shop gear gives stable upgrades. Crafted sets give more specialized power.</li>
+                            <li data-pt="Os bônus de conjunto ativam pelas peças equipadas, não apenas pela criação.">Set bonuses activate from equipped pieces, not from simply crafting them.</li>
+                            <li data-pt="As linhas elementais vêm principalmente do equipamento, não de melhorias básicas de atributo.">Elemental lines mostly come from equipment, not basic stat upgrades.</li>
+                            <li data-pt="Melhorar itens é poderoso, mas limitado pela qualidade: Lendário chega a +5, Épico/Raro a +4 e os demais a +3.">Upgrading items is powerful but limited by quality: Legendary can reach +5, Epic/Rare +4, and others +3.</li>                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Habilidades e Caminhos Ocultos">Skills and Hidden Paths</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Habilidades de Classe">Class Skills</div>
+                            <p data-pt="Toda classe ganha habilidades ativas com tempo: guerreiros ganham ferramentas de dano e bloqueio, magos ganham magia elemental e esquiva, ladinos ganham esquiva, crítico e pressão de veneno, e paladinos ganham escudos, sustento e ferramentas de reflexo.">Every class gets timed active skills: warriors gain damage and block tools, mages gain elemental and dodge magic, rogues gain dodge, crit, and poison pressure, and paladins gain shielding, sustain, and reflect tools.</p>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Árvore de Habilidades">Skill Tree</div>
+                            <p data-pt="A árvore de habilidades desbloqueia através de vitórias, níveis, missões, mortes elementais, metas de masmorra e condições especiais. Alguns ramos são ocultos ou exclusivos, então seu build determina o que você pode se tornar.">The skill tree unlocks through wins, levels, missions, elemental kills, dungeon goals, and special conditions. Some branches are hidden or exclusive, so your build path changes what you can become.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Masmorra e Metas de Longo Prazo">Dungeon and Long-Term Goals</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li data-pt="A masmorra acompanha mortes de monstros, recompensas da guilda, progresso de andares e recompensas especiais.">The dungeon tracks monster kills, guild bounties, floor progress, and special rewards.</li>
+                            <li data-pt="Conquistas pagam ouro, gemas, caixas de recompensa, poções e às vezes recompensas premium, então elas importam desde o primeiro dia.">Achievements pay gold, gems, loot boxes, potions, and sometimes premium rewards, so they matter from day one.</li>
+                            <li data-pt="Se você quer crescer rápido, missões financiam seu build, artesanato o afia, e masmorra/PvP revelam suas fraquezas.">If you want to grow fast, missions fund your build, crafting sharpens it, and dungeon/PvP reveal its weaknesses.</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Melhor Conselho para Iniciantes">Best Starter Advice</h3>
+                    <div class="game-guide-card">
+                        <ul>
+                            <li data-pt="Não suba todos os atributos igualmente no início. Escolha dois atributos principais e um de suporte.">Do not level every stat evenly early. Pick two main stats and one support stat.</li>
+                            <li data-pt="Use as missões iniciais para financiar melhorias em vez de guardar ouro.">Use early missions to fund upgrades instead of sitting on gold.</li>
+                            <li data-pt="Assim que tiver equipamento decente, comece a prestar atenção nas linhas elementais e bônus de conjunto.">Once you get decent gear, start paying attention to elemental lines and set bonuses.</li>
+                            <li data-pt="Use o PvP para testar se seu build consegue terminar as lutas em 10 rounds.">Use PvP to test whether your build can actually finish fights in 10 rounds.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
-</div>
-
-<div id="game-guide-modal" class="modal-overlay hidden">
-            <div class="modal-box game-guide-modal">
-                <div class="modal-header auth-legal-header">
-                    <h2>Mid-Evil: Battle Arena Guide</h2>
-                    <button class="modal-close" data-action="closeGameGuide">✕</button>
-                </div>
-                <div class="game-guide-body">
-                    <div class="game-guide-hero">
-                        <div class="game-guide-kicker">Start Here</div>
-                        <div class="game-guide-title">What Mid-Evil: Battle Arena Is</div>
-                        <p>Mid-Evil: Battle Arena is a build-focused RPG where you raise characters through missions, gear, crafting, dungeon runs, and PvP. The heart of the game is turning one class into a sharp build instead of spreading everything evenly.</p>
-                    </div>
-
-                    <div class="game-guide-grid">
-                        <div class="game-guide-card">
-                            <h3>Core Loop</h3>
-                            <ul>
-                                <li>Create a character and choose a direction for its stats.</li>
-                                <li>Run missions for gold, XP, gems, materials, and achievements.</li>
-                                <li>Buy, craft, and upgrade gear to strengthen your build.</li>
-                                <li>Push dungeon content and test your character in PvP.</li>
-                            </ul>
-                        </div>
-                        <div class="game-guide-card">
-                            <h3>Character Slots</h3>
-                            <ul>
-                                <li>One account can hold up to four characters, one per class.</li>
-                                <li>Each class has different starting stats, skill trees, and best stat priorities.</li>
-                                <li>You can swap characters later from the menu, so experimenting is encouraged.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Class Roles</h3>
-                        <div class="guide-class-grid">
-                            <div class="guide-class-card">
-                                <div class="guide-class-name">Warrior</div>
-                                <p>Highest early Strength and strong Defense. Best for simple, reliable physical damage and solid frontline PvP.</p>
-                                <div class="guide-class-tip">Start with Strength, then Defense, then Vitality.</div>
-                            </div>
-                            <div class="guide-class-card">
-                                <div class="guide-class-name">Mage</div>
-                                <p>Highest Magic and lowest HP. Best for elemental damage, resist shredding, and scaling through magical gear.</p>
-                                <div class="guide-class-tip">Start with Magic, then Hit Chance or Agility for consistency.</div>
-                            </div>
-                            <div class="guide-class-card">
-                                <div class="guide-class-name">Rogue</div>
-                                <p>Highest Agility. Best for dodge, crit pressure, fast builds, and no-shield progression paths.</p>
-                                <div class="guide-class-tip">Start with Agility, then Crit/Hit, then enough Strength to finish fights.</div>
-                            </div>
-                            <div class="guide-class-card">
-                                <div class="guide-class-name">Paladin</div>
-                                <p>Balanced hybrid with strong Defense and HP. Great for sustain, reflect, and durable mixed damage setups.</p>
-                                <div class="guide-class-tip">Start with Defense and Vitality, then lean toward Strength or Magic.</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>How Building Works</h3>
-                        <div class="game-guide-grid">
-                            <div class="game-guide-card">
-                                <div class="guide-subtitle">Primary Stats</div>
-                                <ul>
-                                    <li><strong>Strength</strong> drives physical damage.</li>
-                                    <li><strong>Defense</strong> feeds armor and helps against physical hits.</li>
-                                    <li><strong>Agility</strong> supports evasive and rogue-heavy setups.</li>
-                                    <li><strong>Magic</strong> matters for mage/paladin scaling and elemental-focused gear.</li>
-                                    <li><strong>Vitality</strong> improves survivability through max HP value.</li>
-                                </ul>
-                            </div>
-                            <div class="game-guide-card">
-                                <div class="guide-subtitle">Support Stats</div>
-                                <ul>
-                                    <li><strong>Hit Chance</strong> makes attacks connect more reliably.</li>
-                                    <li><strong>Crit Chance</strong> boosts burst and pressure.</li>
-                                    <li><strong>Armor</strong> is mostly built from Defense and gear.</li>
-                                    <li><strong>Elemental Damage / Resist</strong> mostly come from equipment and set bonuses.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Combat Rules That Matter</h3>
-                        <div class="game-guide-card">
-                            <ul>
-                                <li>You prepare attack zones and block zones in your loadout.</li>
-                                <li>Battles last up to 10 rounds.</li>
-                                <li>If nobody dies, the winner is decided by <strong>total damage dealt</strong>, not remaining HP.</li>
-                                <li>Armor reduces physical damage.</li>
-                                <li>Elemental resistance reduces elemental damage by flat subtraction, so resist is strong but does not create permanent immunity.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Missions and Daily Progress</h3>
-                        <div class="game-guide-grid">
-                            <div class="game-guide-card">
-                                <div class="guide-subtitle">Mission Points</div>
-                                <ul>
-                                    <li>Small missions cost 20 MP, Medium 40 MP, Large 60 MP.</li>
-                                    <li>You regenerate MP over time.</li>
-                                    <li>Spending 60 MP in a day unlocks class skill use for that day.</li>
-                                    <li>You can also convert MP into Special Mana Potions from the menu.</li>
-                                </ul>
-                            </div>
-                            <div class="game-guide-card">
-                                <div class="guide-subtitle">World Progression</div>
-                                <ul>
-                                    <li>The overworld moves from Forest to Swamp, Mountains, Ruins, and Dark City.</li>
-                                    <li>Each zone has easy, medium, and hard mission spots with different rewards.</li>
-                                    <li>Travel unlocks are gated by one-time gatekeeper fights, then movement becomes free.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Gear, Crafting, and Sets</h3>
-                        <div class="game-guide-card">
-                            <ul>
-                                <li>Shop gear gives stable upgrades. Crafted sets give more specialized power.</li>
-                                <li>Set bonuses activate from equipped pieces, not from simply crafting them.</li>
-                                <li>Elemental lines mostly come from equipment, not basic stat upgrades.</li>
-                                <li>Upgrading items is powerful but limited by quality: Legendary can reach +5, Epic/Rare +4, and others +3.</li>                        </ul>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Skills and Hidden Paths</h3>
-                        <div class="game-guide-grid">
-                            <div class="game-guide-card">
-                                <div class="guide-subtitle">Class Skills</div>
-                                <p>Every class gets timed active skills: warriors gain damage and block tools, mages gain elemental and dodge magic, rogues gain dodge, crit, and poison pressure, and paladins gain shielding, sustain, and reflect tools.</p>
-                            </div>
-                            <div class="game-guide-card">
-                                <div class="guide-subtitle">Skill Tree</div>
-                                <p>The skill tree unlocks through wins, levels, missions, elemental kills, dungeon goals, and special conditions. Some branches are hidden or exclusive, so your build path changes what you can become.</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Dungeon and Long-Term Goals</h3>
-                        <div class="game-guide-card">
-                            <ul>
-                                <li>The dungeon tracks monster kills, guild bounties, floor progress, and special rewards.</li>
-                                <li>Achievements pay gold, gems, loot boxes, potions, and sometimes premium rewards, so they matter from day one.</li>
-                                <li>If you want to grow fast, missions fund your build, crafting sharpens it, and dungeon/PvP reveal its weaknesses.</li>
-                            </ul>
-                        </div>
-                    </div>
-
-                    <div class="game-guide-section">
-                        <h3>Best Starter Advice</h3>
-                        <div class="game-guide-card">
-                            <ul>
-                                <li>Do not level every stat evenly early. Pick two main stats and one support stat.</li>
-                                <li>Use early missions to fund upgrades instead of sitting on gold.</li>
-                                <li>Once you get decent gear, start paying attention to elemental lines and set bonuses.</li>
-                                <li>Use PvP to test whether your build can actually finish fights in 10 rounds.</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
+    <div id="auth-legal-modal" class="modal-overlay hidden">
+        <div class="modal-box auth-legal-modal">
+            <div class="modal-header auth-legal-header">
+                <h2 data-pt="Termos e Privacidade do Mid-Evil: Battle Arena">Mid-Evil: Battle Arena Terms & Privacy</h2>
+                <button class="modal-close" data-action="closeAuthLegalModal">✕</button>
             </div>
-        </div>
-
-        <div id="auth-legal-modal" class="modal-overlay hidden">
-            <div class="modal-box auth-legal-modal">
-                <div class="modal-header auth-legal-header">
-                    <h2>Mid-Evil: Battle Arena Terms & Privacy</h2>
-                    <button class="modal-close" data-action="closeAuthLegalModal">✕</button>
-                </div>
-                <div class="auth-legal-body">
-                    <div id="auth-legal-beta">
-                        <div class="auth-legal-section">
-                            <div class="auth-legal-title">Mid-Evil: Battle Arena - Terms of Service (Beta)</div>
-                            <div class="auth-legal-updated">Last updated: August 21, 2026</div>
-                            <p>Welcome to Mid-Evil: Battle Arena. By creating an account and playing the game, you agree to the following terms.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>1. Beta Disclaimer</h3>
-                            <p>Mid-Evil: Battle Arena is currently in beta testing. This means:</p>
-                            <ul>
-                                <li>Features may change, break, or be removed at any time</li>
-                                <li>Progress, characters, items, or accounts may be reset without notice</li>
-                                <li>The game may be unavailable or unstable</li>
-                            </ul>
-                            <p>You agree to use the game with this understanding.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>2. Accounts</h3>
-                            <ul>
-                                <li>You only need a username and password to create an account</li>
-                                <li>You may optionally add a recovery email for password reset</li>
-                                <li><strong>Each user is allowed one account only</strong></li>
-                                <li>One account allows you to create up to 4 characters — one of each available class</li>
-                            </ul>
-                            <p><strong>Important:</strong> If you do not add a recovery email and forget your password, your account may not be recoverable. You are responsible for keeping your login details safe.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>3. Gameplay & Conduct</h3>
-                            <p>By playing Mid-Evil: Battle Arena, you agree:</p>
-                            <ul>
-                                <li>Not to exploit bugs, cheats, or unintended mechanics</li>
-                                <li>Not to use bots, scripts, or automation</li>
-                                <li>Not to attempt to disrupt the game or other players</li>
-                                <li>Not to impersonate others or abuse the system</li>
-                                <li>Not to use global chat or private messages for harassment, threats, spam, hate speech, or repeated profanity</li>
-                                <li>Not to send misleading, abusive, or unwanted private messages to other players</li>
-                            </ul>
-                            <p>Chat messages may be filtered, hidden, reviewed, or removed to help keep the game usable for everyone. We reserve the right to suspend or remove accounts that violate these rules.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>4. Game Data & Progress</h3>
-                            <ul>
-                                <li>All characters, items, gold, and progress exist only within the game</li>
-                                <li>They have no real-world value</li>
-                                <li>We may modify, reset, or remove game data at any time during beta</li>
-                            </ul>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>5. Availability</h3>
-                            <p>We do not guarantee:</p>
-                            <ul>
-                                <li>Continuous uptime</li>
-                                <li>Data preservation</li>
-                                <li>Bug-free gameplay</li>
-                            </ul>
-                            <p>The game is provided "as is" during testing.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>6. Termination</h3>
-                            <p>We may suspend or delete accounts:</p>
-                            <ul>
-                                <li>For rule violations</li>
-                                <li>For abuse or exploitation</li>
-                                <li>For any reason necessary to maintain the game</li>
-                            </ul>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>7. Changes to Terms</h3>
-                            <p>These terms may be updated at any time. Continued use of the game means you accept any changes.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>8. Contact</h3>
-                            <p>If you encounter bugs or issues, please report them through the in-game bug report system.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <p>By playing Mid-Evil: Battle Arena, you acknowledge that this is a beta game and agree to these terms.</p>
-                        </div>
-                    </div>
-
-                    <div id="auth-legal-global" style="display:none">
-                        <div class="auth-legal-section">
-                            <div class="auth-legal-title">Mid-Evil: Battle Arena - Terms of Service</div>
-                            <div class="auth-legal-updated">Last updated: August 21, 2026</div>
-                            <p>Welcome to Mid-Evil: Battle Arena. By creating an account and playing the game on this server, you agree to the following terms.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>2. Accounts</h3>
-                            <ul>
-                                <li>You need a username and password to create an account</li>
-                                <li>You may optionally add a recovery email for password reset</li>
-                                <li><strong>Each user is allowed one account only</strong></li>
-                                <li>One account allows you to create up to 4 characters — one of each available class</li>
-                            </ul>
-                            <p><strong>Important:</strong> If you do not add a recovery email and forget your password, your account may not be recoverable. You are responsible for keeping your login details safe.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>3. Gameplay & Conduct</h3>
-                            <p>By playing Mid-Evil: Battle Arena, you agree:</p>
-                            <ul>
-                                <li>Not to exploit bugs, cheats, or unintended mechanics</li>
-                                <li>Not to use bots, scripts, or automation</li>
-                                <li>Not to attempt to disrupt the game or other players</li>
-                                <li>Not to impersonate others or abuse the system</li>
-                                <li>Not to use global chat or private messages for harassment, threats, spam, hate speech, or repeated profanity</li>
-                                <li>Not to send misleading, abusive, or unwanted private messages to other players</li>
-                            </ul>
-                            <p>Chat messages may be filtered, hidden, reviewed, or removed to help keep the game usable for everyone. We reserve the right to suspend or remove accounts that violate these rules.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>4. Game Data & Progress</h3>
-                            <ul>
-                                <li>All characters, items, gold, and progress exist only within the game</li>
-                                <li>They have no real-world value</li>
-                                <li>We reserve the right to modify, reset, or remove game data where necessary to maintain the integrity or operation of the game</li>
-                            </ul>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>5. Availability</h3>
-                            <p>We aim to keep Mid-Evil: Battle Arena available and running smoothly. In particular:</p>
-                            <ul>
-                                <li>We may perform scheduled maintenance, during which the game may be temporarily unavailable</li>
-                                <li>We maintain regular backups of game data and work to keep it safe</li>
-                                <li>We test updates before release, though occasional issues may still occur</li>
-                            </ul>
-                            <p>If something goes wrong, our team will make reasonable efforts to restore service and recover affected data.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>6. Termination</h3>
-                            <p>We may suspend or delete accounts:</p>
-                            <ul>
-                                <li>For rule violations</li>
-                                <li>For abuse or exploitation</li>
-                                <li>For any reason necessary to maintain the game</li>
-                            </ul>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>7. Changes to Terms</h3>
-                            <p>These terms may be updated at any time. Continued use of the game means you accept any changes.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <h3>8. Contact</h3>
-                            <p>If you encounter bugs or issues, please report them through the in-game bug report system.</p>
-                        </div>
-
-                        <div class="auth-legal-section">
-                            <p>By playing Mid-Evil: Battle Arena on this server, you agree to these terms.</p>
-                        </div>
+            <div class="auth-legal-body">
+                <div id="auth-legal-beta">
+                    <div class="auth-legal-section">
+                        <div class="auth-legal-title" data-pt="Mid-Evil: Battle Arena - Termos de Serviço (Beta)">Mid-Evil: Battle Arena - Terms of Service (Beta)</div>
+                        <div class="auth-legal-updated" data-pt="Última atualização: 21 de agosto de 2026">Last updated: August 21, 2026</div>
+                        <p data-pt="Bem-vindo ao Mid-Evil: Battle Arena. Ao criar uma conta e jogar, você concorda com os seguintes termos.">Welcome to Mid-Evil: Battle Arena. By creating an account and playing the game, you agree to the following terms.</p>
                     </div>
 
                     <div class="auth-legal-section">
-                        <div class="auth-legal-title">Privacy Notice</div>
-                        <p>Mid-Evil: Battle Arena collects minimal data:</p>
+                        <h3 data-pt="1. Aviso de Beta">1. Beta Disclaimer</h3>
+                        <p data-pt="Mid-Evil: Battle Arena está atualmente em teste beta. Isso significa:">Mid-Evil: Battle Arena is currently in beta testing. This means:</p>
                         <ul>
-                            <li>Username</li>
-                            <li>Encrypted password hash</li>
-                            <li>Optional recovery email address (if you add one)</li>
+                            <li data-pt="Os recursos podem mudar, quebrar ou ser removidos a qualquer momento">Features may change, break, or be removed at any time</li>
+                            <li data-pt="Progresso, personagens, itens ou contas podem ser resetados sem aviso">Progress, characters, items, or accounts may be reset without notice</li>
+                            <li data-pt="O jogo pode ficar indisponível ou instável">The game may be unavailable or unstable</li>
                         </ul>
-                        <p>We do not collect:</p>
+                        <p data-pt="Você concorda em usar o jogo com esse entendimento.">You agree to use the game with this understanding.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="2. Contas">2. Accounts</h3>
                         <ul>
-                            <li>Personal information</li>
+                            <li data-pt="Você só precisa de um nome de usuário e senha para criar uma conta">You only need a username and password to create an account</li>
+                            <li data-pt="Você pode adicionar opcionalmente um email de recuperação para redefinir a senha">You may optionally add a recovery email for password reset</li>
+                            <li data-pt="<strong>Cada usuário tem direito a apenas uma conta</strong>"><strong>Each user is allowed one account only</strong></li>
+                            <li data-pt="Uma conta permite criar até 4 personagens — um de cada classe disponível">One account allows you to create up to 4 characters — one of each available class</li>
                         </ul>
-                        <p>Your data is used only to:</p>
+                        <p data-pt="<strong>Importante:</strong> Se você não adicionar um email de recuperação e esquecer sua senha, sua conta pode não ser recuperável. Você é responsável por manter seus dados de login seguros."><strong>Important:</strong> If you do not add a recovery email and forget your password, your account may not be recoverable. You are responsible for keeping your login details safe.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="3. Jogabilidade e Conduta">3. Gameplay & Conduct</h3>
+                        <p data-pt="Ao jogar Mid-Evil: Battle Arena, você concorda:">By playing Mid-Evil: Battle Arena, you agree:</p>
                         <ul>
-                            <li>Manage your account</li>
-                            <li>Save your game progress</li>
+                            <li data-pt="Não explorar bugs, trapaças ou mecânicas não intencionais">Not to exploit bugs, cheats, or unintended mechanics</li>
+                            <li data-pt="Não usar bots, scripts ou automação">Not to use bots, scripts, or automation</li>
+                            <li data-pt="Não tentar prejudicar o jogo ou outros jogadores">Not to attempt to disrupt the game or other players</li>
+                            <li data-pt="Não se passar por outros jogadores ou abusar do sistema">Not to impersonate others or abuse the system</li>
+                            <li data-pt="Não usar o chat global ou mensagens privadas para assédio, ameaças, spam, discurso de ódio ou palavrões repetidos">Not to use global chat or private messages for harassment, threats, spam, hate speech, or repeated profanity</li>
+                            <li data-pt="Não enviar mensagens privadas enganosas, abusivas ou indesejadas a outros jogadores">Not to send misleading, abusive, or unwanted private messages to other players</li>
                         </ul>
-                        <p>We do not sell or share your data.</p>
-                        <p>If you add a recovery email, it may be used only for password reset and account recovery communications.</p>
+                        <p data-pt="As mensagens do chat podem ser filtradas, ocultadas, revisadas ou removidas para manter o jogo utilizável para todos. Reservamo-nos o direito de suspender ou remover contas que violem estas regras.">Chat messages may be filtered, hidden, reviewed, or removed to help keep the game usable for everyone. We reserve the right to suspend or remove accounts that violate these rules.</p>
                     </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="4. Dados do Jogo e Progresso">4. Game Data & Progress</h3>
+                        <ul>
+                            <li data-pt="Todos os personagens, itens, ouro e progresso existem apenas dentro do jogo">All characters, items, gold, and progress exist only within the game</li>
+                            <li data-pt="Eles não têm valor no mundo real">They have no real-world value</li>
+                            <li data-pt="Podemos modificar, resetar ou remover dados do jogo a qualquer momento durante o beta">We may modify, reset, or remove game data at any time during beta</li>
+                        </ul>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="5. Disponibilidade">5. Availability</h3>
+                        <p data-pt="Não garantimos:">We do not guarantee:</p>
+                        <ul>
+                            <li data-pt="Disponibilidade contínua">Continuous uptime</li>
+                            <li data-pt="Preservação de dados">Data preservation</li>
+                            <li data-pt="Jogabilidade sem bugs">Bug-free gameplay</li>
+                        </ul>
+                        <p data-pt='Durante o teste, o jogo &eacute; fornecido "como est&aacute;".'>The game is provided "as is" during testing.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="6. Encerramento">6. Termination</h3>
+                        <p data-pt="Podemos suspender ou excluir contas:">We may suspend or delete accounts:</p>
+                        <ul>
+                            <li data-pt="Por violações de regras">For rule violations</li>
+                            <li data-pt="Por abuso ou exploração">For abuse or exploitation</li>
+                            <li data-pt="Por qualquer motivo necessário para manter o jogo">For any reason necessary to maintain the game</li>
+                        </ul>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="7. Alterações nos Termos">7. Changes to Terms</h3>
+                        <p data-pt="Estes termos podem ser atualizados a qualquer momento. Continuar usando o jogo significa que você aceita as alterações.">These terms may be updated at any time. Continued use of the game means you accept any changes.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="8. Contato">8. Contact</h3>
+                        <p data-pt="Se encontrar bugs ou problemas, reporte-os pelo sistema de relatórios de bugs do jogo.">If you encounter bugs or issues, please report them through the in-game bug report system.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <p data-pt="Ao jogar Mid-Evil: Battle Arena, você reconhece que este é um jogo em beta e concorda com estes termos.">By playing Mid-Evil: Battle Arena, you acknowledge that this is a beta game and agree to these terms.</p>
+                    </div>
+                </div>
+
+                <div id="auth-legal-global" style="display:none">
+                    <div class="auth-legal-section">
+                        <div class="auth-legal-title" data-pt="Mid-Evil: Battle Arena - Termos de Serviço">Mid-Evil: Battle Arena - Terms of Service</div>
+                        <div class="auth-legal-updated" data-pt="Última atualização: 21 de agosto de 2026">Last updated: August 21, 2026</div>
+                        <p data-pt="Bem-vindo ao Mid-Evil: Battle Arena. Ao criar uma conta e jogar neste servidor, você concorda com os seguintes termos.">Welcome to Mid-Evil: Battle Arena. By creating an account and playing the game on this server, you agree to the following terms.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="2. Contas">2. Accounts</h3>
+                        <ul>
+                            <li data-pt="Você precisa de um nome de usuário e senha para criar uma conta">You need a username and password to create an account</li>
+                            <li data-pt="Você pode adicionar opcionalmente um email de recuperação para redefinir a senha">You may optionally add a recovery email for password reset</li>
+                            <li data-pt="<strong>Cada usuário tem direito a apenas uma conta</strong>"><strong>Each user is allowed one account only</strong></li>
+                            <li data-pt="Uma conta permite criar até 4 personagens — um de cada classe disponível">One account allows you to create up to 4 characters — one of each available class</li>
+                        </ul>
+                        <p data-pt="<strong>Importante:</strong> Se você não adicionar um email de recuperação e esquecer sua senha, sua conta pode não ser recuperável. Você é responsável por manter seus dados de login seguros."><strong>Important:</strong> If you do not add a recovery email and forget your password, your account may not be recoverable. You are responsible for keeping your login details safe.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="3. Jogabilidade e Conduta">3. Gameplay & Conduct</h3>
+                        <p data-pt="Ao jogar Mid-Evil: Battle Arena, você concorda:">By playing Mid-Evil: Battle Arena, you agree:</p>
+                        <ul>
+                            <li data-pt="Não explorar bugs, trapaças ou mecânicas não intencionais">Not to exploit bugs, cheats, or unintended mechanics</li>
+                            <li data-pt="Não usar bots, scripts ou automação">Not to use bots, scripts, or automation</li>
+                            <li data-pt="Não tentar prejudicar o jogo ou outros jogadores">Not to attempt to disrupt the game or other players</li>
+                            <li data-pt="Não se passar por outros jogadores ou abusar do sistema">Not to impersonate others or abuse the system</li>
+                            <li data-pt="Não usar o chat global ou mensagens privadas para assédio, ameaças, spam, discurso de ódio ou palavrões repetidos">Not to use global chat or private messages for harassment, threats, spam, hate speech, or repeated profanity</li>
+                            <li data-pt="Não enviar mensagens privadas enganosas, abusivas ou indesejadas a outros jogadores">Not to send misleading, abusive, or unwanted private messages to other players</li>
+                        </ul>
+                        <p data-pt="As mensagens do chat podem ser filtradas, ocultadas, revisadas ou removidas para manter o jogo utilizável para todos. Reservamo-nos o direito de suspender ou remover contas que violem estas regras.">Chat messages may be filtered, hidden, reviewed, or removed to help keep the game usable for everyone. We reserve the right to suspend or remove accounts that violate these rules.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="4. Dados do Jogo e Progresso">4. Game Data & Progress</h3>
+                        <ul>
+                            <li data-pt="Todos os personagens, itens, ouro e progresso existem apenas dentro do jogo">All characters, items, gold, and progress exist only within the game</li>
+                            <li data-pt="Eles não têm valor no mundo real">They have no real-world value</li>
+                            <li data-pt="Reservamo-nos o direito de modificar, resetar ou remover dados do jogo quando necessário para manter a integridade ou o funcionamento do jogo">We reserve the right to modify, reset, or remove game data where necessary to maintain the integrity or operation of the game</li>
+                        </ul>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="5. Disponibilidade">5. Availability</h3>
+                        <p data-pt="Nosso objetivo é manter o Mid-Evil: Battle Arena disponível e funcionando bem. Em particular:">We aim to keep Mid-Evil: Battle Arena available and running smoothly. In particular:</p>
+                        <ul>
+                            <li data-pt="Podemos realizar manutenção programada, durante a qual o jogo pode ficar temporariamente indisponível">We may perform scheduled maintenance, during which the game may be temporarily unavailable</li>
+                            <li data-pt="Mantemos backups regulares dos dados do jogo e trabalhamos para mantê-los seguros">We maintain regular backups of game data and work to keep it safe</li>
+                            <li data-pt="Testamos as atualizações antes do lançamento, embora problemas ocasionais ainda possam ocorrer">We test updates before release, though occasional issues may still occur</li>
+                        </ul>
+                        <p data-pt="Se algo der errado, nossa equipe fará esforços razoáveis para restaurar o serviço e recuperar os dados afetados.">If something goes wrong, our team will make reasonable efforts to restore service and recover affected data.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="6. Encerramento">6. Termination</h3>
+                        <p data-pt="Podemos suspender ou excluir contas:">We may suspend or delete accounts:</p>
+                        <ul>
+                            <li data-pt="Por violações de regras">For rule violations</li>
+                            <li data-pt="Por abuso ou exploração">For abuse or exploitation</li>
+                            <li data-pt="Por qualquer motivo necessário para manter o jogo">For any reason necessary to maintain the game</li>
+                        </ul>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="7. Alterações nos Termos">7. Changes to Terms</h3>
+                        <p data-pt="Estes termos podem ser atualizados a qualquer momento. Continuar usando o jogo significa que você aceita as alterações.">These terms may be updated at any time. Continued use of the game means you accept any changes.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <h3 data-pt="8. Contato">8. Contact</h3>
+                        <p data-pt="Se encontrar bugs ou problemas, reporte-os pelo sistema de relatórios de bugs do jogo.">If you encounter bugs or issues, please report them through the in-game bug report system.</p>
+                    </div>
+
+                    <div class="auth-legal-section">
+                        <p data-pt="Ao jogar Mid-Evil: Battle Arena neste servidor, você concorda com estes termos.">By playing Mid-Evil: Battle Arena on this server, you agree to these terms.</p>
+                    </div>
+                </div>
+
+                <div class="auth-legal-section">
+                    <div class="auth-legal-title" data-pt="Aviso de Privacidade">Privacy Notice</div>
+                    <p data-pt="Mid-Evil: Battle Arena coleta dados mínimos:">Mid-Evil: Battle Arena collects minimal data:</p>
+                    <ul>
+                        <li data-pt="Nome de usuário">Username</li>
+                        <li data-pt="Hash de senha criptografado">Encrypted password hash</li>
+                        <li data-pt="Email de recuperação opcional (se você adicionar um)">Optional recovery email address (if you add one)</li>
+                    </ul>
+                    <p data-pt="Nós não coletamos:">We do not collect:</p>
+                    <ul>
+                        <li data-pt="Informações pessoais">Personal information</li>
+                    </ul>
+                    <p data-pt="Seus dados são usados apenas para:">Your data is used only to:</p>
+                    <ul>
+                        <li data-pt="Gerenciar sua conta">Manage your account</li>
+                        <li data-pt="Salvar o progresso do seu jogo">Save your game progress</li>
+                    </ul>
+                    <p data-pt="Nós não vendemos nem compartilhamos seus dados.">We do not sell or share your data.</p>
+                    <p data-pt="Se você adicionar um email de recuperação, ele poderá ser usado apenas para comunicações de redefinição de senha e recuperação de conta.">If you add a recovery email, it may be used only for password reset and account recovery communications.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="forgot-password-modal" class="modal-overlay hidden">
+        <div class="modal-box auth-legal-modal">
+            <div class="modal-header auth-legal-header">
+                <h2 data-pt="Redefinir Senha">Reset Password</h2>
+                <button class="modal-close" data-action="closeForgotPasswordModal">✕</button>
+            </div>
+            <div class="auth-legal-body">
+                <div style="font-size:0.9rem;color:rgba(255,255,255,0.75);line-height:1.5;margin-bottom:12px" data-pt="Digite o nome de usuário da sua conta ou o email de recuperação. Se existir e tiver email de recuperação definido, você receberá um link de redefinição.">
+                    Enter your account username or recovery email. If it exists and has a recovery email set, you will receive a reset link.
+                </div>
+                <input type="text" id="forgot-identifier" placeholder="Username or email" class="input-field" data-ph-pt="Nome de usuário ou email"/>
+                <button class="btn-primary" data-action="requestPasswordReset" data-pt="Enviar Link de Redefinição">Send Reset Link</button>
+                <div id="forgot-password-msg" class="msg-bar hidden"></div>
+                <div style="margin-top:12px;font-size:0.8rem;color:rgba(255,255,255,0.55)" data-pt="Nota: no modo de desenvolvimento, o servidor pode registrar o link de redefinição no console se o envio de email não estiver configurado.">
+                    Note: In dev mode the server may log the reset link to console if email sending isn’t configured.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="reset-password-modal" class="modal-overlay hidden">
+        <div class="modal-box auth-legal-modal">
+            <div class="modal-header auth-legal-header">
+                <h2 data-pt="Escolher Nova Senha">Choose New Password</h2>
+                <button class="modal-close" data-action="closeResetPasswordModal">✕</button>
+            </div>
+            <div class="auth-legal-body">
+                <input type="password" id="reset-new-pass" placeholder="New password" class="input-field" data-ph-pt="Nova senha"/>
+                <label class="auth-password-toggle">
+                    <input type="checkbox" data-change-action="togglePasswordVisibility" data-args='["reset-new-pass"]'>
+                    <span data-pt="Mostrar senha">Show password</span>
+                </label>
+                <button class="btn-primary" data-action="submitPasswordReset" data-pt="Redefinir Senha">Reset Password</button>
+                <div id="reset-password-msg" class="msg-bar hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARACTER CREATION -->
+    <div id="screen-create" class="screen">
+        <div class="auth-bg"></div>
+        <div class="auth-container wide">
+            <h2 class="game-title small" data-pt="Crie Seu Herói">Create Your Hero</h2>
+            <input type="text" id="char-name" placeholder="Hero name..." class="input-field center" maxlength="20" data-ph-pt="Nome do herói..."/>
+            <div id="create-error" class="error-msg hidden"></div>
+            <div class="class-grid">
+                <div class="class-card" data-class="warrior" data-action="selectClass">
+                    <div class="class-icon">🛡️</div><div class="class-name">Warrior</div>
+                    <div class="class-stats">STR 16 · DEF 14 · AGI 10 · MAG 5</div>
+                    <div class="class-discounts" data-pt="30% off STR · 15% off nas melhorias de DEF">30% off STR · 15% off DEF upgrades</div>
+                    <div class="class-desc" data-pt="Força imparável, objeto imóvel">Unstoppable force, immovable object</div>
+                </div>
+                <div class="class-card" data-class="mage" data-action="selectClass">
+                    <div class="class-icon">🔮</div><div class="class-name">Mage</div>
+                    <div class="class-stats">STR 8 · DEF 8 · AGI 10 · MAG 20</div>
+                    <div class="class-discounts" data-pt="35% off MAG · 10% off AGI · 1.5× dano elemental">35% off MAG · 10% off AGI · 1.5× elemental dmg</div>
+                    <div class="class-desc" data-pt="Canhão de vidro de destruição arcana">Glass cannon of arcane destruction</div>
+                </div>
+                <div class="class-card" data-class="rogue" data-action="selectClass">
+                    <div class="class-icon">🗡️</div><div class="class-name">Rogue</div>
+                    <div class="class-stats">STR 12 · DEF 8 · AGI 20 · MAG 6</div>
+                    <div class="class-discounts" data-pt="35% off AGI · 10% off nas melhorias de STR">35% off AGI · 10% off STR upgrades</div>
+                    <div class="class-desc" data-pt="Atinja rápido, desapareça mais rápido">Strike fast, vanish faster</div>
+                </div>
+                <div class="class-card" data-class="paladin" data-action="selectClass">
+                    <div class="class-icon">✨</div><div class="class-name">Paladin</div>
+                    <div class="class-stats">STR 12 · DEF 16 · AGI 8 · MAG 12</div>
+                    <div class="class-discounts" data-pt="25% off DEF · 20% off nas melhorias de MAG">25% off DEF · 20% off MAG upgrades</div>
+                    <div class="class-desc" data-pt="Lâmina sagrada e escudo divino">Holy blade and divine shield</div>
+                </div>
+            </div>
+            <button class="btn-primary" data-action="createCharacter" data-pt="Forjar Meu Herói">Forge My Hero</button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME -->
+    <div id="screen-game" class="screen">
+
+        <!-- ── TOP BAR ──────────────────────────────────────────────────────── -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-avatar-wrap" data-action="showTab" data-args='["character"]' title="Open character page" style="cursor:pointer">
+                    <div class="avatar-frame">
+                        <img id="topbar-avatar" class="topbar-avatar" src="" alt="avatar" data-error-next-display="">
+                        <img id="topbar-avatar-pop" class="avatar-frame-pop" src="" alt="" data-error-hide="true">
+                        <img class="avatar-frame-img" src="/images/assets/frame.png" alt="" data-error-hide="true">
+                    </div>
+                    <div class="topbar-avatar-info">
+                        <span id="topbar-name" class="topbar-name">Hero</span>
+                        <span id="topbar-level" class="topbar-level">Lv.1</span>
+                    </div>
+                </div>
+                <div class="topbar-bars">
+                    <div class="topbar-bar-row">
+                        <span class="topbar-bar-label">HP</span>
+                        <div class="topbar-bar-track hp-track">
+                            <div id="topbar-hp-fill" class="topbar-bar-fill hp-fill"></div>
+                        </div>
+                        <span id="topbar-hp-text" class="topbar-bar-text">100 / 100</span>
+                    </div>
+                    <div class="topbar-bar-row">
+                        <span class="topbar-bar-label">XP</span>
+                        <div class="topbar-bar-track xp-track">
+                            <div id="topbar-xp-fill" class="topbar-bar-fill xp-fill"></div>
+                        </div>
+                        <span id="topbar-xp-text" class="topbar-bar-text">0 / 100</span>
+                    </div>
+                    <div class="topbar-bar-row">
+                        <span class="topbar-bar-label" style="color:#9b59b6">MP</span>
+                        <div class="topbar-bar-track mp-track">
+                            <div id="topbar-mp-fill" class="topbar-bar-fill mp-fill"></div>
+                        </div>
+                        <span id="topbar-mp-text" class="topbar-bar-text" style="color:#9b59b6">240 / 240</span>
+                    </div>
+                </div>
+            </div>
+            <div class="topbar-right">
+                <span id="topbar-gold" class="topbar-currency">💰 0</span>
+                <span id="topbar-gems" class="topbar-currency topbar-gems-btn" data-action="showTab" data-args='["shop"]' title="Go to Shop">💎 0</span>
+                <div class="topbar-right-actions">
+                    <button id="topbar-chat-btn" class="topbar-chat-btn" data-action="toggleChatWidgetCollapsed" title="Toggle chat">Chat</button>
+                    <button id="topbar-menu-btn" class="topbar-menu-btn" data-action="openTopbarMenu" title="Open menu">Menu</button>
                 </div>
             </div>
         </div>
 
-        <div id="forgot-password-modal" class="modal-overlay hidden">
-            <div class="modal-box auth-legal-modal">
-                <div class="modal-header auth-legal-header">
-                    <h2>Reset Password</h2>
-                    <button class="modal-close" data-action="closeForgotPasswordModal">✕</button>
-                </div>
-                <div class="auth-legal-body">
-                    <div style="font-size:0.9rem;color:rgba(255,255,255,0.75);line-height:1.5;margin-bottom:12px">
-                        Enter your account username or recovery email. If it exists and has a recovery email set, you will receive a reset link.
-                    </div>
-                    <input type="text" id="forgot-identifier" placeholder="Username or email" class="input-field"/>
-                    <button class="btn-primary" data-action="requestPasswordReset">Send Reset Link</button>
-                    <div id="forgot-password-msg" class="msg-bar hidden"></div>
-                    <div style="margin-top:12px;font-size:0.8rem;color:rgba(255,255,255,0.55)">
-                        Note: In dev mode the server may log the reset link to console if email sending isn’t configured.
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- ── EVENT BANNER ──────────────────────────────────────────────────── -->
+        <div id="event-banner" class="event-banner hidden"></div>
 
-        <div id="reset-password-modal" class="modal-overlay hidden">
-            <div class="modal-box auth-legal-modal">
-                <div class="modal-header auth-legal-header">
-                    <h2>Choose New Password</h2>
-                    <button class="modal-close" data-action="closeResetPasswordModal">✕</button>
-                </div>
-                <div class="auth-legal-body">
-                    <input type="password" id="reset-new-pass" placeholder="New password" class="input-field"/>
-                    <label class="auth-password-toggle">
-                        <input type="checkbox" data-change-action="togglePasswordVisibility" data-args='["reset-new-pass"]'>
-                        <span>Show password</span>
-                    </label>
-                    <button class="btn-primary" data-action="submitPasswordReset">Reset Password</button>
-                    <div id="reset-password-msg" class="msg-bar hidden"></div>
-                </div>
-            </div>
-        </div>
+        <!-- ── GAME MESSAGES ─────────────────────────────────────────────────── -->
+        <div id="game-messages" class="game-messages"></div>
 
-        <!-- CHARACTER CREATION -->
-        <div id="screen-create" class="screen">
-            <div class="auth-bg"></div>
-            <div class="auth-container wide">
-                <h2 class="game-title small">Create Your Hero</h2>
-                <input type="text" id="char-name" placeholder="Hero name..." class="input-field center" maxlength="20"/>
-                <div id="create-error" class="error-msg hidden"></div>
-                <div class="class-grid">
-                    <div class="class-card" data-class="warrior" data-action="selectClass">
-                        <div class="class-icon">🛡️</div><div class="class-name">Warrior</div>
-                        <div class="class-stats">STR 16 · DEF 14 · AGI 10 · MAG 5</div>
-                        <div class="class-discounts">30% off STR · 15% off DEF upgrades</div>
-                        <div class="class-desc">Unstoppable force, immovable object</div>
-                    </div>
-                    <div class="class-card" data-class="mage" data-action="selectClass">
-                        <div class="class-icon">🔮</div><div class="class-name">Mage</div>
-                        <div class="class-stats">STR 8 · DEF 8 · AGI 10 · MAG 20</div>
-                        <div class="class-discounts">35% off MAG · 10% off AGI · 1.5× elemental dmg</div>
-                        <div class="class-desc">Glass cannon of arcane destruction</div>
-                    </div>
-                    <div class="class-card" data-class="rogue" data-action="selectClass">
-                        <div class="class-icon">🗡️</div><div class="class-name">Rogue</div>
-                        <div class="class-stats">STR 12 · DEF 8 · AGI 20 · MAG 6</div>
-                        <div class="class-discounts">35% off AGI · 10% off STR upgrades</div>
-                        <div class="class-desc">Strike fast, vanish faster</div>
-                    </div>
-                    <div class="class-card" data-class="paladin" data-action="selectClass">
-                        <div class="class-icon">✨</div><div class="class-name">Paladin</div>
-                        <div class="class-stats">STR 12 · DEF 16 · AGI 8 · MAG 12</div>
-                        <div class="class-discounts">25% off DEF · 20% off MAG upgrades</div>
-                        <div class="class-desc">Holy blade and divine shield</div>
-                    </div>
-                </div>
-                <button class="btn-primary" data-action="createCharacter">Forge My Hero</button>
-            </div>
-        </div>
+        <!-- ── GAME BODY ─────────────────────────────────────────────────────── -->
+        <div class="game-body">
 
-        <!-- MAIN GAME -->
-        <div id="screen-game" class="screen">
-
-            <!-- ── TOP BAR ──────────────────────────────────────────────────────── -->
-            <div class="topbar">
-                <div class="topbar-left">
-                    <div class="topbar-avatar-wrap" data-action="showTab" data-args='["character"]' title="Open character page" style="cursor:pointer">
-                        <div class="avatar-frame">
-                            <img id="topbar-avatar" class="topbar-avatar" src="" alt="avatar" data-error-next-display="">
-                            <img id="topbar-avatar-pop" class="avatar-frame-pop" src="" alt="" data-error-hide="true">
-                            <img class="avatar-frame-img" src="/images/assets/frame.png" alt="" data-error-hide="true">
-                        </div>
-                        <div class="topbar-avatar-info">
-                            <span id="topbar-name" class="topbar-name">Hero</span>
-                            <span id="topbar-level" class="topbar-level">Lv.1</span>
-                        </div>
+            <!-- ── SIDEBAR NAV ───────────────────────────────────────────────── -->
+            <nav class="sidebar">
+                <div class="sidebar-inner">
+                    <div class="sidebar-left">
+                        <img src="/images/leftside.png" alt="">
                     </div>
-                    <div class="topbar-bars">
-                        <div class="topbar-bar-row">
-                            <span class="topbar-bar-label">HP</span>
-                            <div class="topbar-bar-track hp-track">
-                                <div id="topbar-hp-fill" class="topbar-bar-fill hp-fill"></div>
-                            </div>
-                            <span id="topbar-hp-text" class="topbar-bar-text">100 / 100</span>
-                        </div>
-                        <div class="topbar-bar-row">
-                            <span class="topbar-bar-label">XP</span>
-                            <div class="topbar-bar-track xp-track">
-                                <div id="topbar-xp-fill" class="topbar-bar-fill xp-fill"></div>
-                            </div>
-                            <span id="topbar-xp-text" class="topbar-bar-text">0 / 100</span>
-                        </div>
-                        <div class="topbar-bar-row">
-                            <span class="topbar-bar-label" style="color:#9b59b6">MP</span>
-                            <div class="topbar-bar-track mp-track">
-                                <div id="topbar-mp-fill" class="topbar-bar-fill mp-fill"></div>
-                            </div>
-                            <span id="topbar-mp-text" class="topbar-bar-text" style="color:#9b59b6">240 / 240</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="topbar-right">
-                    <span id="topbar-gold" class="topbar-currency">💰 0</span>
-                    <span id="topbar-gems" class="topbar-currency topbar-gems-btn" data-action="showTab" data-args='["shop"]' title="Go to Shop">💎 0</span>
-                    <div class="topbar-right-actions">
-                        <button id="topbar-chat-btn" class="topbar-chat-btn" data-action="toggleChatWidgetCollapsed" title="Toggle chat">Chat</button>
-                        <button id="topbar-menu-btn" class="topbar-menu-btn" data-action="openTopbarMenu" title="Open menu">Menu</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ── EVENT BANNER ──────────────────────────────────────────────────── -->
-            <div id="event-banner" class="event-banner hidden"></div>
-
-            <!-- ── GAME MESSAGES ─────────────────────────────────────────────────── -->
-            <div id="game-messages" class="game-messages"></div>
-
-            <!-- ── GAME BODY ─────────────────────────────────────────────────────── -->
-            <div class="game-body">
-
-                <!-- ── SIDEBAR NAV ───────────────────────────────────────────────── -->
-                <nav class="sidebar">
-                    <div class="sidebar-inner">
-                        <div class="sidebar-left">
-                            <img src="/images/leftside.png" alt="">
-                        </div>
-                        <div class="sidebar-buttons">
-                            <div class="nav-hub-group">
-                                <button id="character-hub-trigger" class="nav-btn nav-btn-character" data-action="toggleCharacterHubInline" aria-label="Character Navigation">
-                                    <img class="nav-btn-icon" src="/images/assets/charactericon.png" alt="">
-                                    <span class="nav-btn-label">Character</span>
-                                </button>
-                                <div id="character-inline-hub" class="character-inline-hub hidden">
-                                    <button class="nav-btn nav-sub-btn" title="Character" data-action="navigateCharacterHub" data-args='["character"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/charactericon.png" alt=""><span class="sub-btn-label">CHARACTER</span></div>
-                                    </button>
-                                    <button id="hub-btn-upgrade" class="nav-btn nav-sub-btn" title="Upgrade" data-action="navigateCharacterHub" data-args='["upgrade"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/upgradeicon.png" alt=""><span class="sub-btn-label">UPGRADE</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Loadout" data-action="navigateCharacterHub" data-args='["loadout"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/loadouticon.png" alt=""><span class="sub-btn-label">LOADOUT</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Skills" data-action="navigateCharacterHub" data-args='["skills"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/skillsicon.png" alt=""><span class="sub-btn-label">SKILLS</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Training" data-action="navigateCharacterHub" data-args='["train"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/trainingicon.png" alt=""><span class="sub-btn-label">TRAINING</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Premium" data-action="navigateCharacterHub" data-args='["premium"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/premiumicon.png" alt=""><span class="sub-btn-label">PREMIUM</span></div>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="nav-hub-group">
-                                <button id="missions-hub-trigger" class="nav-btn nav-btn-world" aria-label="World Navigation">
-                                    <img class="nav-btn-icon" src="/images/assets/worldicon.png" alt="">
-                                    <span class="nav-btn-label">World</span>
-                                </button>
-                                <div id="missions-inline-hub" class="character-inline-hub hidden">
-                                    <button class="nav-btn nav-sub-btn" title="Missions" data-action="navigateMissionsHub" data-args='["missions"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/missionsicon.png" alt=""><span class="sub-btn-label">MISSIONS</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Dungeon" data-action="navigateMissionsHub" data-args='["dungeon"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/dungeonicon.png" alt=""><span class="sub-btn-label">DUNGEON</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Squads" data-action="navigateMissionsHub" data-args='["squads"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/squadicon.png" alt=""><span class="sub-btn-label">SQUADS</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Tournament" data-action="navigateMissionsHub" data-args='["tournament"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/tournamenticon.png" alt=""><span class="sub-btn-label">TOURNAMENT</span></div>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="nav-hub-group">
-                                <button id="inventory-hub-trigger" class="nav-btn nav-btn-equipment" aria-label="Equipment Navigation">
-                                    <img class="nav-btn-icon" src="/images/assets/equipmenticon.png" alt="">
-                                    <span class="nav-btn-label">Equipment</span>
-                                </button>
-                                <div id="inventory-inline-hub" class="character-inline-hub hidden">
-                                    <button class="nav-btn nav-sub-btn" title="Inventory" data-action="navigateInventoryHub" data-args='["inventory"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/inventoryicon.png" alt=""><span class="sub-btn-label">INVENTORY</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Forge" data-action="navigateInventoryHub" data-args='["forge"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/forgeicon.png" alt=""><span class="sub-btn-label">FORGE</span></div>
-                                    </button>
-                                    <button class="nav-btn nav-sub-btn" title="Shop" data-action="navigateInventoryHub" data-args='["shop"]'>
-                                        <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/shopicon.png" alt=""><span class="sub-btn-label">SHOP</span></div>
-                                    </button>
-                                </div>
-                            </div>
-                            <button class="nav-btn nav-btn-leaderboard" data-action="showTab" data-args='["leaderboard"]'>
-                                <img class="nav-btn-icon" src="/images/assets/leaderboardicon.png" alt="">
-                                <span class="nav-btn-label">Leaderboard</span>
+                    <div class="sidebar-buttons">
+                        <div class="nav-hub-group">
+                            <button id="character-hub-trigger" class="nav-btn nav-btn-character" data-action="toggleCharacterHubInline" aria-label="Character Navigation">
+                                <img class="nav-btn-icon" src="/images/assets/charactericon.png" alt="">
+                                <span class="nav-btn-label" data-en="Character" data-pt="Personagem">Character</span>
                             </button>
-                            <button class="nav-btn nav-btn-messages" data-action="showTab" data-args='["inbox"]'>
-                                <img class="nav-btn-icon" src="/images/assets/inboxicon.png" alt="">
-                                <span class="nav-btn-label">Messages</span>
-                                <span id="unread-badge" class="unread-badge hidden"></span>
+                            <div id="character-inline-hub" class="character-inline-hub hidden">
+                                <button class="nav-btn nav-sub-btn" title="Character" data-en-title="Character" data-pt-title="Personagem" data-action="navigateCharacterHub" data-args='["character"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/charactericon.png" alt=""><span class="sub-btn-label" data-en="CHARACTER" data-pt="PERSONAGEM">CHARACTER</span></div>
+                                </button>
+                                <button id="hub-btn-upgrade" class="nav-btn nav-sub-btn" title="Upgrades" data-en-title="Upgrades" data-pt-title="Melhorias" data-action="navigateCharacterHub" data-args='["upgrade"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/upgradeicon.png" alt=""><span class="sub-btn-label" data-en="UPGRADES" data-pt="MELHORIAS">UPGRADES</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Loadout" data-en-title="Loadout" data-pt-title="Loadout" data-action="navigateCharacterHub" data-args='["loadout"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/loadouticon.png" alt=""><span class="sub-btn-label" data-en="LOADOUT" data-pt="LOADOUT">LOADOUT</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Skills" data-en-title="Skills" data-pt-title="Habilidades" data-action="navigateCharacterHub" data-args='["skills"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/skillsicon.png" alt=""><span class="sub-btn-label" data-en="SKILLS" data-pt="HABILIDADES">SKILLS</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Training" data-en-title="Training" data-pt-title="Treinamento" data-action="navigateCharacterHub" data-args='["train"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/trainingicon.png" alt=""><span class="sub-btn-label" data-en="TRAINING" data-pt="TREINAMENTO">TRAINING</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Premium" data-en-title="Premium" data-pt-title="Premium" data-action="navigateCharacterHub" data-args='["premium"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/premiumicon.png" alt=""><span class="sub-btn-label" data-en="PREMIUM" data-pt="PREMIUM">PREMIUM</span></div>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="nav-hub-group">
+                            <button id="missions-hub-trigger" class="nav-btn nav-btn-world" aria-label="World Navigation">
+                                <img class="nav-btn-icon" src="/images/assets/worldicon.png" alt="">
+                                <span class="nav-btn-label" data-en="World" data-pt="Mundo">World</span>
                             </button>
-                        </div>
-                        <div class="sidebar-right">
-                            <img src="/images/rightside.png" alt="">
-                        </div>
-                    </div>
-                </nav>
-                <!-- ── TAB CONTENT ───────────────────────────────────────────────── -->
-                <main class="tab-content-area">
-
-                    <!-- SKILLS -->
-                    <div id="tab-skills" class="game-tab">
-                        <div class="tab-header"><h2>✨ Class Skills</h2></div>
-                        <div id="skills-event-banner" class="hidden"></div>
-                        <div id="skills-mp-bar" style="margin-bottom:20px"></div>
-                        <div id="skills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
-                        <div id="skills-msg" class="msg-bar hidden"></div>
-                    </div>
-
-                    <!-- CHARACTER -->
-                    <div id="tab-character" class="game-tab active">
-                        <div id="char-sheet" class="char-grid"></div>
-                    </div>
-
-                    <!-- PREMIUM -->
-                    <div id="tab-premium" class="game-tab">
-                        <div class="tab-header"><h2>💎 Premium Features</h2></div>
-                        <div id="premium-content"></div>
-                        <div id="premium-msg" class="msg-bar hidden"></div>
-                    </div>
-
-                    <!-- LOADOUT -->
-                    <div id="tab-loadout" class="game-tab">
-                        <div class="tab-header"><h2>⚔️ Combat Loadout</h2></div>
-                        <div id="loadout-content"></div>
-                    </div>
-
-                    <!-- TRAIN -->
-                    <div id="tab-train" class="game-tab">
-                        <div id="skill-tree-root"></div>
-                        <div id="skill-tree-msg" class="msg-bar hidden" style="margin-top:12px"></div>
-                    </div>
-
-                    <!-- UPGRADE -->
-                    <div id="tab-upgrade" class="game-tab">
-                        <div class="tab-header"><h2>⬆️ Upgrade Stats</h2></div>
-                        <div id="upgrade-gold" class="gold-display"></div>
-                        <div id="upgrade-grid" class="upgrade-grid"></div>
-                        <div id="upgrade-msg" class="msg-bar hidden"></div>
-                    </div>
-
-                    <!-- MISSIONS -->
-                    <div id="tab-missions" class="game-tab" style="position:relative">
-                        <div id="world-map-container" class="world-map-container">
-                            <img id="world-map-bg" class="world-map-bg" src="/images/world-map.jpg" alt="World Map" data-error-background="#1a2332">
-                            <div id="map-nodes-layer" class="map-nodes-layer"></div>
-                        </div>
-                        <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
-
-                        <!-- Active mission overlay -->
-                        <div id="mission-overlay" class="mission-overlay hidden">
-                            <div class="mission-overlay-inner">
-                                <div class="mission-overlay-badge">⚔️ ON MISSION</div>
-                                <div id="overlay-mission-name" class="mission-overlay-name">Mission</div>
-                                <div id="overlay-mission-zone" class="mission-overlay-zone"></div>
-                                <div id="overlay-mission-timer" class="mission-overlay-timer">0:00</div>
-                                <div class="mission-overlay-progress-track">
-                                    <div id="overlay-progress-fill" class="mission-overlay-progress-fill"></div>
-                                </div>
-                                <div id="overlay-mission-subtext" class="mission-overlay-subtext">Return when complete...</div>
-                                <button id="overlay-collect-btn" class="btn-collect" data-action="overlayCollectMission" disabled>Collect Rewards</button>
-                                <div id="overlay-auto" style="display:none"></div>
-                            </div>
-                        </div>
-
-                        <!-- Traveling overlay -->
-                        <div id="travel-overlay" class="travel-overlay hidden">
-                            <div class="travel-overlay-inner">
-                                <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2">🚶 TRAVELING</div>
-                                <div class="travel-overlay-label">Destination</div>
-                                <div id="travel-overlay-name" class="travel-overlay-name">Zone</div>
-                                <div id="travel-overlay-from" class="travel-overlay-from"></div>
-                                <div id="travel-overlay-timer" class="mission-overlay-timer">0:00</div>
-                                <div class="mission-overlay-progress-track">
-                                    <div id="travel-overlay-fill" class="mission-overlay-progress-fill travel"></div>
-                                </div>
-                                <button id="travel-cancel-btn" class="btn-cancel-travel" data-action="cancelTravel">Cancel (Free)</button>
-                            </div>
-                        </div>
-
-                        <!-- Post-battle rest overlay -->
-                        <div id="rest-overlay" class="travel-overlay hidden">
-                            <div class="travel-overlay-inner">
-                                <div class="mission-overlay-badge" style="border-color:rgba(231,76,60,0.4);color:#e74c3c">⚔️ RESTING AFTER BATTLE</div>
-                                <div class="travel-overlay-name" style="color:var(--text-bright)">Recovering</div>
-                                <div class="travel-overlay-from">You must rest before starting a new mission</div>
-                                <div id="rest-overlay-timer" class="mission-overlay-timer" style="color:#e74c3c">0:00</div>
-                                <div class="mission-overlay-progress-track">
-                                    <div id="rest-overlay-fill" class="mission-overlay-progress-fill" style="background:#e74c3c"></div>
-                                </div>
-                                <div class="mission-overlay-subtext">Cooldown clears automatically</div>
-                                <button id="rest-recover-btn" class="btn-cancel-travel"
-                                        style="border-color:rgba(155,89,182,0.5);color:#9b59b6;background:rgba(155,89,182,0.15)"
-                                        data-action="instantBattleRecovery">⚡ Recover Now (1 💎)</button>
-                            </div>
-                        </div>
-
-                        <!-- Training Overlay (now consistent with mission + battle cooldowns) -->
-                        <div id="training-overlay" class="mission-overlay hidden">
-                            <div class="mission-overlay-inner"> <!-- changed to match others -->
-                                <div class="mission-overlay-badge">⚔️ TRAINING</div>
-                                <div id="training-skill-name" class="mission-overlay-name">Training Skill Name</div>
-                                <div id="training-overlay-timer" class="mission-overlay-timer">0:00</div>
-
-                                <div class="mission-overlay-progress-track">
-                                    <div id="training-overlay-fill" class="mission-overlay-progress-fill"></div>
-                                </div>
-
-                                <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
-
-                                <div class="mission-overlay-actions">
-                                    <button data-action="stCancel" class="btn-cancel-travel" style="border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,0.15)">
-                                        Cancel Training (Free)
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                    </div><!-- /#tab-missions -->
-
-                    <!-- FORGE -->
-                    <div id="tab-forge" class="game-tab">
-                        <div class="tab-header"><h2>🔨 Forge</h2></div>
-                        <div id="forge-gold" class="gold-display"></div>
-                        <div class="forge-tabs filter-tabs">
-                            <button class="filter-btn active" data-action="setForgeTab" data-args='["refine"]'>Refine</button>
-                            <button class="filter-btn" data-action="setForgeTab" data-args='["craft"]'>Craft</button>
-                            <button class="filter-btn" data-action="setForgeTab" data-args='["raid"]'>Raid Gear</button>
-                        </div>
-                        <div id="forge-content"></div>
-                        <div id="forge-msg" class="msg-bar hidden"></div>
-                        <dialog id="weapon-upgrade-dialog" class="modal-box" style="max-width:520px;border:none;border-radius:16px;background:var(--bg2);color:var(--text);padding:0"></dialog>
-                    </div>
-
-                    <!-- INVENTORY -->
-                    <div id="tab-inventory" class="game-tab">
-                        <div class="tab-header"><h2><img src="/images/assets/inventory/inventory.png" class="tab-icon-lg"></h2></div>
-                        <div class="filter-tabs">
-                            <button class="filter-btn active" data-action="setInvTab" data-args='["weapons"]'><img src="/images/assets/inventory/weapons.png" class="tab-icon"> Weapons</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["armor"]'><img src="/images/assets/inventory/armor.png" class="tab-icon"> Armor</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["helmets"]'><img src="/images/assets/inventory/helmets.png" class="tab-icon"> Helmets</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["shields"]'><img src="/images/assets/inventory/shields.png" class="tab-icon"> Shields</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["boots"]'><img src="/images/assets/inventory/boots.png" class="tab-icon"> Boots</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["jewelry"]'><img src="/images/assets/inventory/jewelry.png" class="tab-icon"> Jewelry</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["accessory"]'><img src="/images/assets/inventory/accessory.png" class="tab-icon"> Accessory</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["consumables"]'><img src="/images/assets/inventory/potions.png" class="tab-icon"> Potions</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["materials"]'><img src="/images/assets/inventory/materials.png" class="tab-icon"> Materials</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["lootboxes"]'><img src="/images/assets/inventory/lootboxes.png" class="tab-icon"> Loot Boxes</button>
-                            <button class="filter-btn" data-action="setInvTab" data-args='["elementals"]'><img src="/images/assets/elemental.png" class="tab-icon"> Elementals</button>
-                        </div>
-                        <div id="inventory-content"></div>
-                        <div id="inv-msg" class="msg-bar hidden"></div>
-                    </div>
-
-                    <!-- Upgrade Equipment Modal -->
-                    <div id="upgrade-modal" class="modal-overlay hidden">
-                        <div class="modal-box upgrade-modal-box" style="max-width: 700px;">
-                            <div class="modal-header">
-                                <h3>⬆️ Upgrade Equipment</h3>
-                                <button class="modal-close" data-action="closeUpgradeModal">✕</button>
-                            </div>
-                            <div id="upgrade-modal-content">
-                                <!-- Dynamic content will go here -->
-                            </div>
-                        </div>
-                    </div>
-
-
-
-                    <!-- EVENT -->
-                    <div id="tab-event" class="game-tab">
-                        <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                            <h2>🎴 Active Event</h2>
-                        </div>
-                        <div id="event-content" class="event-content"></div>
-                    </div>
-
-                    <!-- SHOP -->
-                    <div id="tab-shop" class="game-tab">
-                        <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                            <h2><img src="/images/assets/inventory/shop.png" class="tab-icon-lg"></h2>
-                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                                <button class="btn-secondary shop-gems-cta" data-action="openFreeGemsModal">
-                                    Claim Free Gems
+                            <div id="missions-inline-hub" class="character-inline-hub hidden">
+                                <button class="nav-btn nav-sub-btn" title="Missions" data-en-title="Missions" data-pt-title="Missões" data-action="navigateMissionsHub" data-args='["missions"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/missionsicon.png" alt=""><span class="sub-btn-label" data-en="MISSIONS" data-pt="MISSÕES">MISSIONS</span></div>
                                 </button>
-                                <button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" data-action="rerollShop">
-                                    🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
+                                <button class="nav-btn nav-sub-btn" title="Dungeon" data-en-title="Dungeon" data-pt-title="Masmorra" data-action="navigateMissionsHub" data-args='["dungeon"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/dungeonicon.png" alt=""><span class="sub-btn-label" data-en="DUNGEON" data-pt="MASMORRA">DUNGEON</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Squads" data-en-title="Squads" data-pt-title="Esquadrões" data-action="navigateMissionsHub" data-args='["squads"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/squadicon.png" alt=""><span class="sub-btn-label" data-en="SQUADS" data-pt="ESQUADRÕES">SQUADS</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Tournament" data-en-title="Tournament" data-pt-title="Torneio" data-action="navigateMissionsHub" data-args='["tournament"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/tournamenticon.png" alt=""><span class="sub-btn-label" data-en="TOURNAMENT" data-pt="TORNEIO">TOURNAMENT</span></div>
                                 </button>
                             </div>
                         </div>
-                        <div class="shop-currency-row">
-                            <span id="shop-gold"></span>
-                            <span id="shop-gems"></span>
-                        </div>
-                        <div class="shop-tabs filter-tabs">
-                            <button class="filter-btn active" data-action="setShopCategory" data-args='["weapons"]'><img src="/images/assets/inventory/weapons.png" class="tab-icon"> Weapons</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["armor"]'><img src="/images/assets/inventory/armor.png" class="tab-icon"> Armor</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["helmets"]'><img src="/images/assets/inventory/helmets.png" class="tab-icon"> Helmets</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["shields"]'><img src="/images/assets/inventory/shields.png" class="tab-icon"> Shields</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["boots"]'><img src="/images/assets/inventory/boots.png" class="tab-icon"> Boots</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["jewelry"]'><img src="/images/assets/inventory/jewelry.png" class="tab-icon"> Jewelry</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["accessory"]'><img src="/images/assets/inventory/accessory.png" class="tab-icon"> Accessory</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["consumables"]'><img src="/images/assets/inventory/potions.png" class="tab-icon"> Potions</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["premium"]'><img src="/images/assets/inventory/premium.png" class="tab-icon"> Premium</button>
-                            <button class="filter-btn" data-action="setShopCategory" data-args='["lootboxes"]'><img src="/images/assets/inventory/lootboxes.png" class="tab-icon"> Loot Boxes</button>
-                        </div>
-                        <div id="shop-content" class="shop-grid"></div>
-                        <div id="shop-msg" class="msg-bar hidden"></div>
-                    </div>
-
-                    <div id="free-gems-modal" class="modal-overlay hidden">
-                        <div class="modal-box free-gems-modal-box">
-                            <div class="free-gems-modal-header">
-                                <h3>Free Monthly Gems</h3>
-                                <button class="btn-secondary" data-action="closeFreeGemsModal">✕</button>
-                            </div>
-                            <div id="free-gems-modal-content" class="free-gems-modal-content"></div>
-                        </div>
-                    </div>
-
-                    <!-- LEADERBOARD -->
-                    <div id="tab-leaderboard" class="game-tab">
-                        <div class="tab-header"><h2>🏆 Leaderboard</h2></div>
-
-                        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:20px">
-                            <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px">🏆 Your Position</div>
-                            <div id="matchmaking-box"><p class="empty" style="padding:10px">Open leaderboard to find an opponent.</p></div>
-                        </div>
-
-                        <div class="lb-controls">
-                            <input id="lb-search" type="text" placeholder="Search players..." data-input-action="filterLeaderboard" class="lb-search">
-                            <div class="lb-filters filter-tabs">
-                                <button class="filter-btn active" data-action="setLbSort" data-args='["total_gold_earned"]'>Gold</button>
-                                <button class="filter-btn" data-action="setLbSort" data-args='["wins"]'>Wins</button>
-                                <button class="filter-btn" data-action="setLbSort" data-args='["losses"]'>Losses</button>
-                                <button class="filter-btn" data-action="setLbSort" data-args='["level"]'>Level</button>
-                                <button class="filter-btn" data-action="setLbSort" data-args='["weekly_dmg"]'>🏛️ Hall of Fame</button>
+                        <div class="nav-hub-group">
+                            <button id="inventory-hub-trigger" class="nav-btn nav-btn-equipment" aria-label="Equipment Navigation">
+                                <img class="nav-btn-icon" src="/images/assets/equipmenticon.png" alt="">
+                                <span class="nav-btn-label" data-en="Equipment" data-pt="Equipamento">Equipment</span>
+                            </button>
+                            <div id="inventory-inline-hub" class="character-inline-hub hidden">
+                                <button class="nav-btn nav-sub-btn" title="Inventory" data-en-title="Inventory" data-pt-title="Inventário" data-action="navigateInventoryHub" data-args='["inventory"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/inventoryicon.png" alt=""><span class="sub-btn-label" data-en="INVENTORY" data-pt="INVENTÁRIO">INVENTORY</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Forge" data-en-title="Forge" data-pt-title="Forja" data-action="navigateInventoryHub" data-args='["forge"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/forgeicon.png" alt=""><span class="sub-btn-label" data-en="FORGE" data-pt="FORJA">FORGE</span></div>
+                                </button>
+                                <button class="nav-btn nav-sub-btn" title="Shop" data-en-title="Shop" data-pt-title="Loja" data-action="navigateInventoryHub" data-args='["shop"]'>
+                                    <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/shopicon.png" alt=""><span class="sub-btn-label" data-en="SHOP" data-pt="LOJA">SHOP</span></div>
+                                </button>
                             </div>
                         </div>
-                        <div id="leaderboard-list"></div>
+                        <button class="nav-btn nav-btn-leaderboard" data-action="showTab" data-args='["leaderboard"]'>
+                            <img class="nav-btn-icon" src="/images/assets/leaderboardicon.png" alt="">
+                            <span class="nav-btn-label" data-en="Rankings" data-pt="Ranking">Rankings</span>
+                        </button>
+                        <button class="nav-btn nav-btn-messages" data-action="showTab" data-args='["inbox"]'>
+                            <img class="nav-btn-icon" src="/images/assets/inboxicon.png" alt="">
+                            <span class="nav-btn-label" data-en="Messages" data-pt="Mensagens">Messages</span>
+                            <span id="unread-badge" class="unread-badge hidden"></span>
+                        </button>
                     </div>
-
-                    <!-- SQUADS -->
-                    <div id="tab-squads" class="game-tab">
-                        <div class="tab-header"><h2>🛡️ Squads</h2></div>
-                        <div id="squads-content"></div>
+                    <div class="sidebar-right">
+                        <img src="/images/rightside.png" alt="">
                     </div>
-
-                    <!-- INBOX -->
-                    <div id="tab-inbox" class="game-tab">
-                        <div class="tab-header"><h2>✉️ Inbox</h2></div>
-                        <div id="inbox-content"></div>
-                    </div>
-
-                    <div id="tab-dungeon" class="game-tab">
-                        <!-- renderDungeonTab() populates this entirely -->
-                    </div>
-                    <div id="tab-tournament" class="game-tab">
-                        <!-- loadTournamentTab() populates this entirely -->
-                    </div>
-
-                </main>
-                <div id="chat-widget-root" class="hidden"></div>
-            </div><!-- /.game-body -->
-
-            <!-- Battle log modal -->
-            <div id="battle-log-modal" class="battle-log-modal" style="display:none">
-                <div class="battle-log-content">
-                    <h3>⚔️ Battle Log</h3>
-                    <div id="log-lines"></div>
-                    <button class="close-log" data-action="closeLog">Close</button>
                 </div>
-            </div>
+            </nav>
+            <!-- ── TAB CONTENT ───────────────────────────────────────────────── -->
+            <main class="tab-content-area">
 
-            <!-- ── MODALS ─────────────────────────────────────────────────────────── -->
-
-            <!-- Profile modal -->
-            <div id="profile-modal" class="modal-overlay hidden">
-                <div class="modal-box profile-modal-box">
-                    <div id="profile-content"></div>
+                <!-- SKILLS -->
+                <div id="tab-skills" class="game-tab">
+                    <div class="tab-header"><h2 data-en="✨ Class Skills" data-pt="✨ Habilidades de Classe">✨ Class Skills</h2></div>
+                    <div id="skills-event-banner" class="hidden"></div>
+                    <div id="skills-mp-bar" style="margin-bottom:20px"></div>
+                    <div id="skills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
+                    <div id="skills-msg" class="msg-bar hidden"></div>
                 </div>
-            </div>
 
-            <!-- Mission location modal -->
-            <div id="mission-location-modal" class="mission-modal-overlay hidden">
-                <div class="mission-modal-inner">
-                    <button class="mission-modal-close" data-action="closeMissionModal2">✕</button>
-                    <div id="mission-location-header"></div>
-                    <div id="mission-spots-grid"></div>
-                    <div id="mission-location-active"></div>
-                    <div id="auto-complete-panel"></div>
+                <!-- CHARACTER -->
+                <div id="tab-character" class="game-tab active">
+                    <div id="char-sheet" class="char-grid"></div>
                 </div>
-            </div>
 
-            <!-- Mission rewards modal -->
-            <div id="mission-rewards-modal" class="modal-overlay hidden">
-                <div class="modal-box mission-rewards-box" style="text-align:center">
-                    <h3 style="margin:0 0 12px;color:#f1c40f">Mission Complete!</h3>
-                    <div id="mission-rewards-message" style="font-size:1rem;color:#fff;line-height:1.6"></div>
-                    <button class="btn-primary" style="margin-top:16px;width:100%" data-action="closeMissionModal">Continue</button>
+                <!-- PREMIUM -->
+                <div id="tab-premium" class="game-tab">
+                    <div class="tab-header"><h2 data-en="💎 Premium Resources" data-pt="💎 Recursos Premium">💎 Premium Resources</h2></div>
+                    <div id="premium-content"></div>
+                    <div id="premium-msg" class="msg-bar hidden"></div>
                 </div>
-            </div>
 
-            <!-- Battle result modal -->
-            <div id="battle-result-modal" class="modal-overlay hidden">
-                <div class="modal-box battle-result-box">
-                    <div id="battle-fighters" class="battle-fighters"></div>
-                    <div id="battle-stats" class="battle-stats"></div>
-                    <div class="battle-playback-toolbar">
-                        <div id="battle-playback-status" class="battle-playback-status">Preparing battle...</div>
-                        <button id="battle-skip-btn" class="btn-secondary battle-skip-btn" data-action="skipBattlePlayback">Skip to Result</button>
+                <!-- LOADOUT -->
+                <div id="tab-loadout" class="game-tab">
+                    <div class="tab-header"><h2 data-en="⚔️ Combat Loadout" data-pt="⚔️ Loadout de Combate">⚔️ Combat Loadout</h2></div>
+                    <div id="loadout-content"></div>
+                </div>
+
+                <!-- TRAIN -->
+                <div id="tab-train" class="game-tab">
+                    <div id="skill-tree-root"></div>
+                    <div id="skill-tree-msg" class="msg-bar hidden" style="margin-top:12px"></div>
+                </div>
+
+                <!-- UPGRADE -->
+                <div id="tab-upgrade" class="game-tab">
+                    <div class="tab-header"><h2>⬆️ Upgrade Stats</h2></div>
+                    <div id="upgrade-gold" class="gold-display"></div>
+                    <div id="upgrade-grid" class="upgrade-grid"></div>
+                    <div id="upgrade-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- MISSIONS -->
+                <div id="tab-missions" class="game-tab" style="position:relative">
+                    <div id="world-map-container" class="world-map-container">
+                        <img id="world-map-bg" class="world-map-bg" src="/images/world-map.jpg" alt="World Map" data-error-background="#1a2332">
+                        <div id="map-nodes-layer" class="map-nodes-layer"></div>
                     </div>
-                    <div id="battle-outcome" class="battle-outcome"></div>
-                    <div id="battle-log" class="battle-log"></div>
-                    <button class="btn-secondary" style="width:100%;margin-top:4px" data-action="closeBattle">Close</button>
-                </div>
-            </div>
+                    <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
 
-            <!-- Compose modal -->
-            <div id="compose-modal" class="modal-overlay hidden">
-                <div class="modal-box">
-                    <div class="modal-header">
-                        <h3>Compose Message</h3>
-                        <button class="btn-secondary" data-action="closeCompose">✕</button>
-                    </div>
-                    <div id="compose-receiver-name" style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin-bottom:12px"></div>
-                    <input id="compose-receiver-id" type="hidden">
-                    <input id="compose-subject" type="text" placeholder="Subject" class="auth-input" style="margin-bottom:10px">
-                    <textarea id="compose-body" placeholder="Message..." class="auth-input" style="height:120px;resize:vertical;margin-bottom:10px"></textarea>
-                    <div id="compose-error" class="error-msg hidden"></div>
-                    <button class="btn-primary" data-action="sendMessage" style="width:100%">Send</button>
-                </div>
-            </div>
-
-            <!-- Bug Report Modal -->
-            <div id="bug-report-modal" class="modal-overlay hidden">
-                <div class="modal-box bug-report-modal">
-                    <div class="modal-header">
-                        <h2>🚩 Report a Problem</h2>
-                        <button class="modal-close" data-action="closeBugReport">✕</button>
-                    </div>
-                    <div class="modal-body">
-                        <div class="bug-report-intro">
-                            <p>Found something broken, or suspect someone of abuse, cheating, or exploiting? Let us know and we'll look into it.</p>
-                            <p class="bug-report-note">Your username and character info will be included automatically. Reports go straight to our team.</p>
+                    <!-- Active mission overlay -->
+                    <div id="mission-overlay" class="mission-overlay hidden">
+                        <div class="mission-overlay-inner">
+                            <div class="mission-overlay-badge" data-en="⚔️ ON MISSION" data-pt="⚔️ EM MISSÃO">⚔️ ON MISSION</div>
+                            <div id="overlay-mission-name" class="mission-overlay-name">Mission</div>
+                            <div id="overlay-mission-zone" class="mission-overlay-zone"></div>
+                            <div id="overlay-mission-timer" class="mission-overlay-timer">0:00</div>
+                            <div class="mission-overlay-progress-track">
+                                <div id="overlay-progress-fill" class="mission-overlay-progress-fill"></div>
+                            </div>
+                            <div id="overlay-mission-subtext" class="mission-overlay-subtext" data-en="Return when complete..." data-pt="Retorne quando concluir...">Return when complete...</div>
+                            <button id="overlay-collect-btn" class="btn-collect" data-action="overlayCollectMission" disabled data-en="Collect Rewards" data-pt="Coletar Recompensas">Collect Rewards</button>
+                            <div id="overlay-auto" style="display:none"></div>
                         </div>
-                        <form id="bug-report-form">
-                            <div class="form-group">
-                                <label>Category *</label>
-                                <div class="bug-category-drop" id="bug-category-drop">
-                                    <button type="button" class="bug-category-toggle" data-action="toggleReportCategory">
-                                        <span id="bug-category-value">Select category</span><span class="bug-category-caret">▾</span>
-                                    </button>
-                                    <div id="bug-category-options" class="bug-category-options hidden">
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["cheating"]'>Cheating/Exploit/Botting</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["abuse"]'>Player Abuse/Harassment</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["combat"]'>Combat/Battle Issue</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["ui"]'>UI/Display Issue</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["mission"]'>Mission Problem</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["shop"]'>Shop/Inventory Issue</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["dungeon"]'>Dungeon Problem</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["performance"]'>Performance/Lag</button>
-                                        <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["other"]'>Other</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="bug-reported-player">Reported Player (optional)</label>
-                                <input type="text" id="bug-reported-player" placeholder="Enter the player's username being reported" maxlength="40">
-                            </div>
-                            <div class="form-group">
-                                <label for="bug-title">Short Title *</label>
-                                <input type="text" id="bug-title" placeholder="Brief description of the issue" required maxlength="100">
-                            </div>
-                            <div class="form-group">
-                                <label for="bug-description">Description *</label>
-                                <textarea id="bug-description" rows="5" placeholder="What happened? What did you expect to happen?" required></textarea>
-                            </div>
-                            <div class="form-group">
-                                <label for="bug-steps">Steps to Reproduce</label>
-                                <textarea id="bug-steps" rows="3" placeholder="1. Clicked on...&#10;2. Selected...&#10;3. Then it happened..."></textarea>
-                            </div>
-                            <div class="form-group checkbox-group">
-                                <label>
-                                    <input type="checkbox" id="include-screenshot" data-change-action="toggleScreenshotUpload">
-                                    Include screenshot (paste image or drag & drop)
-                                </label>
-                            </div>
-                            <div id="screenshot-upload-area" class="screenshot-upload-area hidden">
-                                <div class="upload-dropzone" id="screenshot-dropzone" data-action="clickElementById" data-args='["screenshot-file"]'>
-                                    <span>📸</span>
-                                    <span>Click or drag image here</span>
-                                    <span class="upload-hint">PNG, JPG up to 5MB</span>
-                                </div>
-                                <input type="file" id="screenshot-file" accept="image/*" style="display: none">
-                                <div id="screenshot-preview" class="screenshot-preview hidden"></div>
-                            </div>
-                            <div class="form-group">
-                                <label for="bug-browser">Browser</label>
-                                <input type="text" id="bug-browser" placeholder="e.g., Chrome 120, Firefox 121">
-                            </div>
-                            <div class="form-actions">
-                                <button type="button" class="btn-secondary" data-action="closeBugReport">Cancel</button>
-                                <button type="submit" class="btn-primary">Submit Report</button>
-                            </div>
-                        </form>
                     </div>
-                    <div id="bug-report-status" class="bug-report-status hidden"></div>
+
+                    <!-- Traveling overlay -->
+                    <div id="travel-overlay" class="travel-overlay hidden">
+                        <div class="travel-overlay-inner">
+                            <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2" data-en="🚶 TRAVELING" data-pt="🚶 VIAJANDO">🚶 TRAVELING</div>
+                            <div class="travel-overlay-label" data-en="Destination" data-pt="Destino">Destination</div>
+                            <div id="travel-overlay-name" class="travel-overlay-name">Zone</div>
+                            <div id="travel-overlay-from" class="travel-overlay-from"></div>
+                            <div id="travel-overlay-timer" class="mission-overlay-timer">0:00</div>
+                            <div class="mission-overlay-progress-track">
+                                <div id="travel-overlay-fill" class="mission-overlay-progress-fill travel"></div>
+                            </div>
+                            <button id="travel-cancel-btn" class="btn-cancel-travel" data-action="cancelTravel" data-en="Cancel (Free)" data-pt="Cancelar (Grátis)">Cancel (Free)</button>
+                        </div>
+                    </div>
+
+                    <!-- Post-battle rest overlay -->
+                    <div id="rest-overlay" class="travel-overlay hidden">
+                        <div class="travel-overlay-inner">
+                            <div class="mission-overlay-badge" style="border-color:rgba(231,76,60,0.4);color:#e74c3c" data-en="⚔️ RESTING AFTER BATTLE" data-pt="⚔️ DESCANSANDO APÓS A BATALHA">⚔️ RESTING AFTER BATTLE</div>
+                            <div class="travel-overlay-name" style="color:var(--text-bright)" data-en="Recovering" data-pt="Recuperando">Recovering</div>
+                            <div class="travel-overlay-from" data-en="You must rest before starting a new mission" data-pt="Você deve descansar antes de iniciar uma nova missão">You must rest before starting a new mission</div>
+                            <div id="rest-overlay-timer" class="mission-overlay-timer" style="color:#e74c3c">0:00</div>
+                            <div class="mission-overlay-progress-track">
+                                <div id="rest-overlay-fill" class="mission-overlay-progress-fill" style="background:#e74c3c"></div>
+                            </div>
+                            <div class="mission-overlay-subtext" data-en="Cooldown clears automatically" data-pt="A recarga é zerada automaticamente">Cooldown clears automatically</div>
+                            <button id="rest-recover-btn" class="btn-cancel-travel"
+                                    style="border-color:rgba(155,89,182,0.5);color:#9b59b6;background:rgba(155,89,182,0.15)"
+                                    data-action="instantBattleRecovery" data-en="⚡ Recover Now (1 💎)" data-pt="⚡ Recuperar Agora (1 💎)">⚡ Recover Now (1 💎)</button>
+                        </div>
+                    </div>
+
+                    <!-- Training Overlay (now consistent with mission + battle cooldowns) -->
+                    <div id="training-overlay" class="mission-overlay hidden">
+                        <div class="mission-overlay-inner"> <!-- changed to match others -->
+                            <div class="mission-overlay-badge" data-en="⚔️ TRAINING" data-pt="⚔️ TREINANDO">⚔️ TRAINING</div>
+                            <div id="training-skill-name" class="mission-overlay-name">Training Skill Name</div>
+                            <div id="training-overlay-timer" class="mission-overlay-timer">0:00</div>
+
+                            <div class="mission-overlay-progress-track">
+                                <div id="training-overlay-fill" class="mission-overlay-progress-fill"></div>
+                            </div>
+
+                            <div id="training-progress-text" class="mission-overlay-subtext">0% complete</div>
+
+                            <div class="mission-overlay-actions">
+                                <button data-action="stCancel" class="btn-cancel-travel" style="border-color:#e74c3c;color:#e74c3c;background:rgba(231,76,60,0.15)" data-en="Cancel Training (Free)" data-pt="Cancelar Treinamento (Grátis)">
+                                    Cancel Training (Free)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div><!-- /#tab-missions -->
+
+                <!-- FORGE -->
+                <div id="tab-forge" class="game-tab">
+                    <div class="tab-header"><h2>🔨 Forja</h2></div>
+                    <div id="forge-gold" class="gold-display"></div>
+                    <div class="forge-tabs filter-tabs">
+                        <button class="filter-btn active" data-action="setForgeTab" data-args='["refine"]'>Refine</button>
+                        <button class="filter-btn" data-action="setForgeTab" data-args='["craft"]'>Craft</button>
+                        <button class="filter-btn" data-action="setForgeTab" data-args='["raid"]'>Raid Gear</button>
+                    </div>
+                    <div id="forge-content"></div>
+                    <div id="forge-msg" class="msg-bar hidden"></div>
+                    <dialog id="weapon-upgrade-dialog" class="modal-box" style="max-width:520px;border:none;border-radius:16px;background:var(--bg2);color:var(--text);padding:0"></dialog>
                 </div>
-                <!-- Exchange Modal -->
-                <div id="exchange-modal" class="modal-overlay hidden">
-                    <div class="modal-box" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+
+                <!-- INVENTORY -->
+                <div id="tab-inventory" class="game-tab">
+                    <div class="tab-header"><h2><img src="/images/assets/inventory/inventory.png" class="tab-icon-lg"></h2></div>
+                    <div class="filter-tabs">
+                        <button class="filter-btn active" data-action="setInvTab" data-args='["weapons"]'><img src="/images/assets/inventory/weapons.png" class="tab-icon"> Weapons</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["armor"]'><img src="/images/assets/inventory/armor.png" class="tab-icon"> Armor</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["helmets"]'><img src="/images/assets/inventory/helmets.png" class="tab-icon"> Helmets</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["shields"]'><img src="/images/assets/inventory/shields.png" class="tab-icon"> Shields</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["boots"]'><img src="/images/assets/inventory/boots.png" class="tab-icon"> Boots</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["jewelry"]'><img src="/images/assets/inventory/jewelry.png" class="tab-icon"> Jewelry</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["accessory"]'><img src="/images/assets/inventory/accessory.png" class="tab-icon"> Accessory</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["consumables"]'><img src="/images/assets/inventory/potions.png" class="tab-icon"> Potions</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["materials"]'><img src="/images/assets/inventory/materials.png" class="tab-icon"> Materials</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["lootboxes"]'><img src="/images/assets/inventory/lootboxes.png" class="tab-icon"> Loot Boxes</button>
+                        <button class="filter-btn" data-action="setInvTab" data-args='["elementals"]'><img src="/images/assets/elemental.png" class="tab-icon"> Elementals</button>
+                    </div>
+                    <div id="inventory-content"></div>
+                    <div id="inv-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <!-- Upgrade Equipment Modal -->
+                <div id="upgrade-modal" class="modal-overlay hidden">
+                    <div class="modal-box upgrade-modal-box" style="max-width: 700px;">
                         <div class="modal-header">
-                            <h3>⭐ Exchange Legendary Fragments</h3>
-                            <button class="modal-close" data-action="closeExchangeModal">✕</button>
+                            <h3>⬆️ Upgrade Equipment</h3>
+                            <button class="modal-close" data-action="closeUpgradeModal">✕</button>
                         </div>
-                        <div id="exchange-content">
-                            <p class="loading">Loading exchanges...</p>
+                        <div id="upgrade-modal-content">
+                            <!-- Dynamic content will go here -->
                         </div>
-                        <div id="exchange-msg" class="msg-bar hidden" style="margin-top: 12px;"></div>
                     </div>
                 </div>
-            </div>
 
+
+
+                <!-- EVENT -->
+                <div id="tab-event" class="game-tab">
+                    <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                        <h2>🎴 Active Event</h2>
+                    </div>
+                    <div id="event-content" class="event-content"></div>
+                </div>
+
+                <!-- SHOP -->
+                <div id="tab-shop" class="game-tab">
+                    <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+                        <h2><img src="/images/assets/inventory/shop.png" class="tab-icon-lg"></h2>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <button class="btn-secondary shop-gems-cta" data-action="openFreeGemsModal">
+                                Claim Free Gems
+                            </button>
+                            <button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" data-action="rerollShop">
+                                🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="shop-currency-row">
+                        <span id="shop-gold"></span>
+                        <span id="shop-gems"></span>
+                    </div>
+                    <div class="shop-tabs filter-tabs">
+                        <button class="filter-btn active" data-action="setShopCategory" data-args='["weapons"]'><img src="/images/assets/inventory/weapons.png" class="tab-icon"> Weapons</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["armor"]'><img src="/images/assets/inventory/armor.png" class="tab-icon"> Armor</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["helmets"]'><img src="/images/assets/inventory/helmets.png" class="tab-icon"> Helmets</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["shields"]'><img src="/images/assets/inventory/shields.png" class="tab-icon"> Shields</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["boots"]'><img src="/images/assets/inventory/boots.png" class="tab-icon"> Boots</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["jewelry"]'><img src="/images/assets/inventory/jewelry.png" class="tab-icon"> Jewelry</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["accessory"]'><img src="/images/assets/inventory/accessory.png" class="tab-icon"> Accessory</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["consumables"]'><img src="/images/assets/inventory/potions.png" class="tab-icon"> Potions</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["premium"]'><img src="/images/assets/inventory/premium.png" class="tab-icon"> Premium</button>
+                        <button class="filter-btn" data-action="setShopCategory" data-args='["lootboxes"]'><img src="/images/assets/inventory/lootboxes.png" class="tab-icon"> Loot Boxes</button>
+                    </div>
+                    <div id="shop-content" class="shop-grid"></div>
+                    <div id="shop-msg" class="msg-bar hidden"></div>
+                </div>
+
+                <div id="free-gems-modal" class="modal-overlay hidden">
+                    <div class="modal-box free-gems-modal-box">
+                        <div class="free-gems-modal-header">
+                            <h3>Free Monthly Gems</h3>
+                            <button class="btn-secondary" data-action="closeFreeGemsModal">✕</button>
+                        </div>
+                        <div id="free-gems-modal-content" class="free-gems-modal-content"></div>
+                    </div>
+                </div>
+
+                <!-- LEADERBOARD -->
+                <div id="tab-leaderboard" class="game-tab">
+                    <div class="tab-header"><h2 data-en="🏆 Leaderboard" data-pt="🏆 Classificação">🏆 Leaderboard</h2></div>
+
+                    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:20px">
+                        <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.3);margin-bottom:12px">🏆 Your Position</div>
+                        <div id="matchmaking-box"><p class="empty" style="padding:10px">Open leaderboard to find an opponent.</p></div>
+                    </div>
+
+                    <div class="lb-controls">
+                        <input id="lb-search" type="text" placeholder="Search players..." data-input-action="filterLeaderboard" class="lb-search">
+                        <div class="lb-filters filter-tabs">
+                            <button class="filter-btn active" data-action="setLbSort" data-args='["total_gold_earned"]'>Gold</button>
+                            <button class="filter-btn" data-action="setLbSort" data-args='["wins"]'>Wins</button>
+                            <button class="filter-btn" data-action="setLbSort" data-args='["losses"]'>Losses</button>
+                            <button class="filter-btn" data-action="setLbSort" data-args='["level"]'>Level</button>
+                            <button class="filter-btn" data-action="setLbSort" data-args='["weekly_dmg"]'>🏛️ Hall of Fame</button>
+                        </div>
+                    </div>
+                    <div id="leaderboard-list"></div>
+                </div>
+
+                <!-- SQUADS -->
+                <div id="tab-squads" class="game-tab">
+                    <div class="tab-header"><h2 data-en="🛡️ Squads" data-pt="🛡️ Esquadrões">🛡️ Squads</h2></div>
+                    <div id="squads-content"></div>
+                </div>
+
+                <!-- INBOX -->
+                <div id="tab-inbox" class="game-tab">
+                    <div class="tab-header"><h2 data-en="✉️ Inbox" data-pt="✉️ Caixa de Entrada">✉️ Inbox</h2></div>
+                    <div id="inbox-content"></div>
+                </div>
+
+                <div id="tab-dungeon" class="game-tab">
+                    <!-- renderDungeonTab() populates this entirely -->
+                </div>
+                <div id="tab-tournament" class="game-tab">
+                    <!-- loadTournamentTab() populates this entirely -->
+                </div>
+
+            </main>
+            <div id="chat-widget-root" class="hidden"></div>
+        </div><!-- /.game-body -->
+
+        <!-- Battle log modal -->
+        <div id="battle-log-modal" class="battle-log-modal" style="display:none">
+            <div class="battle-log-content">
+                <h3>⚔️ Battle Log</h3>
+                <div id="log-lines"></div>
+                <button class="close-log" data-action="closeLog">Close</button>
+            </div>
+        </div>
+
+        <!-- ── MODALS ─────────────────────────────────────────────────────────── -->
+
+        <!-- Profile modal -->
+        <div id="profile-modal" class="modal-overlay hidden">
+            <div class="modal-box profile-modal-box">
+                <div id="profile-content"></div>
+            </div>
+        </div>
+
+        <!-- Mission location modal -->
+        <div id="mission-location-modal" class="mission-modal-overlay hidden">
+            <div class="mission-modal-inner">
+                <button class="mission-modal-close" data-action="closeMissionModal2">✕</button>
+                <div id="mission-location-header"></div>
+                <div id="mission-spots-grid"></div>
+                <div id="mission-location-active"></div>
+                <div id="auto-complete-panel"></div>
+            </div>
+        </div>
+
+        <!-- Mission rewards modal -->
+        <div id="mission-rewards-modal" class="modal-overlay hidden">
+            <div class="modal-box mission-rewards-box" style="text-align:center">
+                <h3 style="margin:0 0 12px;color:#f1c40f" data-en="Mission Complete!" data-pt="Missão Concluída!">Mission Complete!</h3>
+                <div id="mission-rewards-message" style="font-size:1rem;color:#fff;line-height:1.6"></div>
+                <button class="btn-primary" style="margin-top:16px;width:100%" data-action="closeMissionModal" data-en="Continue" data-pt="Continuar">Continue</button>
+            </div>
+        </div>
+
+        <!-- Battle result modal -->
+        <div id="battle-result-modal" class="modal-overlay hidden">
+            <div class="modal-box battle-result-box">
+                <div id="battle-fighters" class="battle-fighters"></div>
+                <div id="battle-stats" class="battle-stats"></div>
+                <div class="battle-playback-toolbar">
+                    <div id="battle-playback-status" class="battle-playback-status" data-en="Preparing battle..." data-pt="Preparando batalha...">Preparing battle...</div>
+                    <button id="battle-skip-btn" class="btn-secondary battle-skip-btn" data-action="skipBattlePlayback" data-en="Skip to Result" data-pt="Ir para o Resultado">Skip to Result</button>
+                </div>
+                <div id="battle-outcome" class="battle-outcome"></div>
+                <div id="battle-log" class="battle-log"></div>
+                <button class="btn-secondary" style="width:100%;margin-top:4px" data-action="closeBattle" data-en="Close" data-pt="Fechar">Close</button>
+            </div>
+        </div>
+
+        <!-- Compose modal -->
+        <div id="compose-modal" class="modal-overlay hidden">
+            <div class="modal-box">
+                <div class="modal-header">
+                    <h3>Compose Message</h3>
+                    <button class="btn-secondary" data-action="closeCompose">✕</button>
+                </div>
+                <div id="compose-receiver-name" style="font-size:0.82rem;color:rgba(255,255,255,0.5);margin-bottom:12px"></div>
+                <input id="compose-receiver-id" type="hidden">
+                <input id="compose-subject" type="text" placeholder="Subject" class="auth-input" style="margin-bottom:10px">
+                <textarea id="compose-body" placeholder="Message..." class="auth-input" style="height:120px;resize:vertical;margin-bottom:10px"></textarea>
+                <div id="compose-error" class="error-msg hidden"></div>
+                <button class="btn-primary" data-action="sendMessage" style="width:100%">Send</button>
+            </div>
+        </div>
+
+        <!-- Bug Report Modal -->
+        <div id="bug-report-modal" class="modal-overlay hidden">
+            <div class="modal-box bug-report-modal">
+                <div class="modal-header">
+                    <h2>🚩 Report a Problem</h2>
+                    <button class="modal-close" data-action="closeBugReport">✕</button>
+                </div>
+                <div class="modal-body">
+                    <div class="bug-report-intro">
+                        <p>Found something broken, or suspect someone of abuse, cheating, or exploiting? Let us know and we'll look into it.</p>
+                        <p class="bug-report-note">Your username and character info will be included automatically. Reports go straight to our team.</p>
+                    </div>
+                    <form id="bug-report-form">
+                        <div class="form-group">
+                            <label>Category *</label>
+                            <div class="bug-category-drop" id="bug-category-drop">
+                                <button type="button" class="bug-category-toggle" data-action="toggleReportCategory">
+                                    <span id="bug-category-value">Select category</span><span class="bug-category-caret">▾</span>
+                                </button>
+                                <div id="bug-category-options" class="bug-category-options hidden">
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["cheating"]'>Cheating/Exploit/Botting</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["abuse"]'>Player Abuse/Harassment</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["combat"]'>Combat/Battle Issue</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["ui"]'>UI/Display Issue</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["mission"]'>Mission Problem</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["shop"]'>Shop/Inventory Issue</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["dungeon"]'>Dungeon Problem</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["performance"]'>Performance/Lag</button>
+                                    <button type="button" class="bug-category-opt" data-action="pickReportCategory" data-args='["other"]'>Other</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="bug-reported-player">Reported Player (optional)</label>
+                            <input type="text" id="bug-reported-player" placeholder="Enter the player's username being reported" maxlength="40">
+                        </div>
+                        <div class="form-group">
+                            <label for="bug-title">Short Title *</label>
+                            <input type="text" id="bug-title" placeholder="Brief description of the issue" required maxlength="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="bug-description">Description *</label>
+                            <textarea id="bug-description" rows="5" placeholder="What happened? What did you expect to happen?" required></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="bug-steps">Steps to Reproduce</label>
+                            <textarea id="bug-steps" rows="3" placeholder="1. Clicked on...&#10;2. Selected...&#10;3. Then it happened..."></textarea>
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="include-screenshot" data-change-action="toggleScreenshotUpload">
+                                Include screenshot (paste image or drag & drop)
+                            </label>
+                        </div>
+                        <div id="screenshot-upload-area" class="screenshot-upload-area hidden">
+                            <div class="upload-dropzone" id="screenshot-dropzone" data-action="clickElementById" data-args='["screenshot-file"]'>
+                                <span>📸</span>
+                                <span>Click or drag image here</span>
+                                <span class="upload-hint">PNG, JPG up to 5MB</span>
+                            </div>
+                            <input type="file" id="screenshot-file" accept="image/*" style="display: none">
+                            <div id="screenshot-preview" class="screenshot-preview hidden"></div>
+                        </div>
+                        <div class="form-group">
+                            <label for="bug-browser">Browser</label>
+                            <input type="text" id="bug-browser" placeholder="e.g., Chrome 120, Firefox 121">
+                        </div>
+                        <div class="form-actions">
+                            <button type="button" class="btn-secondary" data-action="closeBugReport">Cancel</button>
+                            <button type="submit" class="btn-primary">Submit Report</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="bug-report-status" class="bug-report-status hidden"></div>
+            </div>
+            <!-- Exchange Modal -->
+            <div id="exchange-modal" class="modal-overlay hidden">
+                <div class="modal-box" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
+                    <div class="modal-header">
+                        <h3>⭐ Exchange Legendary Fragments</h3>
+                        <button class="modal-close" data-action="closeExchangeModal">✕</button>
+                    </div>
+                    <div id="exchange-content">
+                        <p class="loading">Loading exchanges...</p>
+                    </div>
+                    <div id="exchange-msg" class="msg-bar hidden" style="margin-top: 12px;"></div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+<div id="character-switch-modal" class="modal-overlay hidden">
+    <div class="modal-box character-switch-modal-box">
+        <div class="modal-header">
+            <h3 data-en="Switch Character" data-pt="Escolher Personagem">Switch Character</h3>
+            <button class="btn-secondary" data-action="closeCharacterSwitcher">✕</button>
+        </div>
+        <div id="character-switch-content"></div>
+    </div>
+</div>
+
+<div id="topbar-menu-modal" class="modal-overlay hidden">
+    <div class="modal-box topbar-menu-modal-box">
+        <div class="modal-header">
+            <h3>Game Menu</h3>
+            <button class="btn-secondary" data-action="closeTopbarMenu">✕</button>
+        </div>
+        <div id="topbar-menu-content" class="topbar-menu-content"></div>
+    </div>
+</div>
+
+<script src="/asset-manifest.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="/js/app.js?v=2026-09-03-battle-log-lang"></script>
+<script src="/js/skills-tree.js?v=2026-09-03-lang-toggle"></script>
+<script src="/js/dungeon.js?v=2026-09-02-treasure-srv"></script>
+<script src="/js/tournaments.js?v=2026-08-22-hist-wrap"></script>
+
+<div id="server-picker-modal" class="modal-overlay hidden">
+    <div class="modal-box server-picker-box">
+        <div class="modal-header">
+            <span class="modal-title" data-pt="Escolher Servidor">Choose Server</span>
+            <button class="modal-close" data-action="closeServerPicker">✕</button>
+        </div>
+        <div class="modal-body">
+            <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["beta"]'>
+                <span class="server-picker-name">Beta</span>
+                <span class="server-picker-desc" data-pt="Contas existentes · cadastro limitado a 500">Existing accounts · registration capped at 500</span>
+            </button>
+            <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["server1"]'>
+                <span class="server-picker-name">Server 1</span>
+                <span class="server-picker-desc" data-pt="Contas novas · sem limite de cadastro">Fresh accounts · no registration cap</span>
+            </button>
         </div>
     </div>
-    <div id="character-switch-modal" class="modal-overlay hidden">
-        <div class="modal-box character-switch-modal-box">
-            <div class="modal-header">
-                <h3>Choose Character</h3>
-                <button class="btn-secondary" data-action="closeCharacterSwitcher">✕</button>
-            </div>
-            <div id="character-switch-content"></div>
-        </div>
-    </div>
-
-    <div id="topbar-menu-modal" class="modal-overlay hidden">
-        <div class="modal-box topbar-menu-modal-box">
-            <div class="modal-header">
-                <h3>Game Menu</h3>
-                <button class="btn-secondary" data-action="closeTopbarMenu">✕</button>
-            </div>
-            <div id="topbar-menu-content" class="topbar-menu-content"></div>
-        </div>
-    </div>
-
-    <script src="/asset-manifest.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="/js/app.js?v=2026-08-26-keep-logged-in"></script>
-    <script src="/js/skills-tree.js?v=2026-08-26-tooltip-zoom-fix"></script>
-    <script src="/js/dungeon.js?v=2026-08-22-mat-icons"></script>
-    <script src="/js/tournaments.js?v=2026-08-22-hist-wrap"></script>
-
-    <div id="server-picker-modal" class="modal-overlay hidden">
-        <div class="modal-box server-picker-box">
-            <div class="modal-header">
-                <span class="modal-title">Choose Server</span>
-                <button class="modal-close" data-action="closeServerPicker">✕</button>
-            </div>
-            <div class="modal-body">
-                <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["beta"]'>
-                    <span class="server-picker-name">Beta</span>
-                    <span class="server-picker-desc">Existing accounts · registration capped at 500</span>
-                </button>
-                <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["server1"]'>
-                    <span class="server-picker-name">Server 1</span>
-                    <span class="server-picker-desc">Fresh accounts · no registration cap</span>
-                </button>
-            </div>
-        </div>
-    </div>
+</div>
 </div>
 </body>
 </html>
