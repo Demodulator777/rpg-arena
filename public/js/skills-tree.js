@@ -678,16 +678,30 @@ function stSpinner(msg) {
 
 // ── Custom hour dropdowns ─────────────────────────────────────────────────────
 let _stHourOutsideClose = null;
+let _stReposCleanup = null;
 function stWireHourDropdowns(root) {
     if (!root) return;
-    // Close whatever dropdown is currently open (multiple skills re-render).
     if (_stHourOutsideClose) { document.removeEventListener('click', _stHourOutsideClose); _stHourOutsideClose = null; }
+    if (_stReposCleanup) { _stReposCleanup(); _stReposCleanup = null; }
+    
+    const onRepos = () => {
+        root.querySelectorAll('.st-dd.open').forEach(w => {
+            if (w._stRepos) w._stRepos();
+        });
+    };
+    window.addEventListener('resize', onRepos);
+    root.addEventListener('scroll', onRepos, { passive: true });
+    _stReposCleanup = () => { window.removeEventListener('resize', onRepos); root.removeEventListener('scroll', onRepos); };
+
     const closeAll = () => {
         root.querySelectorAll('.st-dd.open').forEach(w => {
             const btn = w.querySelector('[data-hour-dd-toggle]');
             w.classList.remove('open');
             const list = w.querySelector('.st-dd-list');
-            if (list) list.classList.add('hidden');
+            if (list) {
+                list.classList.add('hidden');
+                list.style.position = ''; // reset
+            }
             if (btn) btn.setAttribute('aria-expanded', 'false');
         });
     };
@@ -697,12 +711,35 @@ function stWireHourDropdowns(root) {
         const hiddenInput = wrap.querySelector('input[type=hidden]');
         const valueEl = wrap.querySelector('.st-dd-value');
         if (!btn || !list) return;
+
+        const positionList = () => {
+            const wrapRect = wrap.getBoundingClientRect();
+            const gap = 4;
+            const spaceBelow = window.innerHeight - wrapRect.bottom - gap;
+            const spaceAbove = wrapRect.top - gap;
+            let top, maxH;
+            if (spaceBelow >= 60 || spaceBelow >= spaceAbove) {
+                top = wrapRect.bottom + gap;
+                maxH = spaceBelow;
+            } else {
+                maxH = spaceAbove;
+                top = wrapRect.top - gap - maxH;
+            }
+            list.style.position = 'fixed';
+            list.style.top = Math.max(8, Math.floor(top)) + 'px';
+            list.style.left = Math.floor(wrapRect.left) + 'px';
+            list.style.width = Math.floor(wrapRect.width) + 'px';
+            list.style.maxHeight = Math.max(60, Math.min(260, Math.floor(maxH))) + 'px';
+        };
+        wrap._stRepos = positionList;
+
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             stHideTipNow();
             closeAll();
             const willOpen = list.classList.contains('hidden');
             if (willOpen) {
+                positionList();
                 wrap.classList.add('open');
                 list.classList.remove('hidden');
                 btn.setAttribute('aria-expanded', 'true');
