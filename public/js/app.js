@@ -4896,12 +4896,34 @@ function wireBadgeDropdowns() {
         const hidden = wrap.querySelector('input[type=hidden]');
         const currentEl = wrap.querySelector('.badge-dd-current');
         if (!btn || !list) return;
+        const positionList = () => {
+            const modalBox = wrap.closest('.modal-box') || document.getElementById('badge-picker-modal');
+            const wasHidden = list.classList.contains('hidden');
+            if (wasHidden) list.classList.remove('hidden');
+            const listH = list.offsetHeight || 260;
+            const wrapRect = wrap.getBoundingClientRect();
+            const bound = modalBox ? modalBox.getBoundingClientRect() : wrapRect;
+            const spaceBelow = bound.bottom - wrapRect.bottom;
+            const spaceAbove = wrapRect.top - bound.top;
+            if (spaceBelow < listH && spaceAbove >= listH) {
+                list.style.top = 'auto';
+                list.style.bottom = 'calc(100% + 6px)';
+            } else {
+                list.style.top = 'calc(100% + 6px)';
+                list.style.bottom = 'auto';
+            }
+            if (wasHidden) list.classList.add('hidden');
+        };
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             closeAll();
             const willOpen = list.classList.contains('hidden');
-            if (willOpen) { wrap.classList.add('open'); list.classList.remove('hidden'); btn.setAttribute('aria-expanded', 'true'); }
-            else { closeAll(); }
+            if (willOpen) {
+                positionList();
+                wrap.classList.add('open');
+                list.classList.remove('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+            } else { closeAll(); }
         });
         list.querySelectorAll('.lang-dropdown-option').forEach(opt => {
             opt.addEventListener('click', (e) => {
