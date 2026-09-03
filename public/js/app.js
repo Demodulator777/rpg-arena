@@ -4879,8 +4879,19 @@ function renderBadgePicker(data) {
 }
 
 let _badgeOutsideClose = null;
+let _badgeReposCleanup = null;
 function wireBadgeDropdowns() {
     if (_badgeOutsideClose) { document.removeEventListener('click', _badgeOutsideClose); _badgeOutsideClose = null; }
+    if (_badgeReposCleanup) { _badgeReposCleanup(); _badgeReposCleanup = null; }
+    const onRepos = () => {
+        document.querySelectorAll('#badge-picker-content .badge-dropdown.open').forEach(w => {
+            if (w._badgeRepos) w._badgeRepos();
+        });
+    };
+    const modalBox = document.querySelector('#badge-picker-modal .modal-box');
+    modalBox?.addEventListener('scroll', onRepos, { passive: true });
+    window.addEventListener('resize', onRepos);
+    _badgeReposCleanup = () => { modalBox?.removeEventListener('scroll', onRepos); window.removeEventListener('resize', onRepos); };
     const closeAll = () => {
         document.querySelectorAll('#badge-picker-content .badge-dropdown.open').forEach(w => {
             w.classList.remove('open');
@@ -4901,21 +4912,31 @@ function wireBadgeDropdowns() {
             const wrapRect = wrap.getBoundingClientRect();
             const bound = modalBox ? modalBox.getBoundingClientRect() : wrapRect;
             const gap = 6;
+            const listW = Math.min(320, window.innerWidth - 24);
             const spaceBelow = bound.bottom - wrapRect.bottom - gap;
             const spaceAbove = wrapRect.top - bound.top - gap;
-            const maxCssH = 260;
+            let top;
             let maxH;
             if (spaceBelow >= 60 || spaceBelow >= spaceAbove) {
-                list.style.top = `calc(100% + ${gap}px)`;
-                list.style.bottom = 'auto';
-                maxH = Math.floor(spaceBelow);
+                top = wrapRect.bottom + gap;
+                maxH = spaceBelow;
             } else {
-                list.style.top = 'auto';
-                list.style.bottom = `calc(100% + ${gap}px)`;
-                maxH = Math.floor(spaceAbove);
+                maxH = spaceAbove;
+                top = wrapRect.top - gap - maxH;
             }
-            list.style.maxHeight = Math.max(60, Math.min(maxCssH, maxH)) + 'px';
+            maxH = Math.max(60, Math.min(260, Math.floor(maxH)));
+            top = Math.max(8, Math.floor(top));
+            list.style.position = 'fixed';
+            list.style.top = top + 'px';
+            list.style.left = 'auto';
+            list.style.right = 'auto';
+            list.style.width = Math.floor(wrapRect.width) + 'px';
+            list.style.maxWidth = Math.floor(listW) + 'px';
+            list.style.maxHeight = maxH + 'px';
+            list.style.bottom = 'auto';
+            list.style.transform = 'none';
         };
+        wrap._badgeRepos = positionList;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             closeAll();
