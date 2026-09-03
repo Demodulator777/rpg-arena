@@ -148,6 +148,7 @@ function renderSkillTreeUI(root) {
     html += `</div>`;
     root.innerHTML = html;
     stAttachSkillTips(root);
+    stWireHourDropdowns(root);
 
     // On mobile the tree-wrap may be wider than the viewport. Center the
     // starter blob in the scroll so the player doesn't have to hunt for it.
@@ -192,6 +193,20 @@ function stTreeCss() {
     .st-train-row { display:flex; gap:3px; margin-top:8px; }
     .st-train-row select { flex:0 0 46px; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.22); border-radius:4px; color:#fff; font-size:0.62rem; padding:3px 2px; }
     .st-train-row button { flex:1; border-radius:4px; font-size:0.62rem; font-weight:700; padding:4px 2px; cursor:pointer; }
+    .st-train-row .st-dd, .st-train-row .st-dd-btn { flex:0 0 46px; }
+    .st-dd { position:relative; }
+    .st-dd-btn { display:flex; align-items:center; justify-content:space-between; gap:2px; width:100%;
+                 background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.22); border-radius:4px;
+                 color:#fff; font-size:0.62rem; font-weight:700; padding:4px 6px; cursor:pointer; text-align:left; }
+    .st-dd-btn:hover { border-color:rgba(255,255,255,0.4); }
+    .st-dd-btn .st-dd-caret { font-size:0.55rem; opacity:0.7; }
+    .st-dd-list { position:absolute; z-index:40; top:calc(100% + 4px); left:0; min-width:52px;
+                  background:rgba(15,15,28,0.98); border:1px solid rgba(255,255,255,0.25); border-radius:6px;
+                  box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; padding:3px; }
+    .st-dd-opt, .st-dd-list .st-dd-opt { display:block; width:100%; border:0; background:transparent; color:rgba(255,255,255,0.85);
+                 font-size:0.62rem; font-weight:700; padding:4px 8px; border-radius:4px; cursor:pointer; text-align:center; }
+    .st-dd-list .st-dd-opt:hover { background:rgba(255,255,255,0.08); }
+    .st-dd-list .st-dd-opt.selected { background:rgba(255,255,255,0.12); color:#fff; }
     .st-state-training { animation: stPulse 1.8s ease-in-out infinite; }
     @keyframes stPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(241,196,15,0); } 50% { box-shadow: 0 0 14px 2px rgba(241,196,15,0.35); } }
     .st-future { border-style:dashed; opacity:0.55; }
@@ -265,10 +280,17 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
             const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
             const maxHours = hasArcaneReservoir ? 12 : 8;
             let opts = '';
-            for (let h = 1; h <= maxHours; h++) opts += `<option value="${h}">${h}h</option>`;
+            for (let h = 1; h <= maxHours; h++) opts += `<button type="button" class="st-dd-opt" data-hour="${h}" role="option" aria-selected="false">${h}h</button>`;
             controls = `
             <div class="st-train-row">
-                <select id="train-hours-${skillKey}">${opts}</select>
+                <div class="st-dd" id="st-hour-dd-${skillKey}">
+                    <button type="button" class="st-dd-btn" data-hour-dd-toggle aria-haspopup="listbox" aria-expanded="false">
+                        <span class="st-dd-value" id="st-hour-dd-value-${skillKey}">1h</span>
+                        <span class="st-dd-caret">▾</span>
+                    </button>
+                    <div class="st-dd-list hidden" role="listbox">${opts}</div>
+                    <input type="hidden" id="train-hours-${skillKey}" value="1">
+                </div>
                 <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, false)}
                     style="border:1px solid ${bc}88;background:${bc}18;color:${bc}">${CURRENT_LANG === 'pt' ? 'Treinar' : 'Train'}</button>
                 <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, true)} title="${CURRENT_LANG === 'pt' ? '2x velocidade (500 ouro/hora)' : '2x speed (500 gold/hour)'}"
@@ -651,6 +673,63 @@ function stFormatTime(seconds) {
 // ── Spinner ──────────────────────────────────────────────────────────────────
 function stSpinner(msg) {
     return `<div style="text-align:center;padding:40px;color:rgba(255,255,255,0.35)">${msg}</div>`;
+}
+
+// ── Custom hour dropdowns ─────────────────────────────────────────────────────
+let _stHourOutsideClose = null;
+function stWireHourDropdowns(root) {
+    if (!root) return;
+    // Close whatever dropdown is currently open (multiple skills re-render).
+    if (_stHourOutsideClose) { document.removeEventListener('click', _stHourOutsideClose); _stHourOutsideClose = null; }
+    const closeAll = () => {
+        root.querySelectorAll('.st-dd.open').forEach(w => {
+            const btn = w.querySelector('[data-hour-dd-toggle]');
+            w.classList.remove('open');
+            const list = w.querySelector('.st-dd-list');
+            if (list) list.classList.add('hidden');
+            if (btn) btn.setAttribute('aria-expanded', 'false');
+        });
+    };
+    root.querySelectorAll('.st-dd').forEach(wrap => {
+        const btn = wrap.querySelector('[data-hour-dd-toggle]');
+        const list = wrap.querySelector('.st-dd-list');
+        const hiddenInput = wrap.querySelector('input[type=hidden]');
+        const valueEl = wrap.querySelector('.st-dd-value');
+        if (!btn || !list) return;
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            closeAll();
+            const willOpen = list.classList.contains('hidden');
+            if (willOpen) {
+                wrap.classList.add('open');
+                list.classList.remove('hidden');
+                btn.setAttribute('aria-expanded', 'true');
+            } else {
+                wrap.classList.remove('open');
+                list.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            }
+        });
+        list.querySelectorAll('.st-dd-opt').forEach(opt => {
+            opt.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const h = opt.getAttribute('data-hour');
+                if (h && hiddenInput) hiddenInput.value = h;
+                if (valueEl) valueEl.textContent = `${h}h`;
+                list.querySelectorAll('.st-dd-opt').forEach(o => {
+                    o.classList.toggle('selected', o === opt);
+                    o.setAttribute('aria-selected', String(o === opt));
+                });
+                wrap.classList.remove('open');
+                list.classList.add('hidden');
+                btn.setAttribute('aria-expanded', 'false');
+            });
+        });
+    });
+    _stHourOutsideClose = (e) => {
+        if (!e.target.closest('.st-dd')) closeAll();
+    };
+    document.addEventListener('click', _stHourOutsideClose);
 }
 
 // ── Actions ───────────────────────────────────────────────────────────────────
