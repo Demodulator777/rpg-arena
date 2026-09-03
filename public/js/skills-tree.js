@@ -197,7 +197,8 @@ function stTreeCss() {
     .st-dd { position:relative; }
     .st-dd-btn { display:flex; align-items:center; justify-content:space-between; gap:2px; width:100%;
                  background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.22); border-radius:4px;
-                 color:#fff; font-size:0.62rem; font-weight:700; padding:4px 6px; cursor:pointer; text-align:left; }
+                 color:#fff; font-size:0.62rem; font-weight:700; padding:4px 6px; cursor:pointer; text-align:left;
+                 position:relative; z-index: 250001; }
     .st-dd-btn:hover { border-color:rgba(255,255,255,0.4); }
     .st-dd-btn .st-dd-caret { font-size:0.55rem; opacity:0.7; }
     .st-dd-list { position:absolute; z-index:40; top:calc(100% + 4px); left:0; min-width:52px;
@@ -698,6 +699,7 @@ function stWireHourDropdowns(root) {
         if (!btn || !list) return;
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
+            stHideTipNow();
             closeAll();
             const willOpen = list.classList.contains('hidden');
             if (willOpen) {
