@@ -21,7 +21,7 @@ let _stTipHideTimer = null;
 async function renderSkillTreeTab() {
     const root = document.getElementById('skill-tree-root');
     if (!root) return;
-    root.innerHTML = stSpinner('Loading skill tree...');
+    root.innerHTML = stSpinner(CURRENT_LANG === 'pt' ? 'Carregando árvore de habilidades...' : 'Loading skill tree...');
     try {
         _stData    = await api('GET', '/skills/tree');
         _stLoading = false;
@@ -33,7 +33,7 @@ async function renderSkillTreeTab() {
 
 // ── Main render ───────────────────────────────────────────────────────────────
 function renderSkillTreeUI(root) {
-    if (!_stData || !character) { root.innerHTML = stSpinner('Loading...'); return; }
+    if (!_stData || !character) { root.innerHTML = stSpinner(CURRENT_LANG === 'pt' ? 'Carregando...' : 'Loading...'); return; }
     const { tree, learned, passiveBonuses, activeTraining, magePath: mPath, dualWieldUnlocked,
             upgradePenalties, upgradeDiscounts, extraStats, busyState } = _stData;
     const charClass = character.class || 'warrior';
@@ -51,7 +51,7 @@ function renderSkillTreeUI(root) {
                  object-fit:cover;border:2px solid ${accent}66" data-error-hide="true">
             <div style="flex:1">
                 <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:${accent}">
-                    ${capitalize(charClass)} Skill Tree
+                    ${capitalize(charClass)} ${CURRENT_LANG === 'pt' ? 'Árvore de Habilidades' : 'Skill Tree'}
                 </div>
                 <div style="font-size:0.76rem;color:rgba(255,255,255,0.45);margin-top:3px;line-height:1.4">
                     ${tree.description || ''}
@@ -59,7 +59,7 @@ function renderSkillTreeUI(root) {
             </div>
             <div style="text-align:right;font-size:0.72rem;color:rgba(255,255,255,0.35)">
             <div><span style="color:var(--gold)">💰 ${(character.gold||0).toLocaleString()}</span></div>
-                <div style="margin-top:3px">${learned.length} skill${learned.length!==1?'s':''} learned</div>
+                <div style="margin-top:3px">${learned.length} ${CURRENT_LANG === 'pt' ? 'habilidade(s) aprendida(s)' : `skill${learned.length!==1?'s':''} learned`}</div>
             </div>
         </div>
         
@@ -67,20 +67,20 @@ function renderSkillTreeUI(root) {
         <div style="padding:8px 14px;border-radius:8px;background:rgba(155,89,182,0.08);
                   border:1px solid rgba(155,89,182,0.25);margin-bottom:14px;font-size:0.72rem;
                   color:rgba(255,255,255,0.5);text-align:center">
-            🌳 <strong>Living skill tree</strong> — train a skill to reveal the next step of its path. Master a full path to unlock its evolution.
+            🌳 <strong>${CURRENT_LANG === 'pt' ? 'Árvore de habilidades viva' : 'Living skill tree'}</strong> — ${CURRENT_LANG === 'pt' ? 'Treine uma habilidade para revelar o próximo passo do seu caminho. Domine um caminho completo para desbloquear sua evolução.' : 'Train a skill to reveal the next step of its path. Master a full path to unlock its evolution.'}
         </div>`;
 
 // ── Class stat modifier notice ─────────────────────────────────────────────
     const penalties = upgradePenalties  || {};
     const discounts = upgradeDiscounts  || {};
     if (Object.keys(penalties).length || Object.keys(discounts).length) {
-        const pArr = Object.entries(penalties).map(([s,v]) => `<span style="color:#e74c3c">+${Math.round(v*100)}% ${s.replace('_',' ')} cost</span>`);
-        const dArr = Object.entries(discounts).map(([s,v]) => `<span style="color:#2ecc71">-${Math.round(v*100)}% ${s.replace('_',' ')} cost</span>`);
+        const pArr = Object.entries(penalties).map(([s,v]) => `<span style="color:#e74c3c">+${Math.round(v*100)}% ${s.replace('_',' ')} ${CURRENT_LANG === 'pt' ? 'custo' : 'cost'}</span>`);
+        const dArr = Object.entries(discounts).map(([s,v]) => `<span style="color:#2ecc71">-${Math.round(v*100)}% ${s.replace('_',' ')} ${CURRENT_LANG === 'pt' ? 'custo' : 'cost'}</span>`);
         html += `
         <div style="font-size:0.72rem;padding:8px 12px;border-radius:8px;
                     background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);
                     margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-            <span style="color:rgba(255,255,255,0.35)">Class stat costs:</span>
+            <span style="color:rgba(255,255,255,0.35)">${CURRENT_LANG === 'pt' ? 'Custos de atributo de classe:' : 'Class stat costs:'}</span>
             ${[...pArr,...dArr].join(' &nbsp;·&nbsp; ')}
         </div>`;
     }
@@ -88,12 +88,12 @@ function renderSkillTreeUI(root) {
 // ── Mage path notice ──────────────────────────────────────────────────────
     if (charClass === 'mage' && mPath) {
         const pathColor = mPath === 'shadow' ? '#9b59b6' : '#f1c40f';
-    const pathName  = mPath === 'shadow' ? '🌑 Shadow Path' : '☀️ Light Path';
+        const pathName  = mPath === 'shadow' ? (CURRENT_LANG === 'pt' ? '🌑 Caminho das Sombras' : '🌑 Shadow Path') : (CURRENT_LANG === 'pt' ? '☀️ Caminho da Luz' : '☀️ Light Path');
         html += `
         <div style="padding:8px 14px;border-radius:8px;border:1px solid ${pathColor}55;
                     background:${pathColor}11;font-size:0.78rem;color:${pathColor};
                     margin-bottom:14px;font-weight:600">
-            You walk the ${pathName}. The opposite path is forever closed.
+            ${CURRENT_LANG === 'pt' ? `Você caminha pelo ${pathName}. O caminho oposto está fechado para sempre.` : `You walk the ${pathName}. The opposite path is forever closed.`}
         </div>`;
     }
 
@@ -102,14 +102,14 @@ function renderSkillTreeUI(root) {
         if (dualWieldUnlocked) {
             html += `<div style="padding:8px 14px;border-radius:8px;border:1px solid #2ecc7155;
                                  background:#2ecc7111;font-size:0.78rem;color:#2ecc71;margin-bottom:14px">
-                        ⚔️⚔️ <strong>Dual Wield Unlocked!</strong> Equip a second weapon in your shield slot.
+                        ⚔️⚔️ <strong>${CURRENT_LANG === 'pt' ? 'Armas Duplas Desbloqueadas!' : 'Dual Wield Unlocked!'}</strong> ${CURRENT_LANG === 'pt' ? 'Equipe uma segunda arma no seu slot de escudo.' : 'Equip a second weapon in your shield slot.'}
                      </div>`;
         }
         html += `<div style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);
                               background:rgba(255,255,255,0.02);font-size:0.72rem;color:rgba(255,255,255,0.4);
                               margin-bottom:14px">
-                    🛡️ No shield equipped? You passively gain <strong style="color:#2ecc71">+5 Agility</strong>.
-                    Current shield-less wins tracked: <strong>${extraStats?.wins_no_shield || 0}</strong>
+                    🛡️ ${CURRENT_LANG === 'pt' ? 'Sem escudo equipado? Você ganha passivamente <strong style="color:#2ecc71">+5 Agilidade</strong>.' : 'No shield equipped? You passively gain <strong style="color:#2ecc71">+5 Agility</strong>.'}
+                    ${CURRENT_LANG === 'pt' ? 'Vitórias sem escudo rastreadas:' : 'Current shield-less wins tracked:'} <strong>${extraStats?.wins_no_shield || 0}</strong>
                  </div>`;
     }
 
@@ -125,22 +125,22 @@ function renderSkillTreeUI(root) {
                   margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <div style="flex:1">
                 <div style="font-weight:700;font-size:0.9rem;color:${done?'#2ecc71':accent}">
-                    ${done ? '✅ Training Complete!' : `⏳ Training: ${activeTraining.skill_id.replace(/_/g,' ')}`}
+                    ${done ? (CURRENT_LANG === 'pt' ? '✅ Treino Concluído!' : '✅ Training Complete!') : `⏳ ${CURRENT_LANG === 'pt' ? 'Treinando' : 'Training'}: ${activeTraining.skill_id.replace(/_/g,' ')}`}
                 </div>
                 <div style="font-size:0.74rem;color:rgba(255,255,255,0.4);margin-top:3px">
-                    ${done ? 'Collect your new skill below.' : `${timeStr} remaining`}
+                    ${done ? (CURRENT_LANG === 'pt' ? 'Colete sua nova habilidade abaixo.' : 'Collect your new skill below.') : `${timeStr} ${CURRENT_LANG === 'pt' ? 'restante' : 'remaining'}`}
                 </div>
             </div>
             ${done
-                ? `<button class="btn-primary" style="padding:8px 18px;font-size:0.82rem" ${actionAttrs('stCollect')}>⚡ Collect Skill</button>`
-                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" ${actionAttrs('stCancel')}>Cancel (partial refund)</button>`
+                ? `<button class="btn-primary" style="padding:8px 18px;font-size:0.82rem" ${actionAttrs('stCollect')}>⚡ ${CURRENT_LANG === 'pt' ? 'Coletar Habilidade' : 'Collect Skill'}</button>`
+                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" ${actionAttrs('stCancel')}>${CURRENT_LANG === 'pt' ? 'Cancelar (reembolso parcial)' : 'Cancel (partial refund)'}</button>`
             }
         </div>`;
     }
 
 // ── Skill tree graph ──────────────────────────────────────────────────────
     if (!tree.branches || !Object.keys(tree.branches).length) {
-        html += `<p style="color:rgba(255,255,255,0.4);padding:20px;text-align:center">No branches found for ${charClass}.</p>`;
+        html += `<p style="color:rgba(255,255,255,0.4);padding:20px;text-align:center">${CURRENT_LANG === 'pt' ? 'Nenhum caminho encontrado para' : 'No branches found for'} ${charClass}.</p>`;
     } else {
         html += stRenderTree(tree, accent, activeTraining, charClass, busyState);
     }
@@ -238,15 +238,15 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         const tp = (activeTraining.progressPercent ?? activeTraining.progressCurrent ?? activeTraining.progress ?? 0);
         const gain = Math.max(0, tp - Number(activeTraining.progressStart ?? activeTraining.progress_start ?? tp));
         const gainTxt = gain >= 0.1 ? `· +${gain.toFixed(1)}%` : '';
-        sub = `⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || 0)} left`;
+        sub = `⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || 0)} ${CURRENT_LANG === 'pt' ? 'restante' : 'left'}`;
         progressHtml = `<div class="st-progress"><div style="width:${tp}%;background:#f1c40f"></div></div>
             <div class="st-blob-sub">${tp < 10 ? tp.toFixed(1) : Math.floor(tp)}%${gainTxt}</div>`;
-        sub = `${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% learned`;
+        sub = `${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% ${CURRENT_LANG === 'pt' ? 'aprendido' : 'learned'}`;
         progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
     } else if (learned) {
-        sub = '✓ Mastered';
+        sub = CURRENT_LANG === 'pt' ? '✓ Dominado' : '✓ Mastered';
     } else if (progress > 0) {
-        sub = `${progress}% learned`;
+        sub = `${progress}% ${CURRENT_LANG === 'pt' ? 'aprendido' : 'learned'}`;
         progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
     } else if (sk.locked && sk.unlockConditionDesc) {
         sub = '🔒 ' + sk.unlockConditionDesc;
@@ -259,7 +259,7 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         const traveling = !!busyState?.traveling;
         const missionCollect = !!busyState?.missionReadyToCollect;
         if (missionActive || cooldown || traveling || missionCollect) {
-            const label = missionCollect ? 'Collect mission' : missionActive ? 'Mission active' : cooldown ? 'Battle cooldown' : 'Traveling';
+            const label = missionCollect ? (CURRENT_LANG === 'pt' ? 'Coletar missão' : 'Collect mission') : missionActive ? (CURRENT_LANG === 'pt' ? 'Missão ativa' : 'Mission active') : cooldown ? (CURRENT_LANG === 'pt' ? 'Recarga de batalha' : 'Battle cooldown') : (CURRENT_LANG === 'pt' ? 'Viajando' : 'Traveling');
             controls = `<div class="st-blob-sub" style="margin-top:7px">🔒 ${label}</div>`;
         } else {
             const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
@@ -270,8 +270,8 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
             <div class="st-train-row">
                 <select id="train-hours-${skillKey}">${opts}</select>
                 <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, false)}
-                    style="border:1px solid ${bc}88;background:${bc}18;color:${bc}">Train</button>
-                <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, true)} title="2x speed (500 gold/hour)"
+                    style="border:1px solid ${bc}88;background:${bc}18;color:${bc}">${CURRENT_LANG === 'pt' ? 'Treinar' : 'Train'}</button>
+                <button ${actionAttrs('stStartTrain', skillKey, sk.branchId || sk._branchId, true)} title="${CURRENT_LANG === 'pt' ? '2x velocidade (500 ouro/hora)' : '2x speed (500 gold/hour)'}"
                     style="border:1px solid #f1c40f66;background:rgba(241,196,15,0.15);color:#f1c40f">2x</button>
             </div>`;
         }
@@ -281,18 +281,18 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         : training ? `<span class="st-badge" style="color:#f1c40f">⚡</span>`
         : isEvo ? `<span class="st-badge" style="color:rgba(241,196,15,0.6)">🧬</span>` : '';
 
-    const stateText = training ? 'Training in progress'
-        : learned ? 'Mastered'
-        : trainable ? 'Ready to train'
+    const stateText = training ? (CURRENT_LANG === 'pt' ? 'Treinamento em andamento' : 'Training in progress')
+        : learned ? (CURRENT_LANG === 'pt' ? 'Dominado' : 'Mastered')
+        : trainable ? (CURRENT_LANG === 'pt' ? 'Pronto para treinar' : 'Ready to train')
         : (sk.locked && sk.unlockConditionDesc) ? sk.unlockConditionDesc
-        : (progress > 0 ? 'In progress' : 'Locked');
+        : (progress > 0 ? (CURRENT_LANG === 'pt' ? 'Em andamento' : 'In progress') : (CURRENT_LANG === 'pt' ? 'Bloqueado' : 'Locked'));
     const tipIdx = _stTips.length;
     _stTips.push({
         emoji: sk.emoji || '⚔️',
         img: `/images/assets/skills/${skillKey}.png`,
         name: sk.name,
         color: isEvo ? '#f1c40f' : bc,
-        meta: `Tier ${sk.tier || '?'}${isEvo ? ' · Evolution' : ''}`,
+        meta: `Tier ${sk.tier || '?'}${isEvo ? (CURRENT_LANG === 'pt' ? ' · Evolução' : ' · Evolution') : ''}`,
         desc: sk.desc || '',
         effects: stEffectParts(sk.effects),
         state: stateText
@@ -315,8 +315,8 @@ function stFutureBlob() {
         emoji: '❓',
         name: '???',
         color: 'rgba(255,255,255,0.4)',
-        meta: 'Unknown skill',
-        desc: 'Keep training this path to reveal the next step.',
+        meta: CURRENT_LANG === 'pt' ? 'Habilidade desconhecida' : 'Unknown skill',
+        desc: CURRENT_LANG === 'pt' ? 'Continue treinando este caminho para revelar o próximo passo.' : 'Keep training this path to reveal the next step.',
         effects: [],
         state: ''
     });
@@ -334,10 +334,10 @@ function stLockedBlob(sk, bc) {
         img: `/images/assets/skills/${sk.id}.png`,
         name: sk.name,
         color: bc,
-        meta: `Tier ${sk.tier || '?'} · Locked`,
+        meta: `Tier ${sk.tier || '?'} · ${CURRENT_LANG === 'pt' ? 'Bloqueado' : 'Locked'}`,
         desc: sk.desc || sk.description || '',
         effects: stEffectParts(sk.effects),
-        state: '🔒 Complete previous skill to unlock'
+        state: CURRENT_LANG === 'pt' ? '🔒 Conclua a habilidade anterior para desbloquear' : '🔒 Complete previous skill to unlock'
     });
     return `<div class="st-blob st-future" style="border-color:${bc}22;background:${bc}06;cursor:help" data-sttip="${tipIdx}">
         <div class="st-blob-icon" style="opacity:0.45"><img src="/images/assets/skills/${sk.id}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1.6rem;line-height:1">${sk.emoji || '⚔️'}</span></div>
@@ -357,19 +357,19 @@ function stBranchBlob(branchId, branch, bc, accent) {
         emoji: branch.emoji || '⚔️',
         name: branch.name,
         color: bc,
-        meta: 'Skill path',
+        meta: CURRENT_LANG === 'pt' ? 'Caminho de habilidade' : 'Skill path',
         desc: branch.description || '',
         effects: [],
-        state: `${learnedCount}/${total} mastered${branch.exclusiveLocked ? ' · forever closed' : ''}`
+        state: `${learnedCount}/${total} ${CURRENT_LANG === 'pt' ? 'dominado(s)' : 'mastered'}${branch.exclusiveLocked ? (CURRENT_LANG === 'pt' ? ' · fechado para sempre' : ' · forever closed') : ''}`
     });
     return `<div style="width:100%;margin:4px 0 0;cursor:help" data-sttip="${tipIdx}">
         <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;background:${bc}0d;border:1px solid ${bc}33">
             <span style="font-size:1.2rem;line-height:1">${branch.emoji || '⚔️'}</span>
             <span style="font-size:0.78rem;font-weight:700;color:${bc};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">${branch.name}</span>
             <span style="font-size:0.6rem;color:${bc}99;margin-left:auto;white-space:nowrap">${learnedCount}/${total}</span>
-            ${canUnlearn ? `<button ${actionAttrs('stUnlearnStep', branchId)} title="Unlearn the last skill of this path (50% gold refund)"
+            ${canUnlearn ? `<button ${actionAttrs('stUnlearnStep', branchId)} title="${CURRENT_LANG === 'pt' ? 'Desaprenda a última habilidade deste caminho (50% de reembolso em ouro)' : 'Unlearn the last skill of this path (50% gold refund)'}"
                 style="font-size:0.52rem;padding:1px 6px;background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩</button>` : ''}
-            ${branch.exclusiveLocked ? `<span style="font-size:0.52rem;color:#e74c3c;background:rgba(231,76,60,0.12);border-radius:4px;padding:1px 5px;white-space:nowrap">🔒 CLOSED</span>` : ''}
+            ${branch.exclusiveLocked ? `<span style="font-size:0.52rem;color:#e74c3c;background:rgba(231,76,60,0.12);border-radius:4px;padding:1px 5px;white-space:nowrap">🔒 ${CURRENT_LANG === 'pt' ? 'FECHADO' : 'CLOSED'}</span>` : ''}
         </div>
     </div>`;
 }
@@ -382,7 +382,7 @@ function stEffectParts(effects) {
         if (eff.type === 'passive_stat') parts.push('+ ' + eff.value + ' ' + String(eff.stat).replace(/_/g, ' '));
         else if (eff.type === 'passive_pct' && eff.value > 0) parts.push('+' + Math.round(eff.value * 100) + '% ' + String(eff.stat).replace(/_/g, ' '));
         else if (eff.type === 'passive_pct' && eff.value < 0) parts.push(Math.round(eff.value * 100) + '% ' + String(eff.stat).replace(/_/g, ' '));
-        else if (eff.type === 'resist_bonus') parts.push('+' + eff.value + ' all resists');
+        else if (eff.type === 'resist_bonus') parts.push('+' + eff.value + (CURRENT_LANG === 'pt' ? ' todas as resistências' : ' all resists'));
         else if (eff.type === 'active_combat') parts.push('⚡ ' + String(eff.id).replace(/_/g, ' '));
         else if (eff.type === 'class_modifier') parts.push('🔧 ' + String(eff.id).replace(/_/g, ' '));
     }
@@ -575,7 +575,7 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
 
             if (closed) {
                 html += `<div class="st-link"></div><div class="st-blob st-future" style="padding:16px 8px">
-                <div class="st-closed-note">🔒 PATH<br>CLOSED</div></div>`;
+                <div class="st-closed-note">🔒 ${CURRENT_LANG === 'pt' ? 'CAMINHO<br>FECHADO' : 'PATH<br>CLOSED'}</div></div>`;
             } else {
                 html += `<div class="st-link"></div>`;
                 html += stChain(branch, bc, activeTraining, busyState, branchId);
@@ -628,7 +628,7 @@ function stEffectSummary(effects) {
         } else if (eff.type === 'passive_pct' && eff.value > 0) {
             parts.push(`+${Math.round(eff.value*100)}% ${eff.stat.replace(/_/g,' ')}`);
         } else if (eff.type === 'resist_bonus') {
-            parts.push(`+${eff.value} all resists`);
+            parts.push(`+${eff.value} ${CURRENT_LANG === 'pt' ? 'todas as resistências' : 'all resists'}`);
         } else if (eff.type === 'active_combat') {
             parts.push(`⚡ ${eff.id.replace(/_/g,' ')}`);
         } else if (eff.type === 'class_modifier') {
@@ -667,33 +667,33 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
     const maxHours = hasArcaneReservoir ? 12 : 8;
     
     if (hours < 1 || hours > maxHours) {
-        showMsg('skill-tree-msg', `Training hours must be between 1 and ${maxHours}`, true);
+        showMsg('skill-tree-msg', (CURRENT_LANG === 'pt' ? `As horas de treinamento devem estar entre 1 e ${maxHours}` : `Training hours must be between 1 and ${maxHours}`), true);
         return;
     }
     
     const mats = sk.nextThresholdCost || {};
     const matStrs = Object.entries(mats).filter(([,v])=>v).map(([k,v]) => `${v}× ${k.replace(/_/g,' ')}`);
-    const costLine = [`⏱ ${hours} hour${hours > 1 ? 's' : ''}`, ...matStrs].join(', ');
+    const costLine = [`⏱ ${hours} ${CURRENT_LANG === 'pt' ? 'hora(s)' : `hour${hours > 1 ? 's' : ''}`}`, ...matStrs].join(', ');
     
     if (doubleSpeed) {
         const goldCost = hours * 500;
         if ((character?.gold || 0) < goldCost) {
-            showMsg('skill-tree-msg', `Need ${goldCost} gold for double speed training!`, true);
+            showMsg('skill-tree-msg', (CURRENT_LANG === 'pt' ? `Precisa de ${goldCost} de ouro para treinamento em 2x!` : `Need ${goldCost} gold for double speed training!`), true);
             return;
         }
         const ok = await openGameConfirmDialog({
-            title: `Train "${sk.name}" at 2x speed?`,
-            message: `Cost: ${goldCost} gold<br>Time: ${hours} hours (2x progress)<br>Requires: ${costLine}`,
-            confirmLabel: 'Train (2x)',
-            cancelLabel: 'Cancel',
+            title: `${CURRENT_LANG === 'pt' ? 'Treinar' : 'Train'} "${sk.name}" ${CURRENT_LANG === 'pt' ? 'a 2x de velocidade?' : 'at 2x speed?'}`,
+            message: `${CURRENT_LANG === 'pt' ? 'Custo:' : 'Cost:'} ${goldCost} ${CURRENT_LANG === 'pt' ? 'ouro' : 'gold'}<br>${CURRENT_LANG === 'pt' ? 'Tempo:' : 'Time:'} ${hours} ${CURRENT_LANG === 'pt' ? 'horas (progresso 2x)' : 'hours (2x progress)'}<br>${CURRENT_LANG === 'pt' ? 'Requer:' : 'Requires:'} ${costLine}`,
+            confirmLabel: `${CURRENT_LANG === 'pt' ? 'Treinar (2x)' : 'Train (2x)'}`,
+            cancelLabel: CURRENT_LANG === 'pt' ? 'Cancelar' : 'Cancel',
         });
         if (!ok) return;
     } else {
         const ok = await openGameConfirmDialog({
-            title: `Train "${sk.name}"?`,
-            message: `Time: ${hours} hours<br>Requires: ${costLine}`,
-            confirmLabel: 'Train',
-            cancelLabel: 'Cancel',
+            title: `${CURRENT_LANG === 'pt' ? 'Treinar' : 'Train'} "${sk.name}"?`,
+            message: `${CURRENT_LANG === 'pt' ? 'Tempo:' : 'Time:'} ${hours} ${CURRENT_LANG === 'pt' ? 'horas' : 'hours'}<br>${CURRENT_LANG === 'pt' ? 'Requer:' : 'Requires:'} ${costLine}`,
+            confirmLabel: CURRENT_LANG === 'pt' ? 'Treinar' : 'Train',
+            cancelLabel: CURRENT_LANG === 'pt' ? 'Cancelar' : 'Cancel',
         });
         if (!ok) return;
     }
@@ -718,7 +718,7 @@ async function updateTrainingStatus() {
             const remaining = formatTime(status.remainingSeconds || status.remaining || 0);
             document.getElementById('training-indicator').innerHTML = `
                 <div style="display: flex; align-items: center; gap: 6px; background: rgba(155,89,182,0.2); padding: 4px 10px; border-radius: 20px;">
-            <span>⚔️ Training: ${progress}%</span>
+            <span>⚔️ ${CURRENT_LANG === 'pt' ? 'Treinando:' : 'Training:'} ${progress}%</span>
                     <div style="width: 60px; background: rgba(255,255,255,0.2); border-radius: 4px; height: 4px;">
                         <div style="width: ${progress}%; background: #9b59b6; height: 4px; border-radius: 4px;"></div>
                     </div>
@@ -744,10 +744,10 @@ function formatTime(seconds) {
 
 async function cancelTraining() {
     const ok = await openGameConfirmDialog({
-        title: 'Cancel Training?',
-        message: 'You will receive a partial gold refund if you paid for double speed.',
-        confirmLabel: 'Cancel Training',
-        cancelLabel: 'Keep Training',
+        title: CURRENT_LANG === 'pt' ? 'Cancelar Treinamento?' : 'Cancel Training?',
+        message: CURRENT_LANG === 'pt' ? 'Você receberá um reembolso parcial em ouro se pagou pela velocidade 2x.' : 'You will receive a partial gold refund if you paid for double speed.',
+        confirmLabel: CURRENT_LANG === 'pt' ? 'Cancelar Treinamento' : 'Cancel Training',
+        cancelLabel: CURRENT_LANG === 'pt' ? 'Continuar Treinando' : 'Keep Training',
         danger: true,
     });
     if (!ok) return;
@@ -777,10 +777,10 @@ async function stCollect() {
 
 async function stCancel() {
     const ok = await openGameConfirmDialog({
-        title: 'Cancel Training?',
-        message: 'You will receive a partial gold refund (pro-rated by time remaining). Materials are NOT returned.',
-        confirmLabel: 'Cancel Training',
-        cancelLabel: 'Keep Training',
+        title: CURRENT_LANG === 'pt' ? 'Cancelar Treinamento?' : 'Cancel Training?',
+        message: CURRENT_LANG === 'pt' ? 'Você receberá um reembolso parcial em ouro (proporcional ao tempo restante). Materiais NÃO serão devolvidos.' : 'You will receive a partial gold refund (pro-rated by time remaining). Materials are NOT returned.',
+        confirmLabel: CURRENT_LANG === 'pt' ? 'Cancelar Treinamento' : 'Cancel Training',
+        cancelLabel: CURRENT_LANG === 'pt' ? 'Continuar Treinando' : 'Keep Training',
         danger: true,
     });
     if (!ok) return;
@@ -796,7 +796,7 @@ async function stCancel() {
 }
 
 async function stUnlearnStep(branchId) {
-    if (!confirm(`Unlearn the last skill you trained in "${branchId}"? This removes one step at a time and refunds 50% of that skill's gold cost.`)) return;
+    if (!confirm(CURRENT_LANG === 'pt' ? `Desaprender a última habilidade treinada em "${branchId}"? Isso remove um passo por vez e reembolsa 50% do custo em ouro dessa habilidade.` : `Unlearn the last skill you trained in "${branchId}"? This removes one step at a time and refunds 50% of that skill's gold cost.`)) return;
     try {
         const d = await api('POST', '/skills/unlearn-step', { branchId });
         character = await api('GET', '/game/character');
