@@ -9205,7 +9205,8 @@ function getCanonicalItemDesc(desc, name) {
         .replace(/\s*\(Crafted at level \d+\)\s*$/i, '')
         .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
         .trim();
-    return cleaned ? translateItemLorePT(cleaned, name) : '';
+    const lore = cleaned ? translateItemLorePT(cleaned, name) : '';
+    return lore ? translateWeaponSkillPT(lore) : '';
 }
 
 function getDisplayItemDesc(itemLike) {
@@ -9469,6 +9470,83 @@ function translateItemLorePT(lore, name) {
         changed = true;
     }
     return changed ? out : lore;
+}
+
+// ---- Weapon skills (⚔️ Skill: ...) appended to weapon descriptions ----
+const WEAPON_SKILL_NAME_PT = {
+    'Ember Ascendant':'Ascendente de Brasa',
+    'Rising Tide':'Maré Crescente',
+    'Calling Storm':'Tempestade Chamadora',
+    'Gale Primal':'Vento Primordial',
+    'Elemental Cascade':'Cascata Elemental',
+    'Pyro Aegis':'Égide de Fogo',
+    'Water Aegis':'Égide da Água',
+    'Storm Aegis':'Égide da Tempestade',
+    'Gale Aegis':'Égide do Vento',
+    'Elemental Ward':'Proteção Elemental',
+    'Bulwark':'Baluarte',
+    'Shieldbreaker':'Quebra-Escudos',
+    'Eagle Eye':'Olho de Águia',
+    'Voidforged Cleave':'Golpe Forjado no Vazio'
+};
+const WEAPON_SKILL_DESC_PT = {
+    'ember_ascend': '+5% de dano de fogo a cada rodada, até +25%.',
+    'rising_tide': '+5% de dano de água a cada rodada, até +25%.',
+    'calling_storm': '+5% de dano de eletricidade a cada rodada, até +25%.',
+    'gale_primal': '+5% de dano de vento a cada rodada, até +25%.',
+    'element_cascade': '+4% de dano elemental a cada rodada, até +16%.',
+    'pyro_aegis': '+4 de resistência a fogo a cada rodada, até +25.',
+    'water_aegis': '+4 de resistência à água a cada rodada, até +25.',
+    'storm_aegis': '+4 de resistência à eletricidade a cada rodada, até +25.',
+    'gale_aegis': '+4 de resistência ao vento a cada rodada, até +25.',
+    'element_ward': '+3 de resistência elemental a cada rodada, até +15.',
+    'bulwark': '+10 de armadura a cada rodada, até +50.',
+    'shieldbreaker': '+5% de penetração de bloqueio a cada rodada, até +25%.',
+    'eagle_eye': '+5% de chance de acerto a cada rodada, até +25%.',
+    'voidforged_cleave': 'Concede +1 golpe extra nesta batalha. +5 de dano de eletricidade a cada rodada, até +25.'
+};
+
+function translateWeaponSkillPT(text) {
+    if (CURRENT_LANG !== 'pt' || !text) return text;
+    // Match the trailing weapon-skill segment: "... ⚔️ Skill: <name> — <desc>"
+    const re = /\s*⚔️\s*Skill:\s*([^——]*?)\s*[—-]\s*([\s\S]*)$/;
+    const m = String(text).match(re);
+    if (!m) return text;
+    let enName = m[1].trim();
+    // The current EN desc is the remainder; identify the skill by its id embedded
+    // in the EN desc (e.g. "Voidforged Cleave" appears in name too). Detect by name.
+    let ptName = WEAPON_SKILL_NAME_PT[enName] || enName;
+    // Desc: detect by matching the EN desc's numbers against kind templates.
+    let ptDesc = weaponSkillDescFromEn(ptName, m[2].trim());
+    if (!ptDesc) return text;
+    return String(text).slice(0, m.index) + (m.index ? ' ' : '') + '⚔️ Habilidade: ' + ptName + ' — ' + ptDesc;
+}
+
+function weaponSkillDescFromEn(ptName, enDesc) {
+    const en = String(enDesc).toLowerCase();
+    // Extra-hit variant (Voidforged Cleave) — check first, it also mentions "each round".
+    if (en.indexOf('extra hit') !== -1) return WEAPON_SKILL_DESC_PT.voidforged_cleave;
+    // Resistance ramps — check before element-damage, since both contain element keywords.
+    if (en.indexOf('resistance') !== -1) return weaponSkillResistanceDesc(en);
+    if (en.indexOf('each round') !== -1) {
+        if (en.indexOf('block') !== -1) return WEAPON_SKILL_DESC_PT.shieldbreaker;
+        if (en.indexOf('hit chance') !== -1) return WEAPON_SKILL_DESC_PT.eagle_eye;
+        if (en.indexOf('armor') !== -1) return WEAPON_SKILL_DESC_PT.bulwark;
+        if (en.indexOf('all elemental') !== -1) return WEAPON_SKILL_DESC_PT.element_cascade;
+        if (en.indexOf('pyro') !== -1 || en.indexOf('fire') !== -1) return WEAPON_SKILL_DESC_PT.ember_ascend;
+        if (en.indexOf('water') !== -1) return WEAPON_SKILL_DESC_PT.rising_tide;
+        if (en.indexOf('electro') !== -1 || en.indexOf('lightning') !== -1) return WEAPON_SKILL_DESC_PT.calling_storm;
+        if (en.indexOf('wind') !== -1) return WEAPON_SKILL_DESC_PT.gale_primal;
+    }
+    return '';
+}
+
+function weaponSkillResistanceDesc(en) {
+    if (en.indexOf('pyro') !== -1 || en.indexOf('fire') !== -1) return WEAPON_SKILL_DESC_PT.pyro_aegis;
+    if (en.indexOf('water') !== -1) return WEAPON_SKILL_DESC_PT.water_aegis;
+    if (en.indexOf('electro') !== -1 || en.indexOf('lightning') !== -1) return WEAPON_SKILL_DESC_PT.storm_aegis;
+    if (en.indexOf('wind') !== -1) return WEAPON_SKILL_DESC_PT.gale_aegis;
+    return WEAPON_SKILL_DESC_PT.element_ward;
 }
 
 // Map a set name like "Dragon Set" to PT ("Conjunto do Dragão"). Set names follow
