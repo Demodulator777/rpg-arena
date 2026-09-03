@@ -129,13 +129,13 @@ catch (e) { console.error('[Upload] Profile-pics dir NOT writable:', PROFILE_PIC
 // Migration: pending_profile_pics
 async function ensurePendingProfilePicsTable(db) {
     await db.execute({ sql: `CREATE TABLE IF NOT EXISTS pending_profile_pics (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
-        char_id INTEGER NOT NULL,
-        image_path TEXT NOT NULL,
-        status TEXT DEFAULT 'pending',
-        created_at INTEGER NOT NULL
-    )`, args: [] });
+                                                                                 id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                 user_id INTEGER NOT NULL,
+                                                                                 char_id INTEGER NOT NULL,
+                                                                                 image_path TEXT NOT NULL,
+                                                                                 status TEXT DEFAULT 'pending',
+                                                                                 created_at INTEGER NOT NULL
+                             )`, args: [] });
 }
 // hardening). Only real images in allowed dirs remain serveable.
 function cleanupUploadDirs() {
@@ -214,29 +214,29 @@ const _missionsTabView = new Map(); // userId → last tab view timestamp
 // ── API Log Middleware ──────────────────────────────────────────────
 async function ensureApiLogTable(db) {
     await db.execute(`CREATE TABLE IF NOT EXISTS api_log (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL DEFAULT 0,
-        username TEXT NOT NULL DEFAULT '',
-        char_name TEXT NOT NULL DEFAULT '',
-        method TEXT NOT NULL,
-        path TEXT NOT NULL,
-        status INTEGER NOT NULL DEFAULT 0,
-        req_body TEXT,
-        tab_viewed INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL
-    )`);
+                                                             id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                             user_id INTEGER NOT NULL DEFAULT 0,
+                                                             username TEXT NOT NULL DEFAULT '',
+                                                             char_name TEXT NOT NULL DEFAULT '',
+                                                             method TEXT NOT NULL,
+                                                             path TEXT NOT NULL,
+                                                             status INTEGER NOT NULL DEFAULT 0,
+                                                             req_body TEXT,
+                                                             tab_viewed INTEGER NOT NULL DEFAULT 0,
+                                                             created_at INTEGER NOT NULL
+                      )`);
 }
 
 // Stores lightweight per-minute "did a human interact" beacons from the client.
 // Only a boolean is recorded (mouse/keyboard/touch seen or not) — no coordinates.
 async function ensureInputActivityTable(db) {
     await db.execute(`CREATE TABLE IF NOT EXISTS input_activity (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        char_id INTEGER NOT NULL DEFAULT 0,
-        char_name TEXT NOT NULL DEFAULT '',
-        has_input INTEGER NOT NULL DEFAULT 0,
-        created_at INTEGER NOT NULL
-    )`);
+                                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                    char_id INTEGER NOT NULL DEFAULT 0,
+                                                                    char_name TEXT NOT NULL DEFAULT '',
+                                                                    has_input INTEGER NOT NULL DEFAULT 0,
+                                                                    created_at INTEGER NOT NULL
+                      )`);
     try { await db.execute({ sql: "CREATE INDEX IF NOT EXISTS idx_input_activity_created ON input_activity(created_at)", args: [] }); } catch {}
 }
 
@@ -431,11 +431,11 @@ async function ensureAdminBanTable() {
         const db = await getDb();
         if (!adminBanTableReady) {
             await db.execute({ sql: `CREATE TABLE IF NOT EXISTS admin_ip_bans (
-                ip TEXT PRIMARY KEY,
-                banned_until INTEGER NOT NULL,
-                created_at INTEGER NOT NULL,
-                reason TEXT NOT NULL DEFAULT ''
-            )` });
+                                                                                  ip TEXT PRIMARY KEY,
+                                                                                  banned_until INTEGER NOT NULL,
+                                                                                  created_at INTEGER NOT NULL,
+                                                                                  reason TEXT NOT NULL DEFAULT ''
+                                     )` });
             adminBanTableReady = true;
         }
         if (Date.now() - lastBanPurge > 3600000) {
@@ -986,6 +986,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE guild_raid_members ADD COLUMN member_payload TEXT DEFAULT NULL',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
+            `ALTER TABLE active_missions ADD COLUMN size TEXT NOT NULL DEFAULT 'small'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN lang TEXT DEFAULT NULL',
             'ALTER TABLE users ADD COLUMN assistant_enabled INTEGER DEFAULT 1',
@@ -1029,17 +1030,17 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN last_online_at INTEGER DEFAULT 0',
             'ALTER TABLE squads ADD COLUMN logo TEXT DEFAULT NULL',
             `CREATE TABLE IF NOT EXISTS chat_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                sender_user_id INTEGER NOT NULL,
-                sender_char_id INTEGER NOT NULL,
-                sender_name TEXT NOT NULL,
-                recipient_char_id INTEGER DEFAULT NULL,
-                recipient_name TEXT DEFAULT NULL,
-                message_text TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                edited INTEGER DEFAULT 0,
-                edited_at INTEGER DEFAULT NULL
-            )`,
+                                                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                          sender_user_id INTEGER NOT NULL,
+                                                          sender_char_id INTEGER NOT NULL,
+                                                          sender_name TEXT NOT NULL,
+                                                          recipient_char_id INTEGER DEFAULT NULL,
+                                                          recipient_name TEXT DEFAULT NULL,
+                                                          message_text TEXT NOT NULL,
+                                                          created_at INTEGER NOT NULL,
+                                                          edited INTEGER DEFAULT 0,
+                                                          edited_at INTEGER DEFAULT NULL
+             )`,
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_created_at ON chat_messages(created_at DESC)',
             'CREATE INDEX IF NOT EXISTS idx_chat_messages_visibility ON chat_messages(recipient_char_id, id DESC)',
             'CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_name_nocase ON characters(name COLLATE NOCASE)',
@@ -1069,55 +1070,55 @@ const WEEKLY_TASKS = [
             `ALTER TABLE battles ADD COLUMN total_dmg_dealt INTEGER DEFAULT 0`,
             `ALTER TABLE battles ADD COLUMN total_dmg_taken INTEGER DEFAULT 0`,
             `CREATE TABLE IF NOT EXISTS weekly_leaderboard_awards (
-                week_start INTEGER PRIMARY KEY,
-                winner_char_id INTEGER NOT NULL,
-                winner_name TEXT NOT NULL,
-                winner_class TEXT NOT NULL,
-                winner_dmg INTEGER NOT NULL DEFAULT 0,
-                winner_battles INTEGER NOT NULL DEFAULT 0,
-                reward_sent INTEGER NOT NULL DEFAULT 0,
-                top10_data TEXT NOT NULL DEFAULT '[]',
-                win_winner_char_id INTEGER NOT NULL DEFAULT 0,
-                win_winner_name TEXT NOT NULL DEFAULT '',
-                win_winner_class TEXT NOT NULL DEFAULT '',
-                win_winner_wins INTEGER NOT NULL DEFAULT 0,
-                win_winner_battles INTEGER NOT NULL DEFAULT 0,
-                win_reward_sent INTEGER NOT NULL DEFAULT 0,
-                win_top10_data TEXT NOT NULL DEFAULT '[]',
-                squad_winner_id INTEGER NOT NULL DEFAULT 0,
-                squad_winner_name TEXT NOT NULL DEFAULT '',
-                squad_winner_tag TEXT NOT NULL DEFAULT '',
-                squad_winner_logo TEXT NOT NULL DEFAULT '',
-                squad_winner_members INTEGER NOT NULL DEFAULT 0,
-                squad_winner_dmg INTEGER NOT NULL DEFAULT 0,
-                squad_dmg_reward_sent INTEGER NOT NULL DEFAULT 0,
-                squad_dmg_top10_data TEXT NOT NULL DEFAULT '[]',
-                squad_win_winner_id INTEGER NOT NULL DEFAULT 0,
-                squad_win_winner_name TEXT NOT NULL DEFAULT '',
-                squad_win_winner_tag TEXT NOT NULL DEFAULT '',
-                squad_win_winner_logo TEXT NOT NULL DEFAULT '',
-                squad_win_winner_members INTEGER NOT NULL DEFAULT 0,
-                squad_win_wins INTEGER NOT NULL DEFAULT 0,
-                squad_win_reward_sent INTEGER NOT NULL DEFAULT 0,
-                squad_win_top10_data TEXT NOT NULL DEFAULT '[]'
-            )`,
+                                                                      week_start INTEGER PRIMARY KEY,
+                                                                      winner_char_id INTEGER NOT NULL,
+                                                                      winner_name TEXT NOT NULL,
+                                                                      winner_class TEXT NOT NULL,
+                                                                      winner_dmg INTEGER NOT NULL DEFAULT 0,
+                                                                      winner_battles INTEGER NOT NULL DEFAULT 0,
+                                                                      reward_sent INTEGER NOT NULL DEFAULT 0,
+                                                                      top10_data TEXT NOT NULL DEFAULT '[]',
+                                                                      win_winner_char_id INTEGER NOT NULL DEFAULT 0,
+                                                                      win_winner_name TEXT NOT NULL DEFAULT '',
+                                                                      win_winner_class TEXT NOT NULL DEFAULT '',
+                                                                      win_winner_wins INTEGER NOT NULL DEFAULT 0,
+                                                                      win_winner_battles INTEGER NOT NULL DEFAULT 0,
+                                                                      win_reward_sent INTEGER NOT NULL DEFAULT 0,
+                                                                      win_top10_data TEXT NOT NULL DEFAULT '[]',
+                                                                      squad_winner_id INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_winner_name TEXT NOT NULL DEFAULT '',
+                                                                      squad_winner_tag TEXT NOT NULL DEFAULT '',
+                                                                      squad_winner_logo TEXT NOT NULL DEFAULT '',
+                                                                      squad_winner_members INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_winner_dmg INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_dmg_reward_sent INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_dmg_top10_data TEXT NOT NULL DEFAULT '[]',
+                                                                      squad_win_winner_id INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_win_winner_name TEXT NOT NULL DEFAULT '',
+                                                                      squad_win_winner_tag TEXT NOT NULL DEFAULT '',
+                                                                      squad_win_winner_logo TEXT NOT NULL DEFAULT '',
+                                                                      squad_win_winner_members INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_win_wins INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_win_reward_sent INTEGER NOT NULL DEFAULT 0,
+                                                                      squad_win_top10_data TEXT NOT NULL DEFAULT '[]'
+             )`,
             `ALTER TABLE characters ADD COLUMN last_gatekeeper_time INTEGER DEFAULT 0`,
             `CREATE TABLE IF NOT EXISTS vouchers (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                code TEXT NOT NULL UNIQUE,
-                reward_payload TEXT,
-                active INTEGER NOT NULL DEFAULT 1,
-                max_uses INTEGER DEFAULT NULL,
-                use_count INTEGER NOT NULL DEFAULT 0,
-                created_at INTEGER NOT NULL
-            )`,
+                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                     code TEXT NOT NULL UNIQUE,
+                                                     reward_payload TEXT,
+                                                     active INTEGER NOT NULL DEFAULT 1,
+                                                     max_uses INTEGER DEFAULT NULL,
+                                                     use_count INTEGER NOT NULL DEFAULT 0,
+                                                     created_at INTEGER NOT NULL
+             )`,
             `CREATE TABLE IF NOT EXISTS voucher_redemptions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                voucher_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                redeemed_at INTEGER NOT NULL,
-                UNIQUE(voucher_id, user_id)
-            )`,
+                                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                voucher_id INTEGER NOT NULL,
+                                                                user_id INTEGER NOT NULL,
+                                                                redeemed_at INTEGER NOT NULL,
+                                                                UNIQUE(voucher_id, user_id)
+                )`,
         ];
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
@@ -1198,106 +1199,106 @@ const WEEKLY_TASKS = [
             console.error('Character schema migration error:', e.message);
         }
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS global_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            event_key TEXT NOT NULL,
-            started_at INTEGER NOT NULL,
-            ends_at INTEGER NOT NULL
-        )`, args: [] });
+                                                                              id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                              event_key TEXT NOT NULL,
+                                                                              started_at INTEGER NOT NULL,
+                                                                              ends_at INTEGER NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_attack_cooldowns (
-            attacker_id INTEGER,
-            defender_id INTEGER,
-            expires_at INTEGER,
-            PRIMARY KEY (attacker_id, defender_id)
-        )`, args: [] });
+                                                                                           attacker_id INTEGER,
+                                                                                           defender_id INTEGER,
+                                                                                           expires_at INTEGER,
+                                                                                           PRIMARY KEY (attacker_id, defender_id)
+                )`, args: [] });
 
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS messages (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            sender_id INTEGER,
-            receiver_id INTEGER NOT NULL,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL,
-            read INTEGER NOT NULL DEFAULT 0,
-            sent_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            sender_label TEXT DEFAULT NULL,
-            reward_payload TEXT DEFAULT NULL,
-            reward_claimed INTEGER NOT NULL DEFAULT 0,
-            system_message INTEGER NOT NULL DEFAULT 0,
-            admin_batch_id INTEGER DEFAULT NULL
-        )`, args: [] });
+                                                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                         sender_id INTEGER,
+                                                                         receiver_id INTEGER NOT NULL,
+                                                                         subject TEXT NOT NULL,
+                                                                         body TEXT NOT NULL,
+                                                                         read INTEGER NOT NULL DEFAULT 0,
+                                                                         sent_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                sender_label TEXT DEFAULT NULL,
+                reward_payload TEXT DEFAULT NULL,
+                reward_claimed INTEGER NOT NULL DEFAULT 0,
+                system_message INTEGER NOT NULL DEFAULT 0,
+                admin_batch_id INTEGER DEFAULT NULL
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_reports (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            report_timestamp TEXT NOT NULL,
-            username TEXT,
-            character_name TEXT,
-            character_level INTEGER DEFAULT 0,
-            character_class TEXT,
-            category TEXT NOT NULL,
-            title TEXT NOT NULL,
-            description TEXT NOT NULL,
-            steps_to_reproduce TEXT,
-            browser TEXT,
-            game_location TEXT,
-            game_hp INTEGER DEFAULT 0,
-            game_gold INTEGER DEFAULT 0,
-            game_level INTEGER DEFAULT 0,
-            has_screenshot INTEGER DEFAULT 0,
-            reported_player TEXT
-        )`, args: [] });
+                                                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                            report_timestamp TEXT NOT NULL,
+                                                                            username TEXT,
+                                                                            character_name TEXT,
+                                                                            character_level INTEGER DEFAULT 0,
+                                                                            character_class TEXT,
+                                                                            category TEXT NOT NULL,
+                                                                            title TEXT NOT NULL,
+                                                                            description TEXT NOT NULL,
+                                                                            steps_to_reproduce TEXT,
+                                                                            browser TEXT,
+                                                                            game_location TEXT,
+                                                                            game_hp INTEGER DEFAULT 0,
+                                                                            game_gold INTEGER DEFAULT 0,
+                                                                            game_level INTEGER DEFAULT 0,
+                                                                            has_screenshot INTEGER DEFAULT 0,
+                                                                            reported_player TEXT
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bug_screenshots (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            bug_report_id INTEGER NOT NULL,
-            filename TEXT,
-            image_data BLOB NOT NULL,
-            mime_type TEXT NOT NULL,
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP
-        )`, args: [] });
+                                                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                bug_report_id INTEGER NOT NULL,
+                                                                                filename TEXT,
+                                                                                image_data BLOB NOT NULL,
+                                                                                mime_type TEXT NOT NULL,
+                                                                                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_achievements (
-            char_id INTEGER NOT NULL,
-            achievement_id TEXT NOT NULL,
-            claimed_at INTEGER NOT NULL,
-            PRIMARY KEY (char_id, achievement_id)
-        )`, args: [] });
+                                                                                       char_id INTEGER NOT NULL,
+                                                                                       achievement_id TEXT NOT NULL,
+                                                                                       claimed_at INTEGER NOT NULL,
+                                                                                       PRIMARY KEY (char_id, achievement_id)
+                )`, args: [] });
         try {
             await db.execute({ sql: `ALTER TABLE bug_reports ADD COLUMN reported_player TEXT`, args: [] });
         } catch (e) { /* column already exists */ }
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_gatekeeper_defeats (
-            char_id INTEGER NOT NULL,
-            gatekeeper_key TEXT NOT NULL,
-            defeated_at INTEGER NOT NULL,
-            PRIMARY KEY (char_id, gatekeeper_key)
-        )`, args: [] });
+                                                                                             char_id INTEGER NOT NULL,
+                                                                                             gatekeeper_key TEXT NOT NULL,
+                                                                                             defeated_at INTEGER NOT NULL,
+                                                                                             PRIMARY KEY (char_id, gatekeeper_key)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squads (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            invite_code TEXT NOT NULL UNIQUE,
-            owner_char_id INTEGER NOT NULL,
-            created_at INTEGER NOT NULL
-        )`, args: [] });
+                                                                       id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                       name TEXT NOT NULL,
+                                                                       invite_code TEXT NOT NULL UNIQUE,
+                                                                       owner_char_id INTEGER NOT NULL,
+                                                                       created_at INTEGER NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_members (
-            squad_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            role TEXT NOT NULL DEFAULT 'member',
-            joined_at INTEGER NOT NULL,
-            PRIMARY KEY (squad_id, char_id)
-        )`, args: [] });
+                                                                              squad_id INTEGER NOT NULL,
+                                                                              char_id INTEGER NOT NULL,
+                                                                              role TEXT NOT NULL DEFAULT 'member',
+                                                                              joined_at INTEGER NOT NULL,
+                                                                              PRIMARY KEY (squad_id, char_id)
+                )`, args: [] });
         await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_squad_members_char_id ON squad_members(char_id)`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_applications (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            squad_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at INTEGER NOT NULL
-        )`, args: [] });
+                                                                                   id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                   squad_id INTEGER NOT NULL,
+                                                                                   char_id INTEGER NOT NULL,
+                                                                                   status TEXT NOT NULL DEFAULT 'pending',
+                                                                                   created_at INTEGER NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS bot_configs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password TEXT NOT NULL,
-            class TEXT NOT NULL,
-            script_version TEXT NOT NULL DEFAULT 'bot2',
-            enabled INTEGER NOT NULL DEFAULT 0,
-            extra_config TEXT DEFAULT '{}',
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
-        )`, args: [] });
+                                                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                            username TEXT NOT NULL UNIQUE,
+                                                                            password TEXT NOT NULL,
+                                                                            class TEXT NOT NULL,
+                                                                            script_version TEXT NOT NULL DEFAULT 'bot2',
+                                                                            enabled INTEGER NOT NULL DEFAULT 0,
+                                                                            extra_config TEXT DEFAULT '{}',
+                                                                            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+                )`, args: [] });
 
         // Backfill: older characters may already have zones unlocked (beaten gatekeepers) before we tracked it.
         try {
@@ -1342,141 +1343,141 @@ const WEEKLY_TASKS = [
             }
         } catch {}
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_mission_spot_stats (
-            char_id INTEGER NOT NULL,
-            map_type TEXT NOT NULL DEFAULT 'overworld',
-            zone_id TEXT NOT NULL,
-            spot_id TEXT NOT NULL,
-            fights INTEGER NOT NULL DEFAULT 0,
-            wins INTEGER NOT NULL DEFAULT 0,
-            last_fought_at INTEGER NOT NULL DEFAULT 0,
-            last_won_at INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (char_id, map_type, spot_id)
-        )`, args: [] });
+                                                                                             char_id INTEGER NOT NULL,
+                                                                                             map_type TEXT NOT NULL DEFAULT 'overworld',
+                                                                                             zone_id TEXT NOT NULL,
+                                                                                             spot_id TEXT NOT NULL,
+                                                                                             fights INTEGER NOT NULL DEFAULT 0,
+                                                                                             wins INTEGER NOT NULL DEFAULT 0,
+                                                                                             last_fought_at INTEGER NOT NULL DEFAULT 0,
+                                                                                             last_won_at INTEGER NOT NULL DEFAULT 0,
+                                                                                             PRIMARY KEY (char_id, map_type, spot_id)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_monster_stats (
-            char_id INTEGER NOT NULL,
-            source TEXT NOT NULL,
-            monster_key TEXT NOT NULL,
-            monster_name TEXT NOT NULL,
-            kills INTEGER NOT NULL DEFAULT 0,
-            wins INTEGER NOT NULL DEFAULT 0,
-            last_defeated_at INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (char_id, source, monster_key)
-        )`, args: [] });
+                                                                                        char_id INTEGER NOT NULL,
+                                                                                        source TEXT NOT NULL,
+                                                                                        monster_key TEXT NOT NULL,
+                                                                                        monster_name TEXT NOT NULL,
+                                                                                        kills INTEGER NOT NULL DEFAULT 0,
+                                                                                        wins INTEGER NOT NULL DEFAULT 0,
+                                                                                        last_defeated_at INTEGER NOT NULL DEFAULT 0,
+                                                                                        PRIMARY KEY (char_id, source, monster_key)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_guild_bounties (
-            char_id INTEGER PRIMARY KEY,
-            bounty_id TEXT NOT NULL,
-            target_source TEXT NOT NULL,
-            target_key TEXT NOT NULL,
-            target_name TEXT NOT NULL,
-            target_count INTEGER NOT NULL DEFAULT 0,
-            progress INTEGER NOT NULL DEFAULT 0,
-            reward_gold INTEGER NOT NULL DEFAULT 0,
-            reward_reputation INTEGER NOT NULL DEFAULT 0,
-            completed_at INTEGER NOT NULL DEFAULT 0,
-            claimed_at INTEGER NOT NULL DEFAULT 0,
-            rolled_at INTEGER NOT NULL DEFAULT 0
-        )`, args: [] });
+                                                                                         char_id INTEGER PRIMARY KEY,
+                                                                                         bounty_id TEXT NOT NULL,
+                                                                                         target_source TEXT NOT NULL,
+                                                                                         target_key TEXT NOT NULL,
+                                                                                         target_name TEXT NOT NULL,
+                                                                                         target_count INTEGER NOT NULL DEFAULT 0,
+                                                                                         progress INTEGER NOT NULL DEFAULT 0,
+                                                                                         reward_gold INTEGER NOT NULL DEFAULT 0,
+                                                                                         reward_reputation INTEGER NOT NULL DEFAULT 0,
+                                                                                         completed_at INTEGER NOT NULL DEFAULT 0,
+                                                                                         claimed_at INTEGER NOT NULL DEFAULT 0,
+                                                                                         rolled_at INTEGER NOT NULL DEFAULT 0
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_state (
-            char_id INTEGER PRIMARY KEY,
-            week_start INTEGER NOT NULL,
-            mp_spent_base INTEGER NOT NULL DEFAULT 0,
-            wins_base INTEGER NOT NULL DEFAULT 0,
-            losses_base INTEGER NOT NULL DEFAULT 0,
-            mission_fights_base INTEGER NOT NULL DEFAULT 0
-        )`, args: [] });
+                                                                                       char_id INTEGER PRIMARY KEY,
+                                                                                       week_start INTEGER NOT NULL,
+                                                                                       mp_spent_base INTEGER NOT NULL DEFAULT 0,
+                                                                                       wins_base INTEGER NOT NULL DEFAULT 0,
+                                                                                       losses_base INTEGER NOT NULL DEFAULT 0,
+                                                                                       mission_fights_base INTEGER NOT NULL DEFAULT 0
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_claims (
-            char_id INTEGER NOT NULL,
-            week_start INTEGER NOT NULL,
-            task_id TEXT NOT NULL,
-            claimed_at INTEGER NOT NULL,
-            PRIMARY KEY (char_id, week_start, task_id)
-        )`, args: [] });
+                                                                                        char_id INTEGER NOT NULL,
+                                                                                        week_start INTEGER NOT NULL,
+                                                                                        task_id TEXT NOT NULL,
+                                                                                        claimed_at INTEGER NOT NULL,
+                                                                                        PRIMARY KEY (char_id, week_start, task_id)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_performance (
-            char_id INTEGER NOT NULL,
-            week_start INTEGER NOT NULL,
-            damage_dealt INTEGER NOT NULL DEFAULT 0,
-            wins INTEGER NOT NULL DEFAULT 0,
-            losses INTEGER NOT NULL DEFAULT 0,
-            battles_fought INTEGER NOT NULL DEFAULT 0,
-            PRIMARY KEY (char_id, week_start)
-        )`, args: [] });
+                                                                                             char_id INTEGER NOT NULL,
+                                                                                             week_start INTEGER NOT NULL,
+                                                                                             damage_dealt INTEGER NOT NULL DEFAULT 0,
+                                                                                             wins INTEGER NOT NULL DEFAULT 0,
+                                                                                             losses INTEGER NOT NULL DEFAULT 0,
+                                                                                             battles_fought INTEGER NOT NULL DEFAULT 0,
+                                                                                             PRIMARY KEY (char_id, week_start)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS admin_reward_batches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            created_at INTEGER NOT NULL,
-            scope TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            body TEXT NOT NULL,
-            reward_payload TEXT,
-            recipient_count INTEGER NOT NULL DEFAULT 0
-        )`, args: [] });
+                                                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                     created_at INTEGER NOT NULL,
+                                                                                     scope TEXT NOT NULL,
+                                                                                     subject TEXT NOT NULL,
+                                                                                     body TEXT NOT NULL,
+                                                                                     reward_payload TEXT,
+                                                                                     recipient_count INTEGER NOT NULL DEFAULT 0
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raids (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            leader_char_id INTEGER NOT NULL,
-            leader_user_id INTEGER NOT NULL,
-            floor INTEGER NOT NULL,
-            boss_name TEXT NOT NULL,
-            boss_image TEXT NOT NULL,
-            boss_hp INTEGER NOT NULL,
-            boss_atk INTEGER NOT NULL,
-            boss_def INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'forming',
-            auto_start_mode TEXT NOT NULL DEFAULT 'manual',
-            scheduled_start_at INTEGER NOT NULL DEFAULT 0,
-            completed_at INTEGER DEFAULT NULL,
-            created_at INTEGER NOT NULL,
-            result_summary TEXT DEFAULT NULL,
-            result_log TEXT DEFAULT NULL,
-            mercenary_pool TEXT DEFAULT NULL
-        )`, args: [] });
+                                                                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                            leader_char_id INTEGER NOT NULL,
+                                                                            leader_user_id INTEGER NOT NULL,
+                                                                            floor INTEGER NOT NULL,
+                                                                            boss_name TEXT NOT NULL,
+                                                                            boss_image TEXT NOT NULL,
+                                                                            boss_hp INTEGER NOT NULL,
+                                                                            boss_atk INTEGER NOT NULL,
+                                                                            boss_def INTEGER NOT NULL,
+                                                                            status TEXT NOT NULL DEFAULT 'forming',
+                                                                            auto_start_mode TEXT NOT NULL DEFAULT 'manual',
+                                                                            scheduled_start_at INTEGER NOT NULL DEFAULT 0,
+                                                                            completed_at INTEGER DEFAULT NULL,
+                                                                            created_at INTEGER NOT NULL,
+                                                                            result_summary TEXT DEFAULT NULL,
+                                                                            result_log TEXT DEFAULT NULL,
+                                                                            mercenary_pool TEXT DEFAULT NULL
+                                 )`, args: [] });
         try { await db.execute({ sql: `ALTER TABLE guild_raids ADD COLUMN min_level INTEGER DEFAULT 1`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE guild_raids ADD COLUMN max_level INTEGER DEFAULT 999`, args: [] }); } catch {}
 
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS guild_raid_members (
-            raid_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            user_id INTEGER NOT NULL,
-            joined_at INTEGER NOT NULL,
-            claimed_at INTEGER NOT NULL DEFAULT 0,
-            reward_payload TEXT,
-            PRIMARY KEY (raid_id, char_id)
-        )`, args: [] });
+                                                                                   raid_id INTEGER NOT NULL,
+                                                                                   char_id INTEGER NOT NULL,
+                                                                                   user_id INTEGER NOT NULL,
+                                                                                   joined_at INTEGER NOT NULL,
+                                                                                   claimed_at INTEGER NOT NULL DEFAULT 0,
+                                                                                   reward_payload TEXT,
+                                                                                   PRIMARY KEY (raid_id, char_id)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dungeon_room_instances (
-            id TEXT PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            floor_number INTEGER NOT NULL,
-            room_index INTEGER NOT NULL,
-            status TEXT DEFAULT 'active',
-            session_id TEXT,
-            created_at INTEGER
-        )`, args: [] });
+                                                                                       id TEXT PRIMARY KEY,
+                                                                                       user_id INTEGER NOT NULL,
+                                                                                       char_id INTEGER NOT NULL,
+                                                                                       floor_number INTEGER NOT NULL,
+                                                                                       room_index INTEGER NOT NULL,
+                                                                                       status TEXT DEFAULT 'active',
+                                                                                       session_id TEXT,
+                                                                                       created_at INTEGER
+                                 )`, args: [] });
 
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dungeon_combat_sessions (
-            id TEXT PRIMARY KEY,
-            user_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            floor_number INTEGER NOT NULL,
-            room_index INTEGER NOT NULL,
-            combat_type TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'active',
-            seed INTEGER NOT NULL,
-            rng_state INTEGER NOT NULL,
-            turn_nonce INTEGER NOT NULL DEFAULT 0,
-            state_json TEXT NOT NULL,
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER NOT NULL
-        )`, args: [] });
+                                                                                        id TEXT PRIMARY KEY,
+                                                                                        user_id INTEGER NOT NULL,
+                                                                                        char_id INTEGER NOT NULL,
+                                                                                        floor_number INTEGER NOT NULL,
+                                                                                        room_index INTEGER NOT NULL,
+                                                                                        combat_type TEXT NOT NULL,
+                                                                                        status TEXT NOT NULL DEFAULT 'active',
+                                                                                        seed INTEGER NOT NULL,
+                                                                                        rng_state INTEGER NOT NULL,
+                                                                                        turn_nonce INTEGER NOT NULL DEFAULT 0,
+                                                                                        state_json TEXT NOT NULL,
+                                                                                        created_at INTEGER NOT NULL,
+                                                                                        updated_at INTEGER NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_dungeon_combat_char ON dungeon_combat_sessions(char_id, floor_number, combat_type, status)`, args: [] });
 
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_crawler_stats (
-            char_id INTEGER PRIMARY KEY,
-            encounters INTEGER NOT NULL DEFAULT 0,
-            defeats INTEGER NOT NULL DEFAULT 0,
-            deaths INTEGER NOT NULL DEFAULT 0,
-            last_encounter_at INTEGER NOT NULL DEFAULT 0,
-            last_defeat_at INTEGER NOT NULL DEFAULT 0,
-            last_death_at INTEGER NOT NULL DEFAULT 0
-        )`, args: [] });
+                                                                                        char_id INTEGER PRIMARY KEY,
+                                                                                        encounters INTEGER NOT NULL DEFAULT 0,
+                                                                                        defeats INTEGER NOT NULL DEFAULT 0,
+                                                                                        deaths INTEGER NOT NULL DEFAULT 0,
+                                                                                        last_encounter_at INTEGER NOT NULL DEFAULT 0,
+                                                                                        last_defeat_at INTEGER NOT NULL DEFAULT 0,
+                                                                                        last_death_at INTEGER NOT NULL DEFAULT 0
+                                 )`, args: [] });
 
         // Add session_id column if missing (for existing DBs)
         try {
@@ -1493,32 +1494,32 @@ const WEEKLY_TASKS = [
         }
 
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS elementals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            char_id INTEGER UNIQUE NOT NULL,
-            name TEXT NOT NULL DEFAULT 'Elemental',
-            element TEXT NOT NULL DEFAULT 'pyro',
-            level INTEGER NOT NULL DEFAULT 1,
-            xp INTEGER NOT NULL DEFAULT 0,
-            hp INTEGER NOT NULL DEFAULT 30,
-            hp_max INTEGER NOT NULL DEFAULT 30,
-            strength INTEGER NOT NULL DEFAULT 5,
-            defense INTEGER NOT NULL DEFAULT 5,
-            agility INTEGER NOT NULL DEFAULT 5,
-            magic INTEGER NOT NULL DEFAULT 5,
-            vitality INTEGER NOT NULL DEFAULT 5,
-            hit_chance INTEGER NOT NULL DEFAULT 5,
-            crit_chance INTEGER NOT NULL DEFAULT 2,
-            dmg_min INTEGER NOT NULL DEFAULT 2,
-            dmg_max INTEGER NOT NULL DEFAULT 5,
-            stat_points INTEGER NOT NULL DEFAULT 0,
-            stat_str INTEGER NOT NULL DEFAULT 0,
-            stat_def INTEGER NOT NULL DEFAULT 0,
-            stat_agi INTEGER NOT NULL DEFAULT 0,
-            stat_mag INTEGER NOT NULL DEFAULT 0,
-            stat_vit INTEGER NOT NULL DEFAULT 0,
-            hp_current INTEGER NOT NULL DEFAULT 30,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )`, args: [] });
+                                                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                           char_id INTEGER UNIQUE NOT NULL,
+                                                                           name TEXT NOT NULL DEFAULT 'Elemental',
+                                                                           element TEXT NOT NULL DEFAULT 'pyro',
+                                                                           level INTEGER NOT NULL DEFAULT 1,
+                                                                           xp INTEGER NOT NULL DEFAULT 0,
+                                                                           hp INTEGER NOT NULL DEFAULT 30,
+                                                                           hp_max INTEGER NOT NULL DEFAULT 30,
+                                                                           strength INTEGER NOT NULL DEFAULT 5,
+                                                                           defense INTEGER NOT NULL DEFAULT 5,
+                                                                           agility INTEGER NOT NULL DEFAULT 5,
+                                                                           magic INTEGER NOT NULL DEFAULT 5,
+                                                                           vitality INTEGER NOT NULL DEFAULT 5,
+                                                                           hit_chance INTEGER NOT NULL DEFAULT 5,
+                                                                           crit_chance INTEGER NOT NULL DEFAULT 2,
+                                                                           dmg_min INTEGER NOT NULL DEFAULT 2,
+                                                                           dmg_max INTEGER NOT NULL DEFAULT 5,
+                                                                           stat_points INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_str INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_def INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_agi INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_mag INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_vit INTEGER NOT NULL DEFAULT 0,
+                                                                           hp_current INTEGER NOT NULL DEFAULT 30,
+                                                                           created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )`, args: [] });
 
         // Migrate elementals table — verify schema, recreate if broken
         try {
@@ -1531,32 +1532,32 @@ const WEEKLY_TASKS = [
         } catch {}
         // Re-run CREATE TABLE for fresh or just-dropped table
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS elementals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            char_id INTEGER UNIQUE NOT NULL,
-            name TEXT NOT NULL DEFAULT 'Elemental',
-            element TEXT NOT NULL DEFAULT 'pyro',
-            level INTEGER NOT NULL DEFAULT 1,
-            xp INTEGER NOT NULL DEFAULT 0,
-            hp INTEGER NOT NULL DEFAULT 30,
-            hp_max INTEGER NOT NULL DEFAULT 30,
-            strength INTEGER NOT NULL DEFAULT 5,
-            defense INTEGER NOT NULL DEFAULT 5,
-            agility INTEGER NOT NULL DEFAULT 5,
-            magic INTEGER NOT NULL DEFAULT 5,
-            vitality INTEGER NOT NULL DEFAULT 5,
-            hit_chance INTEGER NOT NULL DEFAULT 5,
-            crit_chance INTEGER NOT NULL DEFAULT 2,
-            dmg_min INTEGER NOT NULL DEFAULT 2,
-            dmg_max INTEGER NOT NULL DEFAULT 5,
-            stat_points INTEGER NOT NULL DEFAULT 0,
-            stat_str INTEGER NOT NULL DEFAULT 0,
-            stat_def INTEGER NOT NULL DEFAULT 0,
-            stat_agi INTEGER NOT NULL DEFAULT 0,
-            stat_mag INTEGER NOT NULL DEFAULT 0,
-            stat_vit INTEGER NOT NULL DEFAULT 0,
-            hp_current INTEGER NOT NULL DEFAULT 30,
-            created_at TEXT NOT NULL DEFAULT (datetime('now'))
-        )`, args: [] });
+                                                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                           char_id INTEGER UNIQUE NOT NULL,
+                                                                           name TEXT NOT NULL DEFAULT 'Elemental',
+                                                                           element TEXT NOT NULL DEFAULT 'pyro',
+                                                                           level INTEGER NOT NULL DEFAULT 1,
+                                                                           xp INTEGER NOT NULL DEFAULT 0,
+                                                                           hp INTEGER NOT NULL DEFAULT 30,
+                                                                           hp_max INTEGER NOT NULL DEFAULT 30,
+                                                                           strength INTEGER NOT NULL DEFAULT 5,
+                                                                           defense INTEGER NOT NULL DEFAULT 5,
+                                                                           agility INTEGER NOT NULL DEFAULT 5,
+                                                                           magic INTEGER NOT NULL DEFAULT 5,
+                                                                           vitality INTEGER NOT NULL DEFAULT 5,
+                                                                           hit_chance INTEGER NOT NULL DEFAULT 5,
+                                                                           crit_chance INTEGER NOT NULL DEFAULT 2,
+                                                                           dmg_min INTEGER NOT NULL DEFAULT 2,
+                                                                           dmg_max INTEGER NOT NULL DEFAULT 5,
+                                                                           stat_points INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_str INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_def INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_agi INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_mag INTEGER NOT NULL DEFAULT 0,
+                                                                           stat_vit INTEGER NOT NULL DEFAULT 0,
+                                                                           hp_current INTEGER NOT NULL DEFAULT 30,
+                                                                           created_at TEXT NOT NULL DEFAULT (datetime('now'))
+                )`, args: [] });
         // Add more recent columns for DBs created by earlier schema
         for (const colDef of ['elemental_xp INTEGER NOT NULL DEFAULT 0', 'element_level INTEGER NOT NULL DEFAULT 1']) {
             try { await db.execute({ sql: `ALTER TABLE elementals ADD COLUMN ${colDef}`, args: [] }); } catch {}
@@ -1575,89 +1576,89 @@ const WEEKLY_TASKS = [
 
         // ── Clan War System Tables ───────────────────────────────────────────────
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_bases (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            tier TEXT NOT NULL,
-            max_upgrades INTEGER NOT NULL,
-            map_x INTEGER NOT NULL,
-            map_y INTEGER NOT NULL,
-            owner_squad_id INTEGER DEFAULT NULL,
-            occupied_at INTEGER DEFAULT NULL
-        )`, args: [] });
+                                                                           id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                           name TEXT NOT NULL,
+                                                                           tier TEXT NOT NULL,
+                                                                           max_upgrades INTEGER NOT NULL,
+                                                                           map_x INTEGER NOT NULL,
+                                                                           map_y INTEGER NOT NULL,
+                                                                           owner_squad_id INTEGER DEFAULT NULL,
+                                                                           occupied_at INTEGER DEFAULT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_base_upgrades (
-            squad_id INTEGER NOT NULL,
-            base_id INTEGER NOT NULL,
-            upgrade_level INTEGER NOT NULL DEFAULT 0,
-            last_upkeep_paid INTEGER DEFAULT NULL,
-            upkeep_paid_by INTEGER DEFAULT NULL,
-            PRIMARY KEY (squad_id, base_id)
-        )`, args: [] });
+                                                                                    squad_id INTEGER NOT NULL,
+                                                                                    base_id INTEGER NOT NULL,
+                                                                                    upgrade_level INTEGER NOT NULL DEFAULT 0,
+                                                                                    last_upkeep_paid INTEGER DEFAULT NULL,
+                                                                                    upkeep_paid_by INTEGER DEFAULT NULL,
+                                                                                    PRIMARY KEY (squad_id, base_id)
+                )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_base_donations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            squad_id INTEGER NOT NULL,
-            base_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            gold INTEGER NOT NULL DEFAULT 0,
-            gems INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL
-        )`, args: [] });
+                                                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                     squad_id INTEGER NOT NULL,
+                                                                                     base_id INTEGER NOT NULL,
+                                                                                     char_id INTEGER NOT NULL,
+                                                                                     gold INTEGER NOT NULL DEFAULT 0,
+                                                                                     gems INTEGER NOT NULL DEFAULT 0,
+                                                                                     created_at INTEGER NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_donations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            squad_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            gold INTEGER NOT NULL DEFAULT 0,
-            gems INTEGER NOT NULL DEFAULT 0,
-            created_at INTEGER NOT NULL
-        )`, args: [] });
+                                                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                squad_id INTEGER NOT NULL,
+                                                                                char_id INTEGER NOT NULL,
+                                                                                gold INTEGER NOT NULL DEFAULT 0,
+                                                                                gems INTEGER NOT NULL DEFAULT 0,
+                                                                                created_at INTEGER NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_wars (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            attacker_squad_id INTEGER NOT NULL,
-            defender_squad_id INTEGER NOT NULL,
-            base_id INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'preparation',
-            phase TEXT NOT NULL DEFAULT 'defense',
-            attacker_wins INTEGER NOT NULL DEFAULT 0,
-            defender_wins INTEGER NOT NULL DEFAULT 0,
-            attackers_captured TEXT DEFAULT '[]',
-            created_at INTEGER NOT NULL,
-            resolved_at INTEGER DEFAULT NULL
-        )`, args: [] });
+                                                                          id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                          attacker_squad_id INTEGER NOT NULL,
+                                                                          defender_squad_id INTEGER NOT NULL,
+                                                                          base_id INTEGER NOT NULL,
+                                                                          status TEXT NOT NULL DEFAULT 'preparation',
+                                                                          phase TEXT NOT NULL DEFAULT 'defense',
+                                                                          attacker_wins INTEGER NOT NULL DEFAULT 0,
+                                                                          defender_wins INTEGER NOT NULL DEFAULT 0,
+                                                                          attackers_captured TEXT DEFAULT '[]',
+                                                                          created_at INTEGER NOT NULL,
+                                                                          resolved_at INTEGER DEFAULT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_war_outposts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            war_id INTEGER NOT NULL,
-            outpost_index INTEGER NOT NULL,
-            attacker_power REAL NOT NULL DEFAULT 0,
-            defender_power REAL NOT NULL DEFAULT 0,
-            winner TEXT DEFAULT NULL,
-            battle_log TEXT DEFAULT NULL
-        )`, args: [] });
+                                                                                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                  war_id INTEGER NOT NULL,
+                                                                                  outpost_index INTEGER NOT NULL,
+                                                                                  attacker_power REAL NOT NULL DEFAULT 0,
+                                                                                  defender_power REAL NOT NULL DEFAULT 0,
+                                                                                  winner TEXT DEFAULT NULL,
+                                                                                  battle_log TEXT DEFAULT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_war_assignments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            war_id INTEGER NOT NULL,
-            outpost_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            side TEXT NOT NULL
-        )`, args: [] });
+                                                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                     war_id INTEGER NOT NULL,
+                                                                                     outpost_id INTEGER NOT NULL,
+                                                                                     char_id INTEGER NOT NULL,
+                                                                                     side TEXT NOT NULL
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS clan_war_scouts (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            war_id INTEGER NOT NULL,
-            char_id INTEGER NOT NULL,
-            outpost_index INTEGER NOT NULL,
-            status TEXT NOT NULL DEFAULT 'scouting'
-        )`, args: [] });
+                                                                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                war_id INTEGER NOT NULL,
+                                                                                char_id INTEGER NOT NULL,
+                                                                                outpost_index INTEGER NOT NULL,
+                                                                                status TEXT NOT NULL DEFAULT 'scouting'
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_treasury (
-            squad_id INTEGER PRIMARY KEY,
-            gold INTEGER NOT NULL DEFAULT 0,
-            gems INTEGER NOT NULL DEFAULT 0
-        )`, args: [] });
+                                                                               squad_id INTEGER PRIMARY KEY,
+                                                                               gold INTEGER NOT NULL DEFAULT 0,
+                                                                               gems INTEGER NOT NULL DEFAULT 0
+                                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS maps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            level INTEGER NOT NULL UNIQUE,
-            name TEXT NOT NULL DEFAULT '',
-            data TEXT NOT NULL DEFAULT '{}',
-            created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-            updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
-        )`, args: [] });
+                                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                     level INTEGER NOT NULL UNIQUE,
+                                                                     name TEXT NOT NULL DEFAULT '',
+                                                                     data TEXT NOT NULL DEFAULT '{}',
+                                                                     created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+                updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+                )`, args: [] });
         // Add phase deadline columns to clan_wars
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN scout_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN attack_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
@@ -5477,24 +5478,24 @@ async function buildAchievementMetricSnapshot(db, char) {
             ? dbGet(db, 'SELECT referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
             : Promise.resolve(null),
         dbGet(db, `SELECT
-                COUNT(CASE WHEN gr.status = 'completed' THEN 1 END) AS raids_participated,
-                COUNT(CASE WHEN gr.status = 'completed' AND gm.reward_payload IS NOT NULL THEN 1 END) AS raids_won
-            FROM guild_raid_members gm
-            JOIN guild_raids gr ON gr.id = gm.raid_id
-            WHERE gm.char_id = ?`, [char.id]),
+                       COUNT(CASE WHEN gr.status = 'completed' THEN 1 END) AS raids_participated,
+                       COUNT(CASE WHEN gr.status = 'completed' AND gm.reward_payload IS NOT NULL THEN 1 END) AS raids_won
+                   FROM guild_raid_members gm
+                            JOIN guild_raids gr ON gr.id = gm.raid_id
+                   WHERE gm.char_id = ?`, [char.id]),
         dbAll(db, 'SELECT gatekeeper_key FROM character_gatekeeper_defeats WHERE char_id = ?', [char.id]),
         dbGet(db, 'SELECT encounters, defeats, deaths FROM character_crawler_stats WHERE char_id = ?', [char.id]),
         dbGet(db, `
             SELECT COALESCE(SUM(dmg), 0) AS total
             FROM (
-                SELECT COALESCE(total_dmg_dealt, 0) AS dmg
-                FROM battles WHERE attacker_id = ? AND fought_at >= ?
-                UNION ALL
-                SELECT COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg
-                FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                    AND json_extract(substr(body, 15), '$.type') = 'mission'
-                    AND receiver_id = ? AND sent_at >= ?
-            )
+                     SELECT COALESCE(total_dmg_dealt, 0) AS dmg
+                     FROM battles WHERE attacker_id = ? AND fought_at >= ?
+                     UNION ALL
+                     SELECT COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg
+                     FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                                     AND json_extract(substr(body, 15), '$.type') = 'mission'
+                                     AND receiver_id = ? AND sent_at >= ?
+                 )
         `, [char.id, weekStart, char.id, weekStart]),
         dbGet(db, 'SELECT COALESCE(SUM(damage_dealt), 0) AS total FROM war_performance WHERE char_id = ?', [char.id]),
     ]);
@@ -5740,14 +5741,14 @@ async function ensureWeeklyTaskState(db, char) {
     const missionFightsBase = await getMissionFightTotal(db, char.id);
 
     await dbRun(db, `INSERT INTO character_weekly_state
-        (char_id, week_start, mp_spent_base, wins_base, losses_base, mission_fights_base)
-        VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(char_id) DO UPDATE SET
-            week_start = excluded.week_start,
-            mp_spent_base = excluded.mp_spent_base,
-            wins_base = excluded.wins_base,
-            losses_base = excluded.losses_base,
-            mission_fights_base = excluded.mission_fights_base`,
+                     (char_id, week_start, mp_spent_base, wins_base, losses_base, mission_fights_base)
+                     VALUES (?, ?, ?, ?, ?, ?)
+                         ON CONFLICT(char_id) DO UPDATE SET
+                week_start = excluded.week_start,
+                                                     mp_spent_base = excluded.mp_spent_base,
+                                                     wins_base = excluded.wins_base,
+                                                     losses_base = excluded.losses_base,
+                                                     mission_fights_base = excluded.mission_fights_base`,
         [char.id, weekStart, char.total_mp_spent || 0, char.wins || 0, char.losses || 0, missionFightsBase]
     );
     await dbRun(db, 'DELETE FROM character_weekly_claims WHERE char_id = ? AND week_start <> ?', [char.id, weekStart]);
@@ -5756,12 +5757,12 @@ async function ensureWeeklyTaskState(db, char) {
 
 async function incrementWeeklyPerformance(db, charId, damage, won, weekStart) {
     await dbRun(db, `INSERT INTO character_weekly_performance (char_id, week_start, damage_dealt, wins, losses, battles_fought)
-        VALUES (?, ?, ?, ?, ?, 1)
-        ON CONFLICT(char_id, week_start) DO UPDATE SET
-            damage_dealt = damage_dealt + excluded.damage_dealt,
-            wins = wins + excluded.wins,
-            losses = losses + excluded.losses,
-            battles_fought = battles_fought + 1`,
+                     VALUES (?, ?, ?, ?, ?, 1)
+                         ON CONFLICT(char_id, week_start) DO UPDATE SET
+                damage_dealt = damage_dealt + excluded.damage_dealt,
+                                                                 wins = wins + excluded.wins,
+                                                                 losses = losses + excluded.losses,
+                                                                 battles_fought = battles_fought + 1`,
         [charId, weekStart, Math.round(damage || 0), won ? 1 : 0, won ? 0 : 1]);
 }
 
@@ -5928,8 +5929,8 @@ async function getSquadStatDiscount(db, charId) {
     const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [charId]);
     if (!membership) return 0;
     const owned = await dbGet(db, `SELECT b.tier, su.upgrade_level, su.last_upkeep_paid
-        FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
-        WHERE b.owner_squad_id=? LIMIT 1`, [membership.squad_id]);
+                                   FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
+                                   WHERE b.owner_squad_id=? LIMIT 1`, [membership.squad_id]);
     if (!owned) return 0;
     return calcMemberStatDiscount(owned.tier, Number(owned.upgrade_level || 0), Number(owned.last_upkeep_paid || 0));
 }
@@ -6007,14 +6008,14 @@ async function recordMissionSpotResult(db, { charId, mapType = 'overworld', zone
     );
     if (char) await ensureWeeklyTaskState(db, char);
     await dbRun(db, `INSERT INTO character_mission_spot_stats
-        (char_id, map_type, zone_id, spot_id, fights, wins, last_fought_at, last_won_at)
-        VALUES (?, ?, ?, ?, 1, ?, ?, ?)
-        ON CONFLICT(char_id, map_type, spot_id) DO UPDATE SET
-            zone_id = excluded.zone_id,
-            fights = fights + 1,
-            wins = wins + excluded.wins,
-            last_fought_at = excluded.last_fought_at,
-            last_won_at = CASE WHEN excluded.wins > 0 THEN excluded.last_won_at ELSE last_won_at END`,
+                     (char_id, map_type, zone_id, spot_id, fights, wins, last_fought_at, last_won_at)
+                     VALUES (?, ?, ?, ?, 1, ?, ?, ?)
+                         ON CONFLICT(char_id, map_type, spot_id) DO UPDATE SET
+                zone_id = excluded.zone_id,
+                                                                        fights = fights + 1,
+                                                                        wins = wins + excluded.wins,
+                                                                        last_fought_at = excluded.last_fought_at,
+                                                                        last_won_at = CASE WHEN excluded.wins > 0 THEN excluded.last_won_at ELSE last_won_at END`,
         [charId, mapType, zoneId, spotId, didWin, ts, didWin ? ts : 0]
     );
 }
@@ -6041,20 +6042,20 @@ async function ensureActiveGuildBounty(db, charId) {
     };
 
     await dbRun(db, `INSERT INTO character_guild_bounties
-        (char_id, bounty_id, target_source, target_key, target_name, target_count, progress, reward_gold, reward_reputation, completed_at, claimed_at, rolled_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(char_id) DO UPDATE SET
-            bounty_id = excluded.bounty_id,
-            target_source = excluded.target_source,
-            target_key = excluded.target_key,
-            target_name = excluded.target_name,
-            target_count = excluded.target_count,
-            progress = excluded.progress,
-            reward_gold = excluded.reward_gold,
-            reward_reputation = excluded.reward_reputation,
-            completed_at = excluded.completed_at,
-            claimed_at = excluded.claimed_at,
-            rolled_at = excluded.rolled_at`,
+                     (char_id, bounty_id, target_source, target_key, target_name, target_count, progress, reward_gold, reward_reputation, completed_at, claimed_at, rolled_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         ON CONFLICT(char_id) DO UPDATE SET
+                bounty_id = excluded.bounty_id,
+                                                     target_source = excluded.target_source,
+                                                     target_key = excluded.target_key,
+                                                     target_name = excluded.target_name,
+                                                     target_count = excluded.target_count,
+                                                     progress = excluded.progress,
+                                                     reward_gold = excluded.reward_gold,
+                                                     reward_reputation = excluded.reward_reputation,
+                                                     completed_at = excluded.completed_at,
+                                                     claimed_at = excluded.claimed_at,
+                                                     rolled_at = excluded.rolled_at`,
         [charId, nextBounty.bountyId, nextBounty.targetSource, nextBounty.targetKey, nextBounty.targetName, nextBounty.targetCount, nextBounty.progress, nextBounty.rewardGold, nextBounty.rewardReputation, nextBounty.completedAt, nextBounty.claimedAt, nextBounty.rolledAt]
     );
     return dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
@@ -6062,13 +6063,13 @@ async function ensureActiveGuildBounty(db, charId) {
 
 async function getGuildRaidMembers(db, raidId) {
     return dbAll(db, `SELECT m.*,
-            COALESCE(c.name, m.member_name) AS name,
-            COALESCE(c.class, m.member_class) AS class,
-            COALESCE(c.level, m.member_level, 1) AS level
-        FROM guild_raid_members m
-        LEFT JOIN characters c ON c.id = m.char_id
-        WHERE m.raid_id = ?
-        ORDER BY m.joined_at ASC, m.char_id ASC`, [raidId]);
+                             COALESCE(c.name, m.member_name) AS name,
+                             COALESCE(c.class, m.member_class) AS class,
+                             COALESCE(c.level, m.member_level, 1) AS level
+                      FROM guild_raid_members m
+                               LEFT JOIN characters c ON c.id = m.char_id
+                      WHERE m.raid_id = ?
+                      ORDER BY m.joined_at ASC, m.char_id ASC`, [raidId]);
 }
 
 async function getGuildRaidById(db, raidId) {
@@ -6077,24 +6078,24 @@ async function getGuildRaidById(db, raidId) {
 
 async function getOpenRaidForLeader(db, leaderCharId) {
     return dbGet(db, `SELECT * FROM guild_raids
-        WHERE leader_char_id = ? AND status = 'forming'
-        ORDER BY created_at DESC LIMIT 1`, [leaderCharId]);
+                      WHERE leader_char_id = ? AND status = 'forming'
+                      ORDER BY created_at DESC LIMIT 1`, [leaderCharId]);
 }
 
 async function getActiveRaidMembershipForUser(db, userId) {
     return dbGet(db, `SELECT gr.id, gr.status
-        FROM guild_raid_members gm
-        JOIN guild_raids gr ON gr.id = gm.raid_id
-        WHERE gm.user_id = ? AND gr.status = 'forming'
-        LIMIT 1`, [userId]);
+                      FROM guild_raid_members gm
+                               JOIN guild_raids gr ON gr.id = gm.raid_id
+                      WHERE gm.user_id = ? AND gr.status = 'forming'
+                          LIMIT 1`, [userId]);
 }
 
 async function getActiveRaidMembershipForChar(db, charId) {
     return dbGet(db, `SELECT gr.id, gr.status
-        FROM guild_raid_members gm
-        JOIN guild_raids gr ON gr.id = gm.raid_id
-        WHERE gm.char_id = ? AND gr.status = 'forming'
-        LIMIT 1`, [charId]);
+                      FROM guild_raid_members gm
+                               JOIN guild_raids gr ON gr.id = gm.raid_id
+                      WHERE gm.char_id = ? AND gr.status = 'forming'
+                          LIMIT 1`, [charId]);
 }
 
 async function getCharacterBusyState(db, char) {
@@ -6324,10 +6325,10 @@ async function tryStartGuildRaidIfReady(db, raidId, options = {}) {
 
 async function maybeAutoStartGuildRaids(db) {
     const formingRaids = await dbAll(db, `SELECT gr.*,
-        (SELECT COUNT(*) FROM guild_raid_members gm WHERE gm.raid_id = gr.id) AS member_count
-        FROM guild_raids gr
-        WHERE gr.status = 'forming'
-        ORDER BY gr.created_at ASC`);
+                                                 (SELECT COUNT(*) FROM guild_raid_members gm WHERE gm.raid_id = gr.id) AS member_count
+                                          FROM guild_raids gr
+                                          WHERE gr.status = 'forming'
+                                          ORDER BY gr.created_at ASC`);
     for (const raid of formingRaids) {
         const threshold = getGuildRaidAutoStartThreshold(raid);
         if (threshold <= 0 || Number(raid.member_count || 0) < threshold) continue;
@@ -6390,9 +6391,9 @@ async function buildGuildRaidView(db, raid, viewerCharId, viewerUserId) {
 async function getGuildRaidList(db, viewerCharId, viewerUserId) {
     await maybeAutoStartGuildRaids(db);
     const raids = await dbAll(db, `SELECT * FROM guild_raids
-        WHERE status = 'forming'
-        ORDER BY created_at DESC
-        LIMIT 12`);
+                                   WHERE status = 'forming'
+                                   ORDER BY created_at DESC
+                                       LIMIT 12`);
     const payload = [];
     for (const raid of raids) {
         payload.push(await buildGuildRaidView(db, raid, viewerCharId, viewerUserId));
@@ -6408,13 +6409,13 @@ async function recordMonsterDefeat(db, { charId, source = 'mission', monsterKey,
     if (!charId || !key) return;
 
     await dbRun(db, `INSERT INTO character_monster_stats
-        (char_id, source, monster_key, monster_name, kills, wins, last_defeated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(char_id, source, monster_key) DO UPDATE SET
-            monster_name = excluded.monster_name,
-            kills = kills + excluded.kills,
-            wins = wins + excluded.wins,
-            last_defeated_at = excluded.last_defeated_at`,
+                     (char_id, source, monster_key, monster_name, kills, wins, last_defeated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)
+                         ON CONFLICT(char_id, source, monster_key) DO UPDATE SET
+                monster_name = excluded.monster_name,
+                                                                          kills = kills + excluded.kills,
+                                                                          wins = wins + excluded.wins,
+                                                                          last_defeated_at = excluded.last_defeated_at`,
         [charId, source, key, name, kills, kills, ts]
     );
 
@@ -6488,7 +6489,7 @@ async function recordDamageStyleWin(db, charId, elementalDamageTotal) {
 
 async function listUserCharacters(db, userId) {
     return dbAll(db, `SELECT id, user_id, name, class, level, xp, gold, gems, wins, losses, location, current_map
-        FROM characters WHERE user_id = ? ORDER BY id ASC`, [userId]);
+                      FROM characters WHERE user_id = ? ORDER BY id ASC`, [userId]);
 }
 
 async function ensureActiveCharacter(db, userId, preferredCharacterId = null) {
@@ -7637,7 +7638,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     let ed = (attacker.elem_dmg || {})[elem] || 0;
                     if (ed <= 0) continue;
                     ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
-                        ed = Math.floor(ed * magicMult * magicElemMult);
+                    ed = Math.floor(ed * magicMult * magicElemMult);
                     if (holyFireMult > 1 && (elem === 'pyro' || elem === 'holy')) ed = Math.floor(ed * holyFireMult);
                     const eRes = ((defender.elem_resist || {})[elem] || 0) + (defenderWeaponRamp.resFlat[elem] || 0);
                     const mRes = Math.floor((defender.magic || 0) * 0.05);
@@ -7691,7 +7692,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const magicToElemental = attacker.class === 'mage';
             physicalDmg = Math.max(0, physicalDmg + (magicToElemental ? 0 : damageBonus) - resistance);
 
-const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
+            const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             // Weapon-skill round ramps (attacker buffs / defender resist)
             const rampA = attackerWeaponRamp;
             const rampD = defenderWeaponRamp;
@@ -7768,238 +7769,238 @@ const pierceBlock = gladRush || (skillBackstab && backstabSkill?.pierce_block);
             if (!blockCovers || blockFails) {
                 finalDmg = physicalDmg;
 
-            if (finalDmg > 0 && ((defender.armor || 0) + (rampD.armor || 0)) > 0) {
-                let effArmor = (defender.armor + (rampD.armor || 0)); if (isBackstab) effArmor = Math.floor(effArmor * 0.5);
-                const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
-                if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
-                const brArmourEff = getActiveCombatEffect(attacker, 'berserker_rage');
-                if (brArmourEff && brArmourEff.ignore_armour_pct) {
-                    attacker._berserkerRageHits = (attacker._berserkerRageHits || 0) + 1;
-                    const interval = Math.max(1, Math.round(brArmourEff.interval || 3));
-                    if (attacker._berserkerRageHits % interval === 0) {
-                        effArmor = Math.floor(effArmor * (1 - brArmourEff.ignore_armour_pct));
+                if (finalDmg > 0 && ((defender.armor || 0) + (rampD.armor || 0)) > 0) {
+                    let effArmor = (defender.armor + (rampD.armor || 0)); if (isBackstab) effArmor = Math.floor(effArmor * 0.5);
+                    const critPierce = isCrit ? hasClassModifier(attacker, 'crit_armour_pierce') : null;
+                    if (critPierce) effArmor = Math.floor(effArmor * (1 - critPierce.pct));
+                    const brArmourEff = getActiveCombatEffect(attacker, 'berserker_rage');
+                    if (brArmourEff && brArmourEff.ignore_armour_pct) {
+                        attacker._berserkerRageHits = (attacker._berserkerRageHits || 0) + 1;
+                        const interval = Math.max(1, Math.round(brArmourEff.interval || 3));
+                        if (attacker._berserkerRageHits % interval === 0) {
+                            effArmor = Math.floor(effArmor * (1 - brArmourEff.ignore_armour_pct));
+                        }
+                    }
+                    const physReduction = Math.min(finalDmg - 1, effArmor);
+                    finalDmg = Math.max(1, finalDmg - physReduction);
+                    absorbedPhys += physReduction;
+                }
+
+                if (totalElemDmg > 0) finalDmg += totalElemDmg;
+
+                const holyEmpowerBonus = consumeHolyStrikeEmpowerment();
+                if (holyEmpowerBonus > 0) {
+                    finalDmg += holyEmpowerBonus;
+                }
+                let venomfangBonus = 0;
+                if (hasSkill(atkSkills, 'venomfang')) {
+                    const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
+                    venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
+                    finalDmg += venomfangBonus;
+                }
+
+                // plague_sovereign: poison crit bonus
+                if (venomfangBonus > 0 && isCrit && hasSkill(atkSkills, 'plague_sovereign')) {
+                    const psEff = getActiveCombatEffect(attacker, 'plague_sovereign');
+                    if (psEff?.poison_crit_bonus) {
+                        const extraPoison = Math.round(venomfangBonus * psEff.poison_crit_bonus);
+                        if (extraPoison > 0) { finalDmg += extraPoison; venomfangBonus += extraPoison; }
                     }
                 }
-                const physReduction = Math.min(finalDmg - 1, effArmor);
-                finalDmg = Math.max(1, finalDmg - physReduction);
-                absorbedPhys += physReduction;
-            }
 
-            if (totalElemDmg > 0) finalDmg += totalElemDmg;
-
-            const holyEmpowerBonus = consumeHolyStrikeEmpowerment();
-            if (holyEmpowerBonus > 0) {
-                finalDmg += holyEmpowerBonus;
-            }
-            let venomfangBonus = 0;
-            if (hasSkill(atkSkills, 'venomfang')) {
-                const venomfangPct = CLASS_SKILLS[attacker.class]?.find(s => s.id === 'venomfang')?.value || 0.08;
-                venomfangBonus = Math.max(1, Math.round(finalDmg * venomfangPct));
-                finalDmg += venomfangBonus;
-            }
-
-            // plague_sovereign: poison crit bonus
-            if (venomfangBonus > 0 && isCrit && hasSkill(atkSkills, 'plague_sovereign')) {
-                const psEff = getActiveCombatEffect(attacker, 'plague_sovereign');
-                if (psEff?.poison_crit_bonus) {
-                    const extraPoison = Math.round(venomfangBonus * psEff.poison_crit_bonus);
-                    if (extraPoison > 0) { finalDmg += extraPoison; venomfangBonus += extraPoison; }
+                // life_drain: drain extra HP from opponent (added to final damage)
+                let lifeDrainAmt = 0;
+                if (finalDmg > 0 && hasSkill(atkSkills, 'life_drain')) {
+                    const ldEff = getActiveCombatEffect(attacker, 'life_drain');
+                    const ldPct = ldEff?.pct || 0.10;
+                    lifeDrainAmt = Math.max(1, Math.floor(finalDmg * ldPct));
+                    finalDmg += lifeDrainAmt;
                 }
-            }
 
-            // life_drain: drain extra HP from opponent (added to final damage)
-            let lifeDrainAmt = 0;
-            if (finalDmg > 0 && hasSkill(atkSkills, 'life_drain')) {
-                const ldEff = getActiveCombatEffect(attacker, 'life_drain');
-                const ldPct = ldEff?.pct || 0.10;
-                lifeDrainAmt = Math.max(1, Math.floor(finalDmg * ldPct));
-                finalDmg += lifeDrainAmt;
-            }
+                // sanctioned_strike: crit heal
+                if (isCrit && finalDmg > 0 && hasSkill(atkSkills, 'sanctioned_strike')) {
+                    const ssEff = getActiveCombatEffect(attacker, 'sanctioned_strike');
+                    const ssPct = ssEff?.crit_heal_pct || 0.30;
+                    const critHeal = Math.max(1, Math.floor(finalDmg * ssPct));
+                    attacker._sanctionedHeal = (attacker._sanctionedHeal || 0) + critHeal;
+                    if (logLine) logLine += ` 💚+${critHeal} sanctified`;
+                }
 
-            // sanctioned_strike: crit heal
-            if (isCrit && finalDmg > 0 && hasSkill(atkSkills, 'sanctioned_strike')) {
-                const ssEff = getActiveCombatEffect(attacker, 'sanctioned_strike');
-                const ssPct = ssEff?.crit_heal_pct || 0.30;
-                const critHeal = Math.max(1, Math.floor(finalDmg * ssPct));
-                attacker._sanctionedHeal = (attacker._sanctionedHeal || 0) + critHeal;
-                if (logLine) logLine += ` 💚+${critHeal} sanctified`;
-            }
+                // bastion_heart: block heal
+                if (blockCovers && !blockFails && finalDmg > 0 && hasSkill(defSkills, 'bastion_heart')) {
+                    const bhEff = getActiveCombatEffect(defender, 'bastion_heart');
+                    const bhPct = bhEff?.block_heal_pct || 0.06;
+                    const blockHeal = Math.max(1, Math.floor(finalDmg * bhPct));
+                    defender._bastionHeal = (defender._bastionHeal || 0) + blockHeal;
+                    if (logLine) logLine += ` 💚+${blockHeal} bastion_heart`;
+                }
 
-            // bastion_heart: block heal
-            if (blockCovers && !blockFails && finalDmg > 0 && hasSkill(defSkills, 'bastion_heart')) {
-                const bhEff = getActiveCombatEffect(defender, 'bastion_heart');
-                const bhPct = bhEff?.block_heal_pct || 0.06;
-                const blockHeal = Math.max(1, Math.floor(finalDmg * bhPct));
-                defender._bastionHeal = (defender._bastionHeal || 0) + blockHeal;
-                if (logLine) logLine += ` 💚+${blockHeal} bastion_heart`;
-            }
-
-            // void_curse: reduce defender elem resist for future rounds
-            if (finalDmg > 0 && hasSkill(atkSkills, 'void_curse')) {
-                const vcEff = getActiveCombatEffect(attacker, 'void_curse');
-                if (vcEff?.enemy_elem_resist_debuff) {
-                    for (const elem of ELEMENTS) {
-                        if (defender.elem_resist) {
-                            defender.elem_resist[elem] = (defender.elem_resist[elem] || 0) - vcEff.enemy_elem_resist_debuff;
+                // void_curse: reduce defender elem resist for future rounds
+                if (finalDmg > 0 && hasSkill(atkSkills, 'void_curse')) {
+                    const vcEff = getActiveCombatEffect(attacker, 'void_curse');
+                    if (vcEff?.enemy_elem_resist_debuff) {
+                        for (const elem of ELEMENTS) {
+                            if (defender.elem_resist) {
+                                defender.elem_resist[elem] = (defender.elem_resist[elem] || 0) - vcEff.enemy_elem_resist_debuff;
+                            }
                         }
                     }
                 }
-            }
 
-            // burn_dot: apply burning to defender (5% of damage per round, pyro element)
-            if (finalDmg > 0 && hasSkill(atkSkills, 'burn_dot')) {
-                const bdEff = getActiveCombatEffect(attacker, 'burn_dot');
-                const bdPct = bdEff?.dot_pct || 0.05;
-                let burnDmg = Math.max(1, Math.floor(finalDmg * bdPct));
-                // burn_amplify: class modifier that increases burn damage
-                if (hasClassModifier(attacker, 'burn_amplify')) {
-                    const baMod = hasClassModifier(attacker, 'burn_amplify');
-                    burnDmg = Math.floor(burnDmg * (1 + (baMod.bonus || 0)));
+                // burn_dot: apply burning to defender (5% of damage per round, pyro element)
+                if (finalDmg > 0 && hasSkill(atkSkills, 'burn_dot')) {
+                    const bdEff = getActiveCombatEffect(attacker, 'burn_dot');
+                    const bdPct = bdEff?.dot_pct || 0.05;
+                    let burnDmg = Math.max(1, Math.floor(finalDmg * bdPct));
+                    // burn_amplify: class modifier that increases burn damage
+                    if (hasClassModifier(attacker, 'burn_amplify')) {
+                        const baMod = hasClassModifier(attacker, 'burn_amplify');
+                        burnDmg = Math.floor(burnDmg * (1 + (baMod.bonus || 0)));
+                    }
+                    defender._burnDotDmg = (defender._burnDotDmg || 0) + burnDmg;
                 }
-                defender._burnDotDmg = (defender._burnDotDmg || 0) + burnDmg;
-            }
 
-            // void_blade: proc agility-based elemental damage
-            let voidBladeDmg = 0;
-            if (finalDmg > 0 && hasSkill(atkSkills, 'void_blade')) {
-                const vbEff = getActiveCombatEffect(attacker, 'void_blade');
-                if (vbEff && Math.random() < (vbEff.proc_chance || 0.30)) {
-                    const statVal = attacker[vbEff.bonus_from_stat || 'agility'] || 0;
-                    const rawBonus = Math.floor(statVal * (vbEff.bonus_mult || 1.50));
-                    if (rawBonus > 0) {
-                        voidBladeDmg = rawBonus;
-                        const vbElems = vbEff.elems || ['electro', 'wind'];
-                        let resistSum = 0;
-                        for (const el of vbElems) {
-                            resistSum += (defender.elem_resist || {})[el] || 0;
+                // void_blade: proc agility-based elemental damage
+                let voidBladeDmg = 0;
+                if (finalDmg > 0 && hasSkill(atkSkills, 'void_blade')) {
+                    const vbEff = getActiveCombatEffect(attacker, 'void_blade');
+                    if (vbEff && Math.random() < (vbEff.proc_chance || 0.30)) {
+                        const statVal = attacker[vbEff.bonus_from_stat || 'agility'] || 0;
+                        const rawBonus = Math.floor(statVal * (vbEff.bonus_mult || 1.50));
+                        if (rawBonus > 0) {
+                            voidBladeDmg = rawBonus;
+                            const vbElems = vbEff.elems || ['electro', 'wind'];
+                            let resistSum = 0;
+                            for (const el of vbElems) {
+                                resistSum += (defender.elem_resist || {})[el] || 0;
+                            }
+                            const avgResist = Math.floor(resistSum / Math.max(1, vbElems.length));
+                            const mRes = Math.floor((defender.magic || 0) * 0.05);
+                            voidBladeDmg = Math.max(0, voidBladeDmg - avgResist - mRes);
+                            if (voidBladeDmg > 0) {
+                                finalDmg += voidBladeDmg;
+                            }
                         }
-                        const avgResist = Math.floor(resistSum / Math.max(1, vbElems.length));
+                    }
+                }
+
+                // lightning_arc: proc bonus electro damage
+                let lightningArcDmg = 0;
+                if (finalDmg > 0 && hasSkill(atkSkills, 'lightning_arc')) {
+                    const laEff = getActiveCombatEffect(attacker, 'lightning_arc');
+                    if (laEff && Math.random() < (laEff.proc_chance || 0.25)) {
+                        const elemDmg = (attacker.elem_dmg || {}).electro || 0;
+                        lightningArcDmg = Math.max(1, Math.floor((elemDmg + magicFlatBonus) * (laEff.bonus_pct || 0.75)));
+                        const eRes = ((defender.elem_resist || {}).electro || 0) + (defenderWeaponRamp.resFlat.electro || 0);
                         const mRes = Math.floor((defender.magic || 0) * 0.05);
-                        voidBladeDmg = Math.max(0, voidBladeDmg - avgResist - mRes);
-                        if (voidBladeDmg > 0) {
-                            finalDmg += voidBladeDmg;
+                        lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
+                        if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
+                    }
+                }
+
+                // frenzy_stacks: accumulate per hit (capped at max_stacks)
+                if (finalDmg > 0 && hasSkill(atkSkills, 'frenzy_stacks')) {
+                    const fzEff = getActiveCombatEffect(attacker, 'frenzy_stacks');
+                    const maxStacks = fzEff?.max_stacks || 5;
+                    attacker._frenzyStacks = Math.min(maxStacks, (attacker._frenzyStacks || 0) + 1);
+                }
+
+                // block_effectiveness from skills applies as general damage reduction
+                if (finalDmg > 0) {
+                    const dmgReduction = defender.blockEffectiveness || 0;
+                    finalDmg = Math.max(1, Math.floor(finalDmg * Math.max(0.05, 1 - dmgReduction)));
+                }
+
+                let justAbsorbed = false;
+                let absorbedAmount = 0;
+                if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
+                    absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
+                    // Keep the elemental/bonus breakdown consistent with the reduced total:
+                    // every component is reduced by the same fraction the shield absorbed.
+                    const preAbsorbTotal = finalDmg;
+                    finalDmg -= absorbedAmount;
+                    defenderShield.remaining -= absorbedAmount;
+                    const ratio = preAbsorbTotal > 0 ? ((preAbsorbTotal - absorbedAmount) / preAbsorbTotal) : 0;
+                    totalElemDmg = Math.round(totalElemDmg * ratio);
+                    if (defenderShield.remaining <= 0) {
+                        defenderShield.active = false;
+                        if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
+                            defender.holyStrikeReady = true;
+                        }
+                    }
+                    justAbsorbed = true;
+                }
+                chargeHolyStrikeFromAbsorb(absorbedAmount);
+                absorbedShield += absorbedAmount;
+
+                const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
+                logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
+                if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
+                if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
+                if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
+                if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
+
+                if (justAbsorbed) {
+                    if (finalDmg <= 0) {
+                        logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD blocks the blow!`;
+                    } else {
+                        logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD blocks the blow! ${Math.round(finalDmg)} gets through`;
+                        if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
+                        if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
+                        if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
+                        if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
+                    }
+                    if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
+                }
+
+                if (justAbsorbed && defenderShield.remaining > 0) {
+                    logLine += ` ${defenderShield.remaining} durability remains.`;
+                }
+
+                if (hasSkillOrEffect(attacker, 'holy_strike') && finalDmg > 0) {
+                    const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
+                    const healPct = hsEff?.heal_pct || 0.10;
+                    healBack = Math.floor(finalDmg * healPct);
+                    logLine += ` 💚 +${healBack} heal`;
+                }
+                if (lifeDrainAmt > 0) {
+                    logLine += ` 💀 +${lifeDrainAmt} life drain`;
+                }
+                const consEff = getActiveCombatEffect(defender, 'consecrate');
+                if (consEff && (absorbedPhys + absorbedElem + absorbedShield) > 0) {
+                    const reflectPct = consEff.reflect_pct || 0.15;
+                    const absorbReflected = Math.floor((absorbedPhys + absorbedElem + absorbedShield) * reflectPct);
+                    damageCounter += absorbReflected;
+                    logLine += ` 🌿 ${Math.round(absorbReflected)} reflected`;
+                }
+                // counter_attack: 40% chance to counter for 75% damage
+                if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
+                    const caEff = getActiveCombatEffect(defender, 'counter_attack');
+                    const caChance = caEff?.counter_chance || 0.40;
+                    const caPct = caEff?.counter_dmg_pct || 0.75;
+                    if (Math.random() < caChance) {
+                        const counterDmg = Math.floor(finalDmg * caPct);
+                        logLine += ` — COUNTERED for ${counterDmg}`;
+                        damageCounter += counterDmg;
+                    }
+                }
+                // phantom_counter: 25% counter on dodge (when attacker missed)
+                if (!atkHit && hasSkill(defSkills, 'phantom_counter')) {
+                    const pcEff = getActiveCombatEffect(defender, 'phantom_counter');
+                    const pcChance = pcEff?.counter_on_dodge_pct || 0.25;
+                    if (Math.random() < pcChance) {
+                        const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
+                        if (phantomDmg > 0) {
+                            logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
+                            damageCounter += phantomDmg;
                         }
                     }
                 }
-            }
-
-            // lightning_arc: proc bonus electro damage
-            let lightningArcDmg = 0;
-            if (finalDmg > 0 && hasSkill(atkSkills, 'lightning_arc')) {
-                const laEff = getActiveCombatEffect(attacker, 'lightning_arc');
-                if (laEff && Math.random() < (laEff.proc_chance || 0.25)) {
-                    const elemDmg = (attacker.elem_dmg || {}).electro || 0;
-                    lightningArcDmg = Math.max(1, Math.floor((elemDmg + magicFlatBonus) * (laEff.bonus_pct || 0.75)));
-                    const eRes = ((defender.elem_resist || {}).electro || 0) + (defenderWeaponRamp.resFlat.electro || 0);
-                    const mRes = Math.floor((defender.magic || 0) * 0.05);
-                    lightningArcDmg = Math.max(0, lightningArcDmg - eRes - mRes);
-                    if (lightningArcDmg > 0) finalDmg += lightningArcDmg;
-                }
-            }
-
-            // frenzy_stacks: accumulate per hit (capped at max_stacks)
-            if (finalDmg > 0 && hasSkill(atkSkills, 'frenzy_stacks')) {
-                const fzEff = getActiveCombatEffect(attacker, 'frenzy_stacks');
-                const maxStacks = fzEff?.max_stacks || 5;
-                attacker._frenzyStacks = Math.min(maxStacks, (attacker._frenzyStacks || 0) + 1);
-            }
-
-            // block_effectiveness from skills applies as general damage reduction
-            if (finalDmg > 0) {
-                const dmgReduction = defender.blockEffectiveness || 0;
-                finalDmg = Math.max(1, Math.floor(finalDmg * Math.max(0.05, 1 - dmgReduction)));
-            }
-
-            let justAbsorbed = false;
-            let absorbedAmount = 0;
-            if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && finalDmg > 0) {
-                absorbedAmount = Math.min(defenderShield.remaining, finalDmg);
-                // Keep the elemental/bonus breakdown consistent with the reduced total:
-                // every component is reduced by the same fraction the shield absorbed.
-                const preAbsorbTotal = finalDmg;
-                finalDmg -= absorbedAmount;
-                defenderShield.remaining -= absorbedAmount;
-                const ratio = preAbsorbTotal > 0 ? ((preAbsorbTotal - absorbedAmount) / preAbsorbTotal) : 0;
-                totalElemDmg = Math.round(totalElemDmg * ratio);
-                if (defenderShield.remaining <= 0) {
-                    defenderShield.active = false;
-                    if (defender.class === 'paladin' && hasSkillOrEffect(defender, 'holy_strike')) {
-                        defender.holyStrikeReady = true;
-                    }
-                }
-                justAbsorbed = true;
-            }
-            chargeHolyStrikeFromAbsorb(absorbedAmount);
-            absorbedShield += absorbedAmount;
-
-            const bsTag = isBackstab ? ' BACKSTABS' : (randomBlockPen ? ' BLOCK PENETRATION' : (rageActive ? ' lands a RAGING BLOW' : ' lands a hit'));
-            logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ${Math.round(finalDmg)} damage`;
-            if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
-            if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
-            if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
-            if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
-
-            if (justAbsorbed) {
-                if (finalDmg <= 0) {
-                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD blocks the blow!`;
-                } else {
-                    logLine = `Round ${roundNum}: ${attacker.name}${bsTag}${critTag} — ✨ FORCE FIELD blocks the blow! ${Math.round(finalDmg)} gets through`;
-                    if (totalElemDmg > 0) logLine += ` including ${Math.round(totalElemDmg)} elemental damage`;
-                    if (venomfangBonus > 0) logLine += ` ☠️ (+${venomfangBonus} poison)`;
-                    if (voidBladeDmg > 0) logLine += ` 🌑 (+${voidBladeDmg} void blade)`;
-                    if (lightningArcDmg > 0) logLine += ` ⚡ (+${lightningArcDmg} lightning arc)`;
-                }
-                if (defenderShield.remaining <= 0) logLine += ` 💔 Force field shatters!`;
-            }
-
-            if (justAbsorbed && defenderShield.remaining > 0) {
-                logLine += ` ${defenderShield.remaining} durability remains.`;
-            }
-
-            if (hasSkillOrEffect(attacker, 'holy_strike') && finalDmg > 0) {
-                const hsEff = getActiveCombatEffect(attacker, 'holy_strike');
-                const healPct = hsEff?.heal_pct || 0.10;
-                healBack = Math.floor(finalDmg * healPct);
-                logLine += ` 💚 +${healBack} heal`;
-            }
-            if (lifeDrainAmt > 0) {
-                logLine += ` 💀 +${lifeDrainAmt} life drain`;
-            }
-            const consEff = getActiveCombatEffect(defender, 'consecrate');
-            if (consEff && (absorbedPhys + absorbedElem + absorbedShield) > 0) {
-                const reflectPct = consEff.reflect_pct || 0.15;
-                const absorbReflected = Math.floor((absorbedPhys + absorbedElem + absorbedShield) * reflectPct);
-                damageCounter += absorbReflected;
-                logLine += ` 🌿 ${Math.round(absorbReflected)} reflected`;
-            }
-            // counter_attack: 40% chance to counter for 75% damage
-            if (finalDmg > 0 && hasSkill(defSkills, 'counter_attack')) {
-                const caEff = getActiveCombatEffect(defender, 'counter_attack');
-                const caChance = caEff?.counter_chance || 0.40;
-                const caPct = caEff?.counter_dmg_pct || 0.75;
-                if (Math.random() < caChance) {
-                    const counterDmg = Math.floor(finalDmg * caPct);
+                if (blk.special === 'next_round_hit_penalty' && !hasClassModifier(attacker, 'stun_immune')) nextAtkPenalty = true;
+                if (blk.special === 'counter_25' && Math.random() < 0.25) {
+                    const counterDmg = Math.floor(finalDmg * 0.50);
                     logLine += ` — COUNTERED for ${counterDmg}`;
                     damageCounter += counterDmg;
-                }
-            }
-            // phantom_counter: 25% counter on dodge (when attacker missed)
-            if (!atkHit && hasSkill(defSkills, 'phantom_counter')) {
-                const pcEff = getActiveCombatEffect(defender, 'phantom_counter');
-                const pcChance = pcEff?.counter_on_dodge_pct || 0.25;
-                if (Math.random() < pcChance) {
-                    const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
-                    if (phantomDmg > 0) {
-                        logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
-                        damageCounter += phantomDmg;
-                    }
-                }
-            }
-            if (blk.special === 'next_round_hit_penalty' && !hasClassModifier(attacker, 'stun_immune')) nextAtkPenalty = true;
-            if (blk.special === 'counter_25' && Math.random() < 0.25) {
-                const counterDmg = Math.floor(finalDmg * 0.50);
-                logLine += ` — COUNTERED for ${counterDmg}`;
-                damageCounter += counterDmg;
                 }
             }
         }
@@ -8869,7 +8870,7 @@ async function buildCombatFighter(db, char) {
     // in-battle heals and the HP cap match the character sheet's boosted max HP.
     const beastBonus = await getBeastStatBonus(db, char.id);
     const hpBoost = beastBonus.role === 'heal' ? (beastBonus.vit * 25 + beastBonus.def * 2) : 0;
-    
+
     // Apply beast vitality to HP calc only (don't add to char.vitality itself)
     const boostedVitality = (char.vitality || 10) + beastBonus.vit;
     const hpMax = calcHpMax({ ...char, vitality: boostedVitality }, equippedArray) + (beastBonus.role === 'heal' ? (beastBonus.def * 2) : 0);
@@ -10799,7 +10800,7 @@ router.post('/admin/profile-pic/review', auth, async (req, res) => {
         const db = await getDb();
         const pending = await dbGet(db, 'SELECT * FROM pending_profile_pics WHERE id=?', [id]);
         if (!pending) return res.status(404).json({ error: 'Not found' });
-        
+
         if (approve) {
             await dbRun(db, 'UPDATE pending_profile_pics SET status=? WHERE id=?', ['approved', id]);
             // Add to unlocked list
@@ -10969,14 +10970,14 @@ router.get('/setups', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         await dbRun(db, `CREATE TABLE IF NOT EXISTS character_setups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            char_id INTEGER NOT NULL,
-            slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 4),
+                                                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                         char_id INTEGER NOT NULL,
+                                                                         slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 4),
             name TEXT NOT NULL DEFAULT '',
             data TEXT NOT NULL DEFAULT '{}',
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(char_id, slot)
-        )`);
+            )`);
         const rows = await dbAll(db, 'SELECT * FROM character_setups WHERE char_id=? ORDER BY slot', [char.id]);
         // Ensure 4 slots exist
         for (let i = 1; i <= 4; i++) {
@@ -10997,14 +10998,14 @@ router.put('/setups/:slot', auth, async (req, res) => {
         const slot = parseInt(req.params.slot);
         if (slot < 1 || slot > 4) return res.status(400).json({ error: 'Slot must be 1-4' });
         await dbRun(db, `CREATE TABLE IF NOT EXISTS character_setups (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            char_id INTEGER NOT NULL,
-            slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 4),
+                                                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                         char_id INTEGER NOT NULL,
+                                                                         slot INTEGER NOT NULL CHECK(slot BETWEEN 1 AND 4),
             name TEXT NOT NULL DEFAULT '',
             data TEXT NOT NULL DEFAULT '{}',
             updated_at TEXT DEFAULT (datetime('now')),
             UNIQUE(char_id, slot)
-        )`);
+            )`);
         const name = req.body.name || `Setup ${slot}`;
         let data;
         if (req.body.snapshot) {
@@ -11025,7 +11026,7 @@ router.put('/setups/:slot', auth, async (req, res) => {
             try { data = JSON.parse(existing?.data || '{}'); } catch { data = {}; }
         }
         await dbRun(db, `INSERT INTO character_setups (char_id, slot, name, data, updated_at) VALUES (?, ?, ?, ?, datetime('now'))
-            ON CONFLICT(char_id, slot) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
+                    ON CONFLICT(char_id, slot) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
             [char.id, slot, name, JSON.stringify(data)]);
         res.json({ success: true, slot, name, data });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -11124,18 +11125,18 @@ router.get('/squads/me', auth, async (req, res) => {
         if (!membership) return res.json({ squad: null, members: [] });
         const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at, squad_tag FROM squads WHERE id=?', [membership.squad_id]);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
-            COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
-            COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated,
-            c.last_online_at
-            FROM squad_members sm JOIN characters c ON c.id = sm.char_id
-            WHERE sm.squad_id=? ORDER BY 
-            CASE sm.role 
-                WHEN 'leader' THEN 1 
-                WHEN 'co_leader' THEN 2 
-                WHEN 'officer' THEN 3 
-                ELSE 4 
-            END, 
-            c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id]);
+                                                COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
+                                                COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated,
+                                                c.last_online_at
+                                         FROM squad_members sm JOIN characters c ON c.id = sm.char_id
+                                         WHERE sm.squad_id=? ORDER BY
+                                                                 CASE sm.role
+                                                                     WHEN 'leader' THEN 1
+                                                                     WHEN 'co_leader' THEN 2
+                                                                     WHEN 'officer' THEN 3
+                                                                     ELSE 4
+                                                                     END,
+                                                                 c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id]);
         res.json({ squad, members });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -11153,7 +11154,7 @@ router.post('/squads/create', auth, async (req, res) => {
         const tag = (req.body?.tag || '').toUpperCase().trim();
         if (!tag) return res.status(400).json({ error: 'Squad tag is required.' });
         if (!/^[\p{L}\p{N}&.!?\-+*@#$%^~=|:;_]{1,5}$/u.test(tag)) return res.status(400).json({ error: 'Invalid squad tag (1-5 chars, letters/numbers/symbols).' });
-        
+
         const tagExists = await dbGet(db, 'SELECT 1 FROM squads WHERE squad_tag=? LIMIT 1', [tag]);
         if (tagExists) return res.status(400).json({ error: 'Squad tag already in use.' });
 
@@ -11242,11 +11243,11 @@ router.get('/squads/leaderboard', auth, async (req, res) => {
                 CAST(AVG(c.total_gold_earned) AS INTEGER) AS avg_gold_earned,
                 SUM(c.total_gold_earned) AS total_gold_earned
             FROM squads s
-            JOIN squad_members sm ON sm.squad_id = s.id
-            JOIN characters c ON c.id = sm.char_id
+                     JOIN squad_members sm ON sm.squad_id = s.id
+                     JOIN characters c ON c.id = sm.char_id
             GROUP BY s.id
             ORDER BY total_gold_earned DESC
-            LIMIT 200
+                LIMIT 200
         `, []);
         res.json(rows.map(r => ({
             id: Number(r.id || 0),
@@ -11297,8 +11298,8 @@ router.get('/squads/applications', auth, async (req, res) => {
         const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
         if (!membership) return res.json({ applications: [] });
         const apps = await dbAll(db, `SELECT sa.id, sa.char_id, sa.status, sa.created_at, c.name, c.class, c.level
-            FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
-            WHERE sa.squad_id=? AND sa.status='pending' ORDER BY sa.created_at DESC`,
+                                      FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
+                                      WHERE sa.squad_id=? AND sa.status='pending' ORDER BY sa.created_at DESC`,
             [membership.squad_id]);
         res.json({ applications: apps.map(a => ({
                 id: Number(a.id),
@@ -11522,8 +11523,8 @@ router.get('/squads/bases', auth, async (req, res) => {
         // Map is locked while the squad has an active war
         const inWar = squadId ? await dbGet(db, "SELECT 1 FROM clan_wars WHERE (attacker_squad_id=? OR defender_squad_id=?) AND status IN ('preparation','attacking') LIMIT 1", [squadId, squadId]) : null;
         const bases = await dbAll(db, `SELECT b.*, su.upgrade_level, su.last_upkeep_paid, s.name AS owner_name, s.squad_tag AS owner_tag
-            FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
-            LEFT JOIN squads s ON s.id = b.owner_squad_id ORDER BY b.tier, b.id`, []);
+                                       FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
+                                                         LEFT JOIN squads s ON s.id = b.owner_squad_id ORDER BY b.tier, b.id`, []);
         const enhanced = bases.map(b => ({
             id: Number(b.id), name: b.name, tier: b.tier, max_upgrades: Number(b.max_upgrades),
             map_x: Number(b.map_x), map_y: Number(b.map_y),
@@ -11630,7 +11631,7 @@ router.post('/squads/bases/:baseId/upgrade', auth, async (req, res) => {
         if (tresGems < cost.gems) return res.status(400).json({ error: `Squad treasury needs ${cost.gems} gems (has ${tresGems}).` });
         await dbRun(db, 'UPDATE squad_treasury SET gold=gold-?, gems=gems-? WHERE squad_id=?', [cost.gold, cost.gems, membership.squad_id]);
         await dbRun(db, `INSERT INTO squad_base_upgrades (squad_id, base_id, upgrade_level) VALUES (?,?,?)
-            ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=excluded.upgrade_level`,
+                    ON CONFLICT(squad_id, base_id) DO UPDATE SET upgrade_level=excluded.upgrade_level`,
             [membership.squad_id, baseId, cost.next_level]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)',
             [char.id, char.id, '🏰 Base Upgraded', `Base "${base.name}" upgraded to level ${cost.next_level}!`]);
@@ -11742,7 +11743,7 @@ router.post('/squads/bases/:baseId/capture', auth, async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const attackEndsAt = now + 43200; // 12h assignment phase
         const warIns = await dbRun(db, `INSERT INTO clan_wars (attacker_squad_id, defender_squad_id, base_id, status, phase, created_at, attack_ends_at, is_npc_war, defender_npc_count)
-            VALUES (?,?,?,?,?,?,?,?,?)`,
+                                        VALUES (?,?,?,?,?,?,?,?,?)`,
             [membership.squad_id, 0, baseId, 'preparation', 'attacking', now, attackEndsAt, 1, cfg.npc_count]);
         const warId = Number(warIns.lastInsertRowid || 0);
         // Create outposts with NPC defenders
@@ -11843,8 +11844,8 @@ router.get('/squads/base-info', auth, async (req, res) => {
         const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ base: null });
         const ownedBase = await dbGet(db, `SELECT b.*, su.upgrade_level, su.last_upkeep_paid
-            FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
-            WHERE b.owner_squad_id=? LIMIT 1`, [membership.squad_id]);
+                                           FROM clan_bases b LEFT JOIN squad_base_upgrades su ON su.base_id = b.id AND su.squad_id = b.owner_squad_id
+                                           WHERE b.owner_squad_id=? LIMIT 1`, [membership.squad_id]);
         if (!ownedBase) return res.json({ base: null });
         const discount = calcMemberStatDiscount(ownedBase.tier, Number(ownedBase.upgrade_level || 0), Number(ownedBase.last_upkeep_paid || 0));
         const totalLevel = await getSquadTotalLevel(db, membership.squad_id);
@@ -11871,9 +11872,9 @@ router.get('/squads/:squadId', auth, async (req, res) => {
         const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, squad_tag FROM squads WHERE id=?', [squadId]);
         if (!squad) return res.status(404).json({ error: 'Squad not found.' });
         const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
-            COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
-            COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
-            FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId, squadId, squadId]);
+                                                COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
+                                                COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
+                                         FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId, squadId, squadId]);
         res.json({
             squad: { id: Number(squad.id), name: squad.name, logo: squad.logo || null },
             members: members.map(m => ({
@@ -12086,7 +12087,7 @@ async function runSquadBattle(db, warId, attackerChars, defenderChars, attackerN
         // Refresh lanes each round
         for (const f of fighters) { if (f._buff) f._buff = 0; }
     }
-    
+
     // Save performance
     for (const [charId, dmg] of charDamage) {
         await dbRun(db, 'INSERT INTO war_performance (war_id, char_id, damage_dealt) VALUES (?, ?, ?)', [warId, charId, dmg]);
@@ -12403,12 +12404,12 @@ router.get('/squads/wars/active', auth, async (req, res) => {
         const membership = await dbGet(db, 'SELECT squad_id FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ wars: [] });
         const wars = await dbAll(db, `SELECT cw.*, b.name AS base_name, b.tier AS base_tier,
-            a_s.name AS attacker_name, d_s.name AS defender_name
-            FROM clan_wars cw JOIN clan_bases b ON b.id = cw.base_id
-            JOIN squads a_s ON a_s.id = cw.attacker_squad_id
-            LEFT JOIN squads d_s ON d_s.id = cw.defender_squad_id
-            WHERE (cw.attacker_squad_id=? OR cw.defender_squad_id=?) AND cw.status IN ('preparation','attacking')
-            ORDER BY cw.created_at DESC LIMIT 5`, [membership.squad_id, membership.squad_id]);
+                                             a_s.name AS attacker_name, d_s.name AS defender_name
+                                      FROM clan_wars cw JOIN clan_bases b ON b.id = cw.base_id
+                                                        JOIN squads a_s ON a_s.id = cw.attacker_squad_id
+                                                        LEFT JOIN squads d_s ON d_s.id = cw.defender_squad_id
+                                      WHERE (cw.attacker_squad_id=? OR cw.defender_squad_id=?) AND cw.status IN ('preparation','attacking')
+                                      ORDER BY cw.created_at DESC LIMIT 5`, [membership.squad_id, membership.squad_id]);
         // Auto-advance any wars whose deadlines have passed
         for (const war of wars) {
             await autoAdvanceWar(db, war);
@@ -12437,10 +12438,10 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
         if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
         const warId = Number(req.params.warId);
         const war = await dbGet(db, `SELECT cw.*, b.name AS base_name, b.tier AS base_tier,
-            a_s.name AS attacker_name, d_s.name AS defender_name
-            FROM clan_wars cw JOIN clan_bases b ON b.id = cw.base_id
-            JOIN squads a_s ON a_s.id = cw.attacker_squad_id
-            LEFT JOIN squads d_s ON d_s.id = cw.defender_squad_id WHERE cw.id=?`, [warId]);
+                                            a_s.name AS attacker_name, d_s.name AS defender_name
+                                     FROM clan_wars cw JOIN clan_bases b ON b.id = cw.base_id
+                                                       JOIN squads a_s ON a_s.id = cw.attacker_squad_id
+                                                       LEFT JOIN squads d_s ON d_s.id = cw.defender_squad_id WHERE cw.id=?`, [warId]);
         if (!war) return res.status(404).json({ error: 'War not found.' });
         // Auto-advance phase if deadline passed
         await autoAdvanceWar(db, war);
@@ -12454,7 +12455,7 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
         const isNpcWar = Number(war.is_npc_war || 0) === 1;
         const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=? ORDER BY outpost_index', [warId]);
         const defCounts = await dbAll(db, `SELECT wa.outpost_id, COUNT(*) AS c FROM clan_war_assignments wa
-            WHERE wa.war_id=? AND wa.side='defender' GROUP BY wa.outpost_id`, [warId]);
+                                           WHERE wa.war_id=? AND wa.side='defender' GROUP BY wa.outpost_id`, [warId]);
         const defCountMap = {};
         for (const d of defCounts) defCountMap[Number(d.outpost_id)] = Number(d.c);
         const scouts = await dbAll(db, "SELECT * FROM clan_war_scouts WHERE war_id=?", [warId]);
@@ -12462,8 +12463,8 @@ router.get('/squads/wars/:warId', auth, async (req, res) => {
             [isAttacker ? war.attacker_squad_id : war.defender_squad_id]);
         const side = isAttacker ? 'attacker' : 'defender';
         const ourAssignments = await dbAll(db, `SELECT wa.char_id, o.outpost_index, wa.role FROM clan_war_assignments wa
-            JOIN clan_war_outposts o ON o.id = wa.outpost_id
-            WHERE wa.war_id=? AND wa.side=?`, [warId, side]);
+                                                                                                     JOIN clan_war_outposts o ON o.id = wa.outpost_id
+                                                WHERE wa.war_id=? AND wa.side=?`, [warId, side]);
         const assignMap = {};
         const roleMap = {};
         for (const a of ourAssignments) { assignMap[Number(a.char_id)] = Number(a.outpost_index); roleMap[Number(a.char_id)] = a.role || ''; }
@@ -12545,7 +12546,7 @@ router.post('/squads/wars/:warId/scout', auth, async (req, res) => {
         if (type === 'count') {
             // Safe scout — count how many defenders are assigned to this outpost
             const defCount = await dbGet(db, `SELECT COUNT(*) AS c FROM clan_war_assignments wa
-                WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
+                                              WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
             const count = Number(defCount?.c || 0);
             await dbRun(db, 'UPDATE clan_war_outposts SET scouted_count=? WHERE id=?', [count, outpost.id]);
             await dbRun(db, `INSERT INTO clan_war_scouts (war_id, char_id, outpost_index, status) VALUES (?,?,?,?)`,
@@ -12560,8 +12561,8 @@ router.post('/squads/wars/:warId/scout', auth, async (req, res) => {
         // Power scout — risky: compare agility vs ALL defenders on this outpost
         const charAgi = Number(char.agility || 0);
         const defenders = await dbAll(db, `SELECT c.agility FROM clan_war_assignments wa
-            JOIN characters c ON c.id = wa.char_id
-            WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
+                                                                     JOIN characters c ON c.id = wa.char_id
+                                           WHERE wa.war_id=? AND wa.side='defender' AND wa.outpost_id=?`, [warId, outpost.id]);
         const caught = defenders.some(d => Number(d.agility || 0) >= charAgi);
         if (caught) {
             capturedArr.push(Number(char.id));
@@ -12628,9 +12629,9 @@ router.post('/squads/wars/:warId/assign', auth, async (req, res) => {
         const outposts = await dbAll(db, 'SELECT * FROM clan_war_outposts WHERE war_id=?', [warId]);
         for (const op of outposts) {
             const atkChars = await dbAll(db, `SELECT c.* FROM clan_war_assignments wa JOIN characters c ON c.id = wa.char_id
-                WHERE wa.outpost_id=? AND wa.side='attacker'`, [op.id]);
+                                              WHERE wa.outpost_id=? AND wa.side='attacker'`, [op.id]);
             const defChars = await dbAll(db, `SELECT c.* FROM clan_war_assignments wa JOIN characters c ON c.id = wa.char_id
-                WHERE wa.outpost_id=? AND wa.side='defender'`, [op.id]);
+                                              WHERE wa.outpost_id=? AND wa.side='defender'`, [op.id]);
             const atkPower = atkChars.reduce((s, c) => s + calcFighterPower(c), 0);
             const defPower = defChars.reduce((s, c) => s + calcFighterPower(c), 0);
             await dbRun(db, 'UPDATE clan_war_outposts SET attacker_power=?, defender_power=? WHERE id=?', [atkPower, defPower, op.id]);
@@ -13028,10 +13029,10 @@ router.post('/missions/start', auth, async (req, res) => {
         }
 
         const insertResult = await dbRun(db, `
-    INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
-    SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-    WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
-`, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, currentMap, sizeKey, character.id]);
+            INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
+            SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)
+        `, [character.id, zoneId, spotId, spot.name, missionName, difficulty, goldReward, xpReward, now, now + duration, currentMap, sizeKey, character.id]);
 
         const didInsert = insertResult.rowsAffected ?? insertResult.changes ?? 0;
         if (!didInsert) return res.status(400).json({ error: 'You already have an active mission.' });
@@ -13166,7 +13167,7 @@ async function collectMissionForCharacter(db, characterId) {
         const isEvent = eventHas('grand_festival');
         const activePremCollect = getActivePremium(freshChar);
         const hasUlt = hasUltimate(activePremCollect);
-const equippedArray = await getEquippedItemsArray(db, freshChar.id);
+        const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax = calcHpMax(freshChar, equippedArray) + await beastHpBonus(db, freshChar.id);
         const hpCurrent = freshChar.hp_current ?? hpMax;
         const _beastStats = await beastStatBonus(db, freshChar.id);
@@ -13593,9 +13594,9 @@ const equippedArray = await getEquippedItemsArray(db, freshChar.id);
 
         try {
             await dbRun(db, `INSERT INTO battles (
-        attacker_id, defender_id, winner_id, attacker_name, defender_name, log, 
-        fought_at, battle_type, xp_gained, gold_gained, total_dmg_dealt, total_dmg_taken
-    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+                        attacker_id, defender_id, winner_id, attacker_name, defender_name, log,
+                        fought_at, battle_type, xp_gained, gold_gained, total_dmg_dealt, total_dmg_taken
+                    ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
                 [freshChar.id, -1, playerWon ? freshChar.id : (isDraw ? 0 : -1), freshChar.name, mission.mission_name,
                     JSON.stringify(battle.log), now, 'mission', xpEarned, goldEarned,
                     battle.totalDmgToB, battle.totalDmgToA]);
@@ -13681,19 +13682,19 @@ router.post('/missions/collect', auth, async (req, res) => {
 
 async function ensureAutoMissionTable(db) {
     await dbRun(db, `CREATE TABLE IF NOT EXISTS auto_mission_state (
-        char_id INTEGER PRIMARY KEY,
-        enabled INTEGER NOT NULL DEFAULT 0,
-        current_map TEXT NOT NULL DEFAULT 'overworld',
-        zone TEXT NOT NULL DEFAULT 'forest',
-        spot TEXT NOT NULL DEFAULT '',
-        mission_idx INTEGER NOT NULL DEFAULT 0,
-        size TEXT NOT NULL DEFAULT 'small',
-        auto_mp INTEGER NOT NULL DEFAULT 0,
-        potions_loaded INTEGER NOT NULL DEFAULT 0,
-        runs_completed INTEGER NOT NULL DEFAULT 0,
-        last_result TEXT,
-        updated_at INTEGER NOT NULL DEFAULT 0
-    )`);
+                                                                       char_id INTEGER PRIMARY KEY,
+                                                                       enabled INTEGER NOT NULL DEFAULT 0,
+                                                                       current_map TEXT NOT NULL DEFAULT 'overworld',
+                                                                       zone TEXT NOT NULL DEFAULT 'forest',
+                                                                       spot TEXT NOT NULL DEFAULT '',
+                                                                       mission_idx INTEGER NOT NULL DEFAULT 0,
+                                                                       size TEXT NOT NULL DEFAULT 'small',
+                                                                       auto_mp INTEGER NOT NULL DEFAULT 0,
+                                                                       potions_loaded INTEGER NOT NULL DEFAULT 0,
+                                                                       runs_completed INTEGER NOT NULL DEFAULT 0,
+                                                                       last_result TEXT,
+                                                                       updated_at INTEGER NOT NULL DEFAULT 0
+                     )`);
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_stop_enabled INTEGER NOT NULL DEFAULT 0"); } catch {}
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_stop_threshold INTEGER NOT NULL DEFAULT 0"); } catch {}
     try { await dbRun(db, "ALTER TABLE auto_mission_state ADD COLUMN hp_potion_stack TEXT"); } catch {}
@@ -13756,7 +13757,7 @@ async function markAutoIntended(db, charId, action) {
         const now = Math.floor(Date.now() / 1000);
         const path = `/missions/auto-${action}`;
         await dbRun(db, `INSERT INTO api_log (user_id, username, char_name, method, path, status, req_body, tab_viewed, created_at)
-            VALUES (0, ?, ?, 'POST', ?, 200, NULL, 0, ?)`,
+                         VALUES (0, ?, ?, 'POST', ?, 200, NULL, 0, ?)`,
             ['system', char.name, path, now]);
     } catch (e) { console.error('[AutoMission] marker error:', e.message); }
 }
@@ -13909,15 +13910,15 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         const hpHealThr = hpHealOn ? Math.max(1, Math.floor(Number(hpHealThreshold || 50))) : 0;
 
         await dbRun(db, `INSERT INTO auto_mission_state (char_id, enabled, current_map, zone, spot, mission_idx, size, auto_mp, potions_loaded, hp_stop_enabled, hp_stop_threshold, hp_potion_stack, hp_heal_enabled, hp_heal_threshold, updated_at)
-            VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(char_id) DO UPDATE SET
-                enabled=1, current_map=excluded.current_map, zone=excluded.zone, spot=excluded.spot,
-                mission_idx=excluded.mission_idx, size=excluded.size,
-                auto_mp=excluded.auto_mp, potions_loaded=excluded.potions_loaded,
-                hp_stop_enabled=excluded.hp_stop_enabled, hp_stop_threshold=excluded.hp_stop_threshold,
-                hp_potion_stack=excluded.hp_potion_stack,
-                hp_heal_enabled=excluded.hp_heal_enabled, hp_heal_threshold=excluded.hp_heal_threshold,
-                paused=0, last_result=NULL, updated_at=excluded.updated_at`,
+                         VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                             ON CONFLICT(char_id) DO UPDATE SET
+                    enabled=1, current_map=excluded.current_map, zone=excluded.zone, spot=excluded.spot,
+                                                         mission_idx=excluded.mission_idx, size=excluded.size,
+                                                         auto_mp=excluded.auto_mp, potions_loaded=excluded.potions_loaded,
+                                                         hp_stop_enabled=excluded.hp_stop_enabled, hp_stop_threshold=excluded.hp_stop_threshold,
+                                                         hp_potion_stack=excluded.hp_potion_stack,
+                                                         hp_heal_enabled=excluded.hp_heal_enabled, hp_heal_threshold=excluded.hp_heal_threshold,
+                                                         paused=0, last_result=NULL, updated_at=excluded.updated_at`,
             [char.id, currentMap, zone, spot, missionIdx, size, loadedMp, loadedCount, hpEnabled ? 1 : 0, hpThreshold, JSON.stringify(hpStack), hpHealOn ? 1 : 0, hpHealThr, now]);
 
         await markAutoIntended(db, char.id, 'enable');
@@ -13936,7 +13937,7 @@ router.post('/missions/auto-disable', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId);
         if (!char) return res.status(404).json({ error: 'Character not found' });
-await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=? WHERE char_id=?', ['Stopped by player', char.id]);
+        await dbRun(db, 'UPDATE auto_mission_state SET enabled=0, last_result=? WHERE char_id=?', ['Stopped by player', char.id]);
         await markAutoIntended(db, char.id, 'disable');
         res.json({ success: true, message: 'Auto-complete disabled.' });
     } catch (e) { console.error('[AutoMission] disable error:', e.message); res.status(500).json({ error: e.message }); }
@@ -14141,8 +14142,8 @@ async function processOneAutoChar(db, state) {
     if (hasPremium(activePrem, 'fortune_hunter')) duration = Math.max(30, Math.floor(duration * 0.50));
 
     await dbRun(db, `INSERT INTO active_missions (character_id, zone, spot, spot_name, mission_name, difficulty, gold_reward, xp_reward, started_at, ends_at, map_type, size)
-        SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-        WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)`,
+                     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                         WHERE NOT EXISTS (SELECT 1 FROM active_missions WHERE character_id = ?)`,
         [state.char_id, state.zone, state.spot, spotDef.name, missionName, spotDef.difficulty,
             autoRewardGold(zoneDef, spotDef.difficulty, size), autoRewardXp(size),
             now, now + duration, currentMap, size, state.char_id]);
@@ -14220,10 +14221,10 @@ router.get('/inventory', auth, async (req, res) => {
             }
         }
         res.json({ items: items.map(i => {
-            const data = JSON.parse(i.item_data);
-            if (i.weapon_type) data.weaponType = data.weaponType || i.weapon_type;
-            return { ...i, item_data: data, equipped: equippedIds.includes(i.id), setups: itemSetups[i.id] || [] };
-        }), equipped });
+                const data = JSON.parse(i.item_data);
+                if (i.weapon_type) data.weaponType = data.weaponType || i.weapon_type;
+                return { ...i, item_data: data, equipped: equippedIds.includes(i.id), setups: itemSetups[i.id] || [] };
+            }), equipped });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -14341,7 +14342,15 @@ router.post('/inventory/add', auth, async (req, res) => {
 
         if (item.type === 'material') {
             const d = { ...dataBase };
-            d.id = d.id || slugify(d.name) || `mat_${Date.now()}`;
+            const rawId = d.id || slugify(d.name) || '';
+            let canonicalId = rawId;
+            if (canonicalId && !RAW_MATERIALS[canonicalId]) {
+                const dgnMatch = Object.entries(RAW_MATERIALS).find(([canonId, matMeta]) =>
+                    canonId.startsWith('dgn_') && (canonId.slice(4) === canonicalId || matMeta.name === d.name)
+                );
+                if (dgnMatch) canonicalId = dgnMatch[0];
+            }
+            d.id = canonicalId || `mat_${Date.now()}`;
             d.emoji = d.emoji || d.icon;
             d.rarity = d.rarity || 'common';
 
@@ -14450,18 +14459,18 @@ router.get('/forge/recipes', auth, async (req, res) => {
             mat.type = RAW_MATERIALS[id] ? 'raw_mat' : (COMPONENTS[id] ? 'component' : 'unknown');
         }
         res.json({ components, equipment, gold: char.gold, mats, sets: CRAFTING_SETS, weapon: weaponData, raidTokens: char.raid_tokens || 0, raidGear: (() => {
-            const scaled = {};
-            for (const [setId, gs] of Object.entries(RAID_BOSS_GEAR)) {
-                scaled[setId] = { ...gs, pieces: {} };
-                for (const [slot, piece] of Object.entries(gs.pieces || {})) {
-                    scaled[setId].pieces[slot] = {
-                        ...piece,
-                        previewStats: scaleItemToLevel({ ...piece, setId, minLevel: 1, goldCost: 0, desc: piece.desc || '' }, char.level || 1).stats || {},
-                    };
+                const scaled = {};
+                for (const [setId, gs] of Object.entries(RAID_BOSS_GEAR)) {
+                    scaled[setId] = { ...gs, pieces: {} };
+                    for (const [slot, piece] of Object.entries(gs.pieces || {})) {
+                        scaled[setId].pieces[slot] = {
+                            ...piece,
+                            previewStats: scaleItemToLevel({ ...piece, setId, minLevel: 1, goldCost: 0, desc: piece.desc || '' }, char.level || 1).stats || {},
+                        };
+                    }
                 }
-            }
-            return scaled;
-        })(), raidItemCost: RAID_TOKENS_PER_ITEM });
+                return scaled;
+            })(), raidItemCost: RAID_TOKENS_PER_ITEM });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -15887,12 +15896,12 @@ router.get('/leaderboard', auth, async (req, res) => {
         const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
         const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,c.profile_pic_offset,
-            (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
-            sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo
-            FROM characters c 
-            LEFT JOIN squad_members sm ON sm.char_id = c.id
-            LEFT JOIN squads sq ON sq.id = sm.squad_id
-            ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
+                                                (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
+                                                sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo
+                                         FROM characters c
+                                                  LEFT JOIN squad_members sm ON sm.char_id = c.id
+                                                  LEFT JOIN squads sq ON sq.id = sm.squad_id
+                                         ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
         res.json(players.map((p,i) => {
             let ids = [];
@@ -16014,7 +16023,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
             SELECT wp.char_id, wp.damage_dealt AS dmg, wp.wins AS wins, wp.battles_fought AS battles,
                    sm.squad_id AS squad_id
             FROM character_weekly_performance wp
-            JOIN squad_members sm ON sm.char_id = wp.char_id
+                     JOIN squad_members sm ON sm.char_id = wp.char_id
             WHERE wp.week_start = ?
         `, [weekStart]);
 
@@ -16176,10 +16185,10 @@ router.get('/player/:id', auth, async (req, res) => {
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
 
         const squadRow = await dbGet(db, `SELECT sq.name AS squad_name, sq.logo AS squad_logo
-            FROM squad_members sm JOIN squads sq ON sq.id = sm.squad_id WHERE sm.char_id=? LIMIT 1`, [player.id]);
+                                          FROM squad_members sm JOIN squads sq ON sq.id = sm.squad_id WHERE sm.char_id=? LIMIT 1`, [player.id]);
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
-            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
-            WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
+                                         FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
+                                         WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
         res.json({
             id:player.id, user_id: player.user_id, name:player.name, class:player.class, level:player.level,
             strength:player.strength || 0, defense:player.defense || 0,
@@ -16225,8 +16234,8 @@ router.get('/battles', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,a.class as attacker_class,d.name as defender_name,d.class as defender_class,w.name as winner_name
-            FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
-            WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 10`, [char.id, char.id]);
+                                         FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
+                                         WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 10`, [char.id, char.id]);
         res.json(battles.map(b => ({ ...b, log: JSON.parse(b.log) })));
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -16239,8 +16248,8 @@ router.get('/messages', auth, async (req, res) => {
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
         const messages = await dbAll(db, `SELECT m.*,COALESCE(m.sender_label, s.name, 'Arena Staff') as sender_name,r.name as receiver_name FROM messages m
-            LEFT JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
-            WHERE m.receiver_id=? AND m.hidden=0 ORDER BY m.sent_at DESC LIMIT 50`, [char.id]);
+                                                                                                                                                     LEFT JOIN characters s ON m.sender_id=s.id JOIN characters r ON m.receiver_id=r.id
+                                          WHERE m.receiver_id=? AND m.hidden=0 ORDER BY m.sent_at DESC LIMIT 50`, [char.id]);
         res.json(messages);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -16307,13 +16316,13 @@ router.get('/chat/history', auth, async (req, res) => {
                 `SELECT *
                  FROM chat_messages
                  WHERE (
-                        (recipient_char_id IS NULL AND squad_id IS NULL)
-                        OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
-                        ${squadId ? `OR (squad_id = ${squadId} AND recipient_char_id IS NULL)` : ''}
-                    )
+                     (recipient_char_id IS NULL AND squad_id IS NULL)
+                         OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
+                     ${squadId ? `OR (squad_id = ${squadId} AND recipient_char_id IS NULL)` : ''}
+                     )
                    AND id > ?
                  ORDER BY id ASC
-                 LIMIT 80`,
+                     LIMIT 80`,
                 [char.id, char.id, sinceId]
             );
         } else {
@@ -16322,11 +16331,11 @@ router.get('/chat/history', auth, async (req, res) => {
                 `SELECT *
                  FROM chat_messages
                  WHERE
-                    (recipient_char_id IS NULL AND squad_id IS NULL)
+                     (recipient_char_id IS NULL AND squad_id IS NULL)
                     OR (recipient_char_id IS NOT NULL AND (sender_char_id = ? OR recipient_char_id = ?))
-                    ${squadId ? `OR (squad_id = ${squadId} AND recipient_char_id IS NULL)` : ''}
+                     ${squadId ? `OR (squad_id = ${squadId} AND recipient_char_id IS NULL)` : ''}
                  ORDER BY id DESC
-                 LIMIT 60`,
+                     LIMIT 60`,
                 [char.id, char.id]
             );
             rows.reverse();
@@ -16358,11 +16367,11 @@ router.get('/chat/characters', auth, async (req, res) => {
                     OR lower(name) LIKE ?
                )
              ORDER BY
-                CASE
-                    WHEN ? != '' AND lower(name) = ? THEN 0
-                    WHEN ? != '' AND lower(name) LIKE ? THEN 1
-                    ELSE 2
-                END,
+                 CASE
+                 WHEN ? != '' AND lower(name) = ? THEN 0
+                 WHEN ? != '' AND lower(name) LIKE ? THEN 1
+                 ELSE 2
+            END,
                 name COLLATE NOCASE ASC
              LIMIT 8`,
             [
@@ -16425,7 +16434,7 @@ router.post('/chat/send', auth, async (req, res) => {
         await dbRun(
             db,
             `INSERT INTO chat_messages
-                (sender_user_id, sender_char_id, sender_name, recipient_char_id, recipient_name, message_text, created_at, squad_id)
+             (sender_user_id, sender_char_id, sender_name, recipient_char_id, recipient_name, message_text, created_at, squad_id)
              VALUES (?,?,?,?,?,?,?,?)`,
             [
                 req.user.userId,
@@ -17108,14 +17117,14 @@ async function runSelectiveBotDetection(db, charName) {
             if (row.name) appendFlag(botPlayers, row.name, 'Managed test bot');
         }
     } catch (e) { console.error('[bot-detect] selective bot_configs error:', e.message); }
-    
+
     // 2. Mission instant starts
     try {
         const fpCutoff = now - 86400;
         const fpRows = await db.execute({ sql: `SELECT char_name, created_at, path FROM api_log WHERE char_name = ? AND created_at > ? AND method = 'POST' ORDER BY char_name, created_at`, args: [charName, fpCutoff] });
         const entries = fpRows.rows.map(r => ({ ts: r.created_at, path: (r.path || '').toLowerCase() }))
             .filter(r => r.path.includes('/missions/'));
-        
+
         entries.sort((a, b) => a.ts - b.ts);
         let instantStarts = 0;
         for (let i = 1; i < entries.length; i++) {
@@ -17125,7 +17134,7 @@ async function runSelectiveBotDetection(db, charName) {
             if (gap < 2 && cur.includes('/missions/start') && (prev.includes('/missions/collect') || prev.includes('/dungeon/mp-spent'))) instantStarts++;
         }
         if (instantStarts >= 5) appendFlag(botPlayers, charName, `Instant collect\u2192start: ${instantStarts} times in 24h`);
-        
+
         const noTick = _missionNoTickStarts.get(charName) || 0;
         if (noTick >= 5) appendFlag(botPlayers, charName, `No UI tick: ${noTick} direct starts`);
     } catch (e) { console.error('[bot-detect] selective mission error:', e.message); }
@@ -17158,20 +17167,20 @@ async function runSelectiveBotDetection(db, charName) {
             if (span >= 7200) {
                 const reqPerMin = timestamps.length / (span / 60);
                 if (reqPerMin >= 1.0) {
-                const gaps = [];
-                for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
-                if (gaps.length >= 30) {
-                    const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
-                    if (mean < 120) {
-                        const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
-                        const cv = Math.sqrt(variance) / mean;
-                        if (cv < 1.5) {
-                            const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [charName]);
-                            const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
-                            appendFlag(botPlayers, charName, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, mean=${Math.round(mean)}s${countNote}`);
+                    const gaps = [];
+                    for (let i = 1; i < timestamps.length; i++) { const g = timestamps[i] - timestamps[i - 1]; if (g > 0 && g < 300) gaps.push(g); }
+                    if (gaps.length >= 30) {
+                        const mean = gaps.reduce((s, v) => s + v, 0) / gaps.length;
+                        if (mean < 120) {
+                            const variance = gaps.reduce((s, v) => s + (v - mean) ** 2, 0) / gaps.length;
+                            const cv = Math.sqrt(variance) / mean;
+                            if (cv < 1.5) {
+                                const prev = await dbGet(db, 'SELECT signal_count FROM flagged_characters WHERE char_name=?', [charName]);
+                                const countNote = (prev && prev.signal_count > 1) ? ` (${prev.signal_count}x flagged)` : '';
+                                appendFlag(botPlayers, charName, `Frequent polling: ${timestamps.length} hits in ${Math.round(span/60)}min, ${reqPerMin.toFixed(1)}/min, mean=${Math.round(mean)}s${countNote}`);
+                            }
                         }
                     }
-                }
                 }
             }
         }
@@ -17385,12 +17394,12 @@ router.get('/admin/android-applicants', auth, async (req, res) => {
     try {
         const db = await getDb();
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS android_test_applicants (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT NOT NULL COLLATE NOCASE UNIQUE,
-            status TEXT NOT NULL DEFAULT 'pending',
-            created_at INTEGER NOT NULL,
-            updated_at INTEGER DEFAULT NULL
-        )`, args: [] });
+                                                                                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                                                        email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+                                                                                        status TEXT NOT NULL DEFAULT 'pending',
+                                                                                        created_at INTEGER NOT NULL,
+                                                                                        updated_at INTEGER DEFAULT NULL
+                                 )`, args: [] });
         const rows = await dbAll(db, 'SELECT id, email, status, created_at, updated_at FROM android_test_applicants ORDER BY created_at DESC');
         res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -17755,53 +17764,56 @@ router.post('/admin/report-input-activity', auth, async (req, res) => {
 });
 
 router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
-        const db = await getDb();
-        const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
-        const globalOn = !(setting && setting.value === 'false');
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
-        if (!globalOn) {
-            // When global is OFF, only process dom mutations for individually marked (🟢) characters
-            if (char?.name) {
-                const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [char.name]);
-                if (!flagRow || flagRow.scan_enabled !== 1) return res.json({ success: true });
-            } else {
-                return res.json({ success: true });
-            }
+    const db = await getDb();
+    const setting = await dbGet(db, "SELECT value FROM server_settings WHERE key='bot_detection_enabled'");
+    const globalOn = !(setting && setting.value === 'false');
+    const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
+    if (!globalOn) {
+        // When global is OFF, only process dom mutations for individually marked (🟢) characters
+        if (char?.name) {
+            const flagRow = await dbGet(db, 'SELECT scan_enabled FROM flagged_characters WHERE char_name=?', [char.name]);
+            if (!flagRow || flagRow.scan_enabled !== 1) return res.json({ success: true });
+        } else {
+            return res.json({ success: true });
         }
-        const charName = char?.name || '';
-        const charId = char?.id || 0;
-        const { mutation_type = '', target_info = '', detail = '' } = req.body;
-        const now = Math.floor(Date.now() / 1000);
-        await db.execute({
-            sql: `INSERT INTO dom_mutations (user_id, char_name, char_id, mutation_type, target_info, detail, url, created_at) VALUES (?,?,?,?,?,?,?,?)`,
-            args: [req.user.userId, charName, charId, String(mutation_type).slice(0, 50), String(target_info).slice(0, 500), String(detail).slice(0, 2000), String(req.headers.referer || req.headers.origin || '').slice(0, 500), now]
-        });
-        // If untrusted API call — also flag the character in flagged_characters
-        if (mutation_type === 'untrusted_api' && charName) {
-            await ensureFlaggedTable(db);
-            const reasonType = 'untrusted_api';
-            const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
-            if (existing) {
-                const types = existing.signal_types ? existing.signal_types.split(',').filter(Boolean) : [];
-                const isNewType = !types.includes(reasonType);
-                if (isNewType) types.push(reasonType);
-                await db.execute({
-                    sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
-                    args: [String(detail).slice(0, 300), types.join(','), types.length, now, charName]
-                });
-                await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
-            } else {
-                await db.execute({
-                    sql: 'INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
-                    args: [charName, String(detail).slice(0, 300), now, now, reasonType]
-                });
-                await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
-            }
-            // Automatic escalating ban on untrusted API calls
-            await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
+    }
+    const charName = char?.name || '';
+    const charId = char?.id || 0;
+    const { mutation_type = '', target_info = '', detail = '' } = req.body;
+    const now = Math.floor(Date.now() / 1000);
+    await db.execute({
+        sql: `INSERT INTO dom_mutations (user_id, char_name, char_id, mutation_type, target_info, detail, url, created_at) VALUES (?,?,?,?,?,?,?,?)`,
+        args: [req.user.userId, charName, charId, String(mutation_type).slice(0, 50), String(target_info).slice(0, 500), String(detail).slice(0, 2000), String(req.headers.referer || req.headers.origin || '').slice(0, 500), now]
+    });
+    // If untrusted API call — also flag the character in flagged_characters
+    // Ignore setups/tutorial saves — they fire via PUT without a direct click and are not botting.
+    if (mutation_type === 'untrusted_api' && charName) {
+        const d = String(detail || '') + ' ' + String(target_info || '');
+        if (d.includes('/setups') || d.includes('/tutorial')) return res.json({ success: true, ignored: true });
+        await ensureFlaggedTable(db);
+        const reasonType = 'untrusted_api';
+        const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
+        if (existing) {
+            const types = existing.signal_types ? existing.signal_types.split(',').filter(Boolean) : [];
+            const isNewType = !types.includes(reasonType);
+            if (isNewType) types.push(reasonType);
+            await db.execute({
+                sql: 'UPDATE flagged_characters SET reason=?, signal_count=signal_count+1, signal_types=?, distinct_signals=?, last_seen_at=? WHERE char_name=?',
+                args: [String(detail).slice(0, 300), types.join(','), types.length, now, charName]
+            });
+            await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
+        } else {
+            await db.execute({
+                sql: 'INSERT INTO flagged_characters (char_name, reason, detected_at, last_seen_at, signal_count, distinct_signals, signal_types) VALUES (?,?,?,?,1,1,?)',
+                args: [charName, String(detail).slice(0, 300), now, now, reasonType]
+            });
+            await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
         }
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+        // Automatic escalating ban on untrusted API calls
+        await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
+    }
+    res.json({ success: true });
+} catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.get('/admin/dom-mutations', auth, async (req, res) => {
@@ -18101,7 +18113,7 @@ async function computeWeeklyLeaderboard(db) {
     for (let w = 0; w < 52; w++) {
         // Yield to event loop to prevent hanging
         await new Promise(resolve => setImmediate(resolve));
-        
+
         const weekStart = currentWeekStart - (w + 1) * 7 * 86400;
         const weekEnd = weekStart + 7 * 86400;
 
@@ -18117,19 +18129,19 @@ async function computeWeeklyLeaderboard(db) {
             const rows = await dbAll(db, `
                 SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
                 FROM (
-                    SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
-                    FROM battles WHERE fought_at >= ? AND fought_at < ?
-                    UNION ALL
-                    SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
-                    FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                    UNION ALL
-                    SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
-                    FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                        AND json_extract(substr(body, 15), '$.type') = 'mission'
-                        AND sent_at >= ? AND sent_at < ?
-                ) GROUP BY char_id ORDER BY total_dmg DESC
+                         SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
+                         FROM battles WHERE fought_at >= ? AND fought_at < ?
+                         UNION ALL
+                         SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
+                         FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                         UNION ALL
+                         SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
+                         FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                                         AND json_extract(substr(body, 15), '$.type') = 'mission'
+                                         AND sent_at >= ? AND sent_at < ?
+                     ) GROUP BY char_id ORDER BY total_dmg DESC
             `, params);
-            
+
             // First, process achievements for ALL players who dealt damage
             for (const r of rows) {
                 await checkAndAwardWeeklyDamageAchievements(db, Number(r.char_id), Number(r.total_dmg));
@@ -18148,7 +18160,7 @@ async function computeWeeklyLeaderboard(db) {
                 dmgTop10.push(entry);
                 if (!dmgWinner) dmgWinner = entry;
             }
-            }
+        }
 
         // ── Top 10 by wins ──
         let winTop10 = [], winWinner = null, winAllRows = [];
@@ -18156,23 +18168,23 @@ async function computeWeeklyLeaderboard(db) {
             const rows = await dbAll(db, `
                 SELECT char_id, SUM(is_win) AS total_wins, SUM(bats) AS total_battles
                 FROM (
-                    SELECT attacker_id AS char_id,
-                        CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
-                        1 AS bats
-                    FROM battles WHERE fought_at >= ? AND fought_at < ?
-                    UNION ALL
-                    SELECT defender_id AS char_id,
-                        CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
-                        1 AS bats
-                    FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                    UNION ALL
-                    SELECT receiver_id AS char_id,
-                        CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
-                        1 AS bats
-                    FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                        AND json_extract(substr(body, 15), '$.type') = 'mission'
-                        AND sent_at >= ? AND sent_at < ?
-                ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
+                         SELECT attacker_id AS char_id,
+                                CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
+                                1 AS bats
+                         FROM battles WHERE fought_at >= ? AND fought_at < ?
+                         UNION ALL
+                         SELECT defender_id AS char_id,
+                                CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
+                                1 AS bats
+                         FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                         UNION ALL
+                         SELECT receiver_id AS char_id,
+                                CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
+                                1 AS bats
+                         FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                                         AND json_extract(substr(body, 15), '$.type') = 'mission'
+                                         AND sent_at >= ? AND sent_at < ?
+                     ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
             `, params);
             const winTop10Rows = rows.slice(0, 10);
             for (const r of winTop10Rows) {
@@ -18196,7 +18208,7 @@ async function computeWeeklyLeaderboard(db) {
             if (dmgWinner && !existing?.reward_sent) {
                 const payload = JSON.stringify({ gems: 5 });
                 await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                    VALUES (?,?,?,?,?,1)`,
+                                 VALUES (?,?,?,?,?,1)`,
                     [dmgWinner.char_id, dmgWinner.char_id, '🏆 Weekly Damage King!',
                         `You dealt the most damage this week: ${dmgWinner.total_dmg.toLocaleString()} damage across ${dmgWinner.total_battles} battles! Claim your 5💎 reward below.`,
                         payload]);
@@ -18204,7 +18216,7 @@ async function computeWeeklyLeaderboard(db) {
             if (winWinner && !existing?.win_reward_sent) {
                 const payload = JSON.stringify({ gems: 5 });
                 await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                    VALUES (?,?,?,?,?,1)`,
+                                 VALUES (?,?,?,?,?,1)`,
                     [winWinner.char_id, winWinner.char_id, '🏆 Weekly Win Champion!',
                         `You won the most battles this week: ${winWinner.total_wins} wins across ${winWinner.total_battles} battles! Claim your 5💎 reward below.`,
                         payload]);
@@ -18215,7 +18227,7 @@ async function computeWeeklyLeaderboard(db) {
                 const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadWeekly.dmgWinner.squad_id]);
                 for (const m of memberRows) {
                     await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                        VALUES (?,?,?,?,?,1)`,
+                                     VALUES (?,?,?,?,?,1)`,
                         [Number(m.char_id), Number(m.char_id), '🏆 Weekly Top Damage Squad!',
                             `Your squad ${squadWeekly.dmgWinner.name} dealt the most squad damage this week: ${squadWeekly.dmgWinner.total_dmg.toLocaleString()} damage (best ${squadWeekly.dmgWinner.counted_members} members)! Claim your 5💎 squad reward below.`,
                             payload]);
@@ -18226,7 +18238,7 @@ async function computeWeeklyLeaderboard(db) {
                 const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadWeekly.winWinner.squad_id]);
                 for (const m of memberRows) {
                     await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                        VALUES (?,?,?,?,?,1)`,
+                                     VALUES (?,?,?,?,?,1)`,
                         [Number(m.char_id), Number(m.char_id), '🏆 Weekly Top Wins Squad!',
                             `Your squad ${squadWeekly.winWinner.name} won the most squad battles this week: ${squadWeekly.winWinner.total_wins} wins (best ${squadWeekly.winWinner.counted_members} members)! Claim your 5💎 squad reward below.`,
                             payload]);
@@ -18246,18 +18258,18 @@ async function computeWeeklyLeaderboard(db) {
              squad_win_winner_id, squad_win_winner_name, squad_win_winner_tag, squad_win_winner_logo, squad_win_winner_members, squad_win_wins, squad_win_reward_sent, squad_win_top10_data)
             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             [weekStart,
-             dmgWinner ? dmgWinner.char_id : 0, dmgWinner ? dmgWinner.name : '', dmgWinner ? dmgWinner.class : '',
-             dmgWinner ? dmgWinner.total_dmg : 0, dmgWinner ? dmgWinner.total_battles : 0,
-             dmgRewardSent, JSON.stringify(dmgTop10),
-             winWinner ? winWinner.char_id : 0, winWinner ? winWinner.name : '', winWinner ? winWinner.class : '',
-             winWinner ? winWinner.total_wins : 0, winWinner ? winWinner.total_battles : 0,
-             winRewardSent, JSON.stringify(winTop10),
-             squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.tag : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.logo : '',
-             squadWeekly.dmgWinner ? squadWeekly.dmgWinner.member_count : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.total_dmg : 0,
-             squadDmgRewardSent, JSON.stringify(squadWeekly.dmgTop10),
-             squadWeekly.winWinner ? squadWeekly.winWinner.squad_id : 0, squadWeekly.winWinner ? squadWeekly.winWinner.name : '', squadWeekly.winWinner ? squadWeekly.winWinner.tag : '', squadWeekly.winWinner ? squadWeekly.winWinner.logo : '',
-             squadWeekly.winWinner ? squadWeekly.winWinner.member_count : 0, squadWeekly.winWinner ? squadWeekly.winWinner.total_wins : 0,
-             squadWinRewardSent, JSON.stringify(squadWeekly.winTop10)]);
+                dmgWinner ? dmgWinner.char_id : 0, dmgWinner ? dmgWinner.name : '', dmgWinner ? dmgWinner.class : '',
+                dmgWinner ? dmgWinner.total_dmg : 0, dmgWinner ? dmgWinner.total_battles : 0,
+                dmgRewardSent, JSON.stringify(dmgTop10),
+                winWinner ? winWinner.char_id : 0, winWinner ? winWinner.name : '', winWinner ? winWinner.class : '',
+                winWinner ? winWinner.total_wins : 0, winWinner ? winWinner.total_battles : 0,
+                winRewardSent, JSON.stringify(winTop10),
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.tag : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.logo : '',
+                squadWeekly.dmgWinner ? squadWeekly.dmgWinner.member_count : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.total_dmg : 0,
+                squadDmgRewardSent, JSON.stringify(squadWeekly.dmgTop10),
+                squadWeekly.winWinner ? squadWeekly.winWinner.squad_id : 0, squadWeekly.winWinner ? squadWeekly.winWinner.name : '', squadWeekly.winWinner ? squadWeekly.winWinner.tag : '', squadWeekly.winWinner ? squadWeekly.winWinner.logo : '',
+                squadWeekly.winWinner ? squadWeekly.winWinner.member_count : 0, squadWeekly.winWinner ? squadWeekly.winWinner.total_wins : 0,
+                squadWinRewardSent, JSON.stringify(squadWeekly.winTop10)]);
 
         if (isPrevWeek) {
             if (dmgWinner) console.log(`📊 Weekly damage: ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg — 5💎 awarded`);
@@ -18328,7 +18340,7 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
         const totalPvP = await dbGet(db, `SELECT COUNT(*) AS total FROM battles WHERE fought_at >= ? AND fought_at < ?`,
             [weekStart, weekEnd]);
         const totalMissions = await dbGet(db, `SELECT COUNT(*) AS total FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-            AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?`,
+                                                                                        AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?`,
             [weekStart, weekEnd]);
         const totalBattles = Number(totalPvP?.total || 0) + Number(totalMissions?.total || 0);
 
@@ -18342,49 +18354,49 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
                    SUM(dmg_dealt) AS dmg_dealt,
                    SUM(dmg_taken) AS dmg_taken
             FROM (
-                -- As attacker in battles (PvP + any missions that made it to battles table)
-                SELECT attacker_id AS char_id,
-                       COUNT(*) AS battles,
-                       SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
-                       SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                       SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                       SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_dealt,
-                       SUM(COALESCE(total_dmg_taken, 0)) AS dmg_taken
-                FROM battles
-                WHERE fought_at >= ? AND fought_at < ?
-                GROUP BY attacker_id
+                     -- As attacker in battles (PvP + any missions that made it to battles table)
+                     SELECT attacker_id AS char_id,
+                            COUNT(*) AS battles,
+                            SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
+                            SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                            SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_dealt,
+                            SUM(COALESCE(total_dmg_taken, 0)) AS dmg_taken
+                     FROM battles
+                     WHERE fought_at >= ? AND fought_at < ?
+                     GROUP BY attacker_id
 
-                UNION ALL
+                     UNION ALL
 
-                -- As defender in PvP battles
-                SELECT defender_id AS char_id,
-                       COUNT(*) AS battles,
-                       SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
-                       SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                       SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                       SUM(COALESCE(total_dmg_taken, 0)) AS dmg_dealt,
-                       SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_taken
-                FROM battles
-                WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                GROUP BY defender_id
+                     -- As defender in PvP battles
+                     SELECT defender_id AS char_id,
+                            COUNT(*) AS battles,
+                            SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
+                            SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                            SUM(COALESCE(total_dmg_taken, 0)) AS dmg_dealt,
+                            SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_taken
+                     FROM battles
+                     WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                     GROUP BY defender_id
 
-                UNION ALL
+                     UNION ALL
 
-                -- Missions from messages table (BATTLE_REPORT payloads)
-                SELECT receiver_id AS char_id,
-                       COUNT(*) AS battles,
-                       SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
-                       SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0 
+                     -- Missions from messages table (BATTLE_REPORT payloads)
+                     SELECT receiver_id AS char_id,
+                            COUNT(*) AS battles,
+                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
+                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
                                 AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
-                       SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws,
-                       SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0)) AS dmg_dealt,
-                       SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgTaken'), 0)) AS dmg_taken
-                FROM messages
-                WHERE body LIKE 'BATTLE_REPORT:%'
-                  AND json_extract(substr(body, 15), '$.type') = 'mission'
-                  AND sent_at >= ? AND sent_at < ?
-                GROUP BY receiver_id
-            )
+                            SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws,
+                            SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0)) AS dmg_dealt,
+                            SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgTaken'), 0)) AS dmg_taken
+                     FROM messages
+                     WHERE body LIKE 'BATTLE_REPORT:%'
+                       AND json_extract(substr(body, 15), '$.type') = 'mission'
+                       AND sent_at >= ? AND sent_at < ?
+                     GROUP BY receiver_id
+                 )
             GROUP BY char_id
         `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
 
@@ -18412,7 +18424,7 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
             const chars = await dbAll(db, `SELECT id, name, class, level FROM characters WHERE id IN (${placeholders})`, charIds);
             // Fetch skill tree for all chars
             const skillRows = await dbAll(db, `SELECT cst.char_id, cst.skill_id, cst.branch_id, cst.class
-                FROM character_skill_tree cst WHERE cst.char_id IN (${placeholders})`, charIds);
+                                               FROM character_skill_tree cst WHERE cst.char_id IN (${placeholders})`, charIds);
             // Group skills by char
             const charSkills = {};
             for (const sk of skillRows) {
@@ -18494,23 +18506,23 @@ router.post('/admin/weekly-squad-recompute', auth, async (req, res) => {
 
         const dmgRows = await dbAll(db, `
             SELECT char_id, SUM(dmg) AS total_dmg FROM (
-                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg FROM battles WHERE fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg FROM messages
-                    WHERE body LIKE 'BATTLE_REPORT:%' AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?
-            ) GROUP BY char_id ORDER BY total_dmg DESC
+                                                           SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg FROM battles WHERE fought_at >= ? AND fought_at < ?
+                                                           UNION ALL
+                                                           SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                                                           UNION ALL
+                                                           SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg FROM messages
+                                                           WHERE body LIKE 'BATTLE_REPORT:%' AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?
+                                                       ) GROUP BY char_id ORDER BY total_dmg DESC
         `, params);
         const winRows = await dbAll(db, `
             SELECT char_id, SUM(is_win) AS total_wins FROM (
-                SELECT attacker_id AS char_id, CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win FROM battles WHERE fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT defender_id AS char_id, CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT receiver_id AS char_id, CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win FROM messages
-                    WHERE body LIKE 'BATTLE_REPORT:%' AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?
-            ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
+                                                               SELECT attacker_id AS char_id, CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win FROM battles WHERE fought_at >= ? AND fought_at < ?
+                                                               UNION ALL
+                                                               SELECT defender_id AS char_id, CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                                                               UNION ALL
+                                                               SELECT receiver_id AS char_id, CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win FROM messages
+                                                               WHERE body LIKE 'BATTLE_REPORT:%' AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?
+                                                           ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
         `, params);
 
         const squadWeekly = await computeSquadWeeklyWinners(db, dmgRows, winRows);
@@ -18519,9 +18531,9 @@ router.post('/admin/weekly-squad-recompute', auth, async (req, res) => {
         const sq = (g) => g ? { id: g.squad_id, name: g.name, tag: g.tag || '', logo: g.logo || '', members: g.member_count, dmg: g.total_dmg, wins: g.total_wins, top10: (g === squadWeekly.dmgWinner ? 'dmg' : 'win') } : null;
 
         await dbRun(db, `UPDATE weekly_leaderboard_awards SET
-            squad_winner_id=?, squad_winner_name=?, squad_winner_tag=?, squad_winner_logo=?, squad_winner_members=?, squad_winner_dmg=?, squad_dmg_top10_data=?,
-            squad_win_winner_id=?, squad_win_winner_name=?, squad_win_winner_tag=?, squad_win_winner_logo=?, squad_win_winner_members=?, squad_win_wins=?, squad_win_top10_data=?
-            WHERE week_start=?`,
+                                                              squad_winner_id=?, squad_winner_name=?, squad_winner_tag=?, squad_winner_logo=?, squad_winner_members=?, squad_winner_dmg=?, squad_dmg_top10_data=?,
+                                                              squad_win_winner_id=?, squad_win_winner_name=?, squad_win_winner_tag=?, squad_win_winner_logo=?, squad_win_winner_members=?, squad_win_wins=?, squad_win_top10_data=?
+                         WHERE week_start=?`,
             [
                 squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0,
                 squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '',
@@ -18543,12 +18555,12 @@ router.post('/admin/weekly-squad-recompute', auth, async (req, res) => {
         // If no award row existed for this week, create one
         if (!existing) {
             await dbRun(db, `INSERT INTO weekly_leaderboard_awards
-                (week_start, squad_winner_id, squad_winner_name, squad_winner_tag, squad_winner_logo, squad_winner_members, squad_winner_dmg, squad_dmg_top10_data,
-                 squad_win_winner_id, squad_win_winner_name, squad_win_winner_tag, squad_win_winner_logo, squad_win_winner_members, squad_win_wins, squad_win_top10_data)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+                             (week_start, squad_winner_id, squad_winner_name, squad_winner_tag, squad_winner_logo, squad_winner_members, squad_winner_dmg, squad_dmg_top10_data,
+                              squad_win_winner_id, squad_win_winner_name, squad_win_winner_tag, squad_win_winner_logo, squad_win_winner_members, squad_win_wins, squad_win_top10_data)
+                             VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
                 [weekStart,
-                 squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.tag : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.logo : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.member_count : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.total_dmg : 0, JSON.stringify(squadWeekly.dmgTop10 || []),
-                 squadWeekly.winWinner ? squadWeekly.winWinner.squad_id : 0, squadWeekly.winWinner ? squadWeekly.winWinner.name : '', squadWeekly.winWinner ? squadWeekly.winWinner.tag : '', squadWeekly.winWinner ? squadWeekly.winWinner.logo : '', squadWeekly.winWinner ? squadWeekly.winWinner.member_count : 0, squadWeekly.winWinner ? squadWeekly.winWinner.total_wins : 0, JSON.stringify(squadWeekly.winTop10 || [])]);
+                    squadWeekly.dmgWinner ? squadWeekly.dmgWinner.squad_id : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.name : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.tag : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.logo : '', squadWeekly.dmgWinner ? squadWeekly.dmgWinner.member_count : 0, squadWeekly.dmgWinner ? squadWeekly.dmgWinner.total_dmg : 0, JSON.stringify(squadWeekly.dmgTop10 || []),
+                    squadWeekly.winWinner ? squadWeekly.winWinner.squad_id : 0, squadWeekly.winWinner ? squadWeekly.winWinner.name : '', squadWeekly.winWinner ? squadWeekly.winWinner.tag : '', squadWeekly.winWinner ? squadWeekly.winWinner.logo : '', squadWeekly.winWinner ? squadWeekly.winWinner.member_count : 0, squadWeekly.winWinner ? squadWeekly.winWinner.total_wins : 0, JSON.stringify(squadWeekly.winTop10 || [])]);
         }
 
         res.json({
@@ -18790,11 +18802,11 @@ router.post('/rewards/send', noReferrer, async (req, res) => {
         const recipients = scope === 'all_characters'
             ? await dbAll(db, 'SELECT id FROM characters ORDER BY id ASC', [])
             : await dbAll(db, `
-                SELECT c.id
-                FROM users u
-                JOIN characters c ON c.id = u.active_character_id
-                WHERE u.active_character_id IS NOT NULL
-                ORDER BY c.id ASC
+                    SELECT c.id
+                    FROM users u
+                             JOIN characters c ON c.id = u.active_character_id
+                    WHERE u.active_character_id IS NOT NULL
+                    ORDER BY c.id ASC
             `, []);
 
         if (!recipients.length) {
@@ -18860,7 +18872,7 @@ router.get('/rewards/resend-preview', noReferrer, async (req, res) => {
             recipients = await dbAll(db, `
                 SELECT c.id, c.name, c.class, c.level
                 FROM characters c
-                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                         LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
                 WHERE m.id IS NULL
                 ORDER BY c.name ASC
             `, [batchId]);
@@ -18868,8 +18880,8 @@ router.get('/rewards/resend-preview', noReferrer, async (req, res) => {
             recipients = await dbAll(db, `
                 SELECT c.id, c.name, c.class, c.level
                 FROM users u
-                JOIN characters c ON c.id = u.active_character_id
-                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                         JOIN characters c ON c.id = u.active_character_id
+                         LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
                 WHERE u.active_character_id IS NOT NULL AND m.id IS NULL
                 ORDER BY c.name ASC
             `, [batchId]);
@@ -18907,7 +18919,7 @@ router.post('/rewards/resend', noReferrer, async (req, res) => {
             recipients = await dbAll(db, `
                 SELECT c.id
                 FROM characters c
-                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                         LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
                 WHERE m.id IS NULL
                 ORDER BY c.id ASC
             `, [batchId]);
@@ -18915,8 +18927,8 @@ router.post('/rewards/resend', noReferrer, async (req, res) => {
             recipients = await dbAll(db, `
                 SELECT c.id
                 FROM users u
-                JOIN characters c ON c.id = u.active_character_id
-                LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
+                         JOIN characters c ON c.id = u.active_character_id
+                         LEFT JOIN messages m ON m.receiver_id = c.id AND m.admin_batch_id = ?
                 WHERE u.active_character_id IS NOT NULL AND m.id IS NULL
                 ORDER BY c.id ASC
             `, [batchId]);
@@ -19118,10 +19130,10 @@ router.post('/dungeon/room-enter', auth, async (req, res) => {
         if (hasCreatedAt) {
             const lastClear = await db.execute({
                 sql: `SELECT created_at
-              FROM dungeon_room_instances
-              WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
-              ORDER BY COALESCE(created_at, 0) DESC
-              LIMIT 1`,
+                      FROM dungeon_room_instances
+                      WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+                      ORDER BY COALESCE(created_at, 0) DESC
+                          LIMIT 1`,
                 args: [char.id, floor, roomIndex]
             });
             if (lastClear.rows.length > 0) {
@@ -19164,8 +19176,8 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
         await dbRun(
             db,
             `UPDATE dungeon_combat_sessions
-       SET status = 'ended', updated_at = ?
-       WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
+             SET status = 'ended', updated_at = ?
+             WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
             [now, req.user.userId, floor, roomIndex]
         );
 
@@ -19209,13 +19221,13 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
         const existing = await db.execute({
             sql: hasCreatedAt
                 ? `SELECT id, created_at
-           FROM dungeon_room_instances
-           WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
-           ORDER BY COALESCE(created_at, 0) DESC
-           LIMIT 1`
+                   FROM dungeon_room_instances
+                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+                   ORDER BY COALESCE(created_at, 0) DESC
+                       LIMIT 1`
                 : `SELECT id
-           FROM dungeon_room_instances
-           WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+                   FROM dungeon_room_instances
+                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
            LIMIT 1`,
             args: [userId, floor, roomIndex]
         });
@@ -19234,23 +19246,23 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
             if (hasCreatedAt && hasSessionId) {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
-                SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
-                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                          SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                     args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
                 });
             } else if (hasCreatedAt) {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
-                SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
-                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                          SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                     args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
                 });
             } else {
                 // No created_at column: treat as always re-clearable, but keep row present.
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
-                SET char_id = ?, floor_number = ?, room_index = ?
-                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                          SET char_id = ?, floor_number = ?, room_index = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                     args: [char.id, floor, roomIndex, userId, floor, roomIndex]
                 });
             }
@@ -19265,22 +19277,22 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
             if (hasSessionId && hasCreatedAt) {
                 await db.execute({
                     sql: `INSERT INTO dungeon_room_instances
-                  (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
-                VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+                          (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+                          VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
                     args: [newId, userId, char.id, floor, roomIndex, runKey, now]
                 });
             } else if (hasCreatedAt) {
                 await db.execute({
                     sql: `INSERT INTO dungeon_room_instances
-                  (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
-                VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
+                              (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+                          VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
                     args: [newId, userId, char.id, floor, roomIndex, now]
                 });
             } else {
                 await db.execute({
                     sql: `INSERT INTO dungeon_room_instances
-                  (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
-                VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
+                              (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+                          VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
                     args: [newId, userId, char.id, floor, roomIndex]
                 });
             }
@@ -19290,22 +19302,22 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
                 if (hasCreatedAt && hasSessionId) {
                     await db.execute({
                         sql: `UPDATE dungeon_room_instances
-                  SET created_at = ?, char_id = ?, session_id = ?
-                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                              SET created_at = ?, char_id = ?, session_id = ?
+                              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                         args: [now, char.id, runKey, userId, floor, roomIndex]
                     });
                 } else if (hasCreatedAt) {
                     await db.execute({
                         sql: `UPDATE dungeon_room_instances
-                  SET created_at = ?, char_id = ?
-                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                              SET created_at = ?, char_id = ?
+                              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                         args: [now, char.id, userId, floor, roomIndex]
                     });
                 } else {
                     await db.execute({
                         sql: `UPDATE dungeon_room_instances
-                  SET char_id = ?
-                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                              SET char_id = ?
+                              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                         args: [char.id, userId, floor, roomIndex]
                     });
                 }
@@ -19320,6 +19332,120 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
         // Avoid hard-failing the client with a generic "server error confirming room clear" popup.
         // Returning 200 with cleared:true ensures the client does not grant loot on uncertainty.
         res.json({ success: true, cleared: true, serverError: true, error: String(e?.message || e) });
+    }
+});
+
+// Server-authoritative treasure room loot (client no longer rolls/grants loot itself).
+router.post('/dungeon/treasure-loot', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const floor = Math.max(1, Number(req.body?.floor || 1));
+        const roomIndex = Math.max(0, Number(req.body?.roomIndex || 0));
+        const floorRunId = req.body?.floorRunId || null;
+        const userId = req.user.userId;
+        const char = await getCurrentCharacter(db, userId, 'id, user_id, class, strength, defense, vitality, agility, magic, hp_current, hp_max, dungeon_progress');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        // At 0 HP you shouldn't be looting rooms.
+        const hpCurRaw = Number(char.hp_current);
+        if (Number.isFinite(hpCurRaw) && hpCurRaw <= 0) {
+            return res.status(400).json({ error: 'You are at 0 HP. Leave the dungeon to recover first.' });
+        }
+
+        // Anti-double-loot gate: same 48h cooldown pattern as room-clear, but a distinct status
+        // so a treasure loot claim never collides with a combat room clear.
+        const TREASURE_COOLDOWN_MS = 48 * 3600 * 1000;
+        const runKey = String(floorRunId || `${floor}_treasure_legacy`);
+        const now = Date.now();
+
+        let hasCreatedAt = true;
+        let hasStatus = true;
+        try {
+            const cols = await db.execute({ sql: `PRAGMA table_info(dungeon_room_instances)`, args: [] });
+            const names = new Set((cols?.rows || []).map(r => String(r?.name || '')));
+            hasCreatedAt = names.has('created_at');
+            hasStatus = names.has('status');
+        } catch {}
+
+        const existing = await db.execute({
+            sql: hasCreatedAt
+                ? `SELECT id, created_at
+                   FROM dungeon_room_instances
+                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'treasure_looted'" : ''}
+                   ORDER BY COALESCE(created_at, 0) DESC LIMIT 1`
+                : `SELECT id
+                   FROM dungeon_room_instances
+                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'treasure_looted'" : ''}
+                   LIMIT 1`,
+            args: [userId, floor, roomIndex]
+        });
+
+        if (existing.rows.length > 0) {
+            if (hasCreatedAt) {
+                const lootedAt = Number(existing.rows[0].created_at || 0) || 0;
+                if (lootedAt > 0 && (now - lootedAt) < TREASURE_COOLDOWN_MS) {
+                    return res.json({ success: true, cleared: true, alreadyLooted: true });
+                }
+            }
+            // Cooldown elapsed — refresh timestamp.
+            if (hasCreatedAt) {
+                await db.execute({
+                    sql: `UPDATE dungeon_room_instances
+                          SET created_at = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [now, userId, floor, roomIndex]
+                });
+            }
+        } else {
+            const newId = `${char.id}_${floor}_${roomIndex}_treasure_looted`;
+            try {
+                if (hasCreatedAt && hasStatus) {
+                    await db.execute({
+                        sql: `INSERT INTO dungeon_room_instances
+                              (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+                              VALUES (?, ?, ?, ?, ?, 'treasure_looted', ?, ?)`,
+                        args: [newId, userId, char.id, floor, roomIndex, runKey, now]
+                    });
+                } else if (hasCreatedAt) {
+                    await db.execute({
+                        sql: `INSERT INTO dungeon_room_instances
+                              (id, user_id, char_id, floor_number, room_index, created_at)
+                              VALUES (?, ?, ?, ?, ?, ?)`,
+                        args: [newId, userId, char.id, floor, roomIndex, now]
+                    });
+                } else {
+                    await db.execute({
+                        sql: `INSERT INTO dungeon_room_instances
+                              (id, user_id, char_id, floor_number, room_index)
+                              VALUES (?, ?, ?, ?, ?)`,
+                        args: [newId, userId, char.id, floor, roomIndex]
+                    });
+                }
+            } catch (insertErr) {
+                const msg = String(insertErr?.message || '');
+                if (msg.includes('UNIQUE') || msg.includes('constraint')) {
+                    if (hasCreatedAt) {
+                        await db.execute({
+                            sql: `UPDATE dungeon_room_instances
+                                  SET created_at = ?
+                                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                            args: [now, userId, floor, roomIndex]
+                        });
+                    }
+                } else {
+                    throw insertErr;
+                }
+            }
+        }
+
+        // Grant a single minor loot roll server-side (matching the old client rollMinorLoot).
+        const seed = crypto.randomBytes(4).readUInt32LE(0) >>> 0;
+        const { granted } = await grantDungeonMinorLoot(db, char.id, floor, 1, seed);
+
+        res.json({ success: true, granted });
+    } catch (e) {
+        console.error('treasure-loot error:', e);
+        res.status(500).json({ error: String(e?.message || e) });
     }
 });
 
@@ -19359,8 +19485,8 @@ router.post('/dungeon/progress', auth, async (req, res) => {
             await dbRun(
                 db,
                 `UPDATE dungeon_combat_sessions
-         SET status = 'ended', updated_at = ?
-         WHERE char_id = ? AND status = 'active'`,
+                 SET status = 'ended', updated_at = ?
+                 WHERE char_id = ? AND status = 'active'`,
                 [now, char.id]
             );
         }
@@ -19374,11 +19500,11 @@ router.post('/dungeon/progress', auth, async (req, res) => {
             combat: combat || null
         };
 
-        await dbRun(db, `UPDATE characters SET 
-      dungeon_floor = ?,
-      dungeon_highest_floor = ?,
-      dungeon_progress = ?
-      WHERE id = ?`,
+        await dbRun(db, `UPDATE characters SET
+                                               dungeon_floor = ?,
+                                               dungeon_highest_floor = ?,
+                                               dungeon_progress = ?
+                         WHERE id = ?`,
             [floor, highestFloor, JSON.stringify(progressData), char.id]
         );
 
@@ -19644,8 +19770,8 @@ async function getTrueHpMaxForChar(db, char) {
 async function upsertCrawlerStat(db, charId, event) {
     const now = Math.floor(Date.now() / 1000);
     await dbRun(db, `INSERT INTO character_crawler_stats (char_id, encounters, defeats, deaths)
-    VALUES (?, 0, 0, 0)
-    ON CONFLICT(char_id) DO NOTHING`, [charId]);
+                     VALUES (?, 0, 0, 0)
+                         ON CONFLICT(char_id) DO NOTHING`, [charId]);
     if (event === 'defeat') {
         await dbRun(db, `UPDATE character_crawler_stats SET defeats = defeats + 1, last_defeat_at = ? WHERE char_id = ?`, [now, charId]);
     } else if (event === 'death') {
@@ -19908,13 +20034,13 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
     const existing = await db.execute({
         sql: hasCreatedAt
             ? `SELECT id, created_at
-         FROM dungeon_room_instances
-         WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
-         ORDER BY COALESCE(created_at, 0) DESC
-         LIMIT 1`
+               FROM dungeon_room_instances
+               WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+               ORDER BY COALESCE(created_at, 0) DESC
+                   LIMIT 1`
             : `SELECT id
-         FROM dungeon_room_instances
-         WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+               FROM dungeon_room_instances
+               WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
          LIMIT 1`,
         args: [userId, floor, roomIndex]
     });
@@ -19931,22 +20057,22 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
         if (hasCreatedAt && hasSessionId) {
             await db.execute({
                 sql: `UPDATE dungeon_room_instances
-              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
-              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                      SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
+                      WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                 args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
             });
         } else if (hasCreatedAt) {
             await db.execute({
                 sql: `UPDATE dungeon_room_instances
-              SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
-              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                      SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
+                      WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                 args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
             });
         } else {
             await db.execute({
                 sql: `UPDATE dungeon_room_instances
-              SET char_id = ?, floor_number = ?, room_index = ?
-              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                      SET char_id = ?, floor_number = ?, room_index = ?
+                      WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                 args: [char.id, floor, roomIndex, userId, floor, roomIndex]
             });
         }
@@ -19958,22 +20084,22 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
         if (hasSessionId && hasCreatedAt) {
             await db.execute({
                 sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
-              VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
+                      (id, user_id, char_id, floor_number, room_index, status, session_id, created_at)
+                      VALUES (?, ?, ?, ?, ?, 'cleared', ?, ?)`,
                 args: [newId, userId, char.id, floor, roomIndex, runKey, now]
             });
         } else if (hasCreatedAt) {
             await db.execute({
                 sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
-              VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
+                          (id, user_id, char_id, floor_number, room_index, ${hasStatus ? 'status,' : ''} created_at)
+                      VALUES (?, ?, ?, ?, ?, ${hasStatus ? "'cleared'," : ''} ?)`,
                 args: [newId, userId, char.id, floor, roomIndex, now]
             });
         } else {
             await db.execute({
                 sql: `INSERT INTO dungeon_room_instances
-                (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
-              VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
+                          (id, user_id, char_id, floor_number, room_index${hasStatus ? ', status' : ''})
+                      VALUES (?, ?, ?, ?, ?${hasStatus ? ", 'cleared'" : ''})`,
                 args: [newId, userId, char.id, floor, roomIndex]
             });
         }
@@ -19983,22 +20109,22 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
             if (hasCreatedAt && hasSessionId) {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
-                SET created_at = ?, char_id = ?, session_id = ?
-                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                          SET created_at = ?, char_id = ?, session_id = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                     args: [now, char.id, runKey, userId, floor, roomIndex]
                 });
             } else if (hasCreatedAt) {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
-                SET created_at = ?, char_id = ?
-                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                          SET created_at = ?, char_id = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                     args: [now, char.id, userId, floor, roomIndex]
                 });
             } else {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
-                SET char_id = ?
-                WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
+                          SET char_id = ?
+                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
                     args: [char.id, userId, floor, roomIndex]
                 });
             }
@@ -20061,9 +20187,9 @@ router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
         const existing = await dbGet(
             db,
             `SELECT id, seed, rng_state, turn_nonce, state_json
-       FROM dungeon_combat_sessions
-       WHERE char_id = ? AND floor_number = ? AND combat_type = 'crawler' AND status = 'active'
-       LIMIT 1`,
+             FROM dungeon_combat_sessions
+             WHERE char_id = ? AND floor_number = ? AND combat_type = 'crawler' AND status = 'active'
+                 LIMIT 1`,
             [char.id, floor]
         );
 
@@ -20099,8 +20225,8 @@ router.post('/dungeon/crawler-combat/start', auth, async (req, res) => {
         await dbRun(
             db,
             `INSERT INTO dungeon_combat_sessions
-        (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
+             (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
             [combatId, char.user_id, char.id, floor, roomIndex, 'crawler', 'active', seed, seed, 0, JSON.stringify(state), now, now]
         );
 
@@ -20136,9 +20262,9 @@ router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
         const row = await dbGet(
             db,
             `SELECT id, rng_state, turn_nonce, state_json
-       FROM dungeon_combat_sessions
-       WHERE id = ? AND char_id = ? AND combat_type = 'crawler' AND status = 'active'
-       LIMIT 1`,
+             FROM dungeon_combat_sessions
+             WHERE id = ? AND char_id = ? AND combat_type = 'crawler' AND status = 'active'
+                 LIMIT 1`,
             [combatId, char.id]
         );
         if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
@@ -20226,8 +20352,8 @@ router.post('/dungeon/crawler-combat/act', auth, async (req, res) => {
         await dbRun(
             db,
             `UPDATE dungeon_combat_sessions
-       SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
-       WHERE id = ?`,
+             SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
+             WHERE id = ?`,
             [rngState, nextNonce, JSON.stringify(state), now, combatId]
         );
 
@@ -20265,9 +20391,9 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
         const existing = await dbGet(
             db,
             `SELECT id, turn_nonce, state_json
-       FROM dungeon_combat_sessions
-       WHERE char_id = ? AND floor_number = ? AND room_index = ? AND combat_type = ? AND status = 'active'
-       LIMIT 1`,
+             FROM dungeon_combat_sessions
+             WHERE char_id = ? AND floor_number = ? AND room_index = ? AND combat_type = ? AND status = 'active'
+                 LIMIT 1`,
             [char.id, floor, roomIndex, kind]
         );
         if (existing?.id) {
@@ -20278,8 +20404,8 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
             await dbRun(
                 db,
                 `UPDATE dungeon_combat_sessions
-         SET status = 'ended', updated_at = ?
-         WHERE id = ?`,
+                 SET status = 'ended', updated_at = ?
+                 WHERE id = ?`,
                 [now, existing.id]
             );
         }
@@ -20397,8 +20523,8 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
         await dbRun(
             db,
             `INSERT INTO dungeon_combat_sessions
-        (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
+             (id, user_id, char_id, floor_number, room_index, combat_type, status, seed, rng_state, turn_nonce, state_json, created_at, updated_at)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?, ?, ?)`,
             [combatId, char.user_id, char.id, floor, roomIndex, kind, 'active', seed, seed, 0, JSON.stringify(state), now, now]
         );
 
@@ -20447,9 +20573,9 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         const row = await dbGet(
             db,
             `SELECT id, combat_type, rng_state, turn_nonce, state_json
-       FROM dungeon_combat_sessions
-       WHERE id = ? AND char_id = ? AND status = 'active'
-       LIMIT 1`,
+             FROM dungeon_combat_sessions
+             WHERE id = ? AND char_id = ? AND status = 'active'
+                 LIMIT 1`,
             [combatId, char.id]
         );
         if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
@@ -20699,8 +20825,8 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         await dbRun(
             db,
             `UPDATE dungeon_combat_sessions
-       SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
-       WHERE id = ?`,
+             SET rng_state = ?, turn_nonce = ?, state_json = ?, updated_at = ?
+             WHERE id = ?`,
             [rngState, nextNonce, JSON.stringify(state), now, combatId]
         );
 
@@ -20787,8 +20913,8 @@ router.post('/dungeon/boss-defeated', auth, async (req, res) => {
         const recent = await dbGet(
             db,
             `SELECT id FROM dungeon_combat_sessions
-       WHERE id = ? AND char_id = ? AND combat_type = 'boss' AND status = 'ended'
-       LIMIT 1`,
+             WHERE id = ? AND char_id = ? AND combat_type = 'boss' AND status = 'ended'
+                 LIMIT 1`,
             [String(combatId), char.id]
         );
         if (!recent?.id) {
@@ -20948,13 +21074,13 @@ router.post('/dungeon/guild/raid/create', auth, async (req, res) => {
         const boss = getGuildRaidBossForFloor(requestedFloor);
         const mercenaryPool = generateRaidMercenaryPool(requestedFloor, 10);
         const created = await dbRun(db, `INSERT INTO guild_raids
-      (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at, mercenary_pool, min_level, max_level)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?, ?, ?, ?)`,
+                                         (leader_char_id, leader_user_id, floor, boss_name, boss_image, boss_hp, boss_atk, boss_def, auto_start_mode, scheduled_start_at, status, created_at, mercenary_pool, min_level, max_level)
+                                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'forming', ?, ?, ?, ?)`,
             [char.id, req.user.userId, requestedFloor, boss.name, boss.image, boss.hp, boss.atk, boss.def, autoStartMode, 0, now, JSON.stringify(mercenaryPool), requestedMinLevel, requestedMaxLevel]
         );
         const raidId = Number(created.lastInsertRowid);
         await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
-      VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
+                         VALUES (?, ?, ?, ?)`, [raidId, char.id, req.user.userId, now]);
         try {
             const createdRaid = await getGuildRaidById(db, raidId);
             const createThreshold = getGuildRaidAutoStartThreshold(createdRaid);
@@ -21021,8 +21147,8 @@ router.post('/dungeon/guild/raid/join', auth, async (req, res) => {
         }
         if (members.length >= GUILD_RAID_MAX_MEMBERS) return res.status(400).json({ error: 'Raid is already full.' });
         const joinResult = await dbRun(db, `INSERT INTO guild_raid_members (raid_id, char_id, user_id, joined_at)
-      SELECT ?, ?, ?, ?
-      WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
+                                            SELECT ?, ?, ?, ?
+                                                WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
             [raidId, char.id, req.user.userId, now, raidId]
         );
         const joined = joinResult?.rowsAffected ?? joinResult?.changes ?? 0;
@@ -21062,21 +21188,21 @@ router.post('/dungeon/crawler-event', auth, async (req, res) => {
         }
 
         await dbRun(db, `INSERT INTO character_crawler_stats (char_id, encounters, defeats, deaths)
-      VALUES (?, 0, 0, 0)
-      ON CONFLICT(char_id) DO NOTHING`, [char.id]);
+                         VALUES (?, 0, 0, 0)
+                             ON CONFLICT(char_id) DO NOTHING`, [char.id]);
 
         if (event === 'encounter') {
             await dbRun(db, `UPDATE character_crawler_stats
-        SET encounters = encounters + 1, last_encounter_at = ?
-        WHERE char_id = ?`, [now, char.id]);
+                             SET encounters = encounters + 1, last_encounter_at = ?
+                             WHERE char_id = ?`, [now, char.id]);
         } else if (event === 'defeat') {
             await dbRun(db, `UPDATE character_crawler_stats
-        SET defeats = defeats + 1, last_defeat_at = ?
-        WHERE char_id = ?`, [now, char.id]);
+                             SET defeats = defeats + 1, last_defeat_at = ?
+                             WHERE char_id = ?`, [now, char.id]);
         } else if (event === 'death') {
             await dbRun(db, `UPDATE character_crawler_stats
-        SET deaths = deaths + 1, last_death_at = ?
-        WHERE char_id = ?`, [now, char.id]);
+                             SET deaths = deaths + 1, last_death_at = ?
+                             WHERE char_id = ?`, [now, char.id]);
         }
 
         // New stats can affect achievements; refresh weekly claimable badge count.
@@ -21175,9 +21301,9 @@ router.post('/dungeon/guild/raid/recruit', auth, async (req, res) => {
 
         const npcCharId = -((raidId * 1000) + (Number(recruit.slotIndex || 0) + 1));
         const recruitInsert = await dbRun(db, `INSERT INTO guild_raid_members
-      (raid_id, char_id, user_id, joined_at, is_npc, member_name, member_class, member_level, member_payload)
-      SELECT ?, ?, 0, ?, 1, ?, ?, ?, ?
-      WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
+                                               (raid_id, char_id, user_id, joined_at, is_npc, member_name, member_class, member_level, member_payload)
+                                               SELECT ?, ?, 0, ?, 1, ?, ?, ?, ?
+                                                   WHERE EXISTS (SELECT 1 FROM guild_raids WHERE id = ? AND status = 'forming')`,
             [raidId, npcCharId, now, recruit.name, recruit.fighter.class || 'mercenary', Number(recruit.level || raid.floor || 1), JSON.stringify(recruit), raidId]
         );
         const inserted = recruitInsert?.rowsAffected ?? recruitInsert?.changes ?? 0;
@@ -21757,9 +21883,9 @@ router.get('/bug-reports/list', noReferrer, async (req, res) => {
             SELECT id, report_timestamp as timestamp, username, character_name, character_level, 
                    character_class, category, title, description, steps_to_reproduce, browser,
                    game_location, game_hp, game_gold, game_level, has_screenshot
-            FROM bug_reports 
-            ORDER BY id DESC 
-            LIMIT 200
+            FROM bug_reports
+            ORDER BY id DESC
+                LIMIT 200
         `, []);
 
         let html = `
@@ -22008,10 +22134,10 @@ router.post('/convert-mp-to-potion', auth, async (req, res) => {
         }
 
         const existingPotions = await dbAll(db, `
-            SELECT * FROM inventory 
-            WHERE char_id = ? 
-            AND item_type = 'consumable' 
-            AND json_extract(item_data, '$.id') = 'special_mana_potion'
+            SELECT * FROM inventory
+            WHERE char_id = ?
+              AND item_type = 'consumable'
+              AND json_extract(item_data, '$.id') = 'special_mana_potion'
         `, [freshChar.id]);
 
         let totalPotionQty = 0;
@@ -22096,7 +22222,7 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
         for (const lootItem of loot.items) {
             if (lootItem.stackable) {
                 const existing = await dbGet(db, `
-                    SELECT * FROM inventory 
+                    SELECT * FROM inventory
                     WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?
                 `, [char.id, lootItem.type, lootItem.id]);
 
@@ -22220,59 +22346,59 @@ function generateLootFromBox(boxType, playerLevel) {
             gemChance: 0.10,
             gemRange: [1, 5]
         },
-            legendary: {
-                itemsCount: 5,
-                materials: [
-                    { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 50, qty: [2, 5] },
-                    { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 30, qty: [2, 4] }
-                ],
-                gear: [
-                    { quality: 'epic', chance: 0.50, level: playerLevel },
-                    { quality: 'legendary', chance: 0.50, level: playerLevel }
-                ],
-                goldRange: [2000, 5000],
-                gemChance: 0.25,
-                gemRange: [2, 10]
-            },
-            mythic: {
-                itemsCount: 5,
-                materials: [
-                    { id: 'eternal_essence', name: 'Eternal Essence', emoji: '💠', weight: 40, qty: [2, 5] },
-                    { id: 'primordial_shard', name: 'Primordial Shard', emoji: '✨', weight: 30, qty: [2, 4] },
-                    { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 30, qty: [3, 6] }
-                ],
-                gear: [
-                    { quality: 'epic', chance: 0.20, level: playerLevel },
-                    { quality: 'legendary', chance: 0.80, level: playerLevel }
-                ],
-                goldRange: [5000, 10000],
-                gemChance: 0.50,
-                gemRange: [5, 20]
-            }
-        };
-
-        const boxDrops = drops[boxType];
-        
-        // Guarantee one crafted item for Mythic
-        if (boxType === 'mythic') {
-            const craftable = EQUIPMENT_RECIPES.filter(r => !r.bannerOnly);
-            const recipe = craftable[Math.floor(Math.random() * craftable.length)];
-            if (recipe) {
-                const scaled = scaleItemToLevel(recipe, playerLevel);
-                result.items.push({
-                    ...scaled,
-                    id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
-                    type: 'equipment',
-                    source: 'crafted_drop',
-                    sell_price_cap: 1000,
-                    stackable: false,
-                    qty: 1,
-                    desc: `${scaled.desc || recipe.desc || ''}`
-                });
-            }
+        legendary: {
+            itemsCount: 5,
+            materials: [
+                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 50, qty: [2, 5] },
+                { id: 'demon_core', name: 'Demon Core', emoji: '💀', weight: 30, qty: [2, 4] }
+            ],
+            gear: [
+                { quality: 'epic', chance: 0.50, level: playerLevel },
+                { quality: 'legendary', chance: 0.50, level: playerLevel }
+            ],
+            goldRange: [2000, 5000],
+            gemChance: 0.25,
+            gemRange: [2, 10]
+        },
+        mythic: {
+            itemsCount: 5,
+            materials: [
+                { id: 'eternal_essence', name: 'Eternal Essence', emoji: '💠', weight: 40, qty: [2, 5] },
+                { id: 'primordial_shard', name: 'Primordial Shard', emoji: '✨', weight: 30, qty: [2, 4] },
+                { id: 'legendary_fragment', name: 'Legendary Fragment', emoji: '⭐', weight: 30, qty: [3, 6] }
+            ],
+            gear: [
+                { quality: 'epic', chance: 0.20, level: playerLevel },
+                { quality: 'legendary', chance: 0.80, level: playerLevel }
+            ],
+            goldRange: [5000, 10000],
+            gemChance: 0.50,
+            gemRange: [5, 20]
         }
+    };
 
-        const createMaterialDrop = () => {
+    const boxDrops = drops[boxType];
+
+    // Guarantee one crafted item for Mythic
+    if (boxType === 'mythic') {
+        const craftable = EQUIPMENT_RECIPES.filter(r => !r.bannerOnly);
+        const recipe = craftable[Math.floor(Math.random() * craftable.length)];
+        if (recipe) {
+            const scaled = scaleItemToLevel(recipe, playerLevel);
+            result.items.push({
+                ...scaled,
+                id: `${recipe.id}_${Date.now()}_${Math.random().toString(36).substr(2,9)}`,
+                type: 'equipment',
+                source: 'crafted_drop',
+                sell_price_cap: 1000,
+                stackable: false,
+                qty: 1,
+                desc: `${scaled.desc || recipe.desc || ''}`
+            });
+        }
+    }
+
+    const createMaterialDrop = () => {
         const totalWeight = boxDrops.materials.reduce((sum, m) => sum + m.weight, 0);
         let roll = Math.random() * totalWeight;
         let selected = boxDrops.materials[0];
@@ -22323,21 +22449,21 @@ function generateLootFromBox(boxType, playerLevel) {
             }
 
             if (selectedQuality) {
-            const itemTypes = Object.keys(ITEM_GENERATORS);
-            const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
-            const item = generateBackendRandomItem(playerLevel, randomType);
-            if (item) {
-                item.quality = selectedQuality;
-                if (selectedQuality === 'legendary') ensureWeaponSkill(item, playerLevel);
-                result.items.push({
-                    ...item,
-                    type: 'equipment',
-                    source: 'lootbox',
-                    sell_price_cap: 1000,
-                    stackable: false,
-                    qty: 1
-                });
-            }
+                const itemTypes = Object.keys(ITEM_GENERATORS);
+                const randomType = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                const item = generateBackendRandomItem(playerLevel, randomType);
+                if (item) {
+                    item.quality = selectedQuality;
+                    if (selectedQuality === 'legendary') ensureWeaponSkill(item, playerLevel);
+                    result.items.push({
+                        ...item,
+                        type: 'equipment',
+                        source: 'lootbox',
+                        sell_price_cap: 1000,
+                        stackable: false,
+                        qty: 1
+                    });
+                }
             } else {
                 result.items.push(createMaterialDrop());
             }
@@ -22383,12 +22509,12 @@ function generateLootFromBox(boxType, playerLevel) {
                 sell_price_cap: 1000,
                 stackable: false,
                 qty: 1,
-                    desc: `${scaled.desc || recipe.desc || ''}`
-                });
-            }
+                desc: `${scaled.desc || recipe.desc || ''}`
+            });
         }
+    }
 
-        return result;
+    return result;
 }
 
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
@@ -22425,9 +22551,9 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
         }
 
         const component = await dbGet(db, `
-            SELECT * FROM inventory 
-            WHERE char_id=? AND item_type='component' 
-            AND json_extract(item_data, '$.id')=?
+            SELECT * FROM inventory
+            WHERE char_id=? AND item_type='component'
+              AND json_extract(item_data, '$.id')=?
         `, [char.id, componentId]);
 
         if (!component) {
@@ -22612,11 +22738,11 @@ router.post('/exchange/fragments', auth, async (req, res) => {
 
         // Check if player has enough legendary fragments
         const fragmentItem = await dbGet(db, `
-    SELECT * FROM inventory 
-    WHERE char_id = ? 
-    AND item_type IN ('raw_mat', 'component')
-    AND json_extract(item_data, '$.id') = 'legendary_fragment'
-`, [char.id]);
+            SELECT * FROM inventory
+            WHERE char_id = ?
+              AND item_type IN ('raw_mat', 'component')
+              AND json_extract(item_data, '$.id') = 'legendary_fragment'
+        `, [char.id]);
 
         let availableFragments = 0;
         if (fragmentItem) {
@@ -22658,8 +22784,8 @@ router.post('/exchange/fragments', auth, async (req, res) => {
         const existingRows = await dbAll(db, `
             SELECT * FROM inventory
             WHERE char_id = ?
-            AND item_type IN ('raw_mat', 'component')
-            AND json_extract(item_data, '$.id') = ?
+              AND item_type IN ('raw_mat', 'component')
+              AND json_extract(item_data, '$.id') = ?
         `, [char.id, materialId]);
 
         const totalExistingQty = existingRows.reduce((sum, row) => {
@@ -22768,9 +22894,9 @@ router.get('/exchange/fragments/list', auth, async (req, res) => {
 
         // Get player's legendary fragment count
         const fragmentItem = await dbGet(db, `
-            SELECT * FROM inventory 
-            WHERE char_id = ? AND item_type = 'component' 
-            AND json_extract(item_data, '$.id') = 'legendary_fragment'
+            SELECT * FROM inventory
+            WHERE char_id = ? AND item_type = 'component'
+              AND json_extract(item_data, '$.id') = 'legendary_fragment'
         `, [char.id]);
 
         let fragmentCount = 0;
@@ -23425,8 +23551,8 @@ router.post('/elemental/set-element', auth, async (req, res) => {
         await dbRun(db, 'UPDATE characters SET gold = gold - ? WHERE id = ?', [changeCost, char.id]);
         // Set element, reset element_level/xp, and reset affinities (chosen gets 1 so it sticks)
         await dbRun(db, `UPDATE elementals SET element=?, element_level=1, elemental_xp=0,
-            pyro_affinity=0, water_affinity=0, electro_affinity=0, wind_affinity=0
-            WHERE id=?`, [element, elem.id]);
+                                               pyro_affinity=0, water_affinity=0, electro_affinity=0, wind_affinity=0
+                         WHERE id=?`, [element, elem.id]);
         res.json({ message: `⚡ Elemental's element changed to ${element}!`, gold: Math.max(0, (char.gold || 0) - changeCost) });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -23482,7 +23608,7 @@ router.post('/maps', async (req, res) => {
         const now = Math.floor(Date.now() / 1000);
         const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
         await dbRun(db, `INSERT INTO maps (level, name, data, created_at, updated_at) VALUES (?,?,?,?,?)
-            ON CONFLICT(level) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
+                    ON CONFLICT(level) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
             [Number(level), name || '', jsonData, now, now]);
         const row = await dbGet(db, 'SELECT * FROM maps WHERE level=?', [Number(level)]);
         try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
@@ -23611,8 +23737,8 @@ async function autoProcessUpkeep(db) {
         if (lastDay === todayIdx) return;
         if ((now - todayIdx * day) > UPKEEP_TICK_WINDOW) return;
         const ownedBases = await dbAll(db, `SELECT cb.*, su.upgrade_level, su.last_upkeep_paid, su.squad_id, su.base_id
-            FROM clan_bases cb JOIN squad_base_upgrades su ON su.base_id = cb.id AND su.squad_id = cb.owner_squad_id
-            WHERE cb.owner_squad_id IS NOT NULL AND su.upgrade_level > 0`, []);
+                                            FROM clan_bases cb JOIN squad_base_upgrades su ON su.base_id = cb.id AND su.squad_id = cb.owner_squad_id
+                                            WHERE cb.owner_squad_id IS NOT NULL AND su.upgrade_level > 0`, []);
         for (const base of ownedBases) {
             try {
                 const lastPaid = Number(base.last_upkeep_paid || 0);
@@ -23701,14 +23827,14 @@ async function backfillWeeklyPerformance() {
         const battleRows = await dbAll(db, `
             SELECT char_id, SUM(dmg) AS total_dmg, SUM(wins) AS total_wins, SUM(bats) AS total_bats
             FROM (
-                SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt,0) AS dmg,
-                    CASE WHEN COALESCE(winner_id,0)=attacker_id THEN 1 ELSE 0 END AS wins, 1 AS bats
-                FROM battles WHERE fought_at >= ? AND fought_at < ?
-                UNION ALL
-                SELECT defender_id AS char_id, COALESCE(total_dmg_taken,0) AS dmg,
-                    CASE WHEN COALESCE(winner_id,0)=defender_id THEN 1 ELSE 0 END AS wins, 1 AS bats
-                FROM battles WHERE defender_id>0 AND fought_at >= ? AND fought_at < ?
-            ) GROUP BY char_id
+                     SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt,0) AS dmg,
+                            CASE WHEN COALESCE(winner_id,0)=attacker_id THEN 1 ELSE 0 END AS wins, 1 AS bats
+                     FROM battles WHERE fought_at >= ? AND fought_at < ?
+                     UNION ALL
+                     SELECT defender_id AS char_id, COALESCE(total_dmg_taken,0) AS dmg,
+                            CASE WHEN COALESCE(winner_id,0)=defender_id THEN 1 ELSE 0 END AS wins, 1 AS bats
+                     FROM battles WHERE defender_id>0 AND fought_at >= ? AND fought_at < ?
+                 ) GROUP BY char_id
         `, [weekStart, now, weekStart, now]);
         for (const r of battleRows) {
             const cid = Number(r.char_id);
@@ -23717,11 +23843,11 @@ async function backfillWeeklyPerformance() {
         // Aggregate from messages (missions)
         const msgRows = await dbAll(db, `
             SELECT receiver_id AS char_id,
-                COALESCE(SUM(json_extract(substr(body,15),'$.totalDmgDealt')),0) AS total_dmg,
-                COALESCE(SUM(CASE WHEN json_extract(substr(body,15),'$.won')=1 THEN 1 ELSE 0 END),0) AS total_wins
+                   COALESCE(SUM(json_extract(substr(body,15),'$.totalDmgDealt')),0) AS total_dmg,
+                   COALESCE(SUM(CASE WHEN json_extract(substr(body,15),'$.won')=1 THEN 1 ELSE 0 END),0) AS total_wins
             FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                AND json_extract(substr(body,15),'$.type')='mission'
-                AND sent_at >= ? AND sent_at < ?
+                            AND json_extract(substr(body,15),'$.type')='mission'
+                            AND sent_at >= ? AND sent_at < ?
             GROUP BY receiver_id
         `, [weekStart, now]);
         for (const r of msgRows) {
