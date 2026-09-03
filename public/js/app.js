@@ -4817,7 +4817,7 @@ function renderBadgePicker(data) {
     const content = document.getElementById('badge-picker-content');
     if (!content) return;
     const isPT = CURRENT_LANG === 'pt';
-    const items = (data?.items || []).filter(a => a?.completed);
+    const items = (data?.items || []).filter(a => a?.completed && a?.milestone);
     const current = Array.isArray(character?.profile_badges) ? character.profile_badges.slice(0, 3).map(String) : [];
 
     const noneLabel = isPT ? '(Nenhuma)' : '(None)';
@@ -12885,7 +12885,9 @@ function skipBattlePlayback() {
 }
 
 function getMyAttackBlockReason() {
-    if (character?.trainingActive) return 'Training active';
+    const now = Math.floor(Date.now() / 1000);
+    const trainingActive = character?.training_stat && character?.training_ends_at && now < character.training_ends_at;
+    if (trainingActive || character?.trainingActive) return 'Training active';
     if (character?.trainingDone) return 'Collect training first';
     if (window.activeMission) return 'Mission in progress';
     const myBattleCd = character?.battle_cooldown_remaining || 0;
