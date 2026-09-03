@@ -9,9 +9,56 @@ const lastIpChangeLog = new Map(); // userId -> last logged ts
 
 module.exports = async (req, res, next) => {
     const header = req.headers.authorization;
+    let token = header ? header.split(' ')[1] : null;
+    // Refresh token fallback: check persistent cookie (manual parse, no cookie-parser dependency)
+    let refreshCookie = null;
+    if (!token) {
+        const cookieHeader = String(req.headers.cookie || '');
+        const match = cookieHeader.match(/(?:^|;)\s*rpg_refresh_token=([^;]+)/);
+        if (match) refreshCookie = match[1];
+    }
+    if (!token && refreshCookie) {
+        try {
+            const db = await getDb();
+            const hash = require('crypto').createHash('sha256').update(String(refreshCookie || ''), 'utf8').digest('hex');
+            const row = await db.execute({ sql: 'SELECT id, username FROM users WHERE refresh_token_hash = ? AND refresh_token_expires > ?', args: [hash, Date.now()] });
+            if (row.rows[0]) {
+                // Issue a new short-lived JWT token (optional) or set req.user directly
+                // For simplicity: set user directly from DB and proceed
+                const userResult = await db.execute({ sql: 'SELECT id, username, user_session, is_admin, is_moderator, ban_level, ban_expires_at, ban_reason FROM users WHERE id = ?', args: [row.rows[0].id] });
+                if (userResult.rows[0]) {
+                    const user = userResult.rows[0];
+                    const banLevel = Number(user.ban_level || 0);
+                    const banExpires = Number(user.ban_expires_at || 0);
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    if (banLevel >= 3) {
+                        return res.status(403).json({ error: 'Your account has been permanently banned.', ban: true, ban_level: banLevel, ban_reason: user.ban_reason });
+                    }
+                    if (banLevel === 2 && banExpires > 0 && nowSec < banExpires) {
+                        const remaining = Math.ceil((banExpires - nowSec) / 60);
+                        return res.status(403).json({ error: `Your account is temporarily locked. Try again in ${remaining} minutes.`, ban: true, ban_level: banLevel, ban_reason: user.ban_reason, ban_expires_at: banExpires });
+                    }
+                    req.user = {
+                        userId: user.id,
+                        username: user.username,
+                        isAdmin: !!user.is_admin,
+                        isModerator: !!user.is_moderator,
+                        banLevel,
+                        banWarning: banLevel === 1,
+                        banReason: banLevel === 1 ? (user.ban_reason || null) : null,
+                        sessionId: null,
+                        tabSession: null
+                    };
+                    return next();
+                }
+            }
+        } catch (e) {
+            console.error('Refresh token error:', e);
+        }
+        return res.status(401).json({ error: 'Refresh token invalid or expired' });
+    }
+
     if (!header) return res.status(401).json({ error: 'No token' });
-    
-    const token = header.split(' ')[1];
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         
