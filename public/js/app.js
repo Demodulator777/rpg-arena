@@ -372,6 +372,14 @@ const STAT_LABELS = {
     electro_resist: 'Electro Resist',
 };
 
+const STAT_LABELS_PT = {
+    dmg_min: 'Dano Mín', dmg_max: 'Dano Máx', armor: 'Armadura', hp_max: 'PV',
+    defense: 'Defesa', strength: 'Força', agility: 'Agilidade', magic: 'Mágica', vitality: 'Vitalidade',
+    hit_chance: 'Chance de Acerto', crit_chance: 'Chance de Crítico',
+    pyro_dmg: 'Dano de Fogo', water_dmg: 'Dano de Água', wind_dmg: 'Dano de Vento', electro_dmg: 'Dano Elétrico',
+    pyro_resist: 'Resist. Fogo', water_resist: 'Resist. Água', wind_resist: 'Resist. Vento', electro_resist: 'Resist. Elétrica',
+};
+
 const STAT_ICON_ASSETS = {
     dmg_min:'strength', dmg_max:'strength', armor:'defense', hp_max:'vitality',
     defense:'defense', strength:'strength', agility:'agility', magic:'magic', vitality:'vitality',
@@ -381,12 +389,12 @@ const STAT_ICON_ASSETS = {
 };
 
 function statLabelHtml(stat) {
+    var label = (CURRENT_LANG === 'pt' ? STAT_LABELS_PT[stat] : STAT_LABELS[stat]) || stat.replace(/_/g,' ');
     var asset = STAT_ICON_ASSETS[stat];
     if (asset) {
-        var label = STAT_LABELS[stat] || stat.replace(/_/g,' ');
         return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="lazy" decoding="async" data-error-hide="true" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;display:inline-block"> ' + label;
     }
-    return STAT_LABELS[stat] || stat.replace(/_/g,' ');
+    return label;
 }
 
 // ── Hit & Block Zone Definitions ──────────────────────────────────────────
@@ -415,6 +423,23 @@ const BLOCK_ZONES = {
     counter_stance:{ label: 'Counter Stance',protects: ['chest','solar_plexus'],    reduction: 0.55, special: 'counter_25', desc: '25% chance to counter for 50% damage back. Covers center line only.' },
     no_block:      { label: 'No Block',      protects: [],                          reduction: 0.00, special: 'attacker_bonus_10', desc: 'Pure aggression. You take full hits but deal 10% more damage.' }
 };
+
+// PT overlay for zone labels/descs — used when CURRENT_LANG is 'pt'.
+const ZONE_PT_LABEL = { head:'Cabeça', throat:'Garganta', chest:'Peito', heart:'Coração', solar_plexus:'Plexo Solar', stomach:'Estômago', left_arm:'Braço Esq.', right_arm:'Braço Dir.', left_leg:'Perna Esq.', right_leg:'Perna Dir.', high_guard:'Guarda Alta', cross_guard:'Guarda Cruzada', mid_guard:'Guarda Média', left_guard:'Guarda Esquerda', right_guard:'Guarda Direita', full_turtle:'Tartaruga Total', weave_left:'Esquiva à Esq.', weave_right:'Esquiva à Dir.', counter_stance:'Postura de Contra', no_block:'Sem Bloqueio' };
+const ZONE_PT_DESC = {
+    head:'Alto risco, alta recompensa. Devastador se acertar.', throat:'Dano forte com precisão decente.',
+    chest:'Confiável e consistente. O padrão seguro.', heart:'Maior dano do jogo. Difícil de acertar.',
+    solar_plexus:'Bom equilíbrio entre dano e precisão.', stomach:'Seguro e confiável, com dano sólido.',
+    left_arm:'Dano baixo, mas muito preciso. Vence a maioria das guardas.', right_arm:'Espelho do braço esquerdo. Consistente e seguro.',
+    left_leg:'Quase garantido de conectar. Contra-ataca o treinamento defensivo.', right_leg:'Espelho da perna esquerda. Dano de desgaste confiável.',
+    high_guard:'Contra-ataca ataques na cabeça/garganta. Deixa as pernas abertas.', cross_guard:'Protege o centro vital. Melhor guarda versátil.',
+    mid_guard:'Defesa média sólida. Fraca contra cabeça e pernas.', left_guard:'Cobre o seu lado esquerdo. Pune atacantes previsíveis.',
+    right_guard:'Cobre o seu lado direito. Mesmas trocas da guarda esquerda.', full_turtle:'Cobertura pesada, mas diminui seu próximo ataque em 15%.',
+    weave_left:'Evasivo. 20% de chance de o atacante errar por completo.', weave_right:'Espelho da esquiva esquerda. Ardiloso e imprevisível.',
+    counter_stance:'25% de chance de contra-atacar com 50% do dano. Cobre apenas a linha central.', no_block:'Agressão pura. Você recebe golpes completos, mas causa 10% mais dano.'
+};
+function zoneLabel(zoneKey) { return (CURRENT_LANG === 'pt' && ZONE_PT_LABEL[zoneKey]) || HIT_ZONES[zoneKey]?.label || BLOCK_ZONES[zoneKey]?.label || zoneKey; }
+function zoneDesc(zoneKey) { return (CURRENT_LANG === 'pt' && ZONE_PT_DESC[zoneKey]) || HIT_ZONES[zoneKey]?.desc || BLOCK_ZONES[zoneKey]?.desc || ''; }
 
 const DEFAULT_ATTACK_ZONES = ['chest','chest','solar_plexus','chest','head','solar_plexus','chest','stomach','chest','solar_plexus'];
 const DEFAULT_BLOCK_ZONES  = ['cross_guard','mid_guard','cross_guard','high_guard','cross_guard','mid_guard','cross_guard','mid_guard','cross_guard','high_guard'];
@@ -532,6 +557,126 @@ const ZONES = {
         xpBase: { easy:[1,5], medium:[5,10], hard:[10,15] }
     }
 };
+
+const ZONE_NAME_PT = {
+    'Whispering Forest': 'Floresta Sussurrante',
+    'Rotting Swamp': 'Pântano Apodrecido',
+    'Frozen Mountains': 'Montanhas Congeladas',
+    'Ancient Ruins': 'Ruínas Antigas',
+    'Dark City': 'Cidade das Sombras',
+    'Shadowfen Depths': 'Profundezas de Shadowfen',
+    'Crimson Wasteland': 'Ermo Carmesim',
+    'Abyssal Void': 'Vazio Abissal',
+    'The Dark Citadel': 'A Cidadela das Sombras',
+    'Eternal Darkness': 'Escuridão Eterna',
+};
+
+const ZONE_DESC_PT = {
+    'A dense, ancient forest filled with wildlife and bandits.': 'Uma floresta densa e antiga cheia de vida selvagem e bandidos.',
+    'A murky, poisonous swamp filled with dangerous creatures.': 'Um pântano escuro e venenoso cheio de criaturas perigosas.',
+    'Snow-capped peaks with treacherous paths.': 'Picos cobertos de neve com caminhos traiçoeiros.',
+    'Remains of an ancient civilization, now haunted.': 'Restos de uma civilização antiga, agora assombrada.',
+    'A corrupted city ruled by dark forces.': 'Uma cidade corrompida governada por forças das sombras.',
+};
+
+const SPOT_NAME_PT = {
+    'Hunting Camp': 'Acampamento de Caça',
+    'Bandit Hideout': 'Esconderijo dos Bandidos',
+    'Old Ruins': 'Ruínas Antigas',
+    'Swamp Edge': 'Limite do Pântano',
+    'Abandoned Village': 'Vila Abandonada',
+    'Swamp Heart': 'Coração do Pântano',
+    'Mountain Base': 'Base da Montanha',
+    'Frozen Peak': 'Pico Congelado',
+    'Ice Cavern': 'Caverna de Gelo',
+    'Ruins Perimeter': 'Perímetro das Ruínas',
+    'Sunken Temple': 'Templo Submerso',
+    'Ancient Crypt': 'Cripta Antiga',
+    'City Outskirts': 'Arredores da Cidade',
+    'Dark Cathedral': 'Catedral das Sombras',
+    'Shadow Palace': 'Palácio das Sombras',
+};
+
+const MISSION_NAME_PT = {
+    'Hunt the Wolves': 'Caçar os Lobos',
+    'Gather Firewood': 'Coletar Lenha',
+    'Collect Wild Herbs': 'Coletar Ervas Silvestres',
+    'Track the Deer': 'Rastrear o Cervo',
+    'Clear the Bandits': 'Eliminar os Bandidos',
+    'Scout the Path': 'Explorar o Caminho',
+    'Recover Stolen Goods': 'Recuperar Bens Roubados',
+    'Rescue the Captive': 'Resgatar o Cativo',
+    'Explore the Ruins': 'Explorar as Ruínas',
+    'Defeat the Forest Guardian': 'Derrotar o Guardião da Floresta',
+    'Find the Lost Relic': 'Encontrar a Relíquia Perdida',
+    'Cleanse the Corruption': 'Purificar a Corrupção',
+    'Harvest Poison Glands': 'Coletar Glândulas de Veneno',
+    'Collect Swamp Crystals': 'Coletar Cristais do Pântano',
+    'Gather Herbs': 'Coletar Ervas',
+    'Catch Swamp Frogs': 'Pegar Sapos do Pântano',
+    'Find the Lost Merchant': 'Encontrar o Mercador Perdido',
+    'Purge the Undead': 'Eliminar os Mortos-Vivos',
+    'Rescue the Prisoner': 'Resgatar o Prisioneiro',
+    'Loot the Houses': 'Saquear as Casas',
+    'Slay the Bog Witch': 'Matar a Bruxa do Brejo',
+    'Destroy the Corrupted Heart': 'Destruir o Coração Corrompido',
+    'Purify the Waters': 'Purificar as Águas',
+    'Face the Swamp Horror': 'Enfrentar o Horror do Pântano',
+    'Mine Iron Ore': 'Extrair Minério de Ferro',
+    'Chart the Ice Caves': 'Mapear as Cavernas de Gelo',
+    'Hunt Mountain Goats': 'Caçar Cabras da Montanha',
+    'Collect Frost Herbs': 'Coletar Ervas de Gelo',
+    'Claim the Summit': 'Reivindicar o Pico',
+    'Recover the Artifact': 'Recuperar o Artefato',
+    'Defeat the Mountain Troll': 'Derrotar o Troll da Montanha',
+    'Find the Frozen Temple': 'Encontrar o Templo Congelado',
+    'Slay the Ice Drake': 'Matar o Dragão de Gelo',
+    'Mine the Mithril Vein': 'Extrair a Veia de Mithril',
+    'Awaken the Frozen Giant': 'Despertar o Gigante Congelado',
+    'Retrieve the Frost Core': 'Recuperar o Núcleo de Gelo',
+    'Decode the Rune Stones': 'Decifrar as Pedras Rúnicas',
+    'Clear the Vines': 'Limpar as Vinhas',
+    'Scout the Entrance': 'Explorar a Entrada',
+    'Collect Ancient Debris': 'Coletar Detritos Antigos',
+    'Destroy the Corrupted Altar': 'Destruir o Altar Corrompido',
+    'Find the Lost Grimoire': 'Encontrar o Grimório Perdido',
+    'Capture the Shadow Elemental': 'Capturar o Elemental das Sombras',
+    'Purify the Holy Ground': 'Purificar o Solo Sagrado',
+    'Banish the Wraith Lord': 'Banir o Senhor dos Aparições',
+    'Loot the Sealed Vault': 'Saquear o Cofre Selado',
+    'Break the Undead Curse': 'Quebrar a Maldição dos Mortos-Vivos',
+    "Claim the King's Crown": 'Reivindicar a Coroa do Rei',
+    'Assassinate the Crime Lord': 'Assassinar o Senhor do Crime',
+    'Infiltrate the Shadow Guild': 'Infiltrar na Guilda das Sombras',
+    'Sabotage the Dark Portal': 'Sabotar o Portal das Sombras',
+    'Free the Slaves': 'Libertar os Escravos',
+    'Destroy the Ritual Site': 'Destruir o Local do Ritual',
+    'Hunt the Demon Enforcer': 'Caçar o Capanga Demoníaco',
+    'Claim the Black Market': 'Reivindicar o Mercado Negro',
+    'Steal the Dark Codex': 'Roubar o Codex das Sombras',
+    'Confront the Shadow Lord': 'Confrontar o Senhor das Sombras',
+    'Seal the Void Rift': 'Selar a Fenda do Vazio',
+    'Claim the Demon Crown': 'Reivindicar a Coroa Demoníaca',
+    'Purge the City Forever': 'Purificar a Cidade para Sempre',
+};
+
+function zName(zone) {
+    if (CURRENT_LANG !== 'pt' || !zone || !zone.name) return zone?.name;
+    return ZONE_NAME_PT[zone.name] || zone.name;
+}
+function zDesc(zone) {
+    if (CURRENT_LANG !== 'pt' || !zone || !zone.description) return zone?.description;
+    return ZONE_DESC_PT[zone.description] || zone.description;
+}
+function zSpotName(spot) {
+    if (CURRENT_LANG !== 'pt' || !spot || !spot.name) return spot?.name;
+    return SPOT_NAME_PT[spot.name] || spot.name;
+}
+function zMissionName(m) {
+    if (CURRENT_LANG !== 'pt' || !m) return typeof m === 'string' ? m : m?.name;
+    const en = typeof m === 'string' ? m : m.name;
+    return MISSION_NAME_PT[en] || en;
+}
 
 const ZONE_ROUTES = {
     forest:    { swamp:60 },
@@ -662,9 +807,13 @@ function applyServerUI() {
   if (label) label.textContent = s.label;
   const notice = document.querySelector('.auth-beta-notice');
   if (notice) {
+    const pt = CURRENT_LANG === 'pt';
     notice.textContent = s.id === 'server1'
-      ? 'Server 1 (Global) — fresh accounts. Register to begin.'
-      : 'Beta registration is limited to 500 total accounts.';
+      ? (pt ? 'Server 1 (Global) — contas novas. Registre-se para começar.'
+            : 'Server 1 (Global) — fresh accounts. Register to begin.')
+      : (pt ? 'O cadastro Beta é limitado a 500 contas no total.'
+            : 'Beta registration is limited to 500 total accounts.');
+    notice.removeAttribute('data-pt');
   }
 }
 function openServerPicker() {
@@ -709,6 +858,42 @@ function returnToBeta() {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire);
   else wire();
 })();
+
+// Apply static bilingual labels (nav buttons, tab headers, etc.) declared with
+// data-en/data-pt + optional data-en-title/data-pt-title in index.html.
+function applyStaticLang() {
+  var pt = CURRENT_LANG === 'pt';
+  document.querySelectorAll('[data-pt]').forEach(function (el) {
+    var hasEn = el.hasAttribute('data-en');
+    if (!pt && !hasEn) return;
+    var label = pt ? el.getAttribute('data-pt') : el.getAttribute('data-en');
+    if (label !== null) el.innerHTML = label;
+  });
+  document.querySelectorAll('[data-pt-html]').forEach(function (el) {
+    var hasEn = el.hasAttribute('data-en-html');
+    if (!pt && !hasEn) return;
+    var label = pt ? el.getAttribute('data-pt-html') : el.getAttribute('data-en-html');
+    if (label !== null) el.innerHTML = label;
+  });
+  document.querySelectorAll('[data-pt-title]').forEach(function (el) {
+    var hasEn = el.hasAttribute('data-en-title');
+    if (!pt && !hasEn) return;
+    var label = pt ? el.getAttribute('data-pt-title') : el.getAttribute('data-en-title');
+    if (label !== null) el.title = label;
+  });
+  document.querySelectorAll('[data-ph-pt]').forEach(function (el) {
+    var hasEn = el.hasAttribute('data-ph-en');
+    if (!pt && !hasEn) return;
+    var label = pt ? el.getAttribute('data-ph-pt') : el.getAttribute('data-ph-en');
+    if (label !== null) el.placeholder = label;
+  });
+  document.querySelectorAll('[data-alt-pt]').forEach(function (el) {
+    var hasEn = el.hasAttribute('data-alt-en');
+    if (!pt && !hasEn) return;
+    var label = pt ? el.getAttribute('data-alt-pt') : el.getAttribute('data-alt-en');
+    if (label !== null) el.setAttribute('alt', label);
+  });
+}
 
 // Server 1 launch countdown (driven by the s1_launch_at server setting).
 let __s1LaunchAt = 0;
@@ -878,10 +1063,10 @@ function formatTrainingProgressText(status) {
     const total = Number(status?.progressPercent ?? status?.progressCurrent ?? status?.progress_current ?? 0);
     const start = Number(status?.progressStart ?? status?.progress_start ?? total);
     const gained = Math.max(0, total - start);
-    const totalText = `${total < 10 ? total.toFixed(1) : Math.floor(total)}% total learned`;
-    const gainText = gained >= 0.1 ? ` · +${gained.toFixed(1)}% this session` : '';
+    const totalText = `${total < 10 ? total.toFixed(1) : Math.floor(total)}% ${CURRENT_LANG === 'pt' ? 'aprendido no total' : 'total learned'}`;
+    const gainText = gained >= 0.1 ? ` · +${gained.toFixed(1)}% ${CURRENT_LANG === 'pt' ? 'nesta sessão' : 'this session'}` : '';
     const hoursToFull = Number(status?.hoursToFull ?? 0);
-    return `${totalText}${gainText} · ${hoursToFull.toFixed(1)}h to full`;
+    return `${totalText}${gainText} · ${hoursToFull.toFixed(1)}h ${CURRENT_LANG === 'pt' ? 'para completar' : 'to full'}`;
 }
 
 async function loadCharacterRoster() {
@@ -918,8 +1103,8 @@ function renderCharacterSwitcherButton() {
     const total = accountCharacters.length || 0;
     btn.textContent = `🧭 ${total}/${maxCharacterSlots}`;
     btn.title = total > 0
-        ? `Switch character (${total}/${maxCharacterSlots})`
-        : 'Create your first character';
+        ? `Trocar de personagem (${total}/${maxCharacterSlots})`
+        : 'Crie seu primeiro personagem';
 }
 
 function syncCreateClassAvailability() {
@@ -980,20 +1165,6 @@ async function openCharacterSwitcher() {
 
 function closeCharacterSwitcher() {
     document.getElementById('character-switch-modal')?.classList.add('hidden');
-}
-
-function getSkillUnlockMenuState() {
-    const mp = character?.mission_points ?? 0;
-    const mpMax = character?.mp_max || 120;
-    const dailySpent = character?.daily_mp_spent ?? 0;
-    const unlocked = !!character?.skills_unlocked;
-    return {
-        mp,
-        mpMax,
-        dailySpent,
-        unlocked,
-        remaining: Math.max(0, 60 - dailySpent)
-    };
 }
 
 async function claimReferralRewards() {
@@ -1149,11 +1320,6 @@ const I18N = {
         'menu.liveStatus': 'Status ao Vivo',
         'menu.activeEvent': 'Evento Ativo',
         'menu.noEvent': 'Nenhum evento ativo no momento',
-        'menu.skillUnlock': 'Desbloqueio de Skills',
-        'menu.skillsUnlockedToday': 'Skills desbloqueadas hoje',
-        'menu.spendMoreMp': 'Gaste mais {n} MP para desbloquear skills',
-        'menu.openSkills': 'Abrir Skills',
-        'menu.goToSkills': 'Ir para Skills ({n}/60)',
         'menu.quickActions': 'Ações Rápidas',
         'menu.switchCharacter': 'Trocar Personagem',
         'menu.openGameGuide': 'Abrir Guia do Jogo',
@@ -1213,34 +1379,6 @@ async function changeLanguage(args, event, trigger) {
 window.changeLanguage = changeLanguage;
 let langOutsideClose = null;
 
-// Static HTML text sweep (nav labels, auth screen), keyed by exact text.
-const STATIC_I18N = {
-    pt: {
-        'CHARACTER': 'PERSONAGEM', 'UPGRADE': 'MELHORIAS', 'LOADOUT': 'EQUIPAMENTO',
-        'SKILLS': 'SKILLS', 'TRAINING': 'TREINO', 'PREMIUM': 'PREMIUM',
-        'MISSIONS': 'MISSÕES', 'DUNGEON': 'DUNGEON', 'SQUADS': 'ESQUADRÕES',
-        'TOURNAMENT': 'TORNEIO', 'INVENTORY': 'INVENTÁRIO', 'FORGE': 'FORJA', 'SHOP': 'LOJA',
-        'Login': 'Entrar', 'Register': 'Registrar'
-    }
-};
-const _i18nOrig = new WeakMap();
-function applyStaticI18n() {
-    const map = STATIC_I18N[CURRENT_LANG];
-    document.querySelectorAll('.sub-btn-label, .tab-btn').forEach(el => {
-        const orig = _i18nOrig.get(el);
-        if (map) {
-            if (!orig) _i18nOrig.set(el, el.textContent);
-            const v = map[el.textContent.trim()];
-            if (v) el.textContent = v;
-        } else if (orig) {
-            el.textContent = orig;
-            _i18nOrig.delete(el);
-        }
-    });
-}
-document.addEventListener('DOMContentLoaded', applyStaticI18n);
-if (document.readyState !== 'loading') applyStaticI18n();
-
 // Auth-screen language selector: while logged out the choice lives in
 // localStorage only; once logged in it is pushed to the account (users.lang)
 // so the language change persists server-side too.
@@ -1291,7 +1429,6 @@ function syncLangToServer() {
             if (lang !== CURRENT_LANG) {
                 CURRENT_LANG = lang;
                 localStorage.setItem('rpg_lang', lang);
-                applyStaticI18n();
                 setLabel();
             }
             close();
@@ -1322,7 +1459,7 @@ const I18N_PHRASES = {
         'Shop': 'Loja', 'Forge': 'Forja', 'Inventory': 'Inventário', 'Missions': 'Missões',
         'Dungeon': 'Dungeon', 'Tournament': 'Torneio', 'Achievements': 'Conquistas',
         'Settings': 'Configurações', 'Premium': 'Premium', 'Skills': 'Skills', 'Training': 'Treino',
-        'Loadout': 'Equipamento', 'Squads': 'Esquadrões', 'Weekly Tasks': 'Tarefas Semanais',
+        'Loadout': 'Loadout', 'Squads': 'Esquadrões', 'Weekly Tasks': 'Tarefas Semanais',
         'Game Guide': 'Guia do Jogo', 'Profile Badges': 'Emblemas de Perfil',
         // Stats / record
         'Wins': 'Vitórias', 'Losses': 'Derrotas', 'Draws': 'Empates', 'Win rate': 'Taxa de vitória',
@@ -1414,21 +1551,20 @@ function startDomI18n() {
     obs.observe(document.body, { childList: true, subtree: true });
     __ptWalk(document.body);
 }
-startDomI18n();
+// Dynamic DOM dictionary translation disabled: flip rendered text to PT
+// caused an English->PT flicker on hover/interactions. Translations are now
+// provided directly (hardcoded) per-component instead.
+// startDomI18n();
 
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
     const eventName = character?.active_event?.name || t('menu.noEvent', 'No active event right now');
-    const { mp, mpMax, dailySpent, unlocked, remaining } = getSkillUnlockMenuState();
     const referralCode = character?.referral_code || username || '';
     const referralLink = referralCode ? getReferralLink(referralCode) : '';
     const switcherLabel = `${t('menu.switchCharacter', 'Switch Character')} (${accountCharacters.length}/${maxCharacterSlots})`;
     const onOff = v => v ? t('common.on', 'On') : t('common.off', 'Off');
     const currentLang = LANGUAGES[CURRENT_LANG] || LANGUAGES.en;
-    const mpLabel = unlocked
-        ? `${t('menu.skillsUnlockedToday', 'Skills unlocked today')} · ${mp}/${mpMax} MP`
-        : `${t('menu.spendMoreMp', 'Spend {n} more MP to unlock skills').replace('{n}', remaining)} · ${mp}/${mpMax} MP`;
 
     content.innerHTML = `
         <div class="topbar-menu-section">
@@ -1462,13 +1598,6 @@ function renderTopbarMenu() {
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">${t('menu.activeEvent', 'Active Event')}</div>
                 <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
-            </div>
-            <div class="topbar-menu-info-card">
-                <div class="topbar-menu-info-title">${t('menu.skillUnlock', 'Skill Unlock')}</div>
-                <div class="topbar-menu-info-value">${escHtml(mpLabel)}</div>
-                <button class="topbar-menu-action" ${actionAttrs('showTabAndCloseMenu', 'skills')}>
-                    ${unlocked ? t('menu.openSkills', 'Open Skills') : `${t('menu.goToSkills', 'Go to Skills ({n}/60)').replace('{n}', dailySpent)}`}
-                </button>
             </div>
         </div>
         <div class="topbar-menu-section">
@@ -1746,10 +1875,10 @@ function renderCharacterSwitcher() {
     content.innerHTML = `
         <div class="character-switch-header">
             <div>
-                <div class="character-switch-title">Your Characters</div>
-                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} slots used</div>
+                <div class="character-switch-title">Seus Personagens</div>
+                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} vagas usadas</div>
             </div>
-            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ New Character</button>` : ''}
+            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ Novo Personagem</button>` : ''}
         </div>
         <div class="character-switch-grid">
             ${accountCharacters.map(c => {
@@ -1760,13 +1889,13 @@ function renderCharacterSwitcher() {
                         <div class="character-switch-name">${escHtml(c.name)}</div>
                         <div class="character-switch-meta">Lv.${c.level} ${c.evolvedClassName || capitalize(c.class)}</div>
                     </div>
-                    <div class="character-switch-state">${isActive ? 'Active' : 'Play'}</div>
+                    <div class="character-switch-state">${isActive ? 'Ativo' : 'Jogar'}</div>
                 </button>`;
     }).join('')}
             ${Array.from({ length: remaining }, (_, i) => `
                 <button class="character-switch-card empty" ${actionAttrs('openCharacterCreation')}>
-                    <div class="character-switch-empty">Empty Slot ${accountCharacters.length + i + 1}</div>
-                    <div class="character-switch-meta">Create another class</div>
+                    <div class="character-switch-empty">Vaga Vazia ${accountCharacters.length + i + 1}</div>
+                    <div class="character-switch-meta">Crie outra classe</div>
                 </button>
             `).join('')}
         </div>`;
@@ -2249,7 +2378,7 @@ async function applyAndroidTesting() {
     if (!input || !msg) return;
     const email = (input.value || '').trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email)) {
-        msg.textContent = 'Please enter a valid email address.';
+        msg.textContent = CURRENT_LANG === 'pt' ? 'Por favor, insira um email válido.' : 'Please enter a valid email address.';
         msg.classList.add('error');
         return;
     }
@@ -2257,11 +2386,12 @@ async function applyAndroidTesting() {
     __androidApplyBusy = true;
     try {
         const data = await api('POST', '/auth/android/testing/apply', { email });
-        msg.textContent = (data.message || 'Thanks! You have been added to the testing list.') + ' It may take up to 24 hours for your invitation to appear in the app.';
+        const thanks = data.message || (CURRENT_LANG === 'pt' ? 'Obrigado! Você foi adicionado à lista de testes.' : 'Thanks! You have been added to the testing list.');
+        msg.textContent = thanks + (CURRENT_LANG === 'pt' ? ' Pode levar até 24 horas para seu convite aparecer no aplicativo.' : ' It may take up to 24 hours for your invitation to appear in the app.');
         msg.classList.remove('error');
         input.value = '';
     } catch (e) {
-        msg.textContent = e.message || 'Something went wrong. Please try again later.';
+        msg.textContent = e.message || (CURRENT_LANG === 'pt' ? 'Algo deu errado. Tente novamente mais tarde.' : 'Something went wrong. Please try again later.');
         msg.classList.add('error');
     } finally {
         __androidApplyBusy = false;
@@ -2308,6 +2438,7 @@ function relocateGoogleButton(tab) {
     }
 }
 document.addEventListener('DOMContentLoaded',()=>{
+    applyStaticLang();
     ensureGoogleLogin();
     hydrateReferralFromUrl();
     try {
@@ -2334,13 +2465,13 @@ async function requestPasswordReset() {
     try {
         const res = await api('POST', '/auth/password/forgot', { identifier });
         if (msg) {
-            msg.textContent = res?.message || 'If the account exists, a reset link will be sent.';
+            msg.textContent = res?.message || (CURRENT_LANG === 'pt' ? 'Se a conta existir, um link de redefinição será enviado.' : 'If the account exists, a reset link will be sent.');
             msg.classList.remove('hidden');
             msg.classList.remove('error');
         }
     } catch (e) {
         if (msg) {
-            msg.textContent = e.message || 'Failed to request reset.';
+            msg.textContent = e.message || (CURRENT_LANG === 'pt' ? 'Falha ao solicitar a redefinição.' : 'Failed to request reset.');
             msg.classList.remove('hidden');
             msg.classList.add('error');
         }
@@ -2352,7 +2483,7 @@ async function submitPasswordReset() {
     const newPassword = String(document.getElementById('reset-new-pass')?.value || '');
     const msg = document.getElementById('reset-password-msg');
     if (!token) {
-        if (msg) { msg.textContent = 'Missing reset token.'; msg.classList.remove('hidden'); msg.classList.add('error'); }
+        if (msg) { msg.textContent = CURRENT_LANG === 'pt' ? 'Token de redefinição ausente.' : 'Missing reset token.'; msg.classList.remove('hidden'); msg.classList.add('error'); }
         return;
     }
     try {
@@ -2367,7 +2498,7 @@ async function submitPasswordReset() {
         showScreen('auth');
     } catch (e) {
         if (msg) {
-            msg.textContent = e.message || 'Failed to reset password.';
+            msg.textContent = e.message || (CURRENT_LANG === 'pt' ? 'Falha ao redefinir a senha.' : 'Failed to reset password.');
             msg.classList.remove('hidden');
             msg.classList.add('error');
         }
@@ -3180,19 +3311,22 @@ function renderElementBadge(elementType, value, type) {
 
 function renderTempStatBuffs(buffs) {
     const STAT_EMOJI = { strength: '💪', defense: '🛡️', agility: '⚡', magic: '✨', vitality: '❤️' };
+    const STAT_PT = { strength: 'Força', defense: 'Defesa', agility: 'Agilidade', magic: 'Mágica', vitality: 'Vitalidade', hit_chance: 'Acerto', crit_chance: 'Crítico' };
     const entries = Object.entries(buffs || {});
     if (!entries.length) return '';
     const parts = entries.map(([stat, b]) => {
         const val = b?.value || 0;
         const leftSec = Math.max(0, (b?.exp || 0) - Math.floor(Date.now() / 1000));
         const mins = Math.ceil(leftSec / 60);
-        return `${STAT_EMOJI[stat] || '🧪'} +${val} ${stat} (${mins}m)`;
+        const statLabel = CURRENT_LANG === 'pt' ? (STAT_PT[stat] || stat) : stat;
+        return `${STAT_EMOJI[stat] || '🧪'} +${val} ${statLabel} (${mins}m)`;
     }).join(' · ');
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.72rem;color:#7ef29b;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:6px;padding:5px 8px;margin-bottom:8px">${parts}</div>`;
 }
 
 function renderCharacter() {
     if (!character) return;    const c = getLiveCharacterSnapshot(character);
+    const isPT = CURRENT_LANG === 'pt';
     const eq = c.equipped||{};
     const lxp = c.level*25;
     const xpPct = Math.min(100,(c.xp/lxp)*100);
@@ -3250,7 +3384,7 @@ function renderCharacter() {
         finalDmgMin += strBonus;
         finalDmgMax += strBonus;
     }
-    const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (STR ${totalStr}x0.5) + Gear: +${gearDmgMin}-${gearDmgMax}`;
+    const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (FOR ${totalStr}x0.5) + Equipamento: +${gearDmgMin}-${gearDmgMax}`;
     const baseArmor = Math.floor(totalDef / 2);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
@@ -3261,7 +3395,7 @@ function renderCharacter() {
         let bonusHtml = bonus !== 0
             ? `<span class="stat-bonus ${bonus > 0 ? 'positive' : 'negative'}">${bonus>0?'+' : ''}${bonus}</span>`
             : '';
-        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" data-cost="${cost}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} aria-label="Upgrade ${statKey} (${cost} gold)">+</button>` : '';
+        const upBtn = cost != null ? `<button class="stat-upgrade-btn" data-stat="${statKey}" data-cost="${cost}" ${c.gold < cost || _upgradingStats[statKey] ? 'disabled' : ''} aria-label="Melhorar ${statKey} (${cost} de ouro)">+</button>` : '';
         return `<div class="stat-row ${beastClass}">
             <span class="stat-icon">${icon}</span>
             <span class="stat-label">${label}</span>
@@ -3287,14 +3421,14 @@ function renderCharacter() {
         renderElementBadge('electro', elemResistObj.electro || 0, 'resist'),
     ];
 
-    const eqSlots=[
-        {slot:'helmet', icon:'⛑️', label:'Helmet'},
-        {slot:'armor',  icon:'🛡️', label:'Armor'},
-        {slot:'weapon', icon:'⚔️', label:'Weapon'},
-        {slot:'amulet', icon:'📿', label:'Amulet / Ring'},
-        {slot:'shield', icon:'🛡', label:'Shield'},
-        {slot:'boots',  icon:'👢', label:'Boots'},
-    ];
+const eqSlots=[
+{slot:'helmet', icon:'⛑️', label: isPT ? 'Capacete' : 'Helmet'},
+{slot:'armor',  icon:'🛡️', label: isPT ? 'Armadura' : 'Armor'},
+{slot:'weapon', icon:'⚔️', label: isPT ? 'Arma' : 'Weapon'},
+{slot:'amulet', icon:'📿', label: isPT ? 'Amuleto / Anel' : 'Amulet / Ring'},
+{slot:'shield', icon:'🛡', label: isPT ? 'Escudo' : 'Shield'},
+{slot:'boots',  icon:'👢', label: isPT ? 'Botas' : 'Boots'},
+];
     const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
@@ -3327,7 +3461,7 @@ function renderCharacter() {
     const eqGrid = `
 <div class="eq-stage"><div class="eq-grid">${mainEqGrid}</div>
 <div class="eq-accessory-row">
-    ${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}
+    ${buildEqSlotSmall('accessory', eq, '🔮', isPT ? 'Acessório' : 'Accessory')}
 </div></div>`;
 
     // FIX: Use c.mp_max from backend response (already includes premium bonus)
@@ -3346,56 +3480,56 @@ function renderCharacter() {
       <div class="class-scene-content char-grid">
         <div id="char-msg" class="msg hidden" style="grid-column:1/-1;margin-bottom:8px"></div>
         <div class="char-panel">
-          <h3>STATS ${c.evolvedClassName ? `<span style="font-size:0.62rem;letter-spacing:0.06em;color:#f1c40f;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:2px 8px;margin-left:8px;vertical-align:middle">🧬 ${escHtml(c.evolvedClassName)}</span>` : ''}</h3>
+          <h3>${isPT ? 'ATRIBUTOS' : 'ATTRIBUTES'} ${c.evolvedClassName ? `<span style="font-size:0.62rem;letter-spacing:0.06em;color:#f1c40f;background:rgba(241,196,15,0.1);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:2px 8px;margin-left:8px;vertical-align:middle">🧬 ${escHtml(c.evolvedClassName)}</span>` : ''}</h3>
           ${renderTempStatBuffs(c.temp_stat_buffs)}
-          ${statRowBreakdown(renderStatIcon('strength','💪','Strength', c.class),'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr > 0)}
-          ${statRowBreakdown(renderStatIcon('defense','🛡️','Defense', c.class),'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef > 0)}
-          ${statRowBreakdown(renderStatIcon('agility','⚡','Agility', c.class),'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility', false)}
-          ${statRowBreakdown(renderStatIcon('magic','✨','Magic', c.class),'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic', beastMag > 0)}
-          ${statRowBreakdown(renderStatIcon('vitality','❤️','Vitality', c.class),'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality', beastVit > 0)}
-          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯','Hit Chance', c.class),'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit', c.upgradeCosts?.hit_chance, 'hit_chance'):''}
-          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥','Crit Chance', c.class),'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
+          ${statRowBreakdown(renderStatIcon('strength','💪', isPT ? 'Força' : 'Strength', c.class), isPT ? 'Força' : 'Strength', baseStr, bonusStr, maxStat,'str', c.upgradeCosts?.strength, 'strength', beastStr > 0)}
+          ${statRowBreakdown(renderStatIcon('defense','🛡️', isPT ? 'Defesa' : 'Defense', c.class), isPT ? 'Defesa' : 'Defense',  baseDef,  bonusDef,  maxStat,'def', c.upgradeCosts?.defense, 'defense', beastDef > 0)}
+          ${statRowBreakdown(renderStatIcon('agility','⚡', isPT ? 'Agilidade' : 'Agility', c.class), isPT ? 'Agilidade' : 'Agility',  baseAgi,  bonusAgi,  maxStat,'agi', c.upgradeCosts?.agility, 'agility', false)}
+          ${statRowBreakdown(renderStatIcon('magic','✨', isPT ? 'Mágica' : 'Magic', c.class), isPT ? 'Mágica' : 'Magic',    baseMag,  bonusMag,  maxStat,'mag', c.upgradeCosts?.magic, 'magic', beastMag > 0)}
+          ${statRowBreakdown(renderStatIcon('vitality','❤️', isPT ? 'Vitalidade' : 'Vitality', c.class), isPT ? 'Vitalidade' : 'Vitality', baseVit,  bonusVit, maxStat,'vit', c.upgradeCosts?.vitality, 'vitality', beastVit > 0)}
+          ${baseHit>0||bonusHit?statRowBreakdown(renderStatIcon('accuracy','🎯', isPT ? 'Precisão' : 'Hit Chance', c.class), isPT ? 'Precisão' : 'Hit Chance',  baseHit,  bonusHit,  maxStat,'hit', c.upgradeCosts?.hit_chance, 'hit_chance'):''}
+          ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥', isPT ? 'Crítico' : 'Crit Chance', c.class), isPT ? 'Crítico' : 'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
             <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
-              ⚔️ DMG: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
+              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
             </span>
-            <span class="char-combat-summary-item">🛡 Armor: <strong style="color:#5dade2">${armorVal}</strong></span>
-            ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ +10% HP/hr</span>':''}
+            <span class="char-combat-summary-item">🛡 ${isPT ? 'Armadura' : 'Armor'}: <strong style="color:#5dade2">${armorVal}</strong></span>
+            ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ '+(isPT? '+10% PV/h' : '+10% HP/hr')+'</span>':''}
           </div>
           <div class="element-strip">
-            <div class="element-strip-heading">Damage</div>
+            <div class="element-strip-heading">${isPT ? 'Dano' : 'Damage'}</div>
             <div class="element-badge-row">${elementDamageBadges.join('')}</div>
-            <div class="element-strip-heading">Resist</div>
+            <div class="element-strip-heading">${isPT ? 'Resist.' : 'Resist'}</div>
             <div class="element-badge-row">${elementResistBadges.join('')}</div>
           </div>
           <button class="achievement-launch-btn" ${actionAttrs('openAchievementsModal')}>
-            <span>🏆 Achievements</span>
-            <span id="achievements-summary-inline" class="achievement-launch-meta">Loading...</span>
+            <span>🏆 ${isPT ? 'Conquistas' : 'Achievements'}</span>
+            <span id="achievements-summary-inline" class="achievement-launch-meta">${isPT ? 'Carregando...' : 'Loading...'}</span>
           </button>
           <div class="profile-badges-inline">
             ${(Array.isArray(c.profile_badges) ? c.profile_badges : []).slice(0,3).map(id => `<span class="profile-badge-chip" data-badge-id="${escHtml(id)}">🏅</span>`).join('')}
-            ${((Array.isArray(c.profile_badges) ? c.profile_badges : []).length ? '' : '<span class="profile-badges-empty">No profile badges set</span>')}
+            ${((Array.isArray(c.profile_badges) ? c.profile_badges : []).length ? '' : `<span class="profile-badges-empty">${isPT ? 'Nenhum distintivo de perfil definido' : 'No profile badges set'}</span>`)}
           </div>
           <button class="achievement-launch-btn" ${actionAttrs('openBadgePickerModal')}>
-            <span>🎖️ Profile Badges</span>
-            <span class="achievement-launch-meta">Pick up to 3</span>
+            <span>🎖️ ${isPT ? 'Distintivos de Perfil' : 'Profile Badges'}</span>
+            <span class="achievement-launch-meta">${isPT ? 'Escolha até 3' : 'Pick up to 3'}</span>
           </button>
         </div>
         <div class="char-panel char-panel-equipment">
-          <h3>EQUIPMENT</h3>
+          <h3>${isPT ? 'EQUIPAMENTO' : 'EQUIPMENT'}</h3>
           ${eqGrid}
           ${(Array.isArray(c.equipped_set_details) ? c.equipped_set_details : []).filter(set => set.count > 0).map(set => {
               const qColor = 'var(--gold)';
               const rows = [];
-              if (set.bonus3 && set.count >= 2) rows.push({ label:'2/'+(set.size||5), desc:set.bonus3.desc, active:true, cls:'bonus-3' });
-              else if (set.bonus3) rows.push({ label:'2/'+(set.size||5), desc:set.bonus3.desc, active:false, cls:'bonus-3' });
-              if (set.bonus4 && set.count >= 4) rows.push({ label:'4/'+(set.size||5), desc:set.bonus4.desc, active:true, cls:'bonus-4' });
-              else if (set.bonus4) rows.push({ label:'4/'+(set.size||5), desc:set.bonus4.desc, active:false, cls:'bonus-4' });
+              if (set.bonus3 && set.count >= 2) rows.push({ label:'2/'+(set.size||5), desc:translateSetBonusDescPT(set.bonus3.desc), active:true, cls:'bonus-3' });
+              else if (set.bonus3) rows.push({ label:'2/'+(set.size||5), desc:translateSetBonusDescPT(set.bonus3.desc), active:false, cls:'bonus-3' });
+              if (set.bonus4 && set.count >= 4) rows.push({ label:'4/'+(set.size||5), desc:translateSetBonusDescPT(set.bonus4.desc), active:true, cls:'bonus-4' });
+              else if (set.bonus4) rows.push({ label:'4/'+(set.size||5), desc:translateSetBonusDescPT(set.bonus4.desc), active:false, cls:'bonus-4' });
               const fillPct = Math.round(set.count / (set.size||5) * 100);
               return `<div style="margin-top:12px;padding:10px 12px;background:rgba(241,196,15,0.05);border:1px solid rgba(241,196,15,0.18);border-radius:10px">
                 <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:0.8rem;color:var(--gold)">
-                  <span>${set.emoji||'⚒️'}</span><span>${escHtml(set.name||set.id)}</span>
-                  <span style="margin-left:auto;font-size:0.7rem;color:var(--text-dim)">${set.count}/${set.size||5} equipped</span>
+                  <span>${set.emoji||'⚒️'}</span><span>${escHtml(translateSetNamePT(set.name||set.id))}</span>
+                  <span style="margin-left:auto;font-size:0.7rem;color:var(--text-dim)">${set.count}/${set.size||5} ${isPT ? 'equipados' : 'equipped'}</span>
                 </div>
                 <div style="margin:6px 0;height:5px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
                   <div style="height:100%;width:${fillPct}%;background:${qColor};border-radius:3px"></div>
@@ -3404,18 +3538,18 @@ function renderCharacter() {
               </div>`;
           }).join('') || (
               Object.keys(c.equipped_set_counts || {}).length ? '' :
-              '<div style="margin-top:10px;font-size:0.7rem;color:var(--text-dim)">🔗 No set bonuses equipped</div>'
+              '<div style="margin-top:10px;font-size:0.7rem;color:var(--text-dim)">🔗 '+(isPT?'Nenhum bônus de conjunto equipado':'No set bonuses equipped')+'</div>'
           )}
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
             <div class="record-row">
-              <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">WINS</div></div>
-              <div class="record-item"><div class="record-num">${c.wins+c.losses+c.draws}</div><div class="record-lbl">BATTLES</div></div>
-              <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">LOSSES</div></div>
+              <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">${isPT ? 'VITÓRIAS' : 'WINS'}</div></div>
+              <div class="record-item"><div class="record-num">${c.wins+c.losses+c.draws}</div><div class="record-lbl">${isPT ? 'BATALHAS' : 'BATTLES'}</div></div>
+              <div class="record-item"><div class="record-num losses">${c.losses}</div><div class="record-lbl">${isPT ? 'DERROTAS' : 'LOSSES'}</div></div>
             </div>
-            ${c.draws?`<div style="margin-top:10px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">Draws <strong style="color:var(--gold);float:right">${c.draws}</strong></div>`:''}
-            ${c.wins+c.losses>0?`<div style="margin-top:8px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">Win rate <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
-            ${c.trainingActive?`<div style="margin-top:10px;font-size:0.75rem;color:var(--gold)">⏳ Training ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
-            ${c.trainingDone?`<div style="margin-top:10px;font-size:0.75rem;color:var(--green)">✅ Training done! Collect it.</div>`:''}
+            ${c.draws?`<div style="margin-top:10px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">${isPT?'Empates':'Draws'} <strong style="color:var(--gold);float:right">${c.draws}</strong></div>`:''}
+            ${c.wins+c.losses>0?`<div style="margin-top:8px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">${isPT?'Taxa de vitória':'Win rate'} <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
+            ${c.trainingActive?`<div style="margin-top:10px;font-size:0.75rem;color:var(--gold)">⏳ ${isPT?'Treinando':'Training'} ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
+            ${c.trainingDone?`<div style="margin-top:10px;font-size:0.75rem;color:var(--green)">✅ ${isPT?'Treino concluído! Resgate-o.':'Training done! Collect it.'}</div>`:''}
           </div>
         </div>
         ${c.elemental ? (() => {
@@ -3426,12 +3560,12 @@ function renderCharacter() {
         const elHpPct = Math.min(100, el.hpMax > 0 ? Math.round((el.hp_current / el.hpMax) * 100) : 0);
         const elXpPct = Math.min(100, el.xpNext > 0 ? Math.round(((el.xp || 0) / el.xpNext) * 100) : 0);
         return `<div class="char-panel char-panel-elemental">
-            <h3>🐉 ELEMENTAL SPIRIT</h3>
+            <h3>🐉 ${isPT ? 'ESPÍRITO ELEMENTAL' : 'ELEMENTAL SPIRIT'}</h3>
             <div class="elem-overview">
               <span class="elem-name">${elEmoji} ${escHtml(el.name)}</span>
               <span class="elem-lvl-badge">Lv.${el.level}</span>
               <span class="elem-element-tag">${el.element}</span>
-              <span class="elem-role-tag" style="color:${(el.str||0) > (el.def||0) ? '#ef4444' : '#22c55e'};font-size:0.6rem;margin-left:4px">${(el.str||0) > (el.def||0) ? '⚔️ ATTACK' : '💚 HEAL'}</span>
+              <span class="elem-role-tag" style="color:${(el.str||0) > (el.def||0) ? '#ef4444' : '#22c55e'};font-size:0.6rem;margin-left:4px">${(el.str||0) > (el.def||0) ? (isPT?'⚔️ ATAQUE':'⚔️ ATTACK') : (isPT?'💚 CURA':'💚 HEAL')}</span>
             </div>
             <div class="elem-stat-grid">
               <div><span class="stat-hp">❤️</span> ${el.hp_current}/${el.hpMax}</div>
@@ -3445,7 +3579,7 @@ function renderCharacter() {
               <div>⚔️ ${el.dmgMin}-${el.dmgMax}</div>
             </div>
             <div style="margin:8px 0 4px;padding:6px 8px;background:rgba(255,255,255,0.02);border-radius:6px">
-              <div style="font-size:0.65rem;color:var(--text-dim);margin-bottom:4px">Element Affinity:</div>
+              <div style="font-size:0.65rem;color:var(--text-dim);margin-bottom:4px">${isPT?'Afinidade Elemental:':'Elemental Affinity:'}</div>
               ${(() => {
             const meta = {pyro:['🔥','#ef4444'],water:['💧','#3b82f6'],electro:['⚡','#a855f7'],wind:['🌪️','#22c55e']};
             const affs = [{k:'pyro',v:Number(el.pyro_affinity||0)},{k:'water',v:Number(el.water_affinity||0)},{k:'electro',v:Number(el.electro_affinity||0)},{k:'wind',v:Number(el.wind_affinity||0)}];
@@ -3470,23 +3604,23 @@ function renderCharacter() {
             ${el.stat_points > 0 ? `
             <div class="elem-stat-assign">
               <div style="font-size:0.75rem;margin:8px 0 4px;color:var(--gold);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
-                📊 Assign Stats <span style="float:right">Points: <strong class="elem-pts-left">${el.stat_points}</strong></span>
+                📊 ${isPT ? 'Distribuir Atributos' : 'Assign Stats'} <span style="float:right">${isPT?'Pontos:':'Points:'} <strong class="elem-pts-left">${el.stat_points}</strong></span>
               </div>
-              <div class="elem-assign-row" data-elem-assign="str"><span>💪 Str</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
-              <div class="elem-assign-row" data-elem-assign="def"><span>🛡️ Def</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
-              <div class="elem-assign-row" data-elem-assign="mag"><span>✨ Mag</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
-              <div class="elem-assign-row" data-elem-assign="vit"><span>❤️ Vit</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
-              <div class="elem-assign-go" data-elem-id="${el.id}" data-action="elemAssignStats">Assign</div>
+              <div class="elem-assign-row" data-elem-assign="str"><span>💪 ${isPT ? 'For' : 'Str'}</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="def"><span>🛡️ ${isPT ? 'Def' : 'Def'}</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="mag"><span>✨ ${isPT ? 'Mág' : 'Mag'}</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-row" data-elem-assign="vit"><span>❤️ ${isPT ? 'Vit' : 'Vit'}</span><span class="elem-assign-val">0</span><div class="elem-qty-btn elem-assign-dec">−</div><div class="elem-qty-btn elem-assign-inc">+</div></div>
+              <div class="elem-assign-go" data-elem-id="${el.id}" data-action="elemAssignStats">${isPT ? 'Distribuir' : 'Assign'}</div>
             </div>
             ` : ''}
             <div id="elem-feed-section-${el.id}">
-              <div style="font-size:0.75rem;margin:10px 0 6px;color:var(--text-dim);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">🍽️ Feed Materials</div>
+              <div style="font-size:0.75rem;margin:10px 0 6px;color:var(--text-dim);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">🍽️ ${isPT ? 'Alimentar Materiais' : 'Feed Materials'}</div>
               <div class="elem-feed-loading" style="font-size:0.7rem;color:var(--text-dim)">Loading...</div>
             </div>
           </div>`;
     })() : ''}
         <div class="char-panel char-panel-setups" id="char-setups-panel">
-          <h3>⚙️ SETUPS</h3>
+          <h3>⚙️ ${isPT ? 'CONFIGURAÇÕES' : 'SETUPS'}</h3>
           <div id="char-setups-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"></div>
         </div>
         </div>
@@ -3544,19 +3678,20 @@ function renderCharacter() {
 async function loadSetups() {
     const grid = document.getElementById('char-setups-grid');
     if (!grid) return;
+    const isPT = CURRENT_LANG === 'pt';
     try {
         const data = await api('GET', '/game/setups');
         const setups = data || [];
         grid.innerHTML = setups.map(s => {
             const isEmpty = !s.data || Object.keys(s.data).length === 0;
-            const slotLabel = s.name || `Setup ${s.slot}`;
+            const slotLabel = s.name || (isPT ? `Configuração ${s.slot}` : `Setup ${s.slot}`);
             return `<div class="setup-card" data-slot="${s.slot}" style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px;border:1px solid rgba(255,255,255,0.06)">
         <input class="setup-name" value="${escHtml(slotLabel)}" maxlength="24" style="width:100%;background:transparent;border:none;color:var(--text-bright);font-size:0.85rem;font-weight:600;outline:none;margin-bottom:6px;padding:2px 4px;border-radius:4px" data-slot="${s.slot}">
         <div style="display:flex;gap:4px;flex-wrap:wrap">
-          <button class="setup-save" data-slot="${s.slot}" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(75,175,80,0.15);color:#4caf50;cursor:pointer;font-size:0.75rem">💾 Save</button>
-          <button class="setup-load" data-slot="${s.slot}" ${isEmpty?'disabled':''} style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(100,150,255,0.15);color:#6496ff;cursor:pointer;font-size:0.75rem;${isEmpty?'opacity:0.4;cursor:default':''}">📂 Load</button>
+          <button class="setup-save" data-slot="${s.slot}" style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(75,175,80,0.15);color:#4caf50;cursor:pointer;font-size:0.75rem">💾 ${isPT?'Salvar':'Save'}</button>
+          <button class="setup-load" data-slot="${s.slot}" ${isEmpty?'disabled':''} style="flex:1;padding:4px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.1);background:rgba(100,150,255,0.15);color:#6496ff;cursor:pointer;font-size:0.75rem;${isEmpty?'opacity:0.4;cursor:default':''}">📂 ${isPT?'Carregar':'Load'}</button>
         </div>
-        ${isEmpty ? '<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">Empty — save current gear</div>' : `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">${Object.keys(s.data).length} item(s)</div>`}
+        ${isEmpty ? `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">${isPT?'Vazio — salve o equipamento atual':'Empty — save current equipment'}</div>` : `<div style="font-size:0.65rem;color:var(--text-dim);margin-top:4px">${Object.keys(s.data).length} ${isPT?'itens':'items'}</div>`}
       </div>`;
         }).join('');
 
@@ -3569,13 +3704,13 @@ async function loadSetups() {
                 _cancelSetupRename = true;
                 const slot = btn.dataset.slot;
                 const nameInput = grid.querySelector(`.setup-name[data-slot="${slot}"]`);
-                const name = nameInput ? nameInput.value.trim() || `Setup ${slot}` : `Setup ${slot}`;
+                const name = nameInput ? nameInput.value.trim() || (isPT ? `Configuração ${slot}` : `Setup ${slot}`) : (isPT ? `Configuração ${slot}` : `Setup ${slot}`);
                 btn.textContent = '...';
                 btn.disabled = true;
                 try {
                     await api('PUT', `/game/setups/${slot}`, { name, snapshot: true });
                     await loadSetups();
-                    showMsg('char-msg', `Setup ${slot} saved!`);
+                    showMsg('char-msg', (isPT ? `Configuração ${slot} salva!` : `Setup ${slot} saved!`));
                 } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
             });
         });
@@ -3586,12 +3721,12 @@ async function loadSetups() {
                 if (btn.disabled) return;
                 const slot = btn.dataset.slot;
                 const nameInput = grid.querySelector('.setup-name[data-slot="' + slot + '"]');
-                const setupName = nameInput ? nameInput.value.trim() || 'Setup ' + slot : 'Setup ' + slot;
+                const setupName = nameInput ? nameInput.value.trim() || (isPT ? 'Configuração ' + slot : 'Setup ' + slot) : (isPT ? 'Configuração ' + slot : 'Setup ' + slot);
                 const confirmed = await openGameDialog({
-                    title: 'Load: ' + setupName,
-                    message: 'Load this setup? Current equipment will be replaced.',
-                    confirmLabel: 'Load',
-                    cancelLabel: 'Cancel',
+                    title: (isPT ? 'Carregar: ' : 'Load: ') + setupName,
+                    message: isPT ? 'Carregar esta configuração? O equipamento atual será substituído.' : 'Load this setup? Current equipment will be replaced.',
+                    confirmLabel: isPT ? 'Carregar' : 'Load',
+                    cancelLabel: isPT ? 'Cancelar' : 'Cancel',
                     showCancel: true,
                     danger: true
                 });
@@ -3604,7 +3739,7 @@ async function loadSetups() {
                         character = result.character;
                         renderCharacter();
                         loadInventory();
-                        showMsg('char-msg', 'Setup ' + slot + ' loaded!');
+                        showMsg('char-msg', (isPT ? 'Configuração ' + slot + ' carregada!' : 'Setup ' + slot + ' loaded!'));
                     }
                 } catch (e) { showMsg('char-msg', e.message, true); loadSetups(); }
             });
@@ -3614,7 +3749,7 @@ async function loadSetups() {
         grid.querySelectorAll('.setup-name').forEach(inp => {
             inp.addEventListener('blur', () => {
                 var slot = inp.dataset.slot;
-                var name = inp.value.trim() || 'Setup ' + slot;
+                var name = inp.value.trim() || (isPT ? 'Configuração ' + slot : 'Setup ' + slot);
                 setTimeout(async () => {
                     if (_cancelSetupRename) { _cancelSetupRename = false; return; }
                     try {
@@ -3831,24 +3966,36 @@ function getSkillImagePath(skillId) {
 
 async function loadAchievements() {
     const summaryEl = document.getElementById('achievements-summary-inline');
-    if (summaryEl) summaryEl.textContent = 'Loading...';
+    const isPT = CURRENT_LANG === 'pt';
+    if (summaryEl) summaryEl.textContent = isPT ? 'Carregando...' : 'Loading...';
     try {
         const data = await api('GET', '/game/achievements');
         window._achievementsData = data;
         renderAchievementsSummary(data);
     } catch (e) {
-        if (summaryEl) summaryEl.textContent = 'Unavailable';
+        if (summaryEl) summaryEl.textContent = isPT ? 'Indisponivel' : 'Unavailable';
     }
 }
 
 function renderAchievementRewardSummary(achievement) {
-    return (achievement.reward_summary || []).map(text => `<span class="achievement-reward-chip">${escHtml(text)}</span>`).join('');
+    const isPT = CURRENT_LANG === 'pt';
+    return (achievement.reward_summary || []).map(text => {
+        let translatedText = text;
+        if (isPT) {
+            translatedText = translatedText
+                .replace(/Special Mana Potion/g, 'Pocao de Mana Especial')
+                .replace(/Mana Potion/g, 'Pocao de Mana')
+                .replace(/Loot Box/g, 'Bau de Recompensas')
+                .replace(/gold/g, 'ouro');
+        }
+        return `<span class="achievement-reward-chip">${escHtml(translatedText)}</span>`;
+    }).join('');
 }
 
 function getVisibleAchievements(items) {
     return items.sort((a, b) => {
         if (a.claimable !== b.claimable) return a.claimable ? -1 : 1;
-        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        if (a.Concluad !== b.Concluad) return a.Concluad ? 1 : -1;
         return (a.target || 0) - (b.target || 0);
     });
 }
@@ -3856,8 +4003,10 @@ function getVisibleAchievements(items) {
 function renderAchievementsSummary(data) {
     const el = document.getElementById('achievements-summary-inline');
     if (!el) return;
+    const isPT = CURRENT_LANG === 'pt';
     const totals = data?.totals || { claimable: 0, claimed: 0, total: 0 };
-    el.textContent = totals.claimable > 0 ? `${totals.claimable} ready` : `${totals.claimed}/${totals.total} claimed`;
+    if (totals.claimable > 0) el.textContent = isPT ? `${totals.claimable} prontas` : `${totals.claimable} ready`;
+    else el.textContent = isPT ? `${totals.claimed}/${totals.total} coletadas` : `${totals.claimed}/${totals.total} claimed`;
 }
 
 let achievementsFilter = 'total';
@@ -3867,9 +4016,626 @@ function setAchievementsFilter(filter) {
     renderAchievementsPanel(window._achievementsData);
 }
 
+function getAchievementPt(id) {
+    if (CURRENT_LANG !== 'pt') return null;
+    const map = {
+        'wins_1': { name: 'Primeiro Sangue', desc: 'Vença sua primeira batalha PvP.' },
+        'wins_10': { name: 'Regular da Arena', desc: 'Alcance 10 vitorias.' },
+        'wins_25': { name: 'Testado em Batalha', desc: 'Alcance 25 vitorias.' },
+        'wins_50': { name: 'Faisca de Campeao', desc: 'Alcance 50 vitorias.' },
+        'wins_100': { name: 'Centuriao da Arena', desc: 'Alcance 100 vitorias.' },
+        'wins_500': { name: 'Caminho de Guerra', desc: 'Alcance 500 vitorias.' },
+        'wins_1000': { name: 'Lenda de Aco', desc: 'Alcance 1.000 vitorias.' },
+        'wins_2500': { name: 'Conquistador Mitico', desc: 'Alcance 2.500 vitorias.' },
+        'wins_5000': { name: 'Tirano da Arena', desc: 'Alcance 5.000 vitorias.' },
+        'wins_10000': { name: 'Gladiador Imortal', desc: 'Alcance 10.000 vitorias.' },
+        'wins_15000': { name: 'Imperador da Arena', desc: 'Alcance 15.000 vitorias.' },
+        'wins_25000': { name: 'Deus da Batalha', desc: 'Alcance 25.000 vitorias.' },
+        'wins_50000': { name: 'Forca Imparavel', desc: 'Alcance 50.000 vitorias.' },
+        'wins_75000': { name: 'Conquistador de Mundos', desc: 'Alcance 75.000 vitorias.' },
+        'wins_100000': { name: 'Vitoria Encarnada', desc: 'Alcance 100.000 vitorias.' },
+        'battles_25': { name: 'Veterano Cicatrizado', desc: 'Lute 25 batalhas no total.' },
+        'battles_100': { name: 'Duelista Temperado', desc: 'Lute 100 batalhas no total.' },
+        'battles_500': { name: 'Figurinha da Arena', desc: 'Lute 500 batalhas no total.' },
+        'battles_1000': { name: 'Forjado em Batalha', desc: 'Lute 1.000 batalhas no total.' },
+        'battles_2500': { name: 'Combatente Infinito', desc: 'Lute 2.500 batalhas no total.' },
+        'battles_5000': { name: 'Avatar da Guerra', desc: 'Lute 5.000 batalhas no total.' },
+        'battles_7500': { name: 'Veterano Marcado', desc: 'Lute 7.500 batalhas no total.' },
+        'battles_10000': { name: 'Maquina de Guerra', desc: 'Lute 10.000 batalhas no total.' },
+        'battles_15000': { name: 'Exercito de Um Homem So', desc: 'Lute 15.000 batalhas no total.' },
+        'battles_25000': { name: 'Senhor da Guerra', desc: 'Lute 25.000 batalhas no total.' },
+        'battles_50000': { name: 'Deus da Batalha', desc: 'Lute 50.000 batalhas no total.' },
+        'gold_10000': { name: 'Primeira Fortuna', desc: 'Ganhe 10.000 de ouro no total.' },
+        'gold_100000': { name: 'Tesouro Escondido', desc: 'Ganhe 100.000 de ouro no total.' },
+        'gold_1000000': { name: 'Lenda Dourada', desc: 'Ganhe 1.000.000 de ouro no total.' },
+        'gold_2500000': { name: 'Cofre Imperial', desc: 'Ganhe 2.500.000 de ouro no total.' },
+        'gold_5000000': { name: 'Tesouro do Fazendeiro', desc: 'Ganhe 5.000.000 de ouro no total.' },
+        'gold_10000000': { name: 'Imperio Dourado', desc: 'Ganhe 10.000.000 de ouro no total.' },
+        'gold_20000000': { name: 'Trono Dourado', desc: 'Ganhe 20.000.000 de ouro no total.' },
+        'gold_35000000': { name: 'Paraiso de Platina', desc: 'Ganhe 35.000.000 de ouro no total.' },
+        'gold_50000000': { name: 'Dinastia de Diamantes', desc: 'Ganhe 50.000.000 de ouro no total.' },
+        'gold_75000000': { name: 'Imperio de Obsidiana', desc: 'Ganhe 75.000.000 de ouro no total.' },
+        'gold_100000000': { name: 'Tesouro Cosmico', desc: 'Ganhe 100.000.000 de ouro no total.' },
+        'floor_5': { name: 'Nas Profundezas', desc: 'Alcance o andar 5 da masmorra.' },
+        'floor_10': { name: 'Mergulhador do Abismo', desc: 'Alcance o andar 10 da masmorra.' },
+        'floor_25': { name: 'Viajante do Submundo', desc: 'Alcance o andar 25 da masmorra.' },
+        'floor_50': { name: 'Soberano do Abismo', desc: 'Alcance o andar 50 da masmorra.' },
+        'floor_75': { name: 'Ascendente do Abismo', desc: 'Alcance o andar 75 da masmorra.' },
+        'floor_100': { name: 'Horror de Cem Andares', desc: 'Alcance o andar 100 da masmorra.' },
+        'floor_150': { name: 'Mestre do Abismo', desc: 'Alcance o andar 150 da masmorra.' },
+        'floor_200': { name: 'Matador de Deuses da Masmorra', desc: 'Alcance o andar 200 da masmorra.' },
+        'floor_250': { name: 'Caminhante do Abismo', desc: 'Alcance o andar 250 da masmorra.' },
+        'floor_300': { name: 'Sobrevivente do Vazio', desc: 'Alcance o andar 300 da masmorra.' },
+        'floor_400': { name: 'Cavaleiro Sem Fim', desc: 'Alcance o andar 400 da masmorra.' },
+        'floor_500': { name: 'Tita da Torre', desc: 'Alcance o andar 500 da masmorra.' },
+        'floor_750': { name: 'Semideus da Masmorra', desc: 'Alcance o andar 750 da masmorra.' },
+        'crawler_encounters_1': { name: 'Ouvido Rastejante', desc: 'Encontre O Rastreador 1 vez.' },
+        'crawler_encounters_5': { name: 'Ele Sente Seu Cheiro', desc: 'Encontre O Rastreador 5 vezes.' },
+        'crawler_encounters_20': { name: 'Marcado Pelo Rastreador', desc: 'Encontre O Rastreador 20 vezes.' },
+        'crawler_encounters_30': { name: 'Ima do Rastreador', desc: 'Encontre o Rastreador 30 vezes.' },
+        'crawler_encounters_50': { name: 'Bane do Rastreador', desc: 'Encontre o Rastreador 50 vezes.' },
+        'crawler_encounters_75': { name: 'Cacador Cacado', desc: 'Encontre o Rastreador 75 vezes.' },
+        'crawler_encounters_100': { name: 'Nemesis do Rastreador', desc: 'Encontre o Rastreador 100 vezes.' },
+        'crawler_encounters_150': { name: 'O Cacador Torna-se a Caca', desc: 'Encontre o Rastreador 150 vezes.' },
+        'crawler_defeats_1': { name: 'Matador de Rastreadores', desc: 'Derrote O Rastreador.' },
+        'crawler_defeats_5': { name: 'Cacador de Rastreadores', desc: 'Derrote O Rastreador 5 vezes.' },
+        'crawler_defeats_10': { name: 'Nemesis do Rastreador', desc: 'Derrote O Rastreador 10 vezes.' },
+        'crawler_defeats_25': { name: 'Bane do Rastreador', desc: 'Derrote O Rastreador 25 vezes.' },
+        'crawler_defeats_50': { name: 'Exorcista do Rastreador', desc: 'Derrote O Rastreador 50 vezes.' },
+        'crawler_defeats_100': { name: 'Aniquilador do Rastreador', desc: 'Derrote O Rastreador 100 vezes.' },
+        'crawler_defeats_150': { name: 'Exterminador do Rastreador', desc: 'Derrote o Rastreador 150 vezes.' },
+        'crawler_defeats_200': { name: 'Cacador de Rastreadores', desc: 'Derrote o Rastreador 200 vezes.' },
+        'crawler_defeats_300': { name: 'Matador de Rastreadores', desc: 'Derrote o Rastreador 300 vezes.' },
+        'crawler_defeats_500': { name: 'Apocalipse do Rastreador', desc: 'Derrote o Rastreador 500 vezes.' },
+        'crawler_defeats_750': { name: 'O Fim dos Rastreadores', desc: 'Derrote o Rastreador 750 vezes.' },
+        'crawler_deaths_1': { name: 'Comida do Rastreador', desc: 'Morra para O Rastreador.' },
+        'crawler_deaths_3': { name: 'Lanche do Rastreador', desc: 'Morra para o Rastreador 3 vezes.' },
+        'crawler_deaths_5': { name: 'Refeicao do Rastreador', desc: 'Morra para o Rastreador 5 vezes.' },
+        'crawler_deaths_10': { name: 'Banquete do Rastreador', desc: 'Morra para o Rastreador 10 vezes.' },
+        'crawler_deaths_20': { name: 'Buffet do Rastreador', desc: 'Morra para o Rastreador 20 vezes.' },
+        'crawler_deaths_50': { name: 'Refeicao Favorita do Rastreador', desc: 'Morra para o Rastreador 50 vezes.' },
+        'mp_60': { name: 'Investidor de Mana', desc: 'Gaste 60 MP no total em missões e conversoes.' },
+        'mp_300': { name: 'Viciado em Missoes', desc: 'Gaste 300 MP no total.' },
+        'mp_1000': { name: 'Cavalo de Carga Arcano', desc: 'Gaste 1.000 MP no total.' },
+        'mp_5000': { name: 'Mestre da Resistencia', desc: 'Gaste 5.000 MP no total.' },
+        'mp_10000': { name: 'Maratona Arcana', desc: 'Gaste 10.000 MP no total.' },
+        'mp_25000': { name: 'Fornalha de Mana', desc: 'Gaste 25.000 MP no total.' },
+        'mp_50000': { name: 'Motor do Progresso', desc: 'Gaste 50.000 MP no total.' },
+        'mp_75000': { name: 'Oceano de Mana', desc: 'Gaste 75.000 MP no total.' },
+        'mp_100000': { name: 'Arcano Infinito', desc: 'Gaste 100.000 MP no total.' },
+        'mp_150000': { name: 'Forjador de Magias', desc: 'Gaste 150.000 MP no total.' },
+        'mp_250000': { name: 'Singularidade de Mana', desc: 'Gaste 250.000 MP no total.' },
+        'mp_500000': { name: 'A Fonte de Mana', desc: 'Gaste 500.000 MP no total.' },
+        'mission_wins_10': { name: 'Operativo de Campo', desc: 'Vença 10 missões.' },
+        'mission_wins_50': { name: 'Finalizador de Contratos', desc: 'Vença 50 missões.' },
+        'mission_wins_250': { name: 'Lenda Mercenaria', desc: 'Vença 250 missões.' },
+        'mission_wins_1000': { name: 'Veterano de Campanha', desc: 'Vença 1.000 missões.' },
+        'mission_wins_2500': { name: 'Imperador de Contratos', desc: 'Vença 2.500 missões.' },
+        'mission_wins_5000': { name: 'Expedicao Imparavel', desc: 'Vença 5.000 missões.' },
+        'mission_wins_7500': { name: 'Forca Expedicionaria', desc: 'Vença 7.500 missões.' },
+        'mission_wins_10000': { name: 'Suserano de Campanha', desc: 'Vença 10.000 missões.' },
+        'mission_wins_15000': { name: 'Marcha de Lendas', desc: 'Vença 15.000 missões.' },
+        'mission_wins_25000': { name: 'Campanha Eterna', desc: 'Vença 25.000 missões.' },
+        'mission_wins_50000': { name: 'A Guerra Interminavel', desc: 'Vença 50.000 missões.' },
+        'mission_fights_25': { name: 'Primeiro Ato Urgente', desc: 'Lute em 25 missões.' },
+        'mission_fights_100': { name: 'Estradas Gastas', desc: 'Lute em 100 missões.' },
+        'mission_fights_500': { name: 'Maquina de Campanha', desc: 'Lute em 500 missões.' },
+        'mission_fights_2000': { name: 'Marcha Sem Fim', desc: 'Lute em 2.000 missões.' },
+        'mission_fights_5000': { name: 'Caminho da Guerra', desc: 'Lute em 5.000 missões.' },
+        'mission_fights_7500': { name: 'Cruzador', desc: 'Lute em 7.500 missões.' },
+        'mission_fights_10000': { name: 'Deus da Campanha', desc: 'Lute em 10.000 missões.' },
+        'mission_fights_15000': { name: 'Guerra Eterna', desc: 'Lute em 15.000 missões.' },
+        'mission_fights_25000': { name: 'O Inevitavel', desc: 'Lute em 25.000 missões.' },
+        'mission_spots_3': { name: 'Pioneiro', desc: 'Lute em 3 locais de missao diferentes.' },
+        'mission_spots_10': { name: 'Viajante do Mundo', desc: 'Lute em 10 locais de missao diferentes.' },
+        'mission_spots_15': { name: 'Mestre de Trilhas', desc: 'Lute em todas as 15 localizacoes de missões.' },
+        'forest_camp_wins_10': { name: 'Guardiao do Acampamento', desc: 'Vença 10 missões no Acampamento de Caca.' },
+        'city_palace_wins_10': { name: 'Quebrador de Sombras', desc: 'Vença 10 missões no Palacio das Sombras.' },
+        'forest_bandits_wins_10': { name: 'Bane dos Bandidos', desc: 'Vença 10 missões no Esconderijo dos Bandidos.' },
+        'forest_ruins_wins_10': { name: 'Buscador de Reliquias', desc: 'Vença 10 missões nas Ruinas Antigas.' },
+        'swamp_edge_wins_10': { name: 'Deslizador do Pantano', desc: 'Vença 10 missões na Orla do Pantano.' },
+        'swamp_village_wins_10': { name: 'Reclamador do Pantano', desc: 'Vença 10 missões na Vila Abandonada.' },
+        'swamp_heart_wins_10': { name: 'Coracao da Lama', desc: 'Vença 10 missões no Coracao do Pantano.' },
+        'mountain_base_wins_10': { name: 'Forjador do Sope', desc: 'Vença 10 missões na Base da Montanha.' },
+        'mountain_peak_wins_10': { name: 'Cume da Tempestade', desc: 'Vença 10 missões no Pico Congelado.' },
+        'ice_cavern_wins_10': { name: 'Escavador do Gelo', desc: 'Vença 10 missões na Caverna de Gelo.' },
+        'ruins_perimeter_wins_10': { name: 'Quebrador de Muralhas', desc: 'Vença 10 missões no Perimetro das Ruinas.' },
+        'ruins_temple_wins_10': { name: 'Quebrador de Ritos', desc: 'Vença 10 missões no Templo Submerso.' },
+        'ruins_crypt_wins_10': { name: 'Deslacrador de Criptas', desc: 'Vença 10 missões na Cripta Antiga.' },
+        'city_outskirts_wins_10': { name: 'Purgador de Ruas', desc: 'Vença 10 missões nos Arredores da Cidade.' },
+        'city_cathedral_wins_10': { name: 'Limpador da Catedral', desc: 'Vença 10 missões na Catedral Sombria.' },
+        'dungeon_kills_25': { name: 'Limpador de Criptas', desc: 'Derrote 25 monstros da masmorra.' },
+        'dungeon_kills_100': { name: 'Exterminador de Masmorras', desc: 'Derrote 100 monstros da masmorra.' },
+        'dungeon_kills_300': { name: 'Terror das Profundezas', desc: 'Derrote 300 monstros da masmorra.' },
+        'dungeon_kills_1000': { name: 'Ceifador de Pesadelos', desc: 'Derrote 1.000 monstros da masmorra.' },
+        'dungeon_kills_2500': { name: 'Catastrofe das Criptas', desc: 'Derrote 2.500 monstros da masmorra.' },
+        'dungeon_kills_5000': { name: 'Senhor das Profundezas', desc: 'Derrote 5.000 monstros da masmorra.' },
+        'dungeon_kills_7500': { name: 'Carniceiro do Abismo', desc: 'Derrote 7.500 monstros da masmorra.' },
+        'dungeon_kills_10000': { name: 'Holocausto de Monstros', desc: 'Derrote 10.000 monstros da masmorra.' },
+        'dungeon_kills_15000': { name: 'Purga da Masmorra', desc: 'Derrote 15.000 monstros da masmorra.' },
+        'dungeon_kills_25000': { name: 'Evento de Extincao', desc: 'Derrote 25.000 monstros da masmorra.' },
+        'dungeon_kills_50000': { name: 'O Ceifador', desc: 'Derrote 50.000 monstros da masmorra.' },
+        'skeleton_kills_15': { name: 'Quebrador de Ossos', desc: 'Derrote 15 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_50': { name: 'Esmagador de Ossos', desc: 'Derrote 50 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_150': { name: 'Esmassador de Medulas', desc: 'Derrote 150 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_500': { name: 'Extincao do Cemiterio', desc: 'Derrote 500 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_1000': { name: 'Campo de Ossos', desc: 'Derrote 1.000 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_1500': { name: 'Esmagador de Esqueletos', desc: 'Derrote 1.500 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_2000': { name: 'Rei do Cemiterio', desc: 'Derrote 2.000 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_3000': { name: 'Bane do Lich', desc: 'Derrote 3.000 Guerreiros Esqueletos na masmorra.' },
+        'skeleton_kills_5000': { name: 'Fim da Morte', desc: 'Derrote 5.000 Guerreiros Esqueletos na masmorra.' },
+        'void_wraith_kills_10': { name: 'Bane dos Espectros', desc: 'Derrote 10 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_25': { name: 'Cacador de Sombras', desc: 'Derrote 25 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_100': { name: 'Exorcista de Espectros', desc: 'Derrote 100 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_250': { name: 'Exterminador do Abismo', desc: 'Derrote 250 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_500': { name: 'Matador de Espectros', desc: 'Derrote 500 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_750': { name: 'Aniquilador Espectral', desc: 'Derrote 750 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_1000': { name: 'Senhor do Abismo', desc: 'Derrote 1.000 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_1500': { name: 'Extincao do Vazio', desc: 'Derrote 1.500 Espectros do Vazio na masmorra.' },
+        'void_wraith_kills_2000': { name: 'Abismo Purificado', desc: 'Derrote 2.000 Espectros do Vazio na masmorra.' },
+        'monster_types_5': { name: 'Bestiario Iniciante', desc: 'Derrote 5 tipos de monstros diferentes na masmorra.' },
+        'monster_types_10': { name: 'Catalogo de Horrores', desc: 'Derrote 10 tipos de monstros diferentes na masmorra.' },
+        'monster_types_20': { name: 'Estudioso do Abismo', desc: 'Derrote 20 tipos de monstros diferentes na masmorra.' },
+        'monster_types_25': { name: 'Bestiario Vivo', desc: 'Encontre 25 tipos de monstros da masmorra diferentes.' },
+        'monster_types_30': { name: 'Enciclopedia Ambulante', desc: 'Encontre 30 tipos de monstros da masmorra diferentes.' },
+        'monster_types_35': { name: 'Codice Completo', desc: 'Encontre 35 tipos de monstros da masmorra diferentes.' },
+        'monster_types_40': { name: 'Estudioso de Monstros', desc: 'Encontre 40 tipos de monstros da masmorra diferentes.' },
+        'monster_types_50': { name: 'Lenda do Bestiario', desc: 'Encontre 50 tipos de monstros da masmorra diferentes.' },
+        'shieldless_wins_10': { name: 'Leve nos Pes', desc: 'Vença 10 batalhas sem um escudo equipado.' },
+        'shieldless_wins_50': { name: 'Rogue Intocavel', desc: 'Vença 50 batalhas sem um escudo equipado.' },
+        'shieldless_wins_200': { name: 'Duelista das Sombras', desc: 'Vença 200 batalhas sem um escudo equipado.' },
+        'wins_without_shield_300': { name: 'Gloria Temeraria', desc: 'Vença 300 batalhas sem escudo.' },
+        'wins_without_shield_500': { name: 'Sem Armadura e Sem Medo', desc: 'Vença 500 batalhas sem escudo.' },
+        'wins_without_shield_750': { name: 'Lutador Descalco', desc: 'Vença 750 batalhas sem escudo.' },
+        'wins_without_shield_1000': { name: 'Sem Guarda, Toda Gloria', desc: 'Vença 1.000 batalhas sem escudo.' },
+        'wins_without_shield_2000': { name: 'Ofensiva Inquebravel', desc: 'Vença 2.000 batalhas sem escudo.' },
+        'wins_without_shield_3000': { name: 'Ambicao Nua', desc: 'Vença 3.000 batalhas sem escudo.' },
+        'wins_without_shield_5000': { name: 'Sem Medo', desc: 'Vença 5.000 batalhas sem escudo.' },
+        'wins_without_shield_7500': { name: 'O Deus Sem Armadura', desc: 'Vença 7.500 batalhas sem escudo.' },
+        'wins_without_shield_10000': { name: 'Defesa Zero Absoluto', desc: 'Vença 10.000 batalhas sem escudo.' },
+        'weaponless_wins_10': { name: 'Lutador de Punhos', desc: 'Vença 10 batalhas sem uma arma equipada.' },
+        'weaponless_wins_50': { name: 'Lutador Desarmado', desc: 'Vença 50 batalhas sem uma arma equipada.' },
+        'weaponless_wins_200': { name: 'Mestre Desarmado', desc: 'Vença 200 batalhas sem uma arma equipada.' },
+        'helmless_wins_10': { name: 'Ar Puro', desc: 'Vença 10 batalhas sem um capacete equipado.' },
+        'helmless_wins_50': { name: 'Vento nos Cabelos', desc: 'Vença 50 batalhas sem um capacete equipado.' },
+        'helmless_wins_200': { name: 'Guerreiro Sem Capacete', desc: 'Vença 200 batalhas sem um capacete equipado.' },
+        'armorless_wins_10': { name: 'Levemente Vestido', desc: 'Vença 10 batalhas sem armadura equipada.' },
+        'armorless_wins_50': { name: 'Campeao Sem Camisa', desc: 'Vença 50 batalhas sem armadura equipada.' },
+        'armorless_wins_200': { name: 'Guerreiro Nu', desc: 'Vença 200 batalhas sem armadura equipada.' },
+        'bootless_wins_10': { name: 'Descalco', desc: 'Vença 10 batalhas sem botas equipadas.' },
+        'bootless_wins_50': { name: 'Sobrevivente dos Sapatos', desc: 'Vença 50 batalhas sem botas equipadas.' },
+        'bootless_wins_200': { name: 'Lenda Descalca', desc: 'Vença 200 batalhas sem botas equipadas.' },
+        'equipmentless_wins_10': { name: 'Completamente Nu', desc: 'Vença 10 batalhas sem nenhum equipamento.' },
+        'equipmentless_wins_50': { name: 'Sky Clad', desc: 'Vença 50 batalhas sem nenhum equipamento.' },
+        'equipmentless_wins_200': { name: 'Nascido Assim', desc: 'Vença 200 batalhas sem nenhum equipamento.' },
+        'physical_only_wins_10': { name: 'Aco Cru', desc: 'Vença 10 batalhas sem causar nenhum dano elemental.' },
+        'physical_only_wins_50': { name: 'Duelista Puro', desc: 'Vença 50 batalhas usando apenas dano fisico.' },
+        'physical_only_wins_200': { name: 'Mestre do Aco', desc: 'Vença 200 batalhas usando apenas dano fisico.' },
+        'physical_only_wins_300': { name: 'Punho de Ferro', desc: 'Vença 300 batalhas com dano fisico apenas.' },
+        'physical_only_wins_500': { name: 'Forca Bruta', desc: 'Vença 500 batalhas com dano fisico apenas.' },
+        'physical_only_wins_750': { name: 'Puro Musculo', desc: 'Vença 750 batalhas com dano fisico apenas.' },
+        'physical_only_wins_1000': { name: 'Sem Necessidade de Magia', desc: 'Vença 1.000 batalhas com dano fisico apenas.' },
+        'physical_only_wins_2000': { name: 'Forca Primordial', desc: 'Vença 2.000 batalhas com dano fisico apenas.' },
+        'elemental_kills_10': { name: 'Faisca de Poder', desc: 'Vença 10 batalhas causando dano elemental.' },
+        'elemental_kills_50': { name: 'Invocador de Tempestades', desc: 'Vença 50 batalhas causando dano elemental.' },
+        'elemental_kills_200': { name: 'Catastrofe Elemental', desc: 'Vença 200 batalhas causando dano elemental.' },
+        'elemental_kills_300': { name: 'Tempestade Elemental', desc: 'Derrote 300 inimigos com dano elemental.' },
+        'elemental_kills_500': { name: 'Catastrofe Elemental', desc: 'Derrote 500 inimigos com dano elemental.' },
+        'elemental_kills_750': { name: 'Forca Primordial', desc: 'Derrote 750 inimigos com dano elemental.' },
+        'elemental_kills_1000': { name: 'Suserano Elemental', desc: 'Derrote 1.000 inimigos com dano elemental.' },
+        'elemental_kills_2000': { name: 'Avatar dos Elementos', desc: 'Derrote 2.000 inimigos com dano elemental.' },
+        'damage_dealt_1000': { name: 'Derramador de Sangue', desc: 'Causar 1.000 de dano total nas batalhas.' },
+        'damage_dealt_5000': { name: 'Escaramucador', desc: 'Causar 5.000 de dano total nas batalhas.' },
+        'damage_dealt_15000': { name: 'Guerreiro', desc: 'Causar 15.000 de dano total nas batalhas.' },
+        'damage_dealt_40000': { name: 'Endurecido em Batalha', desc: 'Causar 40.000 de dano total nas batalhas.' },
+        'damage_dealt_100000': { name: 'Cacador Veterano', desc: 'Causar 100.000 de dano total nas batalhas.' },
+        'damage_dealt_200000': { name: 'Campeao', desc: 'Causar 200.000 de dano total nas batalhas.' },
+        'damage_dealt_400000': { name: 'Senhor da Guerra', desc: 'Causar 400.000 de dano total nas batalhas.' },
+        'damage_dealt_650000': { name: 'Avatar da Guerra', desc: 'Causar 650.000 de dano total nas batalhas.' },
+        'damage_dealt_1000000': { name: 'Deus da Guerra', desc: 'Causar 1.000.000 de dano total nas batalhas.' },
+        'top_damage_dealt_500': { name: 'Primeiro Sangue', desc: 'Causar 500 de dano em uma unica batalha.' },
+        'top_damage_dealt_1000': { name: 'Escaramucador', desc: 'Causar 1.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_2000': { name: 'Guerreiro', desc: 'Causar 2.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_4000': { name: 'Endurecido em Batalha', desc: 'Causar 4.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_6000': { name: 'Campeao', desc: 'Causar 6.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_8000': { name: 'Senhor da Guerra', desc: 'Causar 8.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_10000': { name: 'Avatar da Guerra', desc: 'Causar 10.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_13000': { name: 'Mestre do Carnificina', desc: 'Causar 13.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_16000': { name: 'Deus da Destruicao', desc: 'Causar 16.000 de dano em uma unica batalha.' },
+        'top_damage_dealt_20000': { name: 'O Imparavel', desc: 'Causar 20.000 de dano em uma unica batalha.' },
+        'gems_earn_25': { name: 'Cacador de Gemas', desc: 'Ganhe 25 gemas em missões.' },
+        'gems_earn_100': { name: 'Toque de Cristal', desc: 'Ganhe 100 gemas em missões.' },
+        'gems_earn_500': { name: 'Joalheiro da Coroa', desc: 'Ganhe 500 gemas em missões.' },
+        'gems_earn_1500': { name: 'Tesouro Radiante', desc: 'Ganhe 1.500 gemas em missões.' },
+        'gems_collected_2000': { name: 'Montanha de Gemas', desc: 'Colete 2.000 gemas em missões.' },
+        'gems_collected_3000': { name: 'Rio de Gemas', desc: 'Colete 3.000 gemas em missões.' },
+        'gems_collected_5000': { name: 'Oceano de Gemas', desc: 'Colete 5.000 gemas em missões.' },
+        'gems_collected_7500': { name: 'Galaxia de Gemas', desc: 'Colete 7.500 gemas em missões.' },
+        'gems_collected_10000': { name: 'Universo de Gemas', desc: 'Colete 10.000 gemas em missões.' },
+        'hard_missions_5': { name: 'Buscador do Perigo', desc: 'Vença 5 missões dificeis.' },
+        'hard_missions_25': { name: 'Colecionador de Perigos', desc: 'Vença 25 missões dificeis.' },
+        'hard_missions_100': { name: 'Andarilho da Calamidade', desc: 'Vença 100 missões dificeis.' },
+        'hard_missions_150': { name: 'Temerario Extremo', desc: 'Conclua 150 missões dificeis.' },
+        'hard_missions_200': { name: 'Desafiador da Morte', desc: 'Conclua 200 missões dificeis.' },
+        'hard_missions_300': { name: 'Probabilidades Impossiveis', desc: 'Conclua 300 missões dificeis.' },
+        'hard_missions_500': { name: 'Lenda Extrema', desc: 'Conclua 500 missões dificeis.' },
+        'hard_missions_750': { name: 'O Sonho Impossivel', desc: 'Conclua 750 missões dificeis.' },
+        'nightmare_missions_150': { name: 'Senhor do Abismo', desc: 'Conclua 150 missões de pesadelo.' },
+        'nightmare_missions_200': { name: 'Fim do Pesadelo', desc: 'Conclua 200 missões de pesadelo.' },
+        'nightmare_missions_300': { name: 'Quebrador de Reinos', desc: 'Conclua 300 missões de pesadelo.' },
+        'nightmare_missions_500': { name: 'Abismo Eterno', desc: 'Conclua 500 missões de pesadelo.' },
+        'nightmare_missions_750': { name: 'Encarnacao do Vazio', desc: 'Conclua 750 missões de pesadelo.' },
+        'nightmare_missions_1000': { name: 'Soberano do Pesadelo', desc: 'Conclua 1.000 missões de pesadelo.' },
+        'nightmare_missions_1500': { name: 'Tirano do Abismo', desc: 'Conclua 1.500 missões de pesadelo.' },
+        'nightmare_missions_2000': { name: 'Destruidor de Reinos', desc: 'Conclua 2.000 missões de pesadelo.' },
+        'nightmare_missions_2500': { name: 'Vazio Eterno', desc: 'Conclua 2.500 missões de pesadelo.' },
+        'nightmare_missions_3000': { name: 'Deus do Abismo', desc: 'Conclua 3.000 missões de pesadelo.' },
+        'nightmare_missions_3500': { name: 'Pesadelo Ascendido', desc: 'Conclua 3.500 missões de pesadelo.' },
+        'nightmare_missions_4000': { name: 'Caminhante do Esquecimento', desc: 'Conclua 4.000 missões de pesadelo.' },
+        'nightmare_missions_4500': { name: 'Abismo Absoluto', desc: 'Conclua 4.500 missões de pesadelo.' },
+        'nightmare_missions_5000': { name: 'O Proprio Vazio', desc: 'Conclua 5.000 missões de pesadelo.' },
+        'raids_participated_1': { name: 'Primeiro na Brecha', desc: 'Participe de 1 raid.' },
+        'raids_participated_5': { name: 'Regular de Raids', desc: 'Participe de 5 raids.' },
+        'raids_participated_15': { name: 'Filho de Cerco', desc: 'Participe de 15 raids.' },
+        'raids_participated_40': { name: 'Vanguarda da Guilda', desc: 'Participe de 40 raids.' },
+        'raids_participated_100': { name: 'Lenda de Raids', desc: 'Participe de 100 raids.' },
+        'raids_won_1': { name: 'Destruidor de Chefes', desc: 'Vença 1 raid.' },
+        'raids_won_3': { name: 'Cacador de Chefes', desc: 'Vença 3 raids.' },
+        'raids_won_10': { name: 'Vitoria de Raid', desc: 'Vença 10 raids.' },
+        'raids_won_25': { name: 'Esmagador da Cidadela', desc: 'Vença 25 raids.' },
+        'raids_won_60': { name: 'Mito dos Seis', desc: 'Vença 60 raids.' },
+        'raids_won_100': { name: 'Dominador de Raids', desc: 'Vença 100 raids.' },
+        'raids_won_150': { name: 'Senhor de Raids', desc: 'Vença 150 raids.' },
+        'raids_won_200': { name: 'Aniquilador de Chefes', desc: 'Vença 200 raids.' },
+        'raids_won_300': { name: 'Deus dos Raids', desc: 'Vença 300 raids.' },
+        'raids_won_500': { name: 'O Inconquistado', desc: 'Vença 500 raids.' },
+        'referrals_1': { name: 'Primeiro Recruta', desc: 'Indique 1 jogador para Mid-Evil: Battle Arena.' },
+        'referrals_3': { name: 'Batedor da Arena', desc: 'Indique 3 jogadores para Mid-Evil: Battle Arena.' },
+        'referrals_10': { name: 'Chamador de Multidao', desc: 'Indique 10 jogadores para Mid-Evil: Battle Arena.' },
+        'referrals_50': { name: 'Recrutador Extraordinario', desc: 'Indique 50 novos jogadores.' },
+        'referrals_75': { name: 'Campanha de Recrutamento', desc: 'Indique 75 novos jogadores.' },
+        'referrals_100': { name: 'Exercito de Um', desc: 'Indique 100 novos jogadores.' },
+        'referrals_150': { name: 'Construtor de Guilda', desc: 'Indique 150 novos jogadores.' },
+        'referrals_200': { name: 'Lenda da Comunidade', desc: 'Indique 200 novos jogadores.' },
+        'referrals_level5_1': { name: 'Faisca de Mentor', desc: 'Tenha 1 jogador indicado que alcance o nivel 5.' },
+        'referrals_level5_5': { name: 'Mentor de Batalha', desc: 'Tenha 5 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_15': { name: 'Patrono da Arena', desc: 'Tenha 15 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_30': { name: 'Construtor de Guilda', desc: 'Tenha 30 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_60': { name: 'Fundador da Arena', desc: 'Tenha 60 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_100': { name: 'Professor de Herois', desc: 'Tenha 100 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_150': { name: 'Mestre Treinador', desc: 'Tenha 150 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_200': { name: 'Grande Mentor', desc: 'Tenha 200 jogadores indicados que alcancem o nivel 5.' },
+        'referrals_level5_300': { name: 'Professor Imortal', desc: 'Tenha 300 jogadores indicados que alcancem o nivel 5.' },
+        'weekly_battles_25': { name: 'Caminho de Guerra', desc: 'Conclua 25 batalhas esta semana.' },
+        'weekly_wins_12': { name: 'Vitorioso', desc: 'Vença 12 batalhas esta semana.' },
+        'weekly_mp_1000': { name: 'Despesa Arcana', desc: 'Gaste 1.000 MP esta semana.' },
+        'weekly_damage_100k': { name: 'Dano Semanal: Novato', desc: 'Causar 100.000 de dano em uma semana.' },
+        'weekly_damage_250k': { name: 'Dano Semanal: Aprendiz', desc: 'Causar 250.000 de dano em uma semana.' },
+        'weekly_damage_500k': { name: 'Dano Semanal: Viajante', desc: 'Causar 500.000 de dano em uma semana.' },
+        'weekly_damage_750k': { name: 'Dano Semanal: Habilidoso', desc: 'Causar 750.000 de dano em uma semana.' },
+        'weekly_damage_1m': { name: 'Dano Semanal: Especialista', desc: 'Causar 1.000.000 de dano em uma semana.' },
+        'weekly_damage_1_5m': { name: 'Dano Semanal: Veterano', desc: 'Causar 1.500.000 de dano em uma semana.' },
+        'weekly_damage_2m': { name: 'Dano Semanal: Elite', desc: 'Causar 2.000.000 de dano em uma semana.' },
+        'weekly_damage_2_5m': { name: 'Dano Semanal: Mestre', desc: 'Causar 2.500.000 de dano em uma semana.' },
+        'weekly_damage_3m': { name: 'Dano Semanal: Campeao', desc: 'Causar 3.000.000 de dano em uma semana.' },
+        'weekly_damage_4m': { name: 'Dano Semanal: Heroi', desc: 'Causar 4.000.000 de dano em uma semana.' },
+        'weekly_damage_5m': { name: 'Dano Semanal: Grao-Mestre', desc: 'Causar 5.000.000 de dano em uma semana.' },
+        'weekly_damage_6m': { name: 'Dano Semanal: Senhor da Guerra', desc: 'Causar 6.000.000 de dano em uma semana.' },
+        'weekly_damage_7m': { name: 'Dano Semanal: Conquistador', desc: 'Causar 7.000.000 de dano em uma semana.' },
+        'weekly_damage_8m': { name: 'Dano Semanal: Destruidor', desc: 'Causar 8.000.000 de dano em uma semana.' },
+        'weekly_damage_9m': { name: 'Dano Semanal: Aniquilador', desc: 'Causar 9.000.000 de dano em uma semana.' },
+        'weekly_damage_10m': { name: 'Dano Semanal: Lendario', desc: 'Causar 10.000.000 de dano em uma semana.' },
+        'weekly_material_choice': { name: 'Intendente', desc: 'Conclua 10 batalhas esta semana e escolha materiais raros.' },
+        'nightmare_missions_100': { name: 'Cacador de Pesadelos', desc: 'Conclua 100 missões de pesadelo.' },
+        'raids_participated_150': { name: 'Filho de Cerco', desc: 'Participe de 150 raids.' },
+        'raids_participated_200': { name: 'Veterano de Cerco', desc: 'Participe de 200 raids.' },
+        'raids_participated_300': { name: 'Mestre de Cerco', desc: 'Participe de 300 raids.' },
+        'raids_participated_500': { name: 'Lenda de Cerco', desc: 'Participe de 500 raids.' },
+        'raids_participated_750': { name: 'Imortal de Cerco', desc: 'Participe de 750 raids.' },
+        'referrals_registered_50': { name: 'Recrutador Extraordinario', desc: 'Indique 50 novos jogadores.' },
+        'referrals_registered_75': { name: 'Campanha de Recrutamento', desc: 'Indique 75 novos jogadores.' },
+        'referrals_registered_100': { name: 'Exercito de Um', desc: 'Indique 100 novos jogadores.' },
+        'referrals_registered_150': { name: 'Construtor de Guilda', desc: 'Indique 150 novos jogadores.' },
+        'referrals_registered_200': { name: 'Lenda da Comunidade', desc: 'Indique 200 novos jogadores.' },
+        'gatekeeper_overworld_swamp': { name: 'Abridor do Brejo', desc: 'Derrote o Guardiao do Brejo e desbloqueie a viagem para o Pantano em Decomposicao.' },
+        'gatekeeper_overworld_mountains': { name: 'Perfurador de Gelo', desc: 'Derrote o Sentinela Congelante e desbloqueie a viagem para as Montanhas Congeladas.' },
+        'gatekeeper_overworld_ruins': { name: 'Quebrador de Cripta', desc: 'Derrote o Guardiao da Cripta e desbloqueie a viagem para as Ruinas Antigas.' },
+        'gatekeeper_overworld_dark_city': { name: 'Sombras Destrancadas', desc: 'Derrote o Guardiao das Sombras e desbloqueie a viagem para a Cidade Sombria.' },
+        'gatekeeper_abyss_crimson': { name: 'Limiar Carmesim', desc: 'Derrote o Guardiao Carmesim.' },
+        'gatekeeper_abyss_void': { name: 'Selo do Andarilho do Vazio', desc: 'Derrote o Guardiao do Vazio.' },
+        'gatekeeper_abyss_citadel': { name: 'Queda do Guardiao', desc: 'Derrote o Guardiao da Cidadela.' },
+        'gatekeeper_abyss_eternal_dark': { name: 'Guardiao Eterno Derrotado', desc: 'Derrote o Guardiao Eterno.' },
+        'level_10': { name: 'Aprendiz', desc: 'Alcance o nivel 10.' },
+        'level_20': { name: 'Aventureiro', desc: 'Alcance o nivel 20.' },
+        'level_30': { name: 'Guerreiro', desc: 'Alcance o nivel 30.' },
+        'level_40': { name: 'Soldado', desc: 'Alcance o nivel 40.' },
+        'level_50': { name: 'Elite', desc: 'Alcance o nivel 50.' },
+        'level_60': { name: 'Veterano', desc: 'Alcance o nivel 60.' },
+        'level_70': { name: 'Campeao', desc: 'Alcance o nivel 70.' },
+        'level_80': { name: 'Heroi', desc: 'Alcance o nivel 80.' },
+        'level_90': { name: 'Mestre', desc: 'Alcance o nivel 90.' },
+        'level_100': { name: 'Lenda', desc: 'Alcance o nivel 100.' },
+        'level_110': { name: 'Mitico', desc: 'Alcance o nivel 110.' },
+        'level_120': { name: 'Anciao', desc: 'Alcance o nivel 120.' },
+        'level_130': { name: 'Eterno', desc: 'Alcance o nivel 130.' },
+        'level_140': { name: 'Divino', desc: 'Alcance o nivel 140.' },
+        'level_150': { name: 'Transcendental', desc: 'Alcance o nivel 150.' },
+        'level_160': { name: 'Celestial', desc: 'Alcance o nivel 160.' },
+        'level_170': { name: 'Imortal', desc: 'Alcance o nivel 170.' },
+        'level_180': { name: 'Omnipotente', desc: 'Alcance o nivel 180.' },
+        'level_190': { name: 'Supremo', desc: 'Alcance o nivel 190.' },
+        'level_200': { name: 'Ultimate', desc: 'Alcance o nivel 200.' },
+        'level_210': { name: 'Paragon', desc: 'Alcance o nivel 210.' },
+        'level_220': { name: 'Demigod', desc: 'Alcance o nivel 220.' },
+        'level_230': { name: 'Ascendido', desc: 'Alcance o nivel 230.' },
+        'level_240': { name: 'Sem Limites', desc: 'Alcance o nivel 240.' },
+        'level_250': { name: 'Alfa', desc: 'Alcance o nivel 250.' },
+        'war_damage_10k': { name: 'Dano de Guerra: Escaramucador', desc: 'Causar 10.000 de dano total nas guerras de cla.' },
+        'war_damage_50k': { name: 'Dano de Guerra: Soldado', desc: 'Causar 50.000 de dano total nas guerras de cla.' },
+        'war_damage_100k': { name: 'Dano de Guerra: Veterano', desc: 'Causar 100.000 de dano total nas guerras de cla.' },
+        'war_damage_250k': { name: 'Dano de Guerra: Sargento', desc: 'Causar 250.000 de dano total nas guerras de cla.' },
+        'war_damage_500k': { name: 'Dano de Guerra: Senhor da Guerra', desc: 'Causar 500.000 de dano total nas guerras de cla.' },
+        'war_damage_1m': { name: 'Dano de Guerra: Conquistador', desc: 'Causar 1.000.000 de dano total nas guerras de cla.' },
+        'war_damage_2_5m': { name: 'Dano de Guerra: Aniquilador', desc: 'Causar 2.500.000 de dano total nas guerras de cla.' },
+        'war_damage_5m': { name: 'Dano de Guerra: Destruidor', desc: 'Causar 5.000.000 de dano total nas guerras de cla.' },
+        'war_damage_10m': { name: 'Dano de Guerra: Suserano', desc: 'Causar 10.000.000 de dano total nas guerras de cla.' },
+        'war_damage_25m': { name: 'Dano de Guerra: Deus da Guerra', desc: 'Causar 25.000.000 de dano total nas guerras de cla.' },
+        'war_damage_50m': { name: 'Dano de Guerra: Tita', desc: 'Causar 50.000.000 de dano total nas guerras de cla.' },
+        'war_damage_100m': { name: 'Dano de Guerra: Lenda da Guerra', desc: 'Causar 100.000.000 de dano total nas guerras de cla.' },
+        'gold_earned_5k': { name: 'Economizador', desc: 'Ganhe 5.000 de ouro no total.' },
+        'gold_earned_25k': { name: 'Colecionador de Moedas', desc: 'Ganhe 25.000 de ouro no total.' },
+        'gold_earned_50k': { name: 'Construtor de Riqueza', desc: 'Ganhe 50.000 de ouro no total.' },
+        'gold_earned_75k': { name: 'Fazendeiro de Dinheiro', desc: 'Ganhe 75.000 de ouro no total.' },
+        'gold_earned_250k': { name: 'Fortuna', desc: 'Ganhe 250.000 de ouro no total.' },
+        'gold_earned_500k': { name: 'Magnata', desc: 'Ganhe 500.000 de ouro no total.' },
+        'gold_earned_750k': { name: 'Magnata', desc: 'Ganhe 750.000 de ouro no total.' },
+        'gold_earned_2m': { name: 'Imperio', desc: 'Ganhe 2.000.000 de ouro no total.' },
+        'gold_earned_3m': { name: 'Bancario', desc: 'Ganhe 3.000.000 de ouro no total.' },
+        'gold_earned_4m': { name: 'Imperio Magnata', desc: 'Ganhe 4.000.000 de ouro no total.' },
+        'gold_earned_6m': { name: 'Zilionario', desc: 'Ganhe 6.000.000 de ouro no total.' },
+        'gold_earned_8m': { name: 'Tesouro do Dragao', desc: 'Ganhe 8.000.000 de ouro no total.' },
+        'gold_earned_15m': { name: 'Resgate do Rei', desc: 'Ganhe 15.000.000 de ouro no total.' },
+        'missions_Conclua_10': { name: 'Missionario', desc: 'Conclua 10 missões.' },
+        'missions_Conclua_50': { name: 'Mestre de Tarefas', desc: 'Conclua 50 missões.' },
+        'missions_Conclua_100': { name: 'Doador de Missoes', desc: 'Conclua 100 missões.' },
+        'missions_Conclua_250': { name: 'Aventureiro', desc: 'Conclua 250 missões.' },
+        'missions_Conclua_500': { name: 'Explorador', desc: 'Conclua 500 missões.' },
+        'missions_Conclua_750': { name: 'Buscador', desc: 'Conclua 750 missões.' },
+        'missions_Conclua_1000': { name: 'Campeao das Tarefas', desc: 'Conclua 1.000 missões.' },
+        'missions_Conclua_1500': { name: 'Imparavel', desc: 'Conclua 1.500 missões.' },
+        'missions_Conclua_2000': { name: 'Incansavel', desc: 'Conclua 2.000 missões.' },
+        'missions_Conclua_3000': { name: 'Inabalavel', desc: 'Conclua 3.000 missões.' },
+        'missions_Conclua_5000': { name: 'Missao Eterna', desc: 'Conclua 5.000 missões.' },
+        'missions_Conclua_7500': { name: 'Lenda das Tarefas', desc: 'Conclua 7.500 missões.' },
+        'dungeon_floor_20': { name: 'Andar 20', desc: 'Alcance o andar 20 da torre.' },
+        'dungeon_floor_30': { name: 'Andar 30', desc: 'Alcance o andar 30 da torre.' },
+        'dungeon_floor_40': { name: 'Andar 40', desc: 'Alcance o andar 40 da torre.' },
+        'dungeon_floor_60': { name: 'Andar 60', desc: 'Alcance o andar 60 da torre.' },
+        'dungeon_floor_70': { name: 'Andar 70', desc: 'Alcance o andar 70 da torre.' },
+        'dungeon_floor_80': { name: 'Andar 80', desc: 'Alcance o andar 80 da torre.' },
+        'dungeon_floor_90': { name: 'Andar 90', desc: 'Alcance o andar 90 da torre.' },
+        'gems_earned_5': { name: 'Cacador de Gemas', desc: 'Ganhe 5 gemas no total.' },
+        'gems_earned_10': { name: 'Colecionador de Gemas', desc: 'Ganhe 10 gemas no total.' },
+        'gems_earned_25': { name: 'Cacador de Gemas', desc: 'Ganhe 25 gemas no total.' },
+        'gems_earned_50': { name: 'Acumulador de Gemas', desc: 'Ganhe 50 gemas no total.' },
+        'gems_earned_75': { name: 'Mestre de Gemas', desc: 'Ganhe 75 gemas no total.' },
+        'gems_earned_100': { name: 'Magnata de Gemas', desc: 'Ganhe 100 gemas no total.' },
+        'gems_earned_250': { name: 'Barao das Gemas', desc: 'Ganhe 250 gemas no total.' },
+        'gems_earned_500': { name: 'Imperador das Gemas', desc: 'Ganhe 500 gemas no total.' },
+        'gems_earned_750': { name: 'Magnata de Gemas', desc: 'Ganhe 750 gemas no total.' },
+        'gems_earned_1000': { name: 'Suserano das Gemas', desc: 'Ganhe 1.000 gemas no total.' },
+        'gems_earned_1500': { name: 'Deus das Gemas', desc: 'Ganhe 1.500 gemas no total.' },
+        'gems_earned_2000': { name: 'Celestial das Gemas', desc: 'Ganhe 2.000 gemas no total.' },
+        'gems_earned_3000': { name: 'Infinito de Gemas', desc: 'Ganhe 3.000 gemas no total.' },
+        'hard_missions_10': { name: 'Temerario', desc: 'Conclua 10 missões dificeis.' },
+        'hard_missions_50': { name: 'Coracao Bravo', desc: 'Conclua 50 missões dificeis.' },
+        'nightmare_missions_5': { name: 'Caminhante Noturno', desc: 'Conclua 5 missões de pesadelo.' },
+        'nightmare_missions_25': { name: 'Andarilho do Vazio', desc: 'Conclua 25 missões de pesadelo.' },
+        'tournament_wins_1': { name: 'Novato do Torneio', desc: 'Vença seu primeiro torneio.' },
+        'tournament_wins_5': { name: 'Lutador do Torneio', desc: 'Vença 5 torneios.' },
+        'tournament_wins_10': { name: 'Contendente do Torneio', desc: 'Vença 10 torneios.' },
+        'tournament_wins_25': { name: 'Veterano do Torneio', desc: 'Vença 25 torneios.' },
+        'tournament_wins_50': { name: 'Campeao do Torneio', desc: 'Vença 50 torneios.' },
+        'tournament_wins_100': { name: 'Lenda do Torneio', desc: 'Vença 100 torneios.' },
+        'tournament_wins_150': { name: 'Mestre do Torneio', desc: 'Vença 150 torneios.' },
+        'tournament_wins_200': { name: 'Grao-Mestre do Torneio', desc: 'Vença 200 torneios.' },
+        'tournament_wins_250': { name: 'Senhor da Guerra do Torneio', desc: 'Vença 250 torneios.' },
+        'tournament_wins_300': { name: 'Conquistador do Torneio', desc: 'Vença 300 torneios.' },
+        'tournament_wins_350': { name: 'Imperador do Torneio', desc: 'Vença 350 torneios.' },
+        'tournament_wins_400': { name: 'Imortal do Torneio', desc: 'Vença 400 torneios.' },
+        'tournament_wins_500': { name: 'Deus do Torneio', desc: 'Vença 500 torneios.' },
+        'tournament_wins_600': { name: 'Transcendental do Torneio', desc: 'Vença 600 torneios.' },
+        'tournament_wins_700': { name: 'Eterno do Torneio', desc: 'Vença 700 torneios.' },
+        'tournament_wins_800': { name: 'Desatado do Torneio', desc: 'Vença 800 torneios.' },
+        'tournament_wins_900': { name: 'Absoluto do Torneio', desc: 'Vença 900 torneios.' },
+        'tournament_wins_1000': { name: 'Messias do Torneio', desc: 'Vença 1.000 torneios.' },
+        'weapon_elem_dmg_25': { name: 'Faisca Elemental', desc: 'Alcance 25 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_50': { name: 'Brilho Elemental', desc: 'Alcance 50 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_75': { name: 'Surgimento Elemental', desc: 'Alcance 75 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_100': { name: 'Furia Elemental', desc: 'Alcance 100 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_125': { name: 'Tempestade Elemental', desc: 'Alcance 125 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_150': { name: 'Furia Elemental', desc: 'Alcance 150 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_175': { name: 'Devastacao Elemental', desc: 'Alcance 175 de dano elemental de um unico tipo na sua arma.' },
+        'weapon_elem_dmg_200': { name: 'Catastrofe Elemental', desc: 'Alcance 200 de dano elemental de um unico tipo na sua arma.' },
+        'elem_resist_25': { name: 'Resistente', desc: 'Alcance 25 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_50': { name: 'Protecao Elemental', desc: 'Alcance 50 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_75': { name: 'Barreira Elemental', desc: 'Alcance 75 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_100': { name: 'Escudo Elemental', desc: 'Alcance 100 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_125': { name: 'Fortaleza Elemental', desc: 'Alcance 125 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_150': { name: 'Egide Elemental', desc: 'Alcance 150 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_175': { name: 'Baluartre Elemental', desc: 'Alcance 175 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'elem_resist_200': { name: 'Imunidade Elemental', desc: 'Alcance 200 de resistencia elemental de um unico tipo no seu equipamento.' },
+        'stat_strength_100': { name: 'Braco Forte', desc: 'Alcance 100 de forca.' },
+        'stat_strength_200': { name: 'Poderoso', desc: 'Alcance 200 de forca.' },
+        'stat_strength_300': { name: 'Forca Brutal', desc: 'Alcance 300 de forca.' },
+        'stat_strength_500': { name: 'Forca Bruta', desc: 'Alcance 500 de forca.' },
+        'stat_strength_750': { name: 'Agarrar de Tita', desc: 'Alcance 750 de forca.' },
+        'stat_strength_1000': { name: 'Deus da Guerra', desc: 'Alcance 1.000 de forca.' },
+        'stat_strength_1250': { name: 'Colosso', desc: 'Alcance 1.250 de forca.' },
+        'stat_strength_1500': { name: 'Montanha', desc: 'Alcance 1.500 de forca.' },
+        'stat_strength_2000': { name: 'Tita', desc: 'Alcance 2.000 de forca.' },
+        'stat_strength_3000': { name: 'Quebrador de Mundos', desc: 'Alcance 3.000 de forca.' },
+        'stat_strength_5000': { name: 'Forca Encarnada', desc: 'Alcance 5.000 de forca.' },
+        'stat_defense_100': { name: 'Tartaruga', desc: 'Alcance 100 de defesa.' },
+        'stat_defense_200': { name: 'Fortaleza', desc: 'Alcance 200 de defesa.' },
+        'stat_defense_300': { name: 'Muralha de Ferro', desc: 'Alcance 300 de defesa.' },
+        'stat_defense_500': { name: 'Baluarte', desc: 'Alcance 500 de defesa.' },
+        'stat_defense_750': { name: 'Impenetravel', desc: 'Alcance 750 de defesa.' },
+        'stat_defense_1000': { name: 'O Inquebravel', desc: 'Alcance 1.000 de defesa.' },
+        'stat_defense_1250': { name: 'Bastilha', desc: 'Alcance 1.250 de defesa.' },
+        'stat_defense_1500': { name: 'Cidadela', desc: 'Alcance 1.500 de defesa.' },
+        'stat_defense_2000': { name: 'Fortaleza da Solidao', desc: 'Alcance 2.000 de defesa.' },
+        'stat_defense_3000': { name: 'Indestrutivel', desc: 'Alcance 3.000 de defesa.' },
+        'stat_defense_5000': { name: 'O Absoluto', desc: 'Alcance 5.000 de defesa.' },
+        'stat_agility_100': { name: 'Pes Rapidos', desc: 'Alcance 100 de agilidade.' },
+        'stat_agility_200': { name: 'Agil', desc: 'Alcance 200 de agilidade.' },
+        'stat_agility_300': { name: 'Caminhante do Vento', desc: 'Alcance 300 de agilidade.' },
+        'stat_agility_500': { name: 'Borrao', desc: 'Alcance 500 de agilidade.' },
+        'stat_agility_750': { name: 'Fantom', desc: 'Alcance 750 de agilidade.' },
+        'stat_agility_1000': { name: 'Raio', desc: 'Alcance 1.000 de agilidade.' },
+        'stat_agility_1250': { name: 'Zefiro', desc: 'Alcance 1.250 de agilidade.' },
+        'stat_agility_1500': { name: 'Sonico', desc: 'Alcance 1.500 de agilidade.' },
+        'stat_agility_2000': { name: 'Teletransportador', desc: 'Alcance 2.000 de agilidade.' },
+        'stat_agility_3000': { name: 'Onipresente', desc: 'Alcance 3.000 de agilidade.' },
+        'stat_agility_5000': { name: 'Velocidade da Luz', desc: 'Alcance 5.000 de agilidade.' },
+        'stat_magic_100': { name: 'Toque Magico', desc: 'Alcance 100 de magia.' },
+        'stat_magic_200': { name: 'Feiticeiro', desc: 'Alcance 200 de magia.' },
+        'stat_magic_300': { name: 'Lorde Mago', desc: 'Alcance 300 de magia.' },
+        'stat_magic_500': { name: 'Arquimago', desc: 'Alcance 500 de magia.' },
+        'stat_magic_750': { name: 'Rei Mago', desc: 'Alcance 750 de magia.' },
+        'stat_magic_1000': { name: 'Deus da Magia', desc: 'Alcance 1.000 de magia.' },
+        'stat_magic_1250': { name: 'Suserano Arcano', desc: 'Alcance 1.250 de magia.' },
+        'stat_magic_1500': { name: 'Poco de Mana', desc: 'Alcance 1.500 de magia.' },
+        'stat_magic_2000': { name: 'Tecelao de Magias', desc: 'Alcance 2.000 de magia.' },
+        'stat_magic_3000': { name: 'Deus Anciao', desc: 'Alcance 3.000 de magia.' },
+        'stat_magic_5000': { name: 'Magia Encarnada', desc: 'Alcance 5.000 de magia.' },
+        'stat_vitality_100': { name: 'Saudavel', desc: 'Alcance 100 de vitalidade.' },
+        'stat_vitality_200': { name: 'Robusto', desc: 'Alcance 200 de vitalidade.' },
+        'stat_vitality_300': { name: 'Resiliente', desc: 'Alcance 300 de vitalidade.' },
+        'stat_vitality_500': { name: 'Tanque', desc: 'Alcance 500 de vitalidade.' },
+        'stat_vitality_750': { name: 'Jaganaut', desc: 'Alcance 750 de vitalidade.' },
+        'stat_vitality_1000': { name: 'Imortal', desc: 'Alcance 1.000 de vitalidade.' },
+        'stat_vitality_1250': { name: 'Perpetuo', desc: 'Alcance 1.250 de vitalidade.' },
+        'stat_vitality_1500': { name: 'Indestrutivel', desc: 'Alcance 1.500 de vitalidade.' },
+        'stat_vitality_2000': { name: 'Fenix', desc: 'Alcance 2.000 de vitalidade.' },
+        'stat_vitality_3000': { name: 'Serpente Ancia', desc: 'Alcance 3.000 de vitalidade.' },
+        'stat_vitality_5000': { name: 'O Eterno', desc: 'Alcance 5.000 de vitalidade.' },
+        'stat_hit_chance_30': { name: 'Mao Firme', desc: 'Alcance 30 de chance de acerto.' },
+        'stat_hit_chance_50': { name: 'Atirador', desc: 'Alcance 50 de chance de acerto.' },
+        'stat_hit_chance_75': { name: 'Atirador de Elite', desc: 'Alcance 75 de chance de acerto.' },
+        'stat_hit_chance_100': { name: 'Olho de Falcao', desc: 'Alcance 100 de chance de acerto.' },
+        'stat_hit_chance_125': { name: 'Atirador Certeiro', desc: 'Alcance 125 de chance de acerto.' },
+        'stat_hit_chance_150': { name: 'Bullseye', desc: 'Alcance 150 de chance de acerto.' },
+        'stat_hit_chance_175': { name: 'Olhar Perfurante', desc: 'Alcance 175 de chance de acerto.' },
+        'stat_hit_chance_200': { name: 'Onisciente', desc: 'Alcance 200 de chance de acerto.' },
+        'stat_hit_chance_250': { name: 'Olho Omega', desc: 'Alcance 250 de chance de acerto.' },
+        'stat_hit_chance_300': { name: 'Pontaria Perfeita', desc: 'Alcance 300 de chance de acerto.' },
+        'stat_hit_chance_350': { name: 'Inabalavel', desc: 'Alcance 350 de chance de acerto.' },
+        'stat_hit_chance_400': { name: 'Precisao Absoluta', desc: 'Alcance 400 de chance de acerto.' },
+        'stat_hit_chance_450': { name: 'Onisciente', desc: 'Alcance 450 de chance de acerto.' },
+        'stat_hit_chance_500': { name: 'Olho de Deus', desc: 'Alcance 500 de chance de acerto.' },
+        'stat_hit_chance_600': { name: 'Visao Cosmica', desc: 'Alcance 600 de chance de acerto.' },
+        'stat_hit_chance_700': { name: 'Tecelao do Destino', desc: 'Alcance 700 de chance de acerto.' },
+        'stat_hit_chance_800': { name: 'Verdade Universal', desc: 'Alcance 800 de chance de acerto.' },
+        'stat_hit_chance_900': { name: 'Omnisciente', desc: 'Alcance 900 de chance de acerto.' },
+        'stat_hit_chance_1000': { name: 'O Olho Absoluto', desc: 'Alcance 1.000 de chance de acerto.' },
+        'stat_crit_chance_30': { name: 'Sortudo', desc: 'Alcance 30 de chance de critico.' },
+        'stat_crit_chance_50': { name: 'Oportunista', desc: 'Alcance 50 de chance de critico.' },
+        'stat_crit_chance_75': { name: 'Assassino', desc: 'Alcance 75 de chance de critico.' },
+        'stat_crit_chance_100': { name: 'Massa Critica', desc: 'Alcance 100 de chance de critico.' },
+        'stat_crit_chance_125': { name: 'Golpe Fatal', desc: 'Alcance 125 de chance de critico.' },
+        'stat_crit_chance_150': { name: 'Carrasco', desc: 'Alcance 150 de chance de critico.' },
+        'stat_crit_chance_175': { name: 'Aniquilador', desc: 'Alcance 175 de chance de critico.' },
+        'stat_crit_chance_200': { name: 'Um Golpe So', desc: 'Alcance 200 de chance de critico.' },
+        'stat_crit_chance_250': { name: 'Deus Critico', desc: 'Alcance 250 de chance de critico.' },
+        'stat_crit_chance_300': { name: 'Devastador', desc: 'Alcance 300 de chance de critico.' },
+        'stat_crit_chance_350': { name: 'Obliterador', desc: 'Alcance 350 de chance de critico.' },
+        'stat_crit_chance_400': { name: 'Erradicador', desc: 'Alcance 400 de chance de critico.' },
+        'stat_crit_chance_450': { name: 'Catastrofico', desc: 'Alcance 450 de chance de critico.' },
+        'stat_crit_chance_500': { name: 'Um Punho So', desc: 'Alcance 500 de chance de critico.' },
+        'stat_crit_chance_600': { name: 'Golpe Omega', desc: 'Alcance 600 de chance de critico.' },
+        'stat_crit_chance_700': { name: 'Aniquilacao', desc: 'Alcance 700 de chance de critico.' },
+        'stat_crit_chance_800': { name: 'Rasgo da Realidade', desc: 'Alcance 800 de chance de critico.' },
+        'stat_crit_chance_900': { name: 'Singularidade Critica', desc: 'Alcance 900 de chance de critico.' },
+        'stat_crit_chance_1000': { name: 'O Unico', desc: 'Alcance 1.000 de chance de critico.' },
+        'missions_complete_10': { name: 'Operativo de Campo', desc: 'Conclua 10 missões.' },
+        'missions_complete_50': { name: 'Mestre de Tarefas', desc: 'Conclua 50 missões.' },
+        'missions_complete_100': { name: 'Doador de Missões', desc: 'Conclua 100 missões.' },
+        'missions_complete_250': { name: 'Aventureiro', desc: 'Conclua 250 missões.' },
+        'missions_complete_500': { name: 'Explorador', desc: 'Conclua 500 missões.' },
+        'missions_complete_750': { name: 'Buscador', desc: 'Conclua 750 missões.' },
+        'missions_complete_1000': { name: 'Campeão das Tarefas', desc: 'Conclua 1.000 missões.' },
+        'missions_complete_1500': { name: 'Imparável', desc: 'Conclua 1.500 missões.' },
+        'missions_complete_2000': { name: 'Incansável', desc: 'Conclua 2.000 missões.' },
+        'missions_complete_3000': { name: 'Inabalável', desc: 'Conclua 3.000 missões.' },
+        'missions_complete_5000': { name: 'Missão Eterna', desc: 'Conclua 5.000 missões.' },
+        'missions_complete_7500': { name: 'Lenda das Tarefas', desc: 'Conclua 7.500 missões.' },
+    };
+    // Spot milestone fallback: {location} {suffix} (ids like forest_camp_wins_25)
+    // Mirrors server buildExtendedAchievements spotMilestoneDefs (count -> suffix).
+    const spotSuffixByCount = { 25: 'Veterano', 100: 'Mestre', 250: 'Lenda', 500: 'Mítico', 750: 'Imortal', 1000: 'Transcendental', 1500: 'Eterno', 2000: 'Divino' };
+    const spotDescPt = (target, loc) => `Vença ${target.toLocaleString()} missões em ${loc}.`;
+    const m = id.match(/^(.+)_wins_(\d+)$/);
+    if (m && spotSuffixByCount[m[2]] !== undefined) {
+        // Only fire for known spot location keys (not mission_wins_*, weekly_wins_*, tournament_wins_*, etc.)
+        const locationMap = {
+            forest_camp: 'Acampamento de Caça', city_palace: 'Palácio das Sombras', forest_bandits: 'Esconderijo dos Bandidos',
+            forest_ruins: 'Ruínas Antigas', swamp_edge: 'Orla do Pântano', swamp_village: 'Vila Abandonada',
+            swamp_heart: 'Coração do Pântano', mountain_base: 'Base da Montanha', mountain_peak: 'Pico Congelado',
+            ice_cavern: 'Caverna de Gelo', ruins_perimeter: 'Perímetro das Ruínas', ruins_temple: 'Templo Submerso',
+            ruins_crypt: 'Cripta Antiga', city_outskirts: 'Arredores da Cidade', city_cathedral: 'Catedral Sombria',
+            hard_missions: 'Missões Difíceis', nightmare_missions: 'Missões de Pesadelo',
+        };
+        const loc = locationMap[m[1]];
+        if (loc) {
+            return { name: `${loc} ${spotSuffixByCount[m[2]]}`, desc: spotDescPt(parseInt(m[2]), loc) };
+        }
+    }
+    // Unarmed / unhelmeted / naked milestones (wins_without_*)
+    // Mirrors server buildExtendedAchievements noGearTiers (counts 300-10000).
+    const noGearCounts = { 300: 1, 500: 1, 750: 1, 1000: 1, 2000: 1, 3000: 1, 5000: 1, 7500: 1, 10000: 1 };
+    const noGearMap = {
+        weapon: { base: 'Mestre Desarmado', desc: (n) => `Vença ${n} batalhas sem uma arma equipada.` },
+        helmet: { base: 'Guerreiro Sem Capacete', desc: (n) => `Vença ${n} batalhas sem um capacete equipado.` },
+        armor: { base: 'Guerreiro Nu', desc: (n) => `Vença ${n} batalhas sem armadura equipada.` },
+        boots: { base: 'Lenda Descalca', desc: (n) => `Vença ${n} batalhas sem botas equipadas.` },
+        equipment: { base: 'Nascido Assim', desc: (n) => `Vença ${n} batalhas sem nenhum equipamento.` },
+    };
+    const gn = id.match(/^wins_without_(weapon|helmet|armor|boots|equipment)_(\d+)$/);
+    if (gn && noGearCounts[gn[2]] !== undefined && noGearMap[gn[1]]) {
+        const n = Number(gn[2]).toLocaleString();
+        return { name: `${noGearMap[gn[1]].base} ${n}`, desc: noGearMap[gn[1]].desc(n) };
+    }
+    // Negated-damage ladder (mirrors server NEGATED_TIERS / NEGATED_*_NAMES)
+    const NEGATED_PT = {
+        phys: ['Encouraçado','Bastião','Inabalável','Muralha de Pedra','Baluarte','Inabalado','Fortificado','Impenetrável','Concha de Titã','Égide','Bastida','Montanha de Ferro','Guardião de Aço','Adamantita','Colosso','Baluarte Supremo','Inflexível','Coração de Montanha','Titã','Escudo do Mundo','Bastião de Ferro','Inquebrável','Imovível','Atlas','Deus Encouraçado','Chapeamento Terrano','Petrificado','Defesa Absoluta'],
+        elem: ['Protegido','Núcleo da Égide','Barreira','Talismã do Mago','Escudo Elemental','Alma Protegida','Sudário Rúnico','Baluarte Arcano','Guarda de Prisma','Talismã Elemental','Barreira Ômega','Talismã Sifão','Égide Rúnica','Égide de Prisma','Soberano Elemental','Bastião Arcano','Mestre dos Talismãs','Cidadela Rúnica','Imperador Elemental','Guardião do Vazio','Talismã Puro','Nulo Elemental','Fortaleza Arcana','Grande Guardião','Sem Elemento','Talismã Supremo','Égide Soberana','Nulo Absoluto'],
+        comb: ['Portador da Égide','Guardião','Anulador','Negador','Parador','Senhor do Bastião','Guardião do Muro','Absolvedor','Guardião','Portador de Escudo','Mestre da Anulação','Portador do Talismã','Intacto','Impunidade','Intocável','Guardião Supremo','Dominador da Égide','Soberano do Escudo','Deus Intocável','Guardião Absoluto','Mestre da Negação','Soberano Nulo','Grande Égide','Negação Perfeita','Muro Imovível','Guardião Supremo','Oniescudo','Negação Absoluta'],
+    };
+    const NEGATED_TIER_VALUES = [1000,10000,25000,50000,100000,150000,200000,250000,300000,400000,500000,750000,1000000,1250000,1500000,2000000,3000000,5000000,10000000,20000000,30000000,40000000,50000000,60000000,70000000,80000000,90000000,100000000];
+    const ptTh = (n) => n >= 1000000 ? (n / 1000000) + 'M' : n >= 1000 ? (n / 1000) + 'K' : String(n);
+    const nm = id.match(/^damage_negated(_phys|_elem)?_(\d+)$/);
+    if (nm) {
+        const kind = nm[1] === '_phys' ? 'phys' : nm[1] === '_elem' ? 'elem' : 'comb';
+        const tier = parseInt(nm[2], 10);
+        const idx = NEGATED_TIER_VALUES.indexOf(tier);
+        if (idx >= 0) {
+            const th = ptTh(tier);
+            const desc = kind === 'phys'
+                ? `Negar ${th} de dano físico total com armadura.`
+                : kind === 'elem'
+                    ? `Negar ${th} de dano elemental total com resistências.`
+                    : `Negar ${th} de dano total (físico, elemental e escudo).`;
+            return { name: NEGATED_PT[kind][idx], desc };
+        }
+    }
+    return map[id] || null;
+}
+
 function renderAchievementsPanel(data, targetId='achievements-modal-content') {
     const el = document.getElementById(targetId);
     if (!el) return;
+    const isPT = CURRENT_LANG === 'pt';
     const allItems = getVisibleAchievements(data?.items || []);
     const totals = data?.totals || { claimed: 0, total: 0, claimable: 0 };
     const items = allItems.filter(a => {
@@ -3877,41 +4643,44 @@ function renderAchievementsPanel(data, targetId='achievements-modal-content') {
         if (achievementsFilter === 'ready') return a.claimable;
         return true;
     });
+    const lblClaimed = isPT ? 'coletadas' : 'claimed';
+    const lblReady = isPT ? 'prontas' : 'ready';
+    const lblTotal = isPT ? 'total' : 'total';
     if (!items.length) {
         el.innerHTML = `
         <div class="achievements-summary">
-            <div class="${achievementsFilter === 'claimed' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'claimed')}><strong>${totals.claimed}</strong> claimed</div>
-            <div class="${achievementsFilter === 'ready' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'ready')}><strong>${totals.claimable}</strong> ready</div>
-            <div class="${achievementsFilter === 'total' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'total')}><strong>${totals.total}</strong> total</div>
+            <div class="${achievementsFilter === 'claimed' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'claimed')}><strong>${totals.claimed}</strong> ${lblClaimed}</div>
+            <div class="${achievementsFilter === 'ready' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'ready')}><strong>${totals.claimable}</strong> ${lblReady}</div>
+            <div class="${achievementsFilter === 'total' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'total')}><strong>${totals.total}</strong> ${lblTotal}</div>
         </div>
-        <div class="achievements-panel-loading" style="margin-top:12px">No achievements in this filter.</div>`;
+        <div class="achievements-panel-loading" style="margin-top:12px">${isPT ? 'Nenhuma conquista neste filtro.' : 'No achievements in this filter.'}</div>`;
         return;
     }
 
     el.innerHTML = `
         <div class="achievements-summary">
-            <div class="${achievementsFilter === 'claimed' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'claimed')}><strong>${totals.claimed}</strong> claimed</div>
-            <div class="${achievementsFilter === 'ready' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'ready')}><strong>${totals.claimable}</strong> ready</div>
-            <div class="${achievementsFilter === 'total' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'total')}><strong>${totals.total}</strong> total</div>
+            <div class="${achievementsFilter === 'claimed' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'claimed')}><strong>${totals.claimed}</strong> ${lblClaimed}</div>
+            <div class="${achievementsFilter === 'ready' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'ready')}><strong>${totals.claimable}</strong> ${lblReady}</div>
+            <div class="${achievementsFilter === 'total' ? 'active' : ''}" ${actionAttrs('setAchievementsFilter', 'total')}><strong>${totals.total}</strong> ${lblTotal}</div>
         </div>
         <div class="achievements-list">
             ${items.map(achievement => {
         const pct = Math.max(0, Math.min(100, Math.round((achievement.progress / Math.max(achievement.target, 1)) * 100)));
         const cardClass = achievement.claimed ? 'claimed' : achievement.claimable ? 'claimable' : 'locked';
         const progressText = achievement.claimed
-            ? 'Claimed'
+            ? (isPT ? 'Coletada' : 'Claimed')
             : achievement.claimable
-                ? 'Ready to claim'
+                ? (isPT ? 'Pronta para coletar' : 'Ready to claim')
                 : `${achievement.progress.toLocaleString()} / ${achievement.target.toLocaleString()}`;
         const nextLabel = achievement.claimed
-            ? 'Max tier cleared'
-            : `Next milestone: ${achievement.target.toLocaleString()}`;
+            ? (isPT ? 'Nivel maximo concluido' : 'Max tier cleared')
+            : isPT ? `Proxima meta: ${achievement.target.toLocaleString()}` : `Next milestone: ${achievement.target.toLocaleString()}`;
         return `<div class="achievement-card ${cardClass}">
                     <div class="achievement-card-head">
                         <div class="achievement-icon">${achievement.icon}</div>
                         <div class="achievement-copy">
-                            <div class="achievement-name">${escHtml(achievement.name)}</div>
-                            <div class="achievement-desc">${escHtml(achievement.desc)}</div>
+                            <div class="achievement-name">${escHtml(getAchievementPt(achievement.id)?.name || achievement.name)}</div>
+                            <div class="achievement-desc">${escHtml(getAchievementPt(achievement.id)?.desc || achievement.desc)}</div>
                             <div class="achievement-tier-note">${nextLabel}</div>
                         </div>
                     </div>
@@ -3921,10 +4690,10 @@ function renderAchievementsPanel(data, targetId='achievements-modal-content') {
                     </div>
                     <div class="achievement-rewards">${renderAchievementRewardSummary(achievement)}</div>
                     ${achievement.claimed
-            ? '<button class="achievement-claim-btn claimed" disabled>Claimed</button>'
+            ? `<button class="achievement-claim-btn claimed" disabled>${isPT ? 'Coletada' : 'Claimed'}</button>`
             : achievement.claimable
-                ? `<button class="achievement-claim-btn" ${actionAttrs('claimAchievement', achievement.id)}>Claim Reward</button>`
-                : '<button class="achievement-claim-btn locked" disabled>In Progress</button>'}
+                ? `<button class="achievement-claim-btn" ${actionAttrs('claimAchievement', achievement.id)}>${isPT ? 'Coletar Recompensa' : 'Claim Reward'}</button>`
+                : `<button class="achievement-claim-btn locked" disabled>${isPT ? 'Em Progresso' : 'In Progress'}</button>`}
                 </div>`;
     }).join('')}
         </div>`;
@@ -3932,15 +4701,16 @@ function renderAchievementsPanel(data, targetId='achievements-modal-content') {
 
 function ensureAchievementsModal() {
     if (document.getElementById('achievements-modal')) return;
+    const isPT = CURRENT_LANG === 'pt';
     document.body.insertAdjacentHTML('beforeend', `
         <div id="achievements-modal" class="modal-overlay hidden">
             <div class="modal-box achievements-modal-box">
                 <div class="modal-header">
-                    <h3>Achievements</h3>
+                    <h3>${isPT ? 'Conquistas' : 'Achievements'}</h3>
                 </div>
                 <button class="btn-secondary modal-float-close" ${actionAttrs('closeAchievementsModal')}>✕</button>
                 <div class="achievements-scroll">
-                    <div id="achievements-modal-content" class="achievements-panel-loading">Loading achievements...</div>
+                    <div id="achievements-modal-content" class="achievements-panel-loading">${isPT ? 'Carregando conquistas...' : 'Loading achievements...'}</div>
                     <div id="achievements-msg" class="msg-bar hidden" style="margin-top:12px"></div>
                 </div>
             </div>
@@ -3971,17 +4741,18 @@ function closeAchievementsModal() {
 
 function ensureBadgePickerModal() {
     if (document.getElementById('badge-picker-modal')) return;
+    const isPT = CURRENT_LANG === 'pt';
     document.body.insertAdjacentHTML('beforeend', `
         <div id="badge-picker-modal" class="modal-overlay hidden">
             <div class="modal-box achievements-modal-box">
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px">
                     <div>
-                        <div style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light);font-weight:800">Profile Badges</div>
-                        <div style="font-size:0.78rem;color:var(--text-dim)">Pick up to 3 completed achievements to show on your profile and leaderboard.</div>
+                        <div style="font-family:'Cinzel',serif;font-size:1.1rem;color:var(--gold-light);font-weight:800">${isPT ? 'Insignias de Perfil' : 'Profile Badges'}</div>
+                        <div style="font-size:0.78rem;color:var(--text-dim)">${isPT ? 'Escolha ate 3 conquistas concluidas para exibir no seu perfil e no ranking.' : 'Pick up to 3 Concluad achievements to show on your profile and leaderboard.'}</div>
                     </div>
-                    <button class="btn-secondary btn-sm" data-action="closeBadgePickerModal">Close</button>
+                    <button class="btn-secondary btn-sm" data-action="closeBadgePickerModal">${isPT ? 'Fechar' : 'Close'}</button>
                 </div>
-                <div id="badge-picker-content" class="achievements-panel-loading">Loading...</div>
+                <div id="badge-picker-content" class="achievements-panel-loading">${isPT ? 'Carregando...' : 'Loading...'}</div>
                 <div id="badge-picker-msg" class="topbar-menu-flash hidden" style="margin-top:10px"></div>
             </div>
         </div>
@@ -4007,8 +4778,8 @@ function refreshInlineBadgeChips() {
     document.querySelectorAll('.profile-badge-chip').forEach(el => {
         const id = String(el.dataset.badgeId || '');
         const def = map.get(id);
-        el.textContent = def?.icon || '🏅';
-        el.title = def?.name || id || 'Badge';
+        el.textContent = def?.icon || '??';
+        el.title = getAchievementPt(id)?.name || def?.name || id || 'Badge';
     });
 }
 
@@ -4034,16 +4805,17 @@ window.openBadgePickerModal = openBadgePickerModal;
 function renderBadgePicker(data) {
     const content = document.getElementById('badge-picker-content');
     if (!content) return;
+    const isPT = CURRENT_LANG === 'pt';
     const items = (data?.items || []).filter(a => a?.completed);
     const current = Array.isArray(character?.profile_badges) ? character.profile_badges.slice(0, 3).map(String) : [];
 
-    const optionsHtml = ['<option value=\"\">(None)</option>'].concat(
-        items.map(a => `<option value="${escHtml(a.id)}">${escHtml(`${a.icon || '🏅'} ${a.name}`)}</option>`)
+    const optionsHtml = [`<option value=\"\">${isPT ? '(Nenhuma)' : '(None)'}</option>`].concat(
+        items.map(a => `<option value="${escHtml(a.id)}">${escHtml(`${a.icon || '??'} ${getAchievementPt(a.id)?.name || a.name}`)}</option>`)
     ).join('');
 
     const buildSelect = (idx) => `
         <div style="display:flex;flex-direction:column;gap:6px">
-            <div style="font-size:0.7rem;color:var(--text-dim);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">Badge ${idx + 1}</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">${isPT ? 'Insignia' : 'Badge'} ${idx + 1}</div>
             <select id="badge-slot-${idx}" class="input-field" style="width:100%">${optionsHtml}</select>
         </div>`;
 
@@ -4053,10 +4825,10 @@ function renderBadgePicker(data) {
                 ${[0,1,2].map(buildSelect).join('')}
             </div>
             <div style="display:flex;gap:10px;justify-content:flex-end">
-                <button class="btn-secondary" data-action="closeBadgePickerModal">Cancel</button>
-                <button class="btn-primary" data-action="saveProfileBadges">Save Badges</button>
+                <button class="btn-secondary" data-action="closeBadgePickerModal">${isPT ? 'Cancelar' : 'Cancel'}</button>
+                <button class="btn-primary" data-action="saveProfileBadges">${isPT ? 'Salvar Insignias' : 'Save Badges'}</button>
             </div>
-            <div style="font-size:0.72rem;color:var(--text-dim)">Only completed achievements can be displayed. Duplicate selections will be ignored.</div>
+            <div style="font-size:0.72rem;color:var(--text-dim)">${isPT ? 'Apenas conquistas concluidas podem ser exibidas. Selecoes duplicadas serao ignoradas.' : 'Only completed achievements can be displayed. Duplicate selections will be ignored.'}</div>
         </div>
     `;
 
@@ -4069,12 +4841,13 @@ function renderBadgePicker(data) {
 
 async function saveProfileBadges() {
     try {
+        const isPT = CURRENT_LANG === 'pt';
         const picks = [0,1,2].map(i => document.getElementById(`badge-slot-${i}`)?.value || '').filter(Boolean);
         const res = await api('POST', '/game/profile/badges', { badges: picks });
         if (res?.character) character = res.character;
         renderCharacter();
         closeBadgePickerModal();
-        await openGameNoticeDialog({ title: '🎖️ Profile Badges', message: 'Your profile badges were updated.' });
+        await openGameNoticeDialog({ title: '🎖️ Profile Badges', message: isPT ? 'Suas insignias de perfil foram atualizadas.' : 'Your profile badges were updated.' });
     } catch (e) {
         await openGameNoticeDialog({ title: '🎖️ Profile Badges', message: e.message || String(e) });
     }
@@ -4098,7 +4871,18 @@ async function claimAchievement(achievementId) {
 }
 
 function renderWeeklyTaskRewardSummary(task) {
-    return (task.reward_summary || []).map(text => `<span class="achievement-reward-chip">${escHtml(text)}</span>`).join('');
+    const isPT = CURRENT_LANG === 'pt';
+    return (task.reward_summary || []).map(text => {
+        let translatedText = text;
+        if (isPT) {
+            translatedText = translatedText
+                .replace(/Special Mana Potion/g, 'Pocao de Mana Especial')
+                .replace(/Mana Potion/g, 'Pocao de Mana')
+                .replace(/Loot Box/g, 'Bau de Recompensas')
+                .replace(/gold/g, 'ouro');
+        }
+        return `<span class="achievement-reward-chip">${escHtml(translatedText)}</span>`;
+    }).join('');
 }
 
 function formatWeeklyResetTime(unixTs) {
@@ -4180,7 +4964,7 @@ function ensureWeeklyTasksModal() {
             <div class="modal-box achievements-modal-box">
                 <div class="modal-header">
                     <h3>Weekly Tasks</h3>
-                    <button class="btn-secondary" ${actionAttrs('closeWeeklyTasksModal')}>✕</button>
+                    <button class="btn-secondary" ${actionAttrs('closeWeeklyTasksModal')}>?</button>
                 </div>
                 <div id="weekly-tasks-modal-content" class="achievements-panel-loading">Loading weekly tasks...</div>
                 <div id="weekly-tasks-msg" class="msg-bar hidden" style="margin-top:12px"></div>
@@ -4295,17 +5079,17 @@ function renderLoadout() {
     if (!el) return;
     el.innerHTML = `
         <div style="margin-bottom:14px;padding:10px 14px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:10px;font-size:0.78rem;color:rgba(255,255,255,0.45)">
-            ⚔️ Select a round, then click a zone dot to change it. Your opponent cannot see your choices.
+            ⚔️ ${CURRENT_LANG==='pt' ? 'Escolha um round e clique em um ponto de zona para alterá-lo. Seu oponente não pode ver suas escolhas.' : 'Pick a round and click a zone dot to change it. Your opponent cannot see your choices.'}
         </div>
         <div id="loadout-rounds" style="display:flex;gap:5px;margin-bottom:20px;flex-wrap:wrap"></div>
         <div class="loadout-figures-row" style="margin-bottom:16px">
             <div class="loadout-figure-col">
-                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:10px">⚔️ Attack Zone</div>
+                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#e74c3c;margin-bottom:10px">⚔️ ${CURRENT_LANG==='pt' ? 'Zona de Ataque' : 'Attack Zone'}</div>
                 <div id="loadout-atk-grid" class="loadout-dot-grid"></div>
                 <div id="loadout-atk-info" class="loadout-zone-info"></div>
             </div>
             <div class="loadout-figure-col">
-                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:10px">🛡️ Block Zone</div>
+                <div style="text-align:center;font-size:0.65rem;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#3498db;margin-bottom:10px">🛡️ ${CURRENT_LANG==='pt' ? 'Zona de Bloqueio' : 'Block Zone'}</div>
                 <div id="loadout-blk-grid" class="loadout-dot-grid"></div>
                 <div id="loadout-blk-info" class="loadout-zone-info"></div>
             </div>
@@ -4313,7 +5097,7 @@ function renderLoadout() {
         <div style="display:none" id="loadout-hidden-inputs">
             ${Array.from({length:10},(_,i)=>`<input id="atk-${i}" value="${_loadoutAttackZones[i]||'chest'}"><input id="blk-${i}" value="${_loadoutBlockZones[i]||'cross_guard'}">`).join('')}
         </div>
-        <button class="btn-primary" style="width:100%;margin-top:4px" ${actionAttrs('saveLoadout')}>Save Loadout</button>
+        <button class="btn-primary" style="width:100%;margin-top:4px" ${actionAttrs('saveLoadout')}>${CURRENT_LANG==='pt' ? 'Salvar Loadout' : 'Save Loadout'}</button>
         <div id="loadout-msg" class="msg-bar hidden"></div>`;
     _loadoutActiveRound = 0;
     renderLoadoutRoundTabs();
@@ -4337,8 +5121,8 @@ function renderLoadoutRoundTabs() {
             background:${isActive?'rgba(255,255,255,0.1)':'rgba(255,255,255,0.03)'};transition:all 0.15s">
             <div style="font-size:0.62rem;color:${isActive?'#fff':'rgba(255,255,255,0.4)'};font-weight:700;margin-bottom:5px">${i+1}</div>
             <div style="display:flex;gap:3px;justify-content:center">
-<div style="width:10px;height:10px;border-radius:50%;background:${atkColor};box-shadow:0 0 5px ${hexToRgba(atkColor, 0.53)}" title="${HIT_ZONES[atkZone]?.label||atkZone}"></div>
-<div style="width:10px;height:10px;border-radius:50%;background:${blkColor};box-shadow:0 0 5px ${hexToRgba(blkColor, 0.53)}" title="${BLOCK_ZONES[blkZone]?.label||blkZone}"></div>
+<div style="width:10px;height:10px;border-radius:50%;background:${atkColor};box-shadow:0 0 5px ${hexToRgba(atkColor, 0.53)}" title="${zoneLabel(atkZone)}"></div>
+<div style="width:10px;height:10px;border-radius:50%;background:${blkColor};box-shadow:0 0 5px ${hexToRgba(blkColor, 0.53)}" title="${zoneLabel(blkZone)}"></div>
             </div>
         </div>`;
     }).join('');
@@ -4417,7 +5201,7 @@ function renderLoadoutDotGrid(type) {
         const size   = isSelected ? 22 : 18;
         const glow   = isSelected ? `box-shadow:0 0 14px ${color},0 0 5px ${color};` : '';
         const border = isSelected ? 'border:2px solid rgba(255,255,255,0.85);' : 'border:1px solid rgba(255,255,255,0.2);';
-        const label  = HIT_ZONES[zoneKey]?.label || zoneKey;
+        const label  = zoneLabel(zoneKey);
         return `<div
             data-zone="${zoneKey}"
             title="${label}"
@@ -4473,8 +5257,8 @@ function showLoadoutPopup(type, anchorRect) {
         const isActive = currentZone === k;
         const color = isAtk ? (ZONE_COLORS[k]||'#aaa') : (BLOCK_COLORS[k]||'#aaa');
         const stat  = isAtk
-            ? `\u00d7${v.dmgMult} \u00b7 ${Math.round(v.hitChance*100)}% hit`
-            : `${Math.round(v.reduction*100)}% block`;
+            ? `\u00d7${v.dmgMult} \u00b7 ${Math.round(v.hitChance*100)}% ${CURRENT_LANG==='pt'?'acerto':'hit'}`
+            : `${Math.round(v.reduction*100)}% ${CURRENT_LANG==='pt'?'bloqueio':'block'}`;
         return `<div ${actionAttrs('pickLoadoutZone', type, k)}
             style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
                    background:${isActive?hexToRgba(color, 0.13):'transparent'};
@@ -4482,7 +5266,7 @@ function showLoadoutPopup(type, anchorRect) {
                    transition:background 0.1s;margin-bottom:2px">
             <div style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
-                <div style="font-size:0.73rem;color:${isActive?'#fff':'rgba(255,255,255,0.75)'};font-weight:${isActive?'700':'400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${v.label}</div>
+                <div style="font-size:0.73rem;color:${isActive?'#fff':'rgba(255,255,255,0.75)'};font-weight:${isActive?'700':'400'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${zoneLabel(k)}</div>
                 <div style="font-size:0.6rem;color:rgba(255,255,255,0.3)">${stat}</div>
             </div>
             ${isActive?`<div style="font-size:0.65rem;color:${color}">\u2713</div>`:''}
@@ -4491,12 +5275,18 @@ function showLoadoutPopup(type, anchorRect) {
 
     document.body.appendChild(popup);
 
+    // anchorRect is in VISUAL px (getBoundingClientRect) but this popup is
+    // fixed-position inside the possibly-zoomed root, which uses plain CSS px —
+    // convert to keep it docked to the clicked dot and never clip off-screen.
+    const zf = uiZoomFactor();
+    const a  = { left: anchorRect.left / zf, right: anchorRect.right / zf,
+                 top:  anchorRect.top  / zf, bottom: anchorRect.bottom / zf };
     const pw = popup.offsetWidth  || 185;
     const ph = popup.offsetHeight || 300;
-    let left = anchorRect.right + 10;
-    let top  = anchorRect.top - 10;
-    if (left + pw > window.innerWidth  - 8) left = anchorRect.left - pw - 10;
-    if (top  + ph > window.innerHeight - 8) top  = window.innerHeight - ph - 8;
+    let left = a.right + 10;
+    let top  = a.top - 10;
+    if (left + pw > window.innerWidth  / zf - 8) left = a.left - pw - 10;
+    if (top  + ph > window.innerHeight / zf - 8) top  = window.innerHeight / zf - ph - 8;
     if (top < 8) top = 8;
     popup.style.left = left + 'px';
     popup.style.top  = top  + 'px';
@@ -4525,15 +5315,15 @@ function updateLoadoutZoneInfo(type, zoneKey) {
     if (isAtk) {
         const z = HIT_ZONES[zoneKey]; if (!z) return;
         const color = ZONE_COLORS[zoneKey] || '#aaa';
-        el.innerHTML = `<span style="color:${color};font-weight:700">${z.label}</span>
-            <span style="color:rgba(255,255,255,0.35)"> · ×${z.dmgMult} dmg · ${Math.round(z.hitChance*100)}% hit</span>
-            <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${z.desc}</div>`;
+        el.innerHTML = `<span style="color:${color};font-weight:700">${zoneLabel(zoneKey)}</span>
+            <span style="color:rgba(255,255,255,0.35)"> · ×${z.dmgMult} ${CURRENT_LANG==='pt'?'dano':'dmg'} · ${Math.round(z.hitChance*100)}% ${CURRENT_LANG==='pt'?'acerto':'hit'}</span>
+            <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${zoneDesc(zoneKey)}</div>`;
     } else {
         const z = BLOCK_ZONES[zoneKey]; if (!z) return;
         const color = BLOCK_COLORS[zoneKey] || '#aaa';
-        el.innerHTML = `<span style="color:${color};font-weight:700">${z.label}</span>
-            <span style="color:rgba(255,255,255,0.35)"> · ${Math.round(z.reduction*100)}% block</span>
-            <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${z.desc}</div>`;
+        el.innerHTML = `<span style="color:${color};font-weight:700">${zoneLabel(zoneKey)}</span>
+            <span style="color:rgba(255,255,255,0.35)"> · ${Math.round(z.reduction*100)}% ${CURRENT_LANG==='pt'?'bloqueio':'block'}</span>
+            <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${zoneDesc(zoneKey)}</div>`;
     }
 }
 
@@ -4554,7 +5344,7 @@ async function saveLoadout() {
         await api('POST','/game/loadout',{attackZones,blockZones});
         character.attack_zones=JSON.stringify(attackZones);
         character.block_zones=JSON.stringify(blockZones);
-        showMsg('loadout-msg','Loadout saved!');
+        showMsg('loadout-msg','Loadout salvo!');
     } catch(e) { showMsg('loadout-msg',e.message,true); }
 }
 
@@ -4647,12 +5437,12 @@ let _upgradingStats = {};
 function showStatUpgradeInfo(btn, noAutoHide) {
     const stat = btn.dataset.stat;
     const cost = parseInt(btn.dataset.cost);
-    const statNames = { strength:'Strength', defense:'Defense', agility:'Agility', magic:'Magic', vitality:'Vitality', hit_chance:'Hit Chance', crit_chance:'Crit Chance' };
+    const statNames = CURRENT_LANG === 'pt' ? { strength:'Força', defense:'Defesa', agility:'Agilidade', magic:'Mágica', vitality:'Vitalidade', hit_chance:'Chance de Acerto', crit_chance:'Chance de Crítico' } : { strength:'Strength', defense:'Defense', agility:'Agility', magic:'Magic', vitality:'Vitality', hit_chance:'Hit Chance', crit_chance:'Crit Chance' };
     const name = statNames[stat] || stat;
     let tt = document.getElementById('item-tooltip');
     if (!tt) { tt = document.createElement('div'); tt.id = 'item-tooltip'; tt.className = 'item-tooltip hidden'; document.body.appendChild(tt); }
     const fmt = (n) => (n || 0).toLocaleString();
-    tt.innerHTML = `<div style="padding:12px 14px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px;font-size:14px">${name}</div><div style="font-size:13px">💰 Upgrade Cost: <strong>${fmt(cost)}</strong> gold</div></div>`;
+    tt.innerHTML = `<div style="padding:12px 14px;text-align:center;line-height:1.6"><div style="font-weight:700;margin-bottom:4px;font-size:14px">${name}</div><div style="font-size:13px">💰 ${CURRENT_LANG==='pt'?'Custo de Melhoria':'Upgrade Cost'}: <strong>${fmt(cost)}</strong> ${CURRENT_LANG==='pt'?'de ouro':'gold'}</div></div>`;
 
     // CRITICAL FIX: Remove height constraints temporarily to measure full content
     tt.style.height = 'auto';
@@ -4738,9 +5528,56 @@ function renderEventBanner(containerId) {
 }
 
 // ── Skills Tab ────────────────────────────────────────────────────────────
+// ── Skill card name/desc translations (PT) ────────────────────────────────
+const SKILL_NAME_PT = {
+    berserker_rage:'Fúria do Berserker', iron_wall:'Muralha de Ferro', war_cry:'Grito de Guerra',
+    arcane_surge:'Surto Arcano', hex:'Maldição', magic_circle:'Círculo Mágico',
+    shadow_step:'Passo das Sombras', expose:'Exposição', venomfang:'Presa Venenosa',
+    divine_shield:'Escudo Divino', holy_strike:'Golpe Sagrado', consecrate:'Consagrar',
+};
+const SKILL_DESC_PT = {
+    berserker_rage:'+25% de dano em todos os ataques por 5h.',
+    iron_wall:'+30% de eficácia de bloqueio em todas as defesas por 5h.',
+    war_cry:'Seus golpes não podem errar nas primeiras 3 rodadas por 5h.',
+    arcane_surge:'+20% de dano elemental por 5h.',
+    hex:'Reduz a resistência elemental do oponente em 15% por 5h.',
+    magic_circle:'Evita 20% de todos os golpes recebidos por 5h.',
+    shadow_step:'+40% de chance de esquiva por 5h.',
+    expose:'+15% de chance de crítico por 5h.',
+    venomfang:'Cada golpe envenena com 8% de dano bônus por rodada por 5h.',
+    divine_shield:'Nega o primeiro golpe recebido a cada rodada de batalha por 5h.',
+    holy_strike:'+20% de dano e cura 10% do dano causado por golpe por 5h.',
+    consecrate:'Reflete 15% do dano absorvido (armadura/resist/escudo) de volta ao atacante por 5h.',
+};
+function skillNamePT(id, name) { return (CURRENT_LANG === 'pt' && SKILL_NAME_PT[id]) || name; }
+function skillDescPT(id, desc) { return (CURRENT_LANG === 'pt' && SKILL_DESC_PT[id]) || desc; }
+
+// ── Premium feature + synergy translations (PT, gated by CURRENT_LANG) ────
+const PREMIUM_FEATURE_NAME_PT = {
+    arcane_reservoir:'Reservatório Arcano', warlord:'Senhor da Guerra', iron_fortress:'Fortaleza de Ferro',
+    apprentice:'Aprendiz', vault_keeper:'Guardião do Cofre', fortune_hunter:'Caçador de Fortunas',
+};
+const PREMIUM_FEATURE_DESC_PT = {
+    arcane_reservoir:'PM máx. 2× (240) e regeneração de PM 2× (+10/h em vez de +5/h).',
+    warlord:'+15% de dano e +10% de chance de acerto em ataques.',
+    iron_fortress:'+10% de agilidade e +15% de armadura ao defender.',
+    apprentice:'Todos os custos de melhoria de atributos reduzidos em 20%.',
+    vault_keeper:'Perde apenas 5% de ouro em derrota de PvP em vez de 10%.',
+    fortune_hunter:'+30% de ouro de missões. Recargas de missão e duelo 50% mais curtas.',
+};
+const PREMIUM_SYNERGY_NAME_PT = {
+    'Veteran':'Veterano', 'Midas Flow':'Fluxo de Midas', 'Merchant Prince':'Príncipe Mercador',
+};
+const PREMIUM_SYNERGY_DESC_PT = {
+    'Veteran':'+5% de chance de crítico enquanto Senhor da Guerra e Fortaleza de Ferro estiverem ativos.',
+    'Midas Flow':'Custo de PM de missão reduzido em 10 enquanto Reservatório Arcano e Caçador de Fortunas estiverem ativos.',
+    'Merchant Prince':'Venda itens por 40% do valor em vez de 30% enquanto ambos estiverem ativos.',
+};
+
 function renderSkills() {
     if (!character) return;
     const c=character;
+    const isPT = CURRENT_LANG === 'pt';
     const mp=character?.mission_points??0, mpMax=character?.mp_max||120;
     const dailyMpSpent=character?.daily_mp_spent??0;
     const unlocked=character?.skills_unlocked||(dailyMpSpent>=60);
@@ -4751,7 +5588,7 @@ function renderSkills() {
     const mpEl=document.getElementById('skills-mp-bar');
     if (mpEl) mpEl.innerHTML=`
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-weight:700;color:#9b59b6">🔮 Mission Points</span>
+            <span style="font-weight:700;color:#9b59b6">🔮 ${isPT?'Pontos de Missão':'Mission Points'}</span>
             <span style="font-weight:700;color:#9b59b6">${mp} / ${mpMax}</span>
         </div>
         <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px">
@@ -4759,13 +5596,13 @@ function renderSkills() {
         </div>
         ${!unlocked?`
         <div style="margin-bottom:10px;padding:10px 14px;background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px">
-            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔒 Skills unlock by spending 60 MP on missions today</div>
+            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔒 ${isPT?'Habilidades desbloqueiam ao gastar 60 PM em missões hoje':'Skills unlock by spending 60 MP on missions today'}</div>
             <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden">
                 <div style="width:${unlockPct}%;height:100%;background:#9b59b6;border-radius:4px"></div>
             </div>
-            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP spent today</div>
+            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP ${isPT?'gastos hoje':'spent today'}</div>
         </div>`:''}
-        <div style="font-size:0.74rem;color:var(--text-dim)">MP regenerates +5/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration</div>`;
+        <div style="font-size:0.74rem;color:var(--text-dim)">${isPT?'PM regeneram +5/h · Ativação de habilidade é <strong style="color:#9b59b6">grátis</strong> · 1 habilidade por dia · duração de 5h':'MP regenerates +5/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration'}</div>`;
 
     renderEventBanner('skills-event-banner');
 
@@ -4777,7 +5614,7 @@ function renderSkills() {
 
     const grid=document.getElementById('skills-grid');
     if (!grid) return;
-    if (!skills.length) { grid.innerHTML='<p style="color:var(--text-dim)">No skills for your class.</p>'; return; }
+    if (!skills.length) { grid.innerHTML=`<p style="color:var(--text-dim)">${isPT?'Nenhuma habilidade para a sua classe.':'No skills for your class.'}</p>`; return; }
 
     grid.innerHTML=skills.map(sk=>{
         const isActive=activeSkills[sk.id]&&activeSkills[sk.id]>now;
@@ -4785,12 +5622,14 @@ function renderSkills() {
         const expiresIn=isActive?Math.ceil((activeSkills[sk.id]-now)/60):0;
         const expiresStr=expiresIn>=60?`${Math.floor(expiresIn/60)}h ${expiresIn%60}m`:`${expiresIn}m`;
         const canActivate=unlocked&&!isActive&&!anyUsedToday;
+        const dispName = skillNamePT(sk.id, sk.name);
+        const dispDesc = skillDescPT(sk.id, sk.desc);
         let btnLabel, btnDisabled;
-        if (!unlocked)     { btnLabel=`🔒 Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
-        else if (isActive) { btnLabel=`⏳ Active — ${expiresStr} left`; btnDisabled=true; }
-        else if (anyUsedToday&&!usedToday){ btnLabel=`✅ Another skill active today`; btnDisabled=true; }
-        else if (usedToday){ btnLabel=`✅ Used today`; btnDisabled=true; }
-        else               { btnLabel=`✨ Activate (Free)`; btnDisabled=false; }
+        if (!unlocked)     { btnLabel=isPT?`🔒 Gaste mais ${60-dailyMpSpent} PM em missões hoje`:`🔒 Spend ${60-dailyMpSpent} more MP on missions today`; btnDisabled=true; }
+        else if (isActive) { btnLabel=`⏳ ${isPT?'Ativo —':'Active —'} ${expiresStr} ${isPT?'restante':'left'}`; btnDisabled=true; }
+        else if (anyUsedToday&&!usedToday){ btnLabel=isPT?`✅ Outra habilidade ativa hoje`:`✅ Another skill active today`; btnDisabled=true; }
+        else if (usedToday){ btnLabel=isPT?`✅ Usada hoje`:`✅ Used today`; btnDisabled=true; }
+        else               { btnLabel=isPT?`✨ Ativar (Grátis)`:`✨ Activate (Free)`; btnDisabled=false; }
         const cardBg=isActive
             ?'background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(142,68,173,0.15));border-color:rgba(155,89,182,0.5)'
             :(usedToday||anyUsedToday&&!isActive)
@@ -4801,16 +5640,16 @@ function renderSkills() {
         return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg};display:flex;flex-direction:column;height:100%">
             <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px">
                 <div style="width:100%;max-width:213px;height:320px;margin:0 auto;border-radius:14px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;overflow:hidden">
-                    <img src="${skillImg}" alt="${escHtml(sk.name)}" style="width:213px;height:320px;object-fit:cover;display:block" data-error-hide="true" data-error-next-display="flex">
+                    <img src="${skillImg}" alt="${escHtml(dispName)}" style="width:213px;height:320px;object-fit:cover;display:block" data-error-hide="true" data-error-next-display="flex">
                     <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:4rem">${sk.emoji}</span>
                 </div>
                 <div>
-                    <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${sk.name}</div>
-                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">✨ ACTIVE · ${expiresStr} remaining</div>`:
-            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">Used today — resets at midnight</div>`:''}
+                    <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${dispName}</div>
+                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">✨ ACTIVE · ${expiresStr} ${isPT?'restante':'remaining'}</div>`:
+            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">${isPT?'Usada hoje — redefine à meia-noite':'Used today — resets at midnight'}</div>`:''}
                 </div>
             </div>
-            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45;flex:1">${sk.desc}</div>
+            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45;flex:1">${dispDesc}</div>
             <button ${actionAttrs('activateSkill', sk.id)} ${btnDisabled?'disabled':''}
                 style="width:100%;padding:8px;border-radius:8px;border:1px solid ${canActivate?'rgba(155,89,182,0.5)':'rgba(255,255,255,0.1)'};
                 background:${canActivate?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.04)'};margin-top:auto;
@@ -4898,13 +5737,13 @@ function renderWorldMap() {
         const pinStyle=`position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;transition:transform 0.2s;${!isUnlocked?'opacity:0.82':''}`;
         const badge=isCurrent?'📍':isTraveling?'🚶':!isUnlocked?'⚔️':'';
         const ringStyle=`width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent?'#f1c40f':!isUnlocked?'rgba(231,76,60,0.7)':'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked?';filter:saturate(0.85);box-shadow:0 0 0 2px rgba(231,76,60,0.2)':''}${isCurrent?';box-shadow:0 0 0 3px rgba(241,196,15,0.4)':''}${isTraveling?';animation:pulse 1.5s infinite':''}`;
-        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
+        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zName(zone)}">
             <div style="position:relative;display:inline-block">
                 ${badge?`<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>`:''}
-                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
+                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zName(zone)}" data-error-background="#2c3e50">
             </div>
-            <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?'HERE':''):(prereq && !prereqMet ? `Beat ${prereq.guardianName}` : 'Gatekeeper')}</div>
+            <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zName(zone)}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked?(isCurrent?(CURRENT_LANG === 'pt' ? 'AQUI' : 'HERE'):''):(prereq && !prereqMet ? (CURRENT_LANG === 'pt' ? `Vencer ${prereq.guardianName}` : `Beat ${prereq.guardianName}`) : (CURRENT_LANG === 'pt' ? 'Guardião' : 'Gatekeeper'))}</div>
         </div>`;
     }).join('');
 
@@ -4913,12 +5752,12 @@ function renderWorldMap() {
     if (playerLevel >= 39 && darkCityUnlocked) {
         pinsHtml += ` 
             <div style="position:absolute;left:90%;top:85%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;"  
-                 ${actionAttrs('onMapNodeClick', 'abyss_gate')} title="Abyss Gate"> 
+                 ${actionAttrs('onMapNodeClick', 'abyss_gate')} title="${CURRENT_LANG === 'pt' ? 'Portal do Abismo' : 'Abyss Gate'}"> 
                 <div style="position:relative;display:inline-block"> 
                     <img style="width:72px;height:72px;border-radius:50%;border:3px solid #9b59b6;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 15px rgba(155,89,182,0.5);animation:pulse 2s infinite;"  
-                         src="/images/zones/abyss_gate.jpg" alt="Abyss Gate" data-error-background="#2c3e50"> 
+                         src="/images/zones/abyss_gate.jpg" alt="${CURRENT_LANG === 'pt' ? 'Portal do Abismo' : 'Abyss Gate'}" data-error-background="#2c3e50"> 
                 </div> 
-                <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">Abyss Gate</div> 
+                <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#9b59b6;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${CURRENT_LANG === 'pt' ? 'Portal do Abismo' : 'Abyss Gate'}</div> 
                 <div style="font-size:10px;color:rgba(155,89,182,0.8);text-align:center">Lv.39+</div> 
             </div> 
         `;
@@ -4953,6 +5792,7 @@ function onMapNodeClick(zoneId) {
 
 async function enterAbyssGate() {
     const shadowfenUnlocked = unlockedAbyssZones.has('shadowfen');
+    const currentLangPt = CURRENT_LANG === 'pt';
     try {
         // Use a manual fetch so we can surface battle logs on non-200 responses.
         const storedToken = getToken();
@@ -4973,12 +5813,12 @@ async function enterAbyssGate() {
 
         if (!res.ok && payload?.requiresChallenge) {
             const proceed = await openGameDialog({
-                title: '⚠️ Gatekeeper Warning',
-                message: `<p><strong>${escHtml(payload.guardianName || 'Gatekeeper')}</strong> guards Shadowfen Depths!</p>
-                          <p>This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.</p>
-                          <p>Are you sure you want to proceed?</p>`,
-                confirmLabel: 'Challenge for Entry',
-                cancelLabel: 'Cancel',
+                title: currentLangPt ? '⚠️ Aviso do Guardião' : '⚠️ Gatekeeper Warning',
+                message: `<p><strong>${escHtml(payload.guardianName || (currentLangPt ? 'Guardião' : 'Gatekeeper'))}</strong> ${currentLangPt ? 'guarda as Profundezas de Shadowfen!' : 'guards Shadowfen Depths!'}</p>
+                          <p>${currentLangPt ? 'Este guardião vai desafiá-lo para um combate. Se for derrotado, sua vida será esgotada.' : 'This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.'}</p>
+                          <p>${currentLangPt ? 'Tem certeza de que deseja prosseguir?' : 'Are you sure you want to proceed?'}</p>`,
+                confirmLabel: currentLangPt ? 'Desafiar pela entrada' : 'Challenge for Entry',
+                cancelLabel: currentLangPt ? 'Cancelar' : 'Cancel',
                 showCancel: true,
                 danger: true
             });
@@ -4987,10 +5827,10 @@ async function enterAbyssGate() {
         } else if (!res.ok && !payload?.requiresChallenge) {
             // If not a challenge flow, still give a simple enter confirm for unlocked entry.
             const proceed = await openGameDialog({
-                title: shadowfenUnlocked ? 'Enter the Abyss?' : 'Enter the Abyss?',
-                message: `<p>You are about to enter the Abyss.</p>`,
-                confirmLabel: 'Enter',
-                cancelLabel: 'Cancel',
+                title: currentLangPt ? 'Entrar no Abismo?' : 'Enter the Abyss?',
+                message: `<p>${currentLangPt ? 'Você está prestes a entrar no Abismo.' : 'You are about to enter the Abyss.'}</p>`,
+                confirmLabel: currentLangPt ? 'Entrar' : 'Enter',
+                cancelLabel: currentLangPt ? 'Cancelar' : 'Cancel',
                 showCancel: true
             });
             if (!proceed) return;
@@ -5003,7 +5843,7 @@ async function enterAbyssGate() {
                 showBattleReportModal(
                     payload.battleLog,
                     false,
-                    `💀 Defeated · ${payload.guardianName}`,
+                    `${currentLangPt ? '💀 Derrotado · ' : '💀 Defeated · '}${payload.guardianName}`,
                     null,
                     null,
                     { enemyName: payload.guardianName, battleType: 'travel_guardian' }
@@ -5022,14 +5862,14 @@ async function enterAbyssGate() {
             character.current_map = 'abyss';
             await checkTravelStatus();
             renderCurrentMap();
-            showMsg('missions-msg', payload.message || 'You step through the Abyss Gate into darkness...');
+            showMsg('missions-msg', payload.message || (currentLangPt ? 'Você atravessa o Portal do Abismo para a escuridão...' : 'You step through the Abyss Gate into darkness...'));
 
             const enc = payload.encounterResult;
             if (enc && Array.isArray(enc.log) && enc.guardianName) {
                 showBattleReportModal(
                     enc.log,
                     true,
-                    `🏆 Victory · Unlocked Shadowfen Depths`,
+                    `${currentLangPt ? '🏆 Vitória · Profundezas de Shadowfen desbloqueada' : '🏆 Victory · Unlocked Shadowfen Depths'}`,
                     enc.totalDmgDealt ?? null,
                     enc.totalDmgTaken ?? null,
                     { enemyName: enc.guardianName, battleType: 'travel_guardian' }
@@ -5078,10 +5918,10 @@ function openLocationModal(zoneId) {
     let travelInfo = '';
     if (!isCurrent) {
         travelInfo = !canChallengeThisGatekeeper
-            ? `Please challenge ${prereq.guardianName} first`
+            ? (CURRENT_LANG === 'pt' ? `Desafie ${prereq.guardianName} primeiro` : `Please challenge ${prereq.guardianName} first`)
             : isUnlocked
-                ? `Travel required to reach ${zone.name}`
-                : `Defeat the gatekeeper to unlock ${zone.name}`;
+                ? (CURRENT_LANG === 'pt' ? `Viagem necessária para chegar a ${zName(zone)}` : `Travel required to reach ${zName(zone)}`)
+                : (CURRENT_LANG === 'pt' ? `Derrote o guardião para desbloquear ${zName(zone)}` : `Defeat the gatekeeper to unlock ${zName(zone)}`);
     }
 
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
@@ -5090,13 +5930,13 @@ function openLocationModal(zoneId) {
     header.innerHTML = `
         <div class="mz-hero" style="background-image:url('${zone.bgImg || zone.mapImg}')">
             <div class="mz-hero-overlay">
-                <div class="mz-hero-title">${zone.name}</div>
-                <div class="mz-hero-desc">${zone.description}</div>
+                <div class="mz-hero-title">${zName(zone)}</div>
+                <div class="mz-hero-desc">${zDesc(zone)}</div>
                 <div class="mz-hero-actions">
                     ${isCurrent
-        ? `<span class="mz-here-badge">📍 You are here</span>`
+        ? `<span class="mz-here-badge">📍 ${CURRENT_LANG === 'pt' ? 'Você está aqui' : 'You are here'}</span>`
         : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked || !canChallengeThisGatekeeper ? 'disabled' : ''}>
-                            ${isUnlocked ? '🚶 Travel here' : '⚔️ Challenge for entry'}${travelInfo ? ' · ' + travelInfo : ''}
+                            ${isUnlocked ? (CURRENT_LANG === 'pt' ? '🚶 Viajar aqui' : '🚶 Travel here') : (CURRENT_LANG === 'pt' ? '⚔️ Desafiar pela entrada' : '⚔️ Challenge for entry')}${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
     }
                 </div>
@@ -5104,30 +5944,30 @@ function openLocationModal(zoneId) {
         </div>`;
 
     spotsEl.innerHTML = `
-        <div class="mz-section-label">Choose a location</div>
+        <div class="mz-section-label">${CURRENT_LANG === 'pt' ? 'Escolha um local' : 'Choose a location'}</div>
         <div class="mz-spots-grid">
             ${zone.spots.map(spot => {
         let locked = !isCurrent || actionBlocked;
         let lockMsg = actionBlocked
-            ? (hasActiveMission ? '🔒 Mission already in progress' : '🔒 Travel already in progress')
-            : '🔒 Travel here first';
+            ? (hasActiveMission ? (CURRENT_LANG === 'pt' ? '🔒 Missão já em andamento' : '🔒 Mission already in progress') : (CURRENT_LANG === 'pt' ? '🔒 Viagem já em andamento' : '🔒 Travel already in progress'))
+            : (CURRENT_LANG === 'pt' ? '🔒 Viaje aqui primeiro' : '🔒 Travel here first');
 
         // Tutorial Lock: Wins < 4 only allows Easy
         const isTutorial = isTutorialCharacter(character);
 
         if (!actionBlocked && isTutorial && (spot.difficulty === 'medium' || spot.difficulty === 'hard')) {
             locked = true;
-            lockMsg = '🔒 Tutorial: Win 4 battles to unlock';
+            lockMsg = CURRENT_LANG === 'pt' ? '🔒 Tutorial: Vença 4 batalhas para desbloquear' : '🔒 Tutorial: Win 4 battles to unlock';
         }
 
         return `<div class="mz-spot-card ${locked ? 'mz-spot-locked' : ''}" ${locked ? '' : actionAttrs('openSpotMissions', zoneId, spot.id)}>
                     <div class="mz-spot-img-wrap">
-                        <img class="mz-spot-img" src="${spot.img}" alt="${spot.name}" data-error-src="">
+                        <img class="mz-spot-img" src="${spot.img}" alt="${zSpotName(spot)}" data-error-src="">
                         <span class="mz-spot-diff-badge" style="background:${db2[spot.difficulty]};color:${dc[spot.difficulty]}">${spot.difficulty.toUpperCase()}</span>
                         ${locked ? `<div class="mz-spot-locked-overlay">${lockMsg}</div>` : ''}
                     </div>
                     <div class="mz-spot-info">
-                        <div class="mz-spot-name">${spot.name}</div>
+                        <div class="mz-spot-name">${zSpotName(spot)}</div>
                         <div style="height:20px;line-height:20px">&nbsp;</div>
                     </div>
                 </div>`;
@@ -5170,7 +6010,7 @@ function openSpotMissions(zoneId, spotId) {
     ];
 
     activeEl.innerHTML = `
-        <div class="mz-section-label" style="margin-top:24px">${spot.name} — pick mission size</div>
+        <div class="mz-section-label" style="margin-top:24px">${zSpotName(spot)} — ${CURRENT_LANG === 'pt' ? 'escolha o tamanho da missão' : 'pick mission size'}</div>
         <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
             ${sizes.map(sz => {
         let locked = isTutorial && sz.key !== 'small';
@@ -5183,9 +6023,9 @@ function openSpotMissions(zoneId, spotId) {
 
         let lockOverlay = '';
         if (locked) {
-            lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#fff;text-align:center;padding:5px;font-weight:700">🔒 Tutorial: Win 4 battles</div>`;
+            lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.6rem;color:#fff;text-align:center;padding:5px;font-weight:700">🔒 ${CURRENT_LANG === 'pt' ? 'Tutorial: Vença 4 batalhas' : 'Tutorial: Win 4 battles'}</div>`;
         } else if (actionBlocked) {
-            lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.62);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:rgba(255,255,255,0.82);text-align:center;padding:8px 10px;font-weight:700">${window.activeMission ? 'Mission in progress' : 'Travel in progress'}</div>`;
+            lockOverlay = `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.62);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:0.68rem;color:rgba(255,255,255,0.82);text-align:center;padding:8px 10px;font-weight:700">${window.activeMission ? (CURRENT_LANG === 'pt' ? 'Missão em andamento' : 'Mission in progress') : (CURRENT_LANG === 'pt' ? 'Viagem em andamento' : 'Travel in progress')}</div>`;
         }
 
         return `<div ${(!isDisabled && !locked) ? actionAttrs('pickMissionSize', zoneId, spotId, sz.key) : ''} data-mission-size="${sz.key}"
@@ -5193,22 +6033,22 @@ function openSpotMissions(zoneId, spotId) {
                     <div style="font-size:1.1rem;font-weight:700;color:var(--text-bright);margin-bottom:4px">${sz.label}</div>
                     <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔮 ${sz.mpCost} MP</div>
                     <div style="font-size:0.75rem;color:var(--text-dim)">⏱ ${sz.duration}</div>
-                    ${(!canAfford && !locked && !actionBlocked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">Need ${sz.mpCost - mp} more MP</div>` : ''}
+                    ${(!canAfford && !locked && !actionBlocked) ? `<div style="font-size:0.7rem;color:var(--red-light);margin-top:6px">${CURRENT_LANG === 'pt' ? `Faltam ${sz.mpCost - mp} PM` : `Need ${sz.mpCost - mp} more MP`}</div>` : ''}
                     ${lockOverlay}
                 </div>`;
     }).join('')}
         </div>
-        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">Your MP: <strong style="color:#9b59b6">${mp} / ${character?.mp_max || 120}</strong> · MP regenerates +5/hr</div>
-        <div class="mz-section-label">Choose a mission</div>
+        <div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;text-align:center">${CURRENT_LANG === 'pt' ? 'Seus PM: ' : 'Your MP: '}<strong style="color:#9b59b6">${mp} / ${character?.mp_max || 120}</strong> · ${CURRENT_LANG === 'pt' ? 'PM regeneram +5/h' : 'MP regenerates +5/hr'}</div>
+        <div class="mz-section-label">${CURRENT_LANG === 'pt' ? 'Escolha uma missão' : 'Choose a mission'}</div>
         <div class="mz-missions-grid" id="spot-missions-list">
             ${spot.missions.map((m, idx) => `
                 <div class="mz-mission-card" id="mission-opt-${idx}" style="opacity:0.4;pointer-events:none">
                     <div class="mz-mission-img-wrap">
-                        <img class="mz-mission-img" src="${m.img}" alt="${m.name}" data-error-background="#1c2b38">
-                        <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ Start</div></div>
+                        <img class="mz-mission-img" src="${m.img}" alt="${zMissionName(m)}" data-error-background="#1c2b38">
+                        <div class="mz-mission-img-overlay"><div class="mz-mission-start-btn">▶ ${CURRENT_LANG === 'pt' ? 'Iniciar' : 'Start'}</div></div>
                     </div>
                     <div class="mz-mission-info">
-                        <div class="mz-mission-name">${m.name}</div>
+                        <div class="mz-mission-name">${zMissionName(m)}</div>
                         <div style="height:20px;line-height:20px">&nbsp;</div>
                     </div>
                 </div>
@@ -5335,10 +6175,11 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     const running = status?.enabled === true && String(status?.zone) === String(zoneId) && String(status?.spot) === String(spotId);
     const potions = (status?.potions || []).filter(p => p.mp > 0);
     const hpPotions = (status?.hpPotions || []).filter(p => p.heal > 0);
+    const currentLangPt = CURRENT_LANG === 'pt';
     _autoPickerZone = zoneId;
     _autoPickerSpot = spotId;
-    _autoPickerMissions = spot.missions.map((m, idx) => typeof m === 'string' ? m : (m.name || `Mission ${idx + 1}`));
-    const _autoPickMissionName = _autoPickerMissions[Number(_autoSelMission) || 0] || _autoPickerMissions[0] || 'Mission';
+    _autoPickerMissions = spot.missions.map((m, idx) => typeof m === 'string' ? m : zMissionName(m) || (currentLangPt ? `Missão ${idx + 1}` : `Mission ${idx + 1}`));
+    const _autoPickMissionName = _autoPickerMissions[Number(_autoSelMission) || 0] || _autoPickerMissions[0] || (currentLangPt ? 'Missão' : 'Mission');
 
     panel.innerHTML = `
         <div class="arc-panel">
@@ -5346,49 +6187,49 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                 <div class="arc-panel-rune">🧿</div>
                 <div>
                     <div class="arc-panel-title">Arcane Reservoir</div>
-                    <div class="arc-panel-sub">Auto-farm ${escHtml(spot.name)} — even while logged off</div>
+                    <div class="arc-panel-sub">${currentLangPt ? `Auto-farm em ${escHtml(zSpotName(spot))} — mesmo desconectado` : `Auto-farm ${escHtml(zSpotName(spot))} — even while logged off`}</div>
                 </div>
             </div>
             <div class="arc-panel-body">
         ${!premium ? `
-            <div style="font-size:0.8rem;color:#dcd0ff;line-height:1.7">Auto-Complete keeps farming missions in ${escHtml(spot.name)} automatically — even while you're logged off.</div>
-            <button id="auto-premium-cta" class="arc-cta" data-action="goToPremium">🔮 Activate Arcane Reservoir to unlock</button>`
+            <div style="font-size:0.8rem;color:#dcd0ff;line-height:1.7">${currentLangPt ? `O Auto-Complete continua farmando missões em ${escHtml(zSpotName(spot))} automaticamente — mesmo enquanto você está desconectado.` : `Auto-Complete keeps farming missions in ${escHtml(zSpotName(spot))} automatically — even while you're logged off.`}</div>
+            <button id="auto-premium-cta" class="arc-cta" data-action="goToPremium">🔮 ${currentLangPt ? 'Ative o Arcane Reservoir para desbloquear' : 'Activate Arcane Reservoir to unlock'}</button>`
         : !isHere ? `
-            <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.7">Travel to <strong style="color:#fff">${escHtml(spot.name)}</strong> first — auto-complete only runs on your current location.</div>`
+            <div style="font-size:0.8rem;color:var(--text-dim);line-height:1.7">${currentLangPt ? `Viaje para <strong style="color:#fff">${escHtml(zSpotName(spot))}</strong> primeiro — o auto-complete só roda no seu local atual.` : `Travel to <strong style="color:#fff">${escHtml(zSpotName(spot))}</strong> first — auto-complete only runs on your current location.`}</div>`
         : running ? `
             <div style="font-size:0.8rem;line-height:1.7">
-                <div style="font-weight:700;color:#2ecc71;margin-bottom:6px">● Auto-complete running</div>
+                <div style="font-weight:700;color:#2ecc71;margin-bottom:6px">● ${currentLangPt ? 'Auto-complete em execução' : 'Auto-complete running'}</div>
                 <div style="color:var(--text-dim)">
-                    ${status.autoMp > 0 ? `<div>🔮 Pool MP: <strong style="color:#dcd0ff">${status.autoMp}</strong></div>` : ''}
-                    <div>✅ Missions completed: <strong style="color:#fff">${status.runs || 0}</strong></div>
-                    ${status.lastResult ? `<div>📝 Last: ${escHtml(status.lastResult)}</div>` : ''}
-                    ${status.hpStopEnabled ? `<div>💗 Auto-pause on low HP: <strong style="color:#fff">on</strong> (below ${status.hpStopThreshold})</div>` : ''}
+                    ${status.autoMp > 0 ? `<div>🔮 ${currentLangPt ? 'PM no reservatório: ' : 'Pool MP: '}<strong style="color:#dcd0ff">${status.autoMp}</strong></div>` : ''}
+                    <div>✅ ${currentLangPt ? 'Missões concluídas: ' : 'Missions completed: '}<strong style="color:#fff">${status.runs || 0}</strong></div>
+                    ${status.lastResult ? `<div>📝 ${currentLangPt ? 'Última: ' : 'Last: '}${escHtml(status.lastResult)}</div>` : ''}
+                    ${status.hpStopEnabled ? `<div>💗 ${currentLangPt ? 'Auto-pausa com HP baixo: ' : 'Auto-pause on low HP: '}<strong style="color:#fff">${currentLangPt ? 'ativo' : 'on'}</strong> (${currentLangPt ? 'abaixo de ' : 'below '}${status.hpStopThreshold})</div>` : ''}
                 </div>
-                <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ Stop</button>
-                <div style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);line-height:1.6">⚠️ Stopping does not refund the MP in the pool — it is recommended to let it clear naturally.</div>
+                <button id="auto-disable-btn" class="arc-stop" style="margin-top:12px">⏹ ${currentLangPt ? 'Parar' : 'Stop'}</button>
+                <div style="margin-top:8px;font-size:0.68rem;color:var(--text-dim);line-height:1.6">⚠️ ${currentLangPt ? 'Parar não devolve os PM do reservatório — é recomendado deixar esvaziar naturalmente.' : 'Stopping does not refund the MP in the pool — it is recommended to let it clear naturally.'}</div>
             </div>`
         : `
             <div class="arc-picker-row">
                 <div>
-                    <div class="arc-field-label">Mission</div>
+                    <div class="arc-field-label">${currentLangPt ? 'Missão' : 'Mission'}</div>
                     <button type="button" class="arc-pick" data-action="openAutoPicker" data-args="${encodeActionArgs(['mission'])}">
                         <span class="arc-pick-val">${escHtml(_autoPickMissionName)}</span><span class="arc-pick-caret">▾</span>
                     </button>
                 </div>
                 <div>
-                    <div class="arc-field-label">Size</div>
+                    <div class="arc-field-label">${currentLangPt ? 'Tamanho' : 'Size'}</div>
                     <button type="button" class="arc-pick" data-action="openAutoPicker" data-args="${encodeActionArgs(['size'])}">
                         <span class="arc-pick-val">${_autoSelSize.charAt(0).toUpperCase() + _autoSelSize.slice(1)} · ${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP</span><span class="arc-pick-caret">▾</span>
                     </button>
                 </div>
             </div>
             <div class="arc-mp-strip">
-                <span>Your MP <strong>${status.mp || 0}</strong></span>
-                <span>${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} MP per mission · uses your MP first</span>
+                <span>${currentLangPt ? 'Seus PM ' : 'Your MP '}<strong>${status.mp || 0}</strong></span>
+                <span>${_autoSelSize === 'small' ? 20 : _autoSelSize === 'medium' ? 40 : 60} ${currentLangPt ? 'PM por missão · usa seus PM primeiro' : 'MP per mission · uses your MP first'}</span>
             </div>
-            <div class="arc-pot-title">Load MP potions · up to ${status?.maxPotions ?? 10}</div>
+            <div class="arc-pot-title">${currentLangPt ? `Carregar poções de PM · até ${status?.maxPotions ?? 10}` : `Load MP potions · up to ${status?.maxPotions ?? 10}`}</div>
             ${potions.length === 0
-                ? `<div style="color:#8e44ad;font-size:0.76rem">No MP potions in inventory. Convert MP into Special Mana Potions, or use your Mission Points above.</div>`
+                ? `<div style="color:#8e44ad;font-size:0.76rem">${currentLangPt ? 'Nenhuma poção de PM no inventário. Converta PM em Poções de Mana Especiais ou use seus Pontos de Missão acima.' : 'No MP potions in inventory. Convert MP into Special Mana Potions, or use your Mission Points above.'}</div>`
                 : `<div class="arc-pot-grid">
                     ${potions.map((p) => {
                         const selectedQty = _autoSelectedPotions.get(String(p.inventoryId)) || 0;
@@ -5396,8 +6237,8 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                         const canAdd = selectedQty < Number(p.qty) && remaining > 0;
                         return `<div class="arc-pot-card${selectedQty ? ' selected' : ''}" data-inv="${p.inventoryId}">
                             <div class="arc-pot-name">${p.emoji || '💧'} ${escHtml(p.name)}</div>
-                            <div class="arc-pot-mp">+${p.mp} MP each</div>
-                            <div class="arc-pot-stock">${p.qty} in stock</div>
+                            <div class="arc-pot-mp">+${p.mp} ${currentLangPt ? 'PM cada' : 'MP each'}</div>
+                            <div class="arc-pot-stock">${p.qty} ${currentLangPt ? 'em estoque' : 'in stock'}</div>
                             <div class="arc-pot-ctl">
                                 <button type="button" class="arc-pot-btn" data-inv="${p.inventoryId}" data-dir="-1" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
                                 <span class="arc-pot-count">${selectedQty}</span>
@@ -5407,12 +6248,12 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                     }).join('')}
                  </div>`}
             <div class="arc-pool-row">
-                <div class="arc-pool-chip">🔮 Pool <b id="auto-pool-total">0</b> MP</div>
-                <div class="arc-pool-note">Spends your Mission Points first, then this pool</div>
+                <div class="arc-pool-chip">🔮 ${currentLangPt ? 'Reservatório ' : 'Pool '}<b id="auto-pool-total">0</b> ${currentLangPt ? 'PM' : 'MP'}</div>
+                <div class="arc-pool-note">${currentLangPt ? 'Usa seus Pontos de Missão primeiro e depois este reservatório' : 'Spends your Mission Points first, then this pool'}</div>
             </div>
-            <div class="arc-pot-title">Load HP potions · up to ${status?.maxHpPotions ?? 3} (auto-heal on low HP)</div>
+            <div class="arc-pot-title">${currentLangPt ? `Carregar poções de vida · até ${status?.maxHpPotions ?? 3} (auto-cura com HP baixo)` : `Load HP potions · up to ${status?.maxHpPotions ?? 3} (auto-heal on low HP)`}</div>
             ${hpPotions.length === 0
-                ? `<div style="color:#8e44ad;font-size:0.76rem">No health potions in inventory.</div>`
+                ? `<div style="color:#8e44ad;font-size:0.76rem">${currentLangPt ? 'Nenhuma poção de vida no inventário.' : 'No health potions in inventory.'}</div>`
                 : `<div class="arc-pot-grid">
                     ${hpPotions.map((p) => {
                         const selectedQty = _autoSelectedHpPotions.get(String(p.inventoryId)) || 0;
@@ -5420,8 +6261,8 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                         const canAdd = selectedQty < Number(p.qty) && remaining > 0;
                         return `<div class="arc-pot-card${selectedQty ? ' selected' : ''}" data-inv="${p.inventoryId}">
                             <div class="arc-pot-name">${p.emoji || '🧪'} ${escHtml(p.name)}</div>
-                            <div class="arc-pot-mp">${p.healFull ? 'Full restore' : `+${p.heal} HP`}</div>
-                            <div class="arc-pot-stock">${p.qty} in stock</div>
+                            <div class="arc-pot-mp">${p.healFull ? (currentLangPt ? 'Restauração total' : 'Full restore') : `+${p.heal} HP`}</div>
+                            <div class="arc-pot-stock">${p.qty} ${currentLangPt ? 'em estoque' : 'in stock'}</div>
                             <div class="arc-pot-ctl">
                                 <button type="button" class="arc-pot-btn" data-hpp="${p.inventoryId}" data-dir="-1" ${selectedQty <= 0 ? 'disabled' : ''}>−</button>
                                 <span class="arc-pot-count">${selectedQty}</span>
@@ -5432,21 +6273,21 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                  </div>`}
             <label class="arc-hp-stop" style="display:flex;align-items:center;gap:8px;margin:10px 0 4px;cursor:pointer">
                 <input type="checkbox" id="auto-hp-heal-enable" ${_autoHpHealOn || status?.hpHealEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:#27ae60">
-                <span style="font-size:0.8rem;color:var(--text-dim)">💗 Auto-drink HP potion when HP is below</span>
+                <span style="font-size:0.8rem;color:var(--text-dim)">💗 ${currentLangPt ? 'Beber poção de vida automaticamente quando o HP estiver abaixo de' : 'Auto-drink HP potion when HP is below'}</span>
                 <input type="number" id="auto-hp-heal-threshold" min="1" max="99999"
                     value="${_autoHpHealThr || status?.hpHealThreshold || 50}" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.8rem">
                 <span style="font-size:0.78rem;color:var(--text-dim)">HP</span>
             </label>
-            <div style="font-size:0.68rem;color:var(--text-dim);line-height:1.5;margin-bottom:6px">When your HP drops below this value, a loaded HP potion is used (one per 30 min).</div>
+            <div style="font-size:0.68rem;color:var(--text-dim);line-height:1.5;margin-bottom:6px">${currentLangPt ? 'Quando seu HP cair abaixo deste valor, uma poção de vida carregada é usada (uma por 30 min).' : 'When your HP drops below this value, a loaded HP potion is used (one per 30 min).'}</div>
             <label class="arc-hp-stop" style="display:flex;align-items:center;gap:8px;margin:6px 0 4px;cursor:pointer">
                 <input type="checkbox" id="auto-hp-stop-enable" ${status?.hpStopEnabled ? 'checked' : ''} style="width:16px;height:16px;accent-color:#e74c3c">
-                <span style="font-size:0.8rem;color:var(--text-dim)">⏸ Pause auto-complete when HP is below</span>
+                <span style="font-size:0.8rem;color:var(--text-dim)">⏸ ${currentLangPt ? 'Pausar o auto-complete quando o HP estiver abaixo de' : 'Pause auto-complete when HP is below'}</span>
                 <input type="number" id="auto-hp-stop-threshold" min="1" max="99999"
                     value="${status?.hpStopThreshold || 50}" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.8rem">
                 <span style="font-size:0.78rem;color:var(--text-dim)">HP</span>
             </label>
-            <div style="font-size:0.68rem;color:var(--text-dim);line-height:1.5;margin-bottom:10px">Auto-complete will pause (and stay enabled) while your HP is below the value, then resume once HP recovers above it.</div>
-            <button id="auto-enable-btn" class="arc-start">🔮 Start Auto-Complete</button>`
+            <div style="font-size:0.68rem;color:var(--text-dim);line-height:1.5;margin-bottom:10px">${currentLangPt ? 'O auto-complete pausará (e permanecerá ativado) enquanto seu HP estiver abaixo do valor e retomará assim que o HP recuperar acima dele.' : 'Auto-complete will pause (and stay enabled) while your HP is below the value, then resume once HP recovers above it.'}</div>
+            <button id="auto-enable-btn" class="arc-start">🔮 ${currentLangPt ? 'Iniciar Auto-Complete' : 'Start Auto-Complete'}</button>`
         }
             </div>
         </div>
@@ -5462,7 +6303,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
                 _autoSelectedPotions = new Map();
                 _autoSelectedHpPotions = new Map();
                 _autoHpHealOn = false;
-                showMsg('missions-msg', 'Auto-complete stopped. MP left in the pool was not refunded.', false);
+                showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Auto-complete parado. Os PM restantes no reservatório não foram devolvidos.' : 'Auto-complete stopped. MP left in the pool was not refunded.', false);
             } catch (e) { showMsg('missions-msg', e.message, true); }
             renderAutoCompletePanel(zoneId, spotId);
         });
@@ -5530,7 +6371,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         enableBtn.dataset.busy = 'true';
         const originalLabel = enableBtn.innerHTML;
         enableBtn.disabled = true;
-        enableBtn.textContent = '🔮 Summoning auto-complete…';
+        enableBtn.textContent = CURRENT_LANG === 'pt' ? '🔮 Invocando auto-complete…' : '🔮 Summoning auto-complete…';
         const selected = [..._autoSelectedPotions].map(([invId, qty]) => ({ inventoryId: invId, qty }));
         const hpStopEnabled = !!document.getElementById('auto-hp-stop-enable')?.checked;
         const hpStopThreshold = Number(document.getElementById('auto-hp-stop-threshold')?.value || 0);
@@ -5605,7 +6446,7 @@ function ensureAutoPickerModal() {
             <div class="arc-picker-box">
                 <div class="arc-picker-head">
                     <div class="arc-panel-rune">🧿</div>
-                    <div class="arc-panel-title" id="auto-picker-title">Choose</div>
+                    <div class="arc-panel-title" id="auto-picker-title">${CURRENT_LANG === 'pt' ? 'Escolher' : 'Choose'}</div>
                     <button class="arc-picker-close" data-action="closeAutoPicker">✕</button>
                 </div>
                 <div id="auto-picker-list" class="arc-picker-list"></div>
@@ -5620,8 +6461,8 @@ function openAutoPicker(kind) {
     const title = document.getElementById('auto-picker-title');
     if (!modal || !list || !title) return;
     if (kind === 'mission') {
-        title.textContent = 'Choose Mission';
-        const opts = (_autoPickerMissions && _autoPickerMissions.length ? _autoPickerMissions : ['Mission']);
+        title.textContent = CURRENT_LANG === 'pt' ? 'Escolha uma Missão' : 'Choose Mission';
+        const opts = (_autoPickerMissions && _autoPickerMissions.length ? _autoPickerMissions : [CURRENT_LANG === 'pt' ? 'Missão' : 'Mission']);
         list.innerHTML = opts.map((name, idx) => {
             const active = String(_autoSelMission) === String(idx);
             return `<button class="arc-opt${active ? ' active' : ''}" data-action="pickAutoMission" data-args="${encodeActionArgs([idx])}">
@@ -5629,7 +6470,7 @@ function openAutoPicker(kind) {
             </button>`;
         }).join('');
     } else {
-        title.textContent = 'Choose Mission Size';
+        title.textContent = CURRENT_LANG === 'pt' ? 'Escolha o Tamanho da Missão' : 'Choose Mission Size';
         list.innerHTML = ['small', 'medium', 'large'].map(sz => {
             const active = _autoSelSize === sz;
             const cost = { small: 20, medium: 40, large: 60 }[sz];
@@ -5686,8 +6527,8 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
 
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
-    if (character?.location !== zoneId) { showMsg('missions-msg', 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
-    if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
+    if (character?.location !== zoneId) { showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Viaje para esta zona primeiro!' : 'Travel to this zone first!', true); closeMissionModal2(); _missionStarting = false; return; }
+    if ((character?.hp_current ?? character?.hp_max) <= 0) { showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Sem vida! Aguarde a regeneração.' : 'Out of HP! Wait for regeneration.', true); closeMissionModal2(); _missionStarting = false; return; }
 
     closeMissionModal2();
     const chosenMission = spot.missions[missionIdx] || spot.missions[0];
@@ -5700,7 +6541,7 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
 
         character = await api('GET', '/game/character');
         renderTopBar();
-        const confirmedName = result?.mission?.missionName || result?.mission?.mission_name || missionName;
+        const confirmedName = zMissionName(result?.mission?.missionName || result?.mission?.mission_name) || zMissionName(missionName) || (CURRENT_LANG === 'pt' ? 'Missão' : 'Mission');
         const endsAt = result?.mission?.ends_at || (Math.floor(Date.now() / 1000) + (result?.mission?.duration || 600));
         showMissionOverlay({ id: result?.mission?.id || 1, zone: zoneId, ends_at: endsAt }, confirmedName);
         renderWorldMap(); // or renderCurrentMap?
@@ -5713,11 +6554,11 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
 }
 async function doTravelToZone(zoneId) {
     const active=await api('GET','/game/missions/active').catch(()=>null);
-    if (active&&active.id) { showMsg('missions-msg','Cannot travel while on a mission!',true); return; }
-    if (playerTravelTarget) { showMsg('missions-msg','Already traveling!',true); return; }
+    if (active&&active.id) { showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Não é possível viajar durante uma missão!' : 'Cannot travel while on a mission!', true); return; }
+    if (playerTravelTarget) { showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Já viajando!' : 'Already traveling!', true); return; }
     const currentZone=character?.location||'forest';
     const route=getShortestPath(currentZone,zoneId);
-    if (!route) { showMsg('missions-msg','No route available!',true); return; }
+    if (!route) { showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Rota indisponível!' : 'No route available!', true); return; }
     try {
         const result=await api('POST','/game/travel/start',{targetZone:zoneId});
         playerTravelTarget=zoneId; playerTravelEndTime=result.travelEnd; playerTravelStartTime=result.travelStart||Math.floor(Date.now()/1000);
@@ -5734,7 +6575,7 @@ async function travelToZone(zoneId) {
             ? unlockedAbyssZones.has(zoneId)
             : unlockedTravelZones.has(zoneId);
         if (prereq && !unlockedTravelZones.has(prereq.unlockZone) && currentZone !== prereq.unlockZone) {
-            showMsg('missions-msg', `Please challenge "${prereq.guardianName}" first.`, true);
+            showMsg('missions-msg', CURRENT_LANG === 'pt' ? `Desafie "${prereq.guardianName}" primeiro.` : `Please challenge "${prereq.guardianName}" first.`, true);
             return;
         }
         // Check if target zone has a gatekeeper and show warning
@@ -5748,14 +6589,15 @@ async function travelToZone(zoneId) {
             const hpCurrent = character?.hp_current || 0;
             const hpMax = character?.hp_max || 1;
             const hpPercent = Math.round((hpCurrent / hpMax) * 100);
+            const currentLangPt = CURRENT_LANG === 'pt';
             const proceed = await openGameDialog({
-                title: '⚠️ Gatekeeper Warning',
-                message: `<p><strong>${guardian}</strong> guards this location!</p>
-                          <p>This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.</p>
-                          <p><strong>Current HP:</strong> ${hpCurrent}/${hpMax} (${hpPercent}%)</p>
-                          <p>Are you sure you want to proceed?</p>`,
-                confirmLabel: 'Challenge',
-                cancelLabel: 'Cancel',
+                title: currentLangPt ? '⚠️ Aviso do Guardião' : '⚠️ Gatekeeper Warning',
+                message: `<p><strong>${guardian}</strong> ${currentLangPt ? 'guarda este local!' : 'guards this location!'}</p>
+                          <p>${currentLangPt ? 'Este guardião vai desafiá-lo para um combate. Se for derrotado, sua vida será esgotada.' : 'This gatekeeper will challenge you to combat. If you are defeated, your health will be depleted.'}</p>
+                          <p><strong>${currentLangPt ? 'Vida atual:' : 'Current HP:'}</strong> ${hpCurrent}/${hpMax} (${hpPercent}%)</p>
+                          <p>${currentLangPt ? 'Tem certeza de que deseja prosseguir?' : 'Are you sure you want to proceed?'}</p>`,
+                confirmLabel: currentLangPt ? 'Desafiar' : 'Challenge',
+                cancelLabel: currentLangPt ? 'Cancelar' : 'Cancel',
                 showCancel: true,
                 danger: true
             });
@@ -5773,7 +6615,7 @@ async function travelToZone(zoneId) {
             playerTravelStartTime = result.travelStart;
             showTravelOverlay();
             renderCurrentMap(); // or renderAbyssMap/WorldMap
-            showMsg('missions-msg', `Traveling to ${zoneId}...`);
+            showMsg('missions-msg', CURRENT_LANG === 'pt' ? `Viajando para ${zoneId}...` : `Traveling to ${zoneId}...`);
         }
     } catch (e) {
         showMsg('missions-msg', e.message, true);
@@ -5783,29 +6625,30 @@ async function travelToZone(zoneId) {
 async function collectMission() {
     try {
         const d = await api('POST', '/game/missions/collect');
+        const currentLangPt = CURRENT_LANG === 'pt';
         character = d.character;
         window.activeMission = false;
         hideMissionOverlay();
         renderTopBar();
-        let msg=`💰 +${d.goldEarned} gold`;
-        if (d.gemsFound) msg += ` · 💎 +${d.gemsFound} gem${d.gemsFound > 1 ? 's' : ''}`;
+        let msg=`💰 +${d.goldEarned} ${CURRENT_LANG === 'pt' ? 'ouro' : 'gold'}`;
+        if (d.gemsFound) msg += ` · 💎 +${d.gemsFound} ${CURRENT_LANG === 'pt' ? (d.gemsFound > 1 ? 'gemas' : 'gema') : `gem${d.gemsFound > 1 ? 's' : ''}`}`;
         msg += ` · ⭐ +${d.xpEarned} XP`;
-        if (d.won===false) msg=`💀 Defeated · ${msg}`;
-        if (d.leveledUp) msg+=` · 🎉 LEVEL UP! Now Lv.${d.newLevel}`;
-        if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${dr.mat.replace(/_/g,' ')}`).join(', ')}`;
+        if (d.won===false) msg=`${CURRENT_LANG === 'pt' ? '💀 Derrotado · ' : '💀 Defeated · '}${msg}`;
+        if (d.leveledUp) msg+=` · 🎉 ${CURRENT_LANG === 'pt' ? `SUBIU DE NÍVEL! Agora Nv.${d.newLevel}` : `LEVEL UP! Now Lv.${d.newLevel}`}`;
+        if (d.drops?.length) msg+=` · 📦 ${d.drops.map(dr=>`${dr.qty}× ${translateItemNamePT(dr.mat.replace(/_/g,' '))}`).join(', ')}`;
 
         // Show level up modal if applicable
         if (d.levelUpMessage) {
             await openGameDialog({
-                title: '🎉 Level Up!',
+                title: currentLangPt ? '🎉 Subiu de nível!' : '🎉 Level Up!',
                 message: d.levelUpMessage,
-                confirmLabel: 'Awesome!',
+                confirmLabel: currentLangPt ? 'Incrível!' : 'Awesome!',
                 showCancel: false
             });
         }
 
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
-            enemyName: d.npcName || 'Enemy',
+            enemyName: d.npcName || (CURRENT_LANG === 'pt' ? 'Inimigo' : 'Enemy'),
             enemyLevel: d.npcLevel ?? null,
             missionName: d.missionName || '',
             battleType: 'mission',
@@ -5828,7 +6671,7 @@ async function checkAndShowMissionOverlay() {
             hideRestOverlay();
             hideTrainingOverlay();
             hideTravelOverlay();
-            showMissionOverlay(activeMission, activeMission.mission_name || activeMission.missionName || 'Mission');
+            showMissionOverlay(activeMission, zMissionName(activeMission.mission_name || activeMission.missionName) || (CURRENT_LANG === 'pt' ? 'Missão' : 'Mission'));
             return activeMission.id;
         }
         window.activeMission = false;
@@ -5943,12 +6786,12 @@ function showRestOverlay(startedAt, endsAt) {
         const elapsed = now - startedAt;
         const pct = Math.min(100, (elapsed / Math.max(totalDuration, 1)) * 100);
         const m = Math.floor(left / 60), s = left % 60;
-        if (timerEl) timerEl.textContent = left > 0 ? `${m}:${String(s).padStart(2,'0')}` : 'Ready!';
+        if (timerEl) timerEl.textContent = left > 0 ? `${m}:${String(s).padStart(2,'0')}` : (CURRENT_LANG === 'pt' ? 'Pronto!' : 'Ready!');
         if (fillEl)  fillEl.style.width = pct + '%';
         if (recoverBtn) {
             const hasGems = (character?.gems || 0) >= 1;
             recoverBtn.disabled = !hasGems;
-            recoverBtn.textContent = hasGems ? '⚡ Recover Now (1 💎)' : '⚡ Recover Now (need 💎)';
+            recoverBtn.textContent = hasGems ? (CURRENT_LANG === 'pt' ? '⚡ Recuperar Agora (1 💎)' : '⚡ Recover Now (1 💎)') : (CURRENT_LANG === 'pt' ? '⚡ Recuperar (precisa 💎)' : '⚡ Recover Now (need 💎)');
             recoverBtn.style.opacity = hasGems ? '1' : '0.4';
         }
         if (left <= 0) {
@@ -5969,10 +6812,10 @@ function hideRestOverlay() {
 async function instantBattleRecovery() {
     const gems = character?.gems || 0;
     if (gems < 1) {
-        showMsg('missions-msg', 'Need 1 💎 gem to recover instantly!', true);
+        showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Precisa de 1 💎 para recuperar instantaneamente!' : 'Need 1 💎 gem to recover instantly!', true);
         return;
     }
-    const ok = await openGameDialog({ title: 'Skip Cooldown', message: 'Skip battle cooldown for 1 💎?', showCancel: true, confirmLabel: 'Skip' });
+    const ok = await openGameDialog({ title: CURRENT_LANG === 'pt' ? 'Pular Recarga' : 'Skip Cooldown', message: CURRENT_LANG === 'pt' ? 'Pular a recarga de batalha por 1 💎?' : 'Skip battle cooldown for 1 💎?', showCancel: true, confirmLabel: CURRENT_LANG === 'pt' ? 'Pular' : 'Skip' });
     if (!ok) return;
     const btn = document.getElementById('rest-recover-btn');
     if (btn) btn.disabled = true;
@@ -5981,7 +6824,7 @@ async function instantBattleRecovery() {
         character = d.character;
         renderTopBar();
         hideRestOverlay();
-        showMsg('missions-msg', '⚡ Recovered! You can now start a mission.');
+        showMsg('missions-msg', CURRENT_LANG === 'pt' ? '⚡ Recuperado! Você já pode iniciar uma missão.' : '⚡ Recovered! You can now start a mission.');
     } catch(e) {
         showMsg('missions-msg', e.message, true);
         if (btn) btn.disabled = false;
@@ -5991,17 +6834,17 @@ async function instantBattleRecovery() {
 async function skipOverlayBattleCooldown() {
     const gems = character?.gems || 0;
     if (gems < 1) {
-        showMsg('missions-msg', 'Need 1 💎 gem to skip the cooldown!', true);
+        showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Precisa de 1 💎 para pular a recarga!' : 'Need 1 💎 gem to skip the cooldown!', true);
         return;
     }
-    const ok = await openGameDialog({ title: 'Skip Cooldown', message: 'Skip the battle cooldown for 1 💎?', showCancel: true, confirmLabel: 'Skip' });
+    const ok = await openGameDialog({ title: CURRENT_LANG === 'pt' ? 'Pular Recarga' : 'Skip Cooldown', message: CURRENT_LANG === 'pt' ? 'Pular a recarga de batalha por 1 💎?' : 'Skip the battle cooldown for 1 💎?', showCancel: true, confirmLabel: CURRENT_LANG === 'pt' ? 'Pular' : 'Skip' });
     if (!ok) return;
     try {
         const d = await api('POST', '/game/battle/recover');
         character = d.character;
         renderTopBar();
         await checkAndShowMissionOverlay();
-        showMsg('missions-msg', '⚡ Cooldown skipped!');
+        showMsg('missions-msg', CURRENT_LANG === 'pt' ? '⚡ Recarga pulada!' : '⚡ Cooldown skipped!');
     } catch(e) {
         showMsg('missions-msg', e.message, true);
     }
@@ -6045,18 +6888,18 @@ function showMissionOverlay(active, displayName) {
     const fillEl=document.getElementById('overlay-progress-fill');
     const collectBtn=document.getElementById('overlay-collect-btn');
     const badgeEl=overlay.querySelector('.mission-overlay-badge');
-    if (collectBtn) collectBtn.textContent = 'Collect Rewards';
+    if (collectBtn) collectBtn.textContent = CURRENT_LANG === 'pt' ? 'Coletar Recompensas' : 'Collect Rewards';
     if (collectBtn) collectBtn.classList.toggle('hidden', !!_autoEnabledCache);
-    if (badgeEl) badgeEl.textContent='⚔️ ON MISSION';
+    if (badgeEl) badgeEl.textContent = CURRENT_LANG === 'pt' ? '⚔️ EM MISSÃO' : '⚔️ ON MISSION';
     if (nameEl) nameEl.textContent=displayName;
-    if (zoneEl) zoneEl.textContent='📍 '+(ZONES[active.zone]?.name||active.zone||'');
+    if (zoneEl) zoneEl.textContent='📍 '+(zName(ZONES[active.zone])||active.zone||'');
     const totalDuration=active.ends_at-(active.started_at||(active.ends_at-600));
     function tick() {
         const now=Math.floor(Date.now()/1000), left=Math.max(0,active.ends_at-now);
         const m=Math.floor(left/60), s=left%60, done=left<=0;
         const pct=done?100:Math.min(100,((totalDuration-left)/Math.max(totalDuration,1))*100);
-        if (timerEl) { timerEl.textContent=done?'✅ Complete!':`${m}:${String(s).padStart(2,'0')}`; timerEl.className='mission-overlay-timer'+(done?' done':''); }
-        if (subtextEl) subtextEl.textContent=done ? (_autoEnabledCache ? 'Preparing the next mission…' : 'Collect your rewards!') : 'Returning when complete...';
+        if (timerEl) { timerEl.textContent=done?(CURRENT_LANG === 'pt' ? '✅ Concluída!' : '✅ Complete!'):`${m}:${String(s).padStart(2,'0')}`; timerEl.className='mission-overlay-timer'+(done?' done':''); }
+        if (subtextEl) subtextEl.textContent=done ? (_autoEnabledCache ? (CURRENT_LANG === 'pt' ? 'Preparando a próxima missão…' : 'Preparing the next mission…') : (CURRENT_LANG === 'pt' ? 'Colete suas recompensas!' : 'Collect your rewards!')) : (CURRENT_LANG === 'pt' ? 'Retornando quando concluir...' : 'Returning when complete...');
         if (fillEl) { fillEl.style.width=pct+'%'; fillEl.className='mission-overlay-progress-fill'+(done?' done':''); }
         if (collectBtn) collectBtn.disabled=!done || overlayMissionCollectBusy || !!_autoEnabledCache;
         if (done&&overlayInterval) {
@@ -6083,11 +6926,11 @@ function showAutoSummonOverlay(auto) {
     const fillEl=document.getElementById('overlay-progress-fill');
     const badgeEl=overlay.querySelector('.mission-overlay-badge');
     const collectBtn=document.getElementById('overlay-collect-btn');
-    if (badgeEl) badgeEl.textContent='🔮 AUTO-COMPLETE';
+    if (badgeEl) badgeEl.textContent = CURRENT_LANG === 'pt' ? '🔮 AUTO-CONCLUIR' : '🔮 AUTO-COMPLETE';
     if (nameEl) nameEl.textContent='Arcane Reservoir';
-    if (zoneEl) zoneEl.textContent='📍 '+(ZONES[auto?.zone]?.name || ZONES[_autoPickerZone]?.name || '');
-    if (timerEl) { timerEl.textContent='Summoning…'; timerEl.className='mission-overlay-timer summon'; }
-    if (subtextEl) subtextEl.textContent='Your arcane flow ignites — the first mission begins shortly.';
+    if (zoneEl) zoneEl.textContent='📍 '+(zName(ZONES[auto?.zone]) || zName(ZONES[_autoPickerZone]) || '');
+    if (timerEl) { timerEl.textContent = CURRENT_LANG === 'pt' ? 'Invocando…' : 'Summoning…'; timerEl.className='mission-overlay-timer summon'; }
+    if (subtextEl) subtextEl.textContent = CURRENT_LANG === 'pt' ? 'Seu fluxo arcano acende — a primeira missão começa em breve.' : 'Your arcane flow ignites — the first mission begins shortly.';
     if (fillEl) { fillEl.style.width='0%'; fillEl.className='mission-overlay-progress-fill'; }
     if (collectBtn) collectBtn.classList.add('hidden');
     overlay.classList.remove('hidden');
@@ -6117,21 +6960,21 @@ async function refreshMissionOverlayAuto() {
                 <div class="arc-relic-title">Arcane Reservoir</div>
                 <div style="display:flex;align-items:center;gap:5px">
                     <div class="arc-status-dot${paused?' paused':''}"></div>
-                    <span class="arc-status-label">${paused?'Paused':'Unleashed'}</span>
+                    <span class="arc-status-label">${paused?(CURRENT_LANG === 'pt' ? 'Pausado':'Paused'):(CURRENT_LANG === 'pt' ? 'Ativado':'Unleashed')}</span>
                 </div>
                 <div class="arc-chevy">▾</div>
             </div>
             <div class="arc-relic-body">
                 <div class="arc-stats">
-                    <div class="arc-stat"><div class="arc-stat-val">${pool}</div><div class="arc-stat-lbl">Pool MP</div></div>
-                    <div class="arc-stat"><div class="arc-stat-val">${runs}</div><div class="arc-stat-lbl">Completed</div></div>
+                    <div class="arc-stat"><div class="arc-stat-val">${pool}</div><div class="arc-stat-lbl">${CURRENT_LANG === 'pt' ? 'PM no reservatório' : 'Pool MP'}</div></div>
+                    <div class="arc-stat"><div class="arc-stat-val">${runs}</div><div class="arc-stat-lbl">${CURRENT_LANG === 'pt' ? 'Concluídas' : 'Completed'}</div></div>
                 </div>
-                ${Number(status?.hpHealEnabled) ? `<div style="font-size:0.68rem;color:#27ae60;margin-bottom:4px">💗 Auto-heal armed — ${Array.isArray(status.hpStack)?status.hpStack.length:0} HP potion(s) left (threshold ${status.hpHealThreshold})</div>` : ''}
+                ${Number(status?.hpHealEnabled) ? `<div style="font-size:0.68rem;color:#27ae60;margin-bottom:4px">💗 ${CURRENT_LANG === 'pt' ? 'Auto-cura ativada — ' : 'Auto-heal armed — '}${Array.isArray(status.hpStack)?status.hpStack.length:0} ${CURRENT_LANG === 'pt' ? 'poção(ões) de vida restante(s) (limite ' : 'HP potion(s) left (threshold '}${status.hpHealThreshold})</div>` : ''}
                 ${last?`<div class="arc-last">📜 ${last}</div>`:''}
-                ${inCooldown ? `<button id="overlay-skip-cd" class="arc-recover" ${hasGems?'':'disabled'}>⚡ Skip Cooldown (1 💎)</button>` : ''}
+                ${inCooldown ? `<button id="overlay-skip-cd" class="arc-recover" ${hasGems?'':'disabled'}>⚡ ${CURRENT_LANG === 'pt' ? 'Pular Recarga (1 💎)' : 'Skip Cooldown (1 💎)'}</button>` : ''}
                 <div class="arc-pause-row">
-                    <button id="overlay-auto-pause" class="arc-pause">${paused?'▶️ Resume':'⏸ Pause'}</button>
-                    <button id="overlay-auto-stop" class="arc-stop">⏹ Stop</button>
+                    <button id="overlay-auto-pause" class="arc-pause">${paused?(CURRENT_LANG === 'pt' ? '▶️ Retomar':'⏸ Pausar'):(CURRENT_LANG === 'pt' ? '▶️ Retomar':'⏸ Pause')}</button>
+                    <button id="overlay-auto-stop" class="arc-stop">⏹ ${CURRENT_LANG === 'pt' ? 'Parar' : 'Stop'}</button>
                 </div>
                 <div class="arc-relic-hp">
                     <div class="arc-relic-hp-row">
@@ -6139,12 +6982,12 @@ async function refreshMissionOverlayAuto() {
                         <label style="display:flex;align-items:center;gap:6px;cursor:pointer;margin-left:auto">
                             <input type="checkbox" id="overlay-hp-stop-enable" style="width:14px;height:14px;accent-color:#e74c3c"
                                 ${status.hpStopEnabled ? 'checked' : ''}>
-                            <span style="font-size:0.72rem;color:var(--text-dim)">Pause when HP &lt;</span>
+                            <span style="font-size:0.72rem;color:var(--text-dim)">${CURRENT_LANG === 'pt' ? 'Pausar quando HP &lt;' : 'Pause when HP &lt;'}</span>
                             <input type="number" id="overlay-hp-stop-threshold" min="1" max="99999"
                                 value="${status.hpStopThreshold || 50}" style="width:62px;padding:3px 5px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.75rem">
                         </label>
                     </div>
-                    ${status.hpStopEnabled ? `<div style="font-size:0.62rem;color:#e74c3c;margin-top:3px">Auto-pause enabled — resumes once HP recovers above ${status.hpStopThreshold}</div>` : ''}
+                    ${status.hpStopEnabled ? `<div style="font-size:0.62rem;color:#e74c3c;margin-top:3px">${CURRENT_LANG === 'pt' ? `Pausa automática ativada — retoma assim que o HP ficar acima de ${status.hpStopThreshold}` : `Auto-pause enabled — resumes once HP recovers above ${status.hpStopThreshold}`}</div>` : ''}
                 </div>
             </div>
         </div>`;
@@ -6189,10 +7032,10 @@ async function refreshMissionOverlayAuto() {
 
 async function confirmStopAutoComplete() {
     return !!(await openGameConfirmDialog({
-        title: 'Stop Auto-Complete?',
-        message: 'Stopping does <strong>not</strong> refund the MP you fed into the pool.<br><br>It is recommended to let the pool clear on its own.<br><br>Really stop auto-complete now?',
-        confirmLabel: 'Yes, stop now',
-        cancelLabel: 'Keep running'
+        title: CURRENT_LANG === 'pt' ? 'Parar o Auto-Complete?' : 'Stop Auto-Complete?',
+        message: CURRENT_LANG === 'pt' ? 'Parar <strong>não</strong> devolve os PM que você colocou no reservatório.<br><br>É recomendado deixar o reservatório esvaziar sozinho.<br><br>Parar o auto-complete agora?' : 'Stopping does <strong>not</strong> refund the MP you fed into the pool.<br><br>It is recommended to let the pool clear on its own.<br><br>Really stop auto-complete now?',
+        confirmLabel: CURRENT_LANG === 'pt' ? 'Sim, parar agora' : 'Yes, stop now',
+        cancelLabel: CURRENT_LANG === 'pt' ? 'Continuar' : 'Keep running'
     }));
 }
 function hideMissionOverlay() {
@@ -6210,7 +7053,7 @@ async function overlayCollectMission() {
     const previousText = collectBtn ? collectBtn.textContent : '';
     if (collectBtn) {
         collectBtn.disabled = true;
-        collectBtn.textContent = 'Collecting...';
+        collectBtn.textContent = CURRENT_LANG === 'pt' ? 'Coletando...' : 'Collecting...';
     }
     await collectMission();
     const overlayHidden = document.getElementById('mission-overlay')?.classList.contains('hidden');
@@ -6218,7 +7061,7 @@ async function overlayCollectMission() {
         overlayMissionCollectBusy = false;
         if (collectBtn) {
             collectBtn.disabled = false;
-            collectBtn.textContent = previousText || 'Collect Rewards';
+            collectBtn.textContent = previousText || (CURRENT_LANG === 'pt' ? 'Coletar Recompensas' : 'Collect Rewards');
         }
     }
 }
@@ -6233,7 +7076,7 @@ function showTravelOverlay() {
     const fillEl=document.getElementById('travel-overlay-fill');
     const cancelBtn=document.getElementById('travel-cancel-btn');
     if (nameEl) nameEl.textContent=ZONES[playerTravelTarget]?.name||playerTravelTarget;
-    if (fromEl) fromEl.textContent=`From ${ZONES[playerLocation]?.name||playerLocation}`;
+    if (fromEl) fromEl.textContent=(CURRENT_LANG === 'pt' ? 'De ' : 'From ')+(ZONES[playerLocation]?.name||playerLocation);
     const totalDuration=playerTravelEndTime-playerTravelStartTime||60;
     function tick() {
         const now=Math.floor(Date.now()/1000), left=Math.max(0,playerTravelEndTime-now);
@@ -6241,12 +7084,12 @@ function showTravelOverlay() {
         const elapsed=now-playerTravelStartTime;
         const pct=Math.min(100,(elapsed/totalDuration)*100);
         const isFree=playerTravelStartTime===0||elapsed<FREE_CANCEL_WINDOW;
-        if (timerEl) timerEl.textContent=left>0?`${m}:${String(s).padStart(2,'0')}`:'Arriving...';
+        if (timerEl) timerEl.textContent=left>0?`${m}:${String(s).padStart(2,'0')}`:(CURRENT_LANG === 'pt' ? 'Chegando...' : 'Arriving...');
         if (fillEl)  fillEl.style.width=pct+'%';
         if (cancelBtn) {
             const gems=character?.gems||0, canAfford=isFree||gems>=1;
             cancelBtn.disabled=!canAfford;
-            cancelBtn.textContent=isFree?'Cancel (Free)':`Cancel (1 💎)${gems<1?' — no gems':''}`;
+            cancelBtn.textContent=isFree?(CURRENT_LANG === 'pt' ? 'Cancelar (Grátis)' : 'Cancel (Free)'):(CURRENT_LANG === 'pt' ? `Cancelar (1 💎)${gems<1 ? ' — sem gemas' : ''}` : `Cancel (1 💎)${gems<1?' — no gems':''}`);
             cancelBtn.style.borderColor=isFree?'rgba(231,76,60,0.5)':'rgba(155,89,182,0.5)';
             cancelBtn.style.color=isFree?'#e74c3c':'#9b59b6';
             cancelBtn.style.background=isFree?'rgba(231,76,60,0.15)':'rgba(155,89,182,0.15)';
@@ -6268,11 +7111,11 @@ async function cancelTravel() {
     const gems = character?.gems || 0;
 
     if (!isFreeCancel && gems < 1) {
-        showMsg('missions-msg', 'Not enough gems to cancel!', true);
+        showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Gemas insuficientes para cancelar!' : 'Not enough gems to cancel!', true);
         return;
     }
 
-    if (!confirm(isFreeCancel ? 'Cancel travel for free?' : 'Cancel travel for 1 💎?')) return;
+    if (!confirm(isFreeCancel ? (CURRENT_LANG === 'pt' ? 'Cancelar a viagem de graça?' : 'Cancel travel for free?') : (CURRENT_LANG === 'pt' ? 'Cancelar a viagem por 1 💎?' : 'Cancel travel for 1 💎?'))) return;
 
     try {
         await api('POST', '/game/travel/cancel', { paid: !isFreeCancel });
@@ -6291,7 +7134,7 @@ async function cancelTravel() {
         // Re-render the current map (stay in same zone)
         renderCurrentMap();
 
-        showMsg('missions-msg', isFreeCancel ? 'Travel cancelled.' : 'Travel cancelled (1 💎 spent).');
+        showMsg('missions-msg', isFreeCancel ? (CURRENT_LANG === 'pt' ? 'Viagem cancelada.' : 'Travel cancelled.') : (CURRENT_LANG === 'pt' ? 'Viagem cancelada (1 💎 gasto).' : 'Travel cancelled (1 💎 spent).'));
     } catch (e) {
         showMsg('missions-msg', e.message, true);
     }
@@ -6334,14 +7177,15 @@ async function checkTravelStatus() {
             const currentMap = status.currentMap || character?.current_map || 'overworld';
             const zoneMap = currentMap === 'abyss' ? ABYSS_ZONES : ZONES;
             const zoneDef = zoneMap[result.targetZone];
-            const zoneLabel = zoneDef ? zoneDef.name : (result.targetZone || 'the zone');
+            const currentLangPt = CURRENT_LANG === 'pt';
+            const zoneLabel = zoneDef ? zName(zoneDef) : (result.targetZone || (currentLangPt ? 'a zona' : 'the zone'));
 
             const summary = result.won
-                ? `Unlocked ${zoneLabel} · ⚔️ ${result.guardianName} defeated`
-                : `${result.guardianName} drove you back from ${zoneLabel}`;
+                ? (currentLangPt ? `${zoneLabel} desbloqueado · ⚔️ ${result.guardianName} derrotado` : `Unlocked ${zoneLabel} · ⚔️ ${result.guardianName} defeated`)
+                : (currentLangPt ? `${result.guardianName} fez você recuar de ${zoneLabel}` : `${result.guardianName} drove you back from ${zoneLabel}`);
 
             showBattleReportModal(result.log || [], result.won, summary, result.totalDmgDealt, result.totalDmgTaken);
-            showMsg('missions-msg', result.won ? `${zoneLabel} unlocked.` : `You were forced back to ${status.location}.`, !result.won);
+            showMsg('missions-msg', result.won ? (currentLangPt ? `${zoneLabel} desbloqueado.` : `${zoneLabel} unlocked.`) : (currentLangPt ? `Você foi forçado a voltar para ${status.location}.` : `You were forced back to ${status.location}.`), !result.won);
 
             // Re-render map to show progress
             renderCurrentMap();
@@ -6452,7 +7296,8 @@ window.refreshRaidTokens = async function(newTokens) {
 function setForgeTab(tab,btn) { forgeTab=tab; document.querySelectorAll('.forge-tabs .filter-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active'); renderForge(); }
 function renderForge() {
     if (!forgeData) return;
-    document.getElementById('forge-gold').textContent=`💰 ${forgeData.gold.toLocaleString()} Gold`;
+    const isPT = CURRENT_LANG === 'pt';
+    document.getElementById('forge-gold').textContent=`💰 ${forgeData.gold.toLocaleString()} ${isPT?'Ouro':'Gold'}`;
     const el=document.getElementById('forge-content');
 
     if (forgeTab==='refine') {
@@ -6515,8 +7360,8 @@ const sets = forgeData.sets || {};
                 const pieces = slotOrder.map(slot => gs.pieces[slot]).filter(Boolean).map(piece => ({ slot: slotOrder.find(s=>gs.pieces[s]===piece), piece }));
                 const bonusHtml = `
                     <div style="display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 12px">
-                        <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:var(--text-dim)">✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}</div>
-                        <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:var(--text-dim)">✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}</div>
+                        <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:var(--text-dim)">✦ 2/5: ${translateSetBonusDescPT(setDef.bonus3?.desc)||'Bônus de conjunto'}</div>
+                        <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:var(--text-dim)">✦ 4/5: ${translateSetBonusDescPT(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Bônus de conjunto completo'}</div>
                     </div>`;
                 const cardHtml = pieces.map(({slot, piece})=>{
                     const canBuy = tokens >= cost;
@@ -6532,7 +7377,7 @@ const sets = forgeData.sets || {};
                                 <div style="font-size:0.68rem;color:var(--text-dim)">${capitalize(slot||'piece')} · legendary · Lv.${character?.level||1}</div>
                             </div>
                         </div>
-                        <div style="font-size:0.72rem;color:var(--text-dim);margin:4px 0">Part of the <strong style="color:var(--gold)">${escHtml(gs.bossName)}</strong> set</div>
+                        <div style="font-size:0.72rem;color:var(--text-dim);margin:4px 0">Parte do conjunto <strong style="color:var(--gold)">${escHtml(gs.bossName)}</strong></div>
                         <div class="forge-cost" style="color:${canBuy?'var(--gold)':'var(--red-light)'}">${cost} 💎 Raid Tokens</div>
                         <button class="btn-forge" style="margin-top:auto" ${actionAttrs('buyRaidGear', setId, slot)} ${canBuy?'':'disabled'}>${tokens<cost?`Need ${(cost-tokens).toLocaleString()} more tokens`:`Exchange ${cost} tokens`}</button>
                     </div>`;
@@ -6541,7 +7386,7 @@ const sets = forgeData.sets || {};
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                         <span style="font-size:1.4rem">${setDef.emoji||'🎖️'}</span>
                         <div>
-                            <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${escHtml(gs.bossName)} — ${setDef.name||setId}</div>
+                            <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${escHtml(gs.bossName)} — ${translateSetNamePT(setDef.name||setId)}</div>
                             <div style="font-size:0.72rem;color:var(--text-dim)">Exchange raid tokens to collect all 5 pieces and unlock the set bonus</div>
                         </div>
                     </div>
@@ -6588,10 +7433,10 @@ const sets = forgeData.sets || {};
         const bonusHtml = `
             <div style="display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 12px">
                 <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=2?'var(--green)':'var(--text-dim)'}">
-                    ✦ 2/5: ${setDef.bonus3?.desc||'Set bonus'}
+✦ 2/5: ${translateSetBonusDescPT(setDef.bonus3?.desc)||(isPT?'Bônus de conjunto':'Set bonus')}
                 </div>
                 <div style="padding:5px 10px;background:rgba(255,255,255,0.04);border-radius:6px;border:1px solid rgba(255,255,255,0.08);font-size:0.7rem;color:${equippedCount>=4?'var(--gold)':'var(--text-dim)'}">
-                    ✦ 4/5: ${(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||'Full set bonus'}
+✦ 4/5: ${translateSetBonusDescPT(setDef.bonus4?.desc ?? setDef.bonus5?.desc)||(isPT?'Bônus de conjunto completo':'Full set bonus')}
                 </div>
             </div>`;
 
@@ -6631,8 +7476,8 @@ const sets = forgeData.sets || {};
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                 <span style="font-size:1.4rem">${setDef.emoji}</span>
                 <div>
-                    <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${setDef.name}</div>
-                    <div style="font-size:0.72rem;color:var(--text-dim)">Equip pieces to activate 2/5 and 5/5 set bonuses</div>
+                    <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${translateSetNamePT(setDef.name)}</div>
+                    <div style="font-size:0.72rem;color:var(--text-dim)">${isPT ? 'Equipe as peças para ativar os bônus 2/5 e 4/5 do conjunto' : 'Equip pieces to activate the 2/5 and 4/5 set bonuses'}</div>
                 </div>
             </div>
             ${progressBar}
@@ -7057,8 +7902,8 @@ function showRaidGearTooltip(event, declJson) {
     tooltip.innerHTML = `
         <div class="tt-preview">${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${piece.emoji||'🎖️'}</span>` : `<span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span>`}</div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${escHtml(piece.name)}</div>
-            <div class="tt-meta">${capitalize(slotLabel||'piece')} · <span style="color:${qColor}">legendary</span> · Lv.${itemLevel}</div>
+            <div class="tt-name" style="color:${qColor}">${escHtml(translateItemNamePT(piece.name))}</div>
+            <div class="tt-meta">${slotLabelPT(slotLabel||'piece')} · <span style="color:${qColor}">legendary</span> · Lv.${itemLevel}</div>
             <div class="tt-desc">${piece.desc || ''}</div>
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${escHtml(equippedItem.name)}</strong></div>` : ''}
@@ -7512,7 +8357,7 @@ function isWeaponSuitedForClass(weapon, cls) {
     if (!result) console.log('[WPNDEBUG]', weapon.name, 'type='+weapon.type, 'weaponType='+weapon.weaponType, 'weapon_type='+weapon.weapon_type, 'wpnType='+wpnType, 'name='+name, 'cls='+cls);
     return result;
 }
-const CLASS_WARN_HTML = '<div style="color:#e74c3c;font-size:0.72rem;margin-top:4px;padding:4px 6px;background:rgba(231,76,60,0.1);border-radius:4px">⚠️ This weapon is not suited for your class</div>';
+const CLASS_WARN_HTML = '<div style="color:#e74c3c;font-size:0.72rem;margin-top:4px;padding:4px 6px;background:rgba(231,76,60,0.1);border-radius:4px">⚠️ ' + (CURRENT_LANG === 'pt' ? 'Este item não é adequado para a sua classe' : 'This item is not suitable for your class') + '</div>';
 
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
@@ -7567,7 +8412,7 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${classWarn}
@@ -7693,7 +8538,7 @@ function showItemTooltip(event, itemId) {
     const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...(Array.isArray(d.upgradedStats) ? d.upgradedStats : Object.keys(d.upgradedStats||{}))].filter(k=>!k.includes('type')));
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
-    const displayDesc = getCanonicalItemDesc(d.desc);
+    const displayDesc = getCanonicalItemDesc(d.desc, d.name);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
     let statsHtml = '';
@@ -7724,7 +8569,7 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${capitalize(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
             ${classWarn}
@@ -7773,7 +8618,7 @@ function showEqTooltip(event, itemJson) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
+            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${classWarn}
@@ -7836,9 +8681,9 @@ function showForgeItemTooltip(event, itemJson) {
             ${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${item.emoji||'📦'}</span>` : `<span class="tt-preview-emoji">${item.emoji||'📦'}</span>`}
         </div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
-            <div class="tt-meta">${capitalize(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
-            ${item.desc?`<div class="tt-desc">${item.desc}</div>`:''}
+            <div class="tt-name" style="color:${qColor}">${translateItemNamePT(item.name || '')}</div>
+            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
+            ${getCanonicalItemDesc(item.desc, item.name)?`<div class="tt-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>`:''}
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${classWarn}
             ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
@@ -8342,7 +9187,8 @@ function getDisplayItemName(itemLike, fallbackUpgradeLevel = 0) {
             ? (itemLike?.upgradeLevel ?? itemLike?.upgrade_level ?? fallbackUpgradeLevel)
             : fallbackUpgradeLevel
     ) || 0;
-    return upgradeLevel > 0 ? `${baseName} +${upgradeLevel}` : baseName;
+    const translated = translateItemNamePT(baseName);
+    return upgradeLevel > 0 ? `${translated} +${upgradeLevel}` : translated;
 }
 
 const ITEM_DESC_FALLBACKS = {
@@ -8353,20 +9199,318 @@ const ITEM_DESC_FALLBACKS = {
     'Treads of the Unforgiving': 'Each step lands like a sentence passed, hounding the fleeing until regret is the only ground left beneath them.'
 };
 
-function getCanonicalItemDesc(desc) {
+function getCanonicalItemDesc(desc, name) {
     const cleaned = String(desc || '')
         .replace(/^undefined\s*/i, '')
         .replace(/\s*\(Crafted at level \d+\)\s*$/i, '')
         .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
         .trim();
-    return cleaned;
+    return cleaned ? translateItemLorePT(cleaned, name) : '';
 }
 
 function getDisplayItemDesc(itemLike) {
-    const directDesc = getCanonicalItemDesc(typeof itemLike === 'string' ? '' : itemLike?.desc);
+    const directDesc = getCanonicalItemDesc(typeof itemLike === 'string' ? '' : itemLike?.desc, typeof itemLike === 'object' ? itemLike?.name : '');
     if (directDesc) return directDesc;
     const baseName = getCanonicalItemName(typeof itemLike === 'string' ? itemLike : (itemLike?.name || ''));
     return ITEM_DESC_FALLBACKS[baseName] || '';
+}
+
+// ---- Item name + lore Portuguese translation (static tables, no DOM walking) ----
+
+const ITEM_NAME_PT = {
+    'Iron':'Ferro','Steel':'Aço','Bronze':'Bronze','Silver':'Prata','Golden':'Dourado',
+    'Crystal':'Cristal','Obsidian':'Obsidiana','Dragon':'Dragão','Mythril':'Mithril','Adamant':'Adamante',
+    'Chain':'Cota','Plate':'Placa','Scale':'Escamas','Leather':'Couro','Battle':'Batalha',
+    'Shadow':'Sombra','Swift':'Ágil','Tower':'Torre','Wooden':'Madeira','Void':'Vazio',
+    'Bone':'Osso','Ruby':'Rubi','Sapphire':'Safira','Emerald':'Esmeralda','Diamond':'Diamante',
+    'Enchanted':'Encantado','Ancient':'Ancestral','Blessed':'Bendito','Cursed':'Amaldiçoado',
+    'Holy':'Sagrado','Arcane':'Arcano'
+};
+
+const ITEM_SUFFIX_PT = {
+    'Sword':'Espada','Blade':'Lâmina','Axe':'Machado','Dagger':'Adaga','Bow':'Arco',
+    'Staff':'Cajado','Hammer':'Martelo','Spear':'Lança','Mace':'Maça','Scythe':'Foice',
+    'Armor':'Armadura','Vest':'Colete','Cuirass':'Couraça','Breastplate':'Peitoral',
+    'Hauberk':'Cota de Malha','Mail':'Malha','Plate':'Placa','Helm':'Elmo','Helmet':'Capacete',
+    'Visor':'Viseira','Cap':'Gorro','Hood':'Capuz','Cowl':'Balaclava','Crown':'Coroa',
+    'Circlet':'Tiara','Headguard':'Proteção de Cabeça','Shield':'Escudo','Buckler':'Broquel',
+    'Aegis':'Égide','Bulwark':'Baluarte','Barrier':'Barreira','Wall':'Muralha','Guard':'Guarda',
+    'Boots':'Botas','Greaves':'Grevas','Sabatons':'Sabatões','Treads':'Passos','Stompers':'Botas de Pisotear',
+    'Walkers':'Caminhantes','Ring':'Anel','Band':'Faixa','Loop':'Argola','Signet':'Selo',
+    'Seal':'Selo','Amulet':'Amuleto','Pendant':'Pingente','Talisman':'Talismã','Necklace':'Colar',
+    'Locket':'Medalhão','Medallion':'Medalhão','Charm':'Amuleto','Token':'Ficha','Rune':'Runa'
+};
+
+// Multi-word names that don't split cleanly as prefix + one suffix word.
+const ITEM_NAME_PT_EXACT = {
+    'Spiteforged Trident':'Tridente Forjado em Desprezo',
+    'Carapace of Last Refrains':'Carapaça dos Últimos Refrões',
+    'Crown of Scornful Gaze':'Coroa do Olhar Desdenhoso',
+    'Bulwark of Denied Mercy':'Baluarte da Misericórdia Negada',
+    'Treads of the Unforgiving':'Passos dos Implacáveis',
+    'Chain Hauberk':'Cota de Malha',
+    'Chain Mail':'Cota de Malha'
+};
+
+// Material prefixes render as "{suffix} de {prefix}"; all other prefixes are
+// adjectives rendered as "{suffix} {adjective}" (e.g. Ancestral Staff → Cajado Ancestral).
+const ITEM_PREFIX_MATERIAL_PT = new Set([
+    'ferro','aço','bronze','prata','ouro','cristal','obsidiana','dragão','mithril','adamante',
+    'couro','cota de malha','placa','escamas','madeira','osso','rubi','safira','esmeralda','diamante','torre'
+]);
+
+function translateItemNamePT(baseName) {
+    if (CURRENT_LANG !== 'pt' || !baseName) return baseName;
+    if (ITEM_NAME_PT_EXACT[baseName]) return ITEM_NAME_PT_EXACT[baseName];
+    const words = baseName.trim().split(/\s+/);
+    let changed = false;
+    const translated = words.map(w => {
+        const lc = w.toLowerCase();
+        for (const k of Object.keys(ITEM_NAME_PT)) {
+            if (k.toLowerCase() === lc) { changed = true; return ITEM_NAME_PT[k]; }
+        }
+        for (const k of Object.keys(ITEM_SUFFIX_PT)) {
+            if (k.toLowerCase() === lc) { changed = true; return ITEM_SUFFIX_PT[k]; }
+        }
+        return w;
+    });
+    if (!changed) return baseName;
+    // Two tokens = prefix + suffix → natural Portuguese structure.
+    if (translated.length === 2 && translated[0] !== words[0] && translated[1] !== words[1]
+        && translated[0].indexOf(' ') === -1 && translated[1].indexOf(' ') === -1) {
+        const prefixPt = translated[0].toLowerCase();
+        if (ITEM_PREFIX_MATERIAL_PT.has(prefixPt)) {
+            return `${translated[1]} de ${translated[0]}`;
+        }
+        return `${translated[1]} ${translated[0]}`;
+    }
+    return translated.join(' ');
+}
+
+// Lore prefix phrases (26 prefixes x 3) keyed by exact English phrase.
+const ITEM_LORE_PREFIX_PT = {
+    'forged from dragon scales':'forjado de escamas de dragão',
+    'tempered in dragon fire':'temperado no fogo de dragão',
+    'etched with draconic runes':'gravado com runas dracônicas',
+    'woven from mythril veins':'tecido a partir de veios de mithril',
+    'lighter than air yet unyielding':'mais leve que o ar, porém inflexível',
+    'mined from the deepest seams':'extraído das veias mais profundas',
+    'harder than any known ore':'mais duro que qualquer minério conhecido',
+    'capable of cutting stone':'capaz de cortar pedra',
+    'said to be unbreakable':'dizem ser inquebrável',
+    'carved from volcanic glass':'esculpido em vidro vulcânico',
+    'born of ancient eruptions':'nascido de erupções antigas',
+    'sharp as a razor\'s edge':'afiado como lâmina de navalha',
+    'grown over centuries underground':'crescido ao longo de séculos no subsolo',
+    'resonating with arcane energy':'ressoando com energia arcana',
+    'humming with inner light':'vibrando com luz interior',
+    'gilded in pure mountain gold':'dourado em ouro puro de montanha',
+    'worth a king\'s ransom':'vale o resgate de um rei',
+    'shimmering with wealth':'cintilando com riqueza',
+    'blessed by moonlight':'abençoado pela luz da lua',
+    'polished to a mirror sheen':'polido até um brilho de espelho',
+    'favored by rogues and priests alike':'apreciado por ladinos e sacerdotes igualmente',
+    'absorbed the darkness of the void':'absorveu a escuridão do vazio',
+    'wreathed in perpetual shadow':'envolto em sombra perpétua',
+    'invisible in dim light':'invisível na penumbra',
+    'recovered from a forgotten tomb':'recuperado de uma tumba esquecida',
+    'older than any kingdom':'mais antigo que qualquer reino',
+    'inscribed with a dead language':'inscrito com uma língua morta',
+    'consecrated by a high priest':'consagrado por um sumo sacerdote',
+    'humming with holy energy':'vibrando com energia sagrada',
+    'said to repel evil':'dizem repelir o mal',
+    'carrying the weight of a dark oath':'carregando o peso de um juramento sombrio',
+    'bound to a restless soul':'ligado a uma alma inquieta',
+    'whispering in the dark':'sussurrando na escuridão',
+    'radiating divine warmth':'irradiando calor divino',
+    'crafted in a sacred forge':'forjado em uma forja sagrada',
+    'glowing with righteous light':'brilhando com luz justa',
+    'pulsing with raw magical energy':'pulsando com energia mágica bruta',
+    'traced with glowing sigils':'traçado com sigilos brilhantes',
+    'humming with arcane power':'vibrando com poder arcano',
+    'light as a feather':'leve como uma pena',
+    'built for speed above all':'feito para a velocidade acima de tudo',
+    'crafted for the fastest warriors':'forjado para os guerreiros mais rápidos',
+    'crude but dependable':'rústico, porém confiável',
+    'hammered into shape by a steady hand':'martelado por uma mão firme',
+    'reliable in any battle':'confiável em qualquer batalha',
+    'folded a thousand times over':'dobrado mais de mil vezes',
+    'tempered to perfection':'temperado à perfeição',
+    'hardened through fire and water':'endurecido pelo fogo e pela água',
+    'stitched from tanned beast hide':'costurado em pele curtida de fera',
+    'supple yet tough':'flexível, porém resistente',
+    'worn smooth from years of use':'desgastado e liso por anos de uso',
+    'wide enough to shelter two':'largo o bastante para abrigar dois',
+    'an immovable wall in battle':'um muro imóvel em batalha',
+    'tested against siege weapons':'testado contra armas de cerco',
+    'carved from a century-old oak':'esculpido de um carvalho centenário',
+    'lightweight and surprisingly resilient':'leve e surpreendentemente resistente',
+    'reinforced with iron bands':'reforçado com faixas de ferro',
+    'scarred from a hundred conflicts':'marcado por cem conflitos',
+    'tested on the bloodiest fields':'testado nos campos mais sangrentos',
+    'a veteran\'s companion':'o companheiro de um veterano',
+    'touched by the emptiness between worlds':'tocado pelo vazio entre mundos',
+    'draining warmth from its surroundings':'drenando o calor ao seu redor',
+    'unsettling to behold':'inquietante de se contemplar',
+    'carved from the remains of a great beast':'esculpido dos restos de uma grande fera',
+    'rattling with an uneasy energy':'chacoalhando com uma energia inquieta',
+    'bleached white by sun and wind':'branqueado pelo sol e pelo vento',
+    'set with a blood-red gemstone':'cravejado com uma gema vermelho-sangue',
+    'warm to the touch':'morno ao toque',
+    'catching light like a flame':'capturando a luz como uma chama',
+    'inlaid with a deep blue gem':'incrustado com uma gema azul profunda',
+    'cool as the northern sea':'frio como o mar do norte',
+    'prized by mages and scholars':'apreciado por magos e estudiosos',
+    'adorned with a verdant stone':'adornado com uma pedra verdejante',
+    'said to grow sharper in forests':'dizem que fica mais afiado em florestas',
+    'humming with natural energy':'vibrando com energia natural',
+    'encrusted with the hardest gem known':'incrustado com a gema mais dura conhecida',
+    'refracting light into rainbows':'refratando a luz em arco-íris',
+    'beyond the price of most kings':'além do preço que a maioria dos reis pode pagar',
+    'bound with a permanent enchantment':'ligado a um encantamento permanente',
+    'glowing faintly in the dark':'brilhando levemente na escuridão',
+    'responding to its wielder\'s will':'respondendo à vontade de seu portador',
+    'crafted with great skill':'forjado com grande habilidade'
+};
+
+// Lore suffix phrases (29 suffixes x 2) keyed by exact English phrase.
+const ITEM_LORE_SUFFIX_PT = {
+    'its edge never seems to dull':'sua lâmina parece nunca perder o fio',
+    'balanced for both slash and thrust':'equilibrado tanto para cortar quanto para perfurar',
+    'thin enough to slip between ribs':'fino o bastante para deslizar entre as costelas',
+    'honed to an impossible edge':'afiado até um fio impossível',
+    'capable of felling trees in one blow':'capaz de derrubar árvores com um único golpe',
+    'built for pure destructive force':'feito para a pura força destrutiva',
+    'small enough to conceal anywhere':'pequeno o bastante para esconder em qualquer lugar',
+    'favored by assassins throughout history':'apreciado por assassinos ao longo da história',
+    'its string never snaps':'sua corda nunca se rompe',
+    'silent enough to hunt ghosts':'silencioso o bastante para caçar fantasmas',
+    'amplifying the wielder\'s magic tenfold':'amplificando a magia do portador dez vezes',
+    'humming with channeled power':'vibrando com poder canalizado',
+    'every strike sending shockwaves through armor':'cada golpe enviando ondas de choque pela armadura',
+    'heavier than it looks':'mais pesado do que aparenta',
+    'its reach giving a decisive advantage':'seu alcance dando uma vantagem decisiva',
+    'balanced for both thrust and throw':'equilibrado tanto para perfurar quanto para lançar',
+    'capable of crumpling armor like parchment':'capaz de amassar armaduras como pergaminho',
+    'devastating against the undead':'devastador contra os mortos-vivos',
+    'originally a farming tool, now a weapon of terror':'originalmente uma ferramenta agrícola, agora uma arma de terror',
+    'wide arc cuts through crowds':'seu arco amplo corta multidões',
+    'distributed weight across the entire torso':'distribuindo o peso por todo o torso',
+    'showing countless old dents and repairs':'exibindo inúmeros amassados e reparos antigos',
+    'allowing full range of movement':'permitindo total amplitude de movimento',
+    'light enough to forget you\'re wearing it':'leve o bastante para esquecer que está vestindo',
+    'molded perfectly to the warrior\'s chest':'moldado perfeitamente ao peito do guerreiro',
+    'the centerpiece of a veteran\'s kit':'a peça central do equipamento de um veterano',
+    'turned aside many a killing blow':'desviou inúmeros golpes letais',
+    'engraved with a personal crest':'gravado com um brasão pessoal',
+    'protecting the most vital target on the battlefield':'protegendo o alvo mais vital no campo de batalha',
+    'dented but never broken':'amassado, porém nunca quebrado',
+    'fitted with a sturdy visor':'dotado de uma viseira resistente',
+    'padding worn smooth from years of use':'estofado desgastado e liso por anos de uso',
+    'commanding instant respect from allies and enemies alike':'impondo respeito imediato de aliados e inimigos igualmente',
+    'heavier than it appears':'mais pesado do que aparenta',
+    'absorbing blows that would have ended lesser warriors':'absorvendo golpes que teriam derrotado guerreiros menores',
+    'scarred but unbroken':'marcado, porém intacto',
+    'small enough to punch with':'pequeno o bastante para golpear com ele',
+    'fast enough to deflect arrows mid-flight':'rápido o bastante para desviar flechas em pleno voo',
+    'said to have turned aside a dragon\'s claw':'dizem ter desviado a garra de um dragão',
+    'legendary among defenders':'lendário entre os defensores',
+    'waterproofed with rendered fat':'impermeabilizada com gordura derretida',
+    'silent on any surface':'silenciosa em qualquer superfície',
+    'articulated for full leg mobility':'articulada para mobilidade total das pernas',
+    'protecting shins from sweeping attacks':'protegendo as canelas de ataques rasantes',
+    'worn smooth from generations of use':'desgastado e liso por gerações de uso',
+    'always the perfect fit':'sempre o caimento perfeito',
+    'passed down through three warrior bloodlines':'transmitido por três linhagens de guerreiros',
+    'warm against the skin':'morno contra a pele',
+    'swaying gently even in still air':'balançando suavemente mesmo no ar parado',
+    'given as a token of power':'dado como um símbolo de poder',
+    'carried for luck by its previous owner — who survived':'carregado para dar sorte por seu dono anterior — que sobreviveu',
+    'small enough to hide in a fist':'pequeno o bastante para esconder em um punho',
+    'said to ward off dark magic':'dizem afastar a magia sombria',
+    'inscribed with a prayer of protection':'inscrito com uma prece de proteção',
+    'built to endure the harshest battles':'feito para suportar as batalhas mais brutais'
+};
+
+// Feminine PT item suffixes — used to fix the leading article (Uma/Um) in lore prose.
+const ITEM_SUFFIX_FEMININE_PT = new Set([
+    'espada','lâmina','adaga','maça','foice','armadura','viseira','coroa','tiara','couraça',
+    'cota','cota de malha','balaclava','égide','barreira','muralha','grevas','runa','lua',
+    'bota','sabatona','lâmina','proteção'
+]);
+
+function translateItemLorePT(lore, name) {
+    if (CURRENT_LANG !== 'pt' || !lore) return lore;
+    let out = lore;
+    let changed = false;
+    // Translate the embedded item name (lowercase) within the lore sentence.
+    const loreName = name ? String(name).toLowerCase() : '';
+    if (loreName && loreName.length > 0 && out.toLowerCase().indexOf(loreName) !== -1) {
+        const ptName = translateItemNamePT(loreName);
+        if (ptName && ptName !== loreName) {
+            out = out.replace(new RegExp(loreName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\+/g, '\\+'), 'i'), ptName.toLowerCase());
+            changed = true;
+        }
+    }
+    for (const en of Object.keys(ITEM_LORE_PREFIX_PT)) {
+        if (out.indexOf(en) !== -1) { out = out.replace(en, ITEM_LORE_PREFIX_PT[en]); changed = true; }
+    }
+    for (const en of Object.keys(ITEM_LORE_SUFFIX_PT)) {
+        if (out.indexOf(en) !== -1) { out = out.replace(en, ITEM_LORE_SUFFIX_PT[en]); changed = true; }
+    }
+    // Replace the English leading article ("An"/"A") with the correct PT indefinite article,
+    // based on the gender of the leading PT noun.
+    const leading = out.match(/^\s*(An|A)\s+/i);
+    if (leading) {
+        const rest = out.slice(leading[0].length);
+        const headWord = (rest.match(/^[A-Za-zÀ-ú]+/) || [''])[0].toLowerCase();
+        const art = ITEM_SUFFIX_FEMININE_PT.has(headWord) ? 'Uma ' : 'Um ';
+        out = art + rest.charAt(0).toUpperCase() + rest.slice(1);
+        changed = true;
+    }
+    return changed ? out : lore;
+}
+
+// Map a set name like "Dragon Set" to PT ("Conjunto do Dragão"). Set names follow
+// the pattern "<Word> Set" where <Word> is one of the item name prefixes. Material
+// prefixes take "de/do"; adjective prefixes drop the preposition.
+const SET_NAME_THE_PT = new Set(['dragão','mithril','diamante','rubi','safira','esmeralda','ancião','arconte']);
+const SET_NAME_NO_PREP_PT = new Set(['sagrado','bendito','amaldiçoado','ancestral','encantado','arcano','sombra','veloz','batalha','vazio','dourado']);
+function translateSetNamePT(name) {
+    if (CURRENT_LANG !== 'pt' || !name) return name;
+    const m = String(name).trim().match(/^(.+?)\s*[Ss]et$/);
+    if (!m) return name;
+    const base = m[1].trim();
+    const key = base.toLowerCase();
+    const word = ITEM_NAME_PT[base] || ITEM_NAME_PT[key.replace(/^./, c => c.toUpperCase())];
+    if (!word) return name;
+    if (SET_NAME_NO_PREP_PT.has(word.toLowerCase())) return 'Conjunto ' + word;
+    const article = SET_NAME_THE_PT.has(word.toLowerCase()) ? 'do ' : 'de ';
+    return 'Conjunto ' + article + word;
+}
+
+// Translate the stat abbreviation tokens inside a set-bonus desc like
+// "2/5: +50 DEF · +25 Armor · +250 HP". Longer/tagged tokens replaced first.
+const SET_BONUS_TOKEN_PT = [
+    { re: /Min DMG|Min Dmg/gi,          to: 'Dano Mín' },
+    { re: /Max DMG|Max Dmg/gi,          to: 'Dano Máx' },
+    { re: /\bDMG\b|\bDmg\b/gi,          to: 'Dano' },
+    { re: /\bRES\b|\bRes\b/gi,          to: 'Resist' },
+    { re: /\bHP\b/gi,                   to: 'PV' },
+    { re: /\bArmor\b/gi,                to: 'Armadura' },
+    { re: /\bDEF\b/gi,                  to: 'Defesa' },
+    { re: /\bSTR\b/gi,                  to: 'Força' },
+    { re: /\bMAG\b/gi,                  to: 'Mágica' },
+    { re: /\bAGI\b/gi,                  to: 'Agilidade' },
+    { re: /\bVIT\b/gi,                  to: 'Vitalidade' },
+    { re: /\bHit\b/gi,                  to: 'Acerto' },
+    { re: /\bCrit\b/gi,                 to: 'Crítico' }
+];
+function translateSetBonusDescPT(desc) {
+    if (CURRENT_LANG !== 'pt' || !desc) return desc;
+    let out = String(desc);
+    for (const { re, to } of SET_BONUS_TOKEN_PT) out = out.replace(re, to);
+    return out;
 }
 
 // Helper: Escape HTML
@@ -8378,6 +9522,16 @@ function escapeHtml(str) {
         if (m === '>') return '&gt;';
         return m;
     });
+}
+
+const SLOT_LABEL_PT = {
+    'weapon':'Arma','armor':'Armadura','helmet':'Capacete','shield':'Escudo',
+    'boots':'Botas','ring':'Anel','amulet':'Amuleto','jewelry':'Joalheria',
+    'accessory':'Acessório','consumable':'Consumível'
+};
+function slotLabelPT(slot) {
+    if (CURRENT_LANG !== 'pt') return capitalize(slot || '');
+    return SLOT_LABEL_PT[slot] || capitalize(slot || '');
 }
 
 // Render single item with image and popup effect
@@ -9294,10 +10448,10 @@ function renderShop() {
         return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
             <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}" ${actionAttrs('openShopItemTooltip')}>
                 <span class="shop-card-icon">${itemIcon(item,'4rem')}</span>
-                <span class="shop-card-name">${item.name}</span>
+                <span class="shop-card-name">${translateItemNamePT(item.name)}</span>
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
             </div>
-            <div class="shop-card-desc">${item.desc}</div>
+            <div class="shop-card-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>
             <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer">
@@ -9395,24 +10549,34 @@ async function renderPremium(data) {
         fortune_hunter: '/images/assets/premium/fortune-hunter.png'
     };
 
-    const ultimateBanner = ultimate ? `
+    // Ensure helpers exist even if defined later in the file.
+    function pfName(id, name) { return (CURRENT_LANG === 'pt' && PREMIUM_FEATURE_NAME_PT[id]) || name; }
+    function pfDesc(id, desc) { return (CURRENT_LANG === 'pt' && PREMIUM_FEATURE_DESC_PT[id]) || desc; }
+    function psName(key, name) { return (CURRENT_LANG === 'pt' && PREMIUM_SYNERGY_NAME_PT[key]) || name; }
+    function psDesc(key, desc) { return (CURRENT_LANG === 'pt' && PREMIUM_SYNERGY_DESC_PT[key]) || desc; }
+
+        const ultimateBanner = ultimate ? `
         <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
             <div style="font-size:1.5rem;margin-bottom:4px">🌟 ASCENDANT</div>
-            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">All 6 features active · +50% XP from all sources · +1% to all stats</div>
+            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">${CURRENT_LANG === 'pt' ? 'Todos os 6 recursos ativos · +50% XP de todas as fontes · +1% em todos os atributos' : 'All 6 features active · +50% XP from all sources · +1% to all stats'}</div>
         </div>` : (activeCount >= 2 ? `
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
-            ${activeCount}/6 features active${synergies.length ? ` · <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} synergy active!</span>` : ' · Activate more for synergy bonuses'}
+            ${activeCount}/6 ${CURRENT_LANG === 'pt' ? 'recursos ativos' : 'features active'}${synergies.length ? ` · <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} ${CURRENT_LANG === 'pt' ? 'sinergia ativa!' : 'synergy active!'}</span>` : (CURRENT_LANG === 'pt' ? ' · Ative mais para bônus de sinergia' : ' · Activate more for synergy bonuses')}
         </div>` : `
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
-            ${activeCount}/6 features active · Activate all 6 for the 🌟 Ascendant ultimate bonus
+            ${activeCount}/6 ${CURRENT_LANG === 'pt' ? 'recursos ativos' : 'features active'} · ${CURRENT_LANG === 'pt' ? 'Ative todos os 6 para o bônus supremo 🌟 Ascendente' : 'Activate all 6 for the 🌟 Ascendant ultimate bonus'}
         </div>`);
 
     const synergyHtml = synergies.length ? `
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
-            ${synergies.map(s => `
+            ${synergies.map(s => {
+            const sn = psName(s.name, s.name);
+            const sd = psDesc(s.name, s.desc);
+            return `
             <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(241,196,15,0.08);border:1px solid rgba(241,196,15,0.3);border-radius:20px;font-size:0.76rem;color:var(--gold)">
-                ${s.emoji} <strong>${s.name}</strong> · ${s.desc}
-            </div>`).join('')}
+                ${s.emoji} <strong>${sn}</strong> · ${sd}
+            </div>`;
+        }).join('')}
         </div>` : '';
 
     const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
@@ -9422,25 +10586,27 @@ async function renderPremium(data) {
         const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
         const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
         const artSrc = premiumArt[f.id];
+        const dispName = pfName(f.id, f.name);
+        const dispDesc = pfDesc(f.id, f.desc);
         return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column">
                 <div class="premium-feature-art-wrap pc-only">
-                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
-                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:100%;object-fit:cover">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%">${f.emoji}</span>`}
+                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}${CURRENT_LANG === 'pt' ? 'd restantes' : 'd left'}</div>` : ''}
+                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${escHtml(dispName)}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:100%;object-fit:cover">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%">${f.emoji}</span>`}
                 </div>
                 <div class="premium-feature-art-wrap mobile-only" style="width:100%;position:relative">
-                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}d left</div>` : ''}
-                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${f.name}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:auto;display:block">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:block;text-align:center;padding:20px">${f.emoji}</span>`}
+                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}${CURRENT_LANG === 'pt' ? 'd restantes' : 'd left'}</div>` : ''}
+                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${escHtml(dispName)}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:auto;display:block">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:block;text-align:center;padding:20px">${f.emoji}</span>`}
                 </div>
                 <div class="premium-feature-body" style="flex:1;display:flex;flex-direction:column;padding:12px">
                     <div class="premium-feature-meta">
-                    <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--text-bright)">${f.name}</div>
-                    <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 days</div>
+                    <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--text-bright)">${dispName}</div>
+                    <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 ${CURRENT_LANG === 'pt' ? 'dias' : 'days'}</div>
                     </div>
-                    <div class="premium-feature-desc" style="font-size:0.78rem;color:var(--text-dim);margin:8px 0;line-height:1.5;flex:1">${f.desc}</div>
+                    <div class="premium-feature-desc" style="font-size:0.78rem;color:var(--text-dim);margin:8px 0;line-height:1.5;flex:1">${dispDesc}</div>
                     <button ${actionAttrs('activatePremium', f.id)}
                         style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
                         ${gems < f.cost && !isActive ? 'disabled' : ''}>
-                    ${isActive ? `✅ Active · Renew for ${f.cost} 💎` : (gems >= f.cost ? `Activate · ${f.cost} 💎` : `Need ${f.cost - gems} more 💎`)}
+                    ${isActive ? (CURRENT_LANG === 'pt' ? `✅ Ativo · Renovar por ${f.cost} 💎` : `✅ Active · Renew for ${f.cost} 💎`) : (gems >= f.cost ? (CURRENT_LANG === 'pt' ? `Ativar · ${f.cost} 💎` : `Activate · ${f.cost} 💎`) : (CURRENT_LANG === 'pt' ? `Precisa de mais ${f.cost - gems} 💎` : `Need ${f.cost - gems} more 💎`))}
                     </button>
                 </div>
             </div>`;
@@ -9467,7 +10633,7 @@ async function renderPremium(data) {
 
     el.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:10px 14px;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.25);border-radius:var(--radius-sm)">
-            <span style="font-size:0.82rem;color:var(--text-dim)">Your gems</span>
+            <span style="font-size:0.82rem;color:var(--text-dim)">${CURRENT_LANG === 'pt' ? 'Suas gemas' : 'Your gems'}</span>
             <span style="font-size:1.1rem;font-weight:700;color:#9b59b6">💎 ${gems.toLocaleString()}</span>
         </div>
         ${adminBtnHtml}
@@ -11233,7 +12399,7 @@ function buildBattleShowcaseCard({ name, className, level, splash = false, fallb
     const artSrc = imageSrc || getBattleFighterArt(className, splash ? 'splash' : 'portrait');
     const fighterClassText = metaText || (className
         ? `${capitalize(className)}${level ? ` Lv.${level}` : ''}`
-        : (level ? `Lv.${level}` : 'Battle Opponent'));
+        : (level ? `Lv.${level}` : (CURRENT_LANG === 'pt' ? 'Oponente de Batalha' : 'Battle Opponent')));
     const media = artSrc
         ? `<img src="${artSrc}" alt="${escHtml(className || name || 'fighter')}" data-error-hide="true" data-error-next-display="flex"><span class="battle-fighter-fallback" style="display:none">${fallback}</span>`
         : `<span class="battle-fighter-fallback">${fallback}</span>`;
@@ -11267,14 +12433,152 @@ function getBattleLogTintRole(line, enemyName='Enemy') {
     return '';
 }
 
+function translateBattleLogPt(line) {
+    if (CURRENT_LANG !== 'pt') return line;
+    let t = String(line || '');
+
+    // Round prefix
+    t = t.replace(/^Round (\d+):\s*/, (m, r) => `Rodada ${r}: `);
+
+    // "X has fallen!" (with or without Round prefix)
+    t = t.replace(/^((?:Rodada \d+:\s*)?)(.+?)\s+has fallen!$/, (m, pre, name) => `${pre}${name} caiu!`);
+    // "Both fighters fall simultaneously — it's a draw!"
+    t = t.replace(/^Both fighters fall simultaneously\s*[—-]\s*it's a draw!$/, 'Ambos os lutadores caem ao mesmo tempo — é um empate!');
+    // "Result: Draw!"
+    t = t.replace(/^Result: Draw!$/, 'Resultado: Empate!');
+    // "Draw! After N rounds" / "Draw! After N rounds"
+    t = t.replace(/^Draw!\s*After\s+(\d+)\s+rounds$/, (m, r) => `Empate! Após ${r} rodadas`);
+    // "Both fall! ..." (deathmatch/tournament tiebreak summary)
+    t = t.replace(/^((?:Rodada \d+:\s*)?)Both fall!\s*(.+?)\s+dealt more damage\s*\(([^)]*)\)\s*[-—-]\s*advances!$/, (m, pre, name, dmg) => `${pre}Ambos caem! ${name} causou mais dano (${dmg}) — avança!`);
+    t = t.replace(/^Both fall!\s*(.+?)'s\s+highest hit\s*\(([^)]*)\)\s+beats\s+(.+?)'s\s+\(([^)]*)\)\s*[-—-]\s*advances!$/, (m, name1, h1, name2, h2) => `Ambos caem! O golpe mais forte de ${name1} (${h1}) supera o de ${name2} (${h2}) — avança!`);
+    // "Both survive — X dealt more damage (Y vs Z)"
+    t = t.replace(/^((?:Rodada \d+:\s*)?)Both survive\s*[-—-]\s*(.+?)\s+dealt more damage\s*\(([^)]*)\)$/, (m, pre, name, dmg) => `${pre}Ambos sobrevivem — ${name} causou mais dano (${dmg})`);
+    // "Both survive, equal damage — X wins the coin toss!"
+    t = t.replace(/^((?:Rodada \d+:\s*)?)Both survive, equal damage\s*[-—-]\s*(.+?)\s+wins the coin toss!$/, (m, pre, name) => `${pre}Ambos sobrevivem, dano igual — ${name} vence no sorteio!`);
+    // "After N rounds — X wins!" / "After N rounds — Draw!"
+    t = t.replace(/^After\s+(\d+)\s+rounds\s*[-—-]\s*Draw!$/, (m, r) => `Após ${r} rodadas — Empate!`);
+    t = t.replace(/^After\s+(\d+)\s+rounds\s*[-—-]\s*(.+?)\s+wins!$/, (m, r, name) => `Após ${r} rodadas — ${name} vence!`);
+    // "After 10 rounds — X wins by damage (A vs B)"
+    t = t.replace(/^After\s+(\d+)\s+rounds\s*[-—-]\s*(.+?)\s+wins by damage\s*\(([^)]*)\)$/, (m, r, name, dmg) => `Após ${r} rodadas — ${name} vence por dano (${dmg})`);
+    // "Winner: X wins" / "Winner: X wins by dealing more damage!"
+    t = t.replace(/^Winner:\s*(.+?)\s+wins by dealing more damage!$/, (m, name) => `Vencedor: ${name} vence por causar mais dano!`);
+    t = t.replace(/^Winner:\s*(.+?)\s+wins!$/, (m, name) => `Vencedor: ${name} vence!`);
+
+    // --- Attack lines: the most visible ---
+    // "N attacks D for X damage!" (elemental + base attack)
+    t = t.replace(/^([^:]+?)\s+attacks\s+(.+?)\s+for\s+(-?\d+)\s+(.+?)\s+damage!$/, (m, a, d, dmg, elem) => `${a} ataca ${d} causando ${dmg} de dano ${elem}!`);
+
+    // "N heals X for Y HP!"
+    t = t.replace(/^([^:]+?)\s+heals\s+(.+?)\s+for\s+(\d+)\s+HP!$/, (m, a, d, hp) => `${a} cura ${d} em ${hp} de vida!`);
+
+    // "X is knocked out!"
+    t = t.replace(/^(.+?)\s+is knocked out!$/, (m, name) => `${name} foi nocauteado!`);
+
+    // "X takes Y burn damage"
+    t = t.replace(/^(.+?)\s+takes\s+(\d+)\s+burn damage$/, (m, name, dmg) => `${name} sofre ${dmg} de dano de queimadura`);
+
+    // "X is resurrected with Y HP!"
+    t = t.replace(/^(.+?)\s+is resurrected with\s+(\d+)\s+HP!$/, (m, name, hp) => `${name} é ressuscitado com ${hp} de vida!`);
+    // "X is reborn in flame with Y HP — Z is burning!"
+    t = t.replace(/^(.+?)\s+is reborn in flame with\s+(\d+)\s+HP\s*[-—-]\s*(.+?)\s+is burning!$/, (m, name, hp, other) => `${name} renasce nas chamas com ${hp} de vida — ${other} está queimando!`);
+
+    // "N has no attack this round"
+    t = t.replace(/^(.+?)\s+has no attack this round$/, (m, name) => `${name} não tem ataque nesta rodada`);
+
+    // "X's active skills: ..."  (intro)
+    t = t.replace(/^(.+?)'s\s+active skills:\s*(.+)$/, (m, name, skills) => `Habilidades ativas de ${name}: ${skills}`);
+    // "X's elemental spirit joins the battle!"
+    t = t.replace(/^(.+?)'s\s+elemental spirit joins the battle!$/, (m, name) => `O espírito elemental de ${name} entra na batalha!`);
+    // "X's magic/source creates a force field with N durability!"
+    t = t.replace(/^(.+?)'s\s+(magic|shield)\s+creates a force field with\s+(\d+)\s+durability!$/, (m, name, src, dur) => `${src === 'magic' ? 'A magia' : 'O escudo'} de ${name} cria um campo de força com ${dur} de durabilidade!`);
+
+    // ---- Per-round attack line with appended segments ----
+    const backstab = t.indexOf('backstabs') !== -1 || t.indexOf('BACKSTAB') !== -1;
+    const pen = t.indexOf('BLOCK PENETRATION') !== -1;
+    const rage = t.indexOf('RAGING BLOW') !== -1;
+    const verb = backstab ? ' ACERTA DE FURTIVIDADE' : pen ? ' PENETRA O BLOQUEIO' : rage ? ' ATERRISSA UM GOLPE FURIOSO' : ' Atinge';
+
+    // Divine shield / dodge / miss (these use "swings")
+    t = t.replace(/^(.+?)\s+swings\s*[-—-]\s*✨ DIVINE SHIELD absorbed the blow!$/, (m, name) => `${name} ataca — ✨ ESCUDO DIVINO absorveu o golpe!`);
+    t = t.replace(/^(.+?)\s+swings\s*[-—-]\s*DODGED by\s+(.+?)$/, (m, atk, def) => `${atk} ataca — ESQUIVADO por ${def}`);
+    t = t.replace(/^(.+?)\s+swings\s*[-—-]\s*MISS$/, (m, name) => `${name} ataca — ERROU`);
+
+    // Glancing blow (force field absorbed / normal)
+    t = t.replace(/^(.+?)\s+glances off\s*[-—-]\s*✨ FORCE FIELD blocks the blow!\s*([^]*)$/, (m, name, rest) => `${name} acerta de raspão — ✨ CAMPO DE FORÇA bloqueia o golpe!${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+lands a glancing blow([^—-]*?)\s*[-—-]\s*(-?\d+)\s+damage\s*\(([^)]*)\)\s*([^]*)$/, (m, name, tag, dmg, breakdown, rest) => `${name} acerta um golpe de raspão${fmtGlanceTag(tag)} — ${dmg} de dano (${breakdown})${translateNumbered(rest)}`);
+
+    // Special use-limited attacks
+    t = t.replace(/^(.+?)\s+uses DEATH MARK\s*[-—-]\s*(-?\d+)\s+damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} usa MARCA DA MORTE — ${dmg} de dano${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+unleashes BLADE STORM\s*[-—-]\s*(-?\d+)\s+damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} desencadeia TEMPESTADE DE LÂMINAS — ${dmg} de dano${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+uses DIVINE JUDGMENT\s*[-—-]\s*(-?\d+)\s+damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} usa JULGAMENTO DIVINO — ${dmg} de dano${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+uses HOLY CRUSADE\s*[-—-]\s*(-?\d+)\s+damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} usa CRUZADA SAGRADA — ${dmg} de dano${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+casts INFERNO\s*[-—-]\s*(-?\d+)\s+elemental damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} lança INFERNO — ${dmg} de dano elemental${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+summons TEMPEST\s*[-—-]\s*(-?\d+)\s+elemental damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} invoca TEMPESTADE — ${dmg} de dano elemental${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)'s\s+BLIZZARD hits\s*[-—-]\s*(-?\d+)\s+damage\s*\(round\s+(\d+)\/(\d+)\)\s*([^]*)$/, (m, name, dmg, ro, rt, rest) => `${name}'s BLIZZARD atinge — ${dmg} de dano (rodada ${ro}/${rt})${translateNumbered(rest)}`);
+
+    // Full force-field block of a hit
+    t = t.replace(/^(.+?)\s+[-—-]\s*✨ FORCE FIELD blocks the blow!\s*(?:(\d+)\s+gets through)?\s*([^]*)$/, (m, name, thru, rest) => `${cleanActor(name)}${verb} — ✨ CAMPO DE FORÇA bloqueia o golpe!${thru ? ` ${thru} atravessa` : ''}${translateNumbered(rest)}`);
+
+    // Blocked hit
+    t = t.replace(/^(.+?)\s+[-—-]\s*BLOCKED\s*([^]*)$/, (m, name, rest) => `${cleanActor(name)}${verb} — BLOQUEADO${translateNumbered(rest)}`);
+
+    // Main damage hit
+    t = t.replace(/^(.+?)\s+[-—-]\s*(-?\d+)\s+damage\s*([^]*)$/, (m, name, dmg, rest) => `${cleanActor(name)}${verb} — ${dmg} de dano${translateNumbered(rest)}`);
+
+    // Elemental / plain "X attacks Y for Z damage!" (no em-dash)
+    t = t.replace(/^(.+?)\s+attacks\s+(.+?)\s+for\s+(-?\d+)\s+damage!\s*$/, (m, atk, def, dmg) => `${atk} ataca ${def} causando ${dmg} de dano!`);
+
+    return t;
+}
+
+function fmtGlanceTag(tag) {
+    const tg = String(tag || '')
+        .replace(/backstabs/gi, ' de furtividade')
+        .replace(/⚡CRIT/gi, ', crítico')
+        .trim();
+    return tg ? ` ${tg}` : '';
+}
+function cleanActor(name) {
+    return String(name || '')
+        .replace(/\s+s backstabs$/i, '')
+        .replace(/\s+backstabs$/i, '')
+        .replace(/\s+BLOCK PENETRATION$/i, '')
+        .replace(/\s+RAGING BLOW$/i, '')
+        .replace(/\s+⚡CRIT$/,
+            '')
+        .trim();
+}
+function translateNumbered(rest) {
+    if (!rest) return '';
+    let r = String(rest);
+    r = r.replace(/including\s+(-?\d+)\s+elemental damage/, (m, d) => ` incluindo ${d} de dano elemental`);
+    r = r.replace(/(?:☠️|😠|🤢)?\s*\(\+(-?\d+)\s+poison\)/, (m, d) => ` ☠️ (+${d} de veneno)`);
+    r = r.replace(/🌑\s*\(\+(-?\d+)\s+void blade\)/, (m, d) => ` 🌑 (+${d} lâmina do vazio)`);
+    r = r.replace(/⚡\s*\(\+(-?\d+)\s+lightning arc\)/, (m, d) => ` ⚡ (+${d} arco de relâmpago)`);
+    r = r.replace(/💔\s+Force field shatters!/, ' 💔 O campo de força se desfaz!');
+    r = r.replace(/(\d+)\s+durability remains\./, (m, d) => ` ${d} de durabilidade restante.`);
+    r = r.replace(/💚\s*\+(-?\d+)\s+heal/, (m, d) => ` 💚 +${d} de cura`);
+    r = r.replace(/💚\s*\+(-?\d+)\s+HP healed/, (m, d) => ` 💚 +${d} de vida restaurada`);
+    r = r.replace(/💚\+(-?\d+)\s+sanctified/, (m, d) => ` 💚+${d} santificado`);
+    r = r.replace(/💚\+(-?\d+)\s+bastion_heart/, (m, d) => ` 💚+${d} coração do bastião`);
+    r = r.replace(/💀\s*\+(-?\d+)\s+life drain/, (m, d) => ` 💀 +${d} dreno de vida`);
+    r = r.replace(/🌿\s*(-?\d+)\s+reflected/, (m, d) => ` 🌿 ${d} refletido`);
+    r = r.replace(/[-—-]\s*COUNTERED for\s+(-?\d+)/, (m, d) => ` — Contra-atacado por ${d}`);
+    r = r.replace(/👻\s+(.+?)\s+phantom counters for\s+(-?\d+)/, (m, name, d) => ` 👻 ${name} contra-ataca de forma fantasma por ${d}`);
+    r = r.replace(/\(\+(-?\d+)\s+off-hand\)/, (m, d) => ` (+${d} mão secundária)`);
+    r = r.replace(/(\d+)\s+gets through/, (m, d) => ` ${d} atravessa`);
+    return r;
+}
+
 function renderBattleLogLine(line, enemyName='Enemy', tintRole='') {
-    if (line === '---') return '<div class="battle-log-line separator">───────────────────</div>';
     const text = String(line || '');
     if (text.includes(' vs ')) return '';
     if (text.startsWith('After 10 rounds:')) return '';
     if (text.includes(' wins by dealing more damage!')) {
-        return `<div class="battle-log-line separator"><span class="battle-log-pill">${escHtml(text)}</span></div>`;
+        const display = translateBattleLogPt(text);
+        return `<div class="battle-log-line separator"><span class="battle-log-pill">${escHtml(display)}</span></div>`;
     }
+    const display = translateBattleLogPt(text);
     const className = tintRole || '';
     const pillClass = className ? `battle-log-pill ${className}` : 'battle-log-pill';
     let pillStyle = '';
@@ -11283,7 +12587,7 @@ function renderBattleLogLine(line, enemyName='Enemy', tintRole='') {
     } else if (className === 'battle-log-opponent') {
         pillStyle = 'background:linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));border-left:3px solid #e74c3c;color:#ffe5df;box-shadow:0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);';
     }
-    return `<div class="battle-log-line ${className}"><span class="${pillClass}"${pillStyle ? ` style="${pillStyle}"` : ''}>${escHtml(line)}</span></div>`;
+    return `<div class="battle-log-line ${className}"><span class="${pillClass}"${pillStyle ? ` style="${pillStyle}"` : ''}>${escHtml(display)}</span></div>`;
 }
 
 function updateBattlePlaybackStatus(text, done=false) {
@@ -11317,11 +12621,11 @@ function finalizeBattlePlayback() {
     logEl.scrollTop = logEl.scrollHeight;
     out.className = isDraw ? 'draw battle-outcome battle-outcome-visible' : (won ? 'won battle-outcome battle-outcome-visible' : 'lost battle-outcome battle-outcome-visible');
     out.innerHTML = isDraw
-        ? `🤝 DRAW!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
+        ? `${CURRENT_LANG === 'pt' ? '🤝 EMPATE!' : '🤝 DRAW!'}<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} ${CURRENT_LANG === 'pt' ? 'dano causado' : 'dmg dealt'} · 💔 ${dmgTaken ?? '?'} ${CURRENT_LANG === 'pt' ? 'dano recebido' : 'dmg taken'}</small>`
         : won
-            ? `🏆 VICTORY!<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`
-            : `💀 DEFEATED<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} dmg dealt · 💔 ${dmgTaken ?? '?'} dmg taken</small>`;
-    updateBattlePlaybackStatus('Battle complete', true);
+            ? `${CURRENT_LANG === 'pt' ? '🏆 VITÓRIA!' : '🏆 VICTORY!'}<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} ${CURRENT_LANG === 'pt' ? 'dano causado' : 'dmg dealt'} · 💔 ${dmgTaken ?? '?'} ${CURRENT_LANG === 'pt' ? 'dano recebido' : 'dmg taken'}</small>`
+            : `${CURRENT_LANG === 'pt' ? '💀 DERROTADO' : '💀 DEFEATED'}<br><small style="font-size:0.75rem;color:var(--text-dim)">${summary} · ⚔️ ${dmgDealt ?? '?'} ${CURRENT_LANG === 'pt' ? 'dano causado' : 'dmg dealt'} · 💔 ${dmgTaken ?? '?'} ${CURRENT_LANG === 'pt' ? 'dano recebido' : 'dmg taken'}</small>`;
+    updateBattlePlaybackStatus(CURRENT_LANG === 'pt' ? 'Batalha concluída' : 'Battle complete', true);
 }
 
 function scheduleBattlePlaybackStep() {
@@ -11340,7 +12644,7 @@ function scheduleBattlePlaybackStep() {
     logEl.scrollTop = logEl.scrollHeight;
     const isSeparator = line === '---';
     const delay = isSeparator ? 450 : 1200;
-    updateBattlePlaybackStatus(isSeparator ? 'Resetting stance...' : 'Action unfolding...');
+    updateBattlePlaybackStatus(isSeparator ? (CURRENT_LANG === 'pt' ? 'Reiniciando postura...' : 'Resetting stance...') : (CURRENT_LANG === 'pt' ? 'Ação em andamento...' : 'Action unfolding...'));
     battlePlaybackTimer = setTimeout(scheduleBattlePlaybackStep, delay);
 }
 
@@ -11354,13 +12658,13 @@ function startBattlePlayback(log, meta) {
     if (logEl) logEl.innerHTML = '';
     if (out) {
         out.className = `battle-outcome ${meta.isDraw ? 'draw' : meta.won ? 'won' : 'lost'}`;
-        out.innerHTML = '<span class="battle-outcome-pending">Battle in progress...</span>';
+        out.innerHTML = `<span class="battle-outcome-pending">${CURRENT_LANG === 'pt' ? 'Batalha em andamento...' : 'Battle in progress...'}</span>`;
     }
     if (alwaysSkipBattleAnimations) {
         finalizeBattlePlayback();
         return;
     }
-    updateBattlePlaybackStatus('Battle starting...', false);
+    updateBattlePlaybackStatus(CURRENT_LANG === 'pt' ? 'Batalha iniciando...' : 'Battle starting...', false);
     scheduleBattlePlaybackStep();
 }
 
@@ -11474,13 +12778,13 @@ function renderBattleStatsPanel(battleStats, enemyName) {
     const you = battleStats.you || {};
     const enemy = battleStats.enemy || {};
     const rows = [
-        ['Damage (Phys+Elem)', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
-        ['Armor', Number(you.armor ?? 0).toLocaleString(), Number(enemy.armor ?? 0).toLocaleString()],
-        ['Magic', Number(you.magic ?? 0).toLocaleString(), Number(enemy.magic ?? 0).toLocaleString()],
+        [CURRENT_LANG === 'pt' ? 'Dano (Fís+Elem)' : 'Damage (Phys+Elem)', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
+        [CURRENT_LANG === 'pt' ? 'Armadura' : 'Armor', Number(you.armor ?? 0).toLocaleString(), Number(enemy.armor ?? 0).toLocaleString()],
+        [CURRENT_LANG === 'pt' ? 'Magia' : 'Magic', Number(you.magic ?? 0).toLocaleString(), Number(enemy.magic ?? 0).toLocaleString()],
         ['HP', Number(you.hp ?? 0).toLocaleString(), Number(enemy.hp ?? 0).toLocaleString()],
-        ['Agility', Number(you.agility ?? 0).toLocaleString(), Number(enemy.agility ?? 0).toLocaleString()],
-        ['Hit Chance', Number(you.hitChance ?? 0).toLocaleString(), Number(enemy.hitChance ?? 0).toLocaleString()],
-        ['Crit Chance', Number(you.critChance ?? 0).toLocaleString(), Number(enemy.critChance ?? 0).toLocaleString()],
+        [CURRENT_LANG === 'pt' ? 'Agilidade' : 'Agility', Number(you.agility ?? 0).toLocaleString(), Number(enemy.agility ?? 0).toLocaleString()],
+        [CURRENT_LANG === 'pt' ? 'Chance de Acerto' : 'Hit Chance', Number(you.hitChance ?? 0).toLocaleString(), Number(enemy.hitChance ?? 0).toLocaleString()],
+        [CURRENT_LANG === 'pt' ? 'Chance de Crítico' : 'Crit Chance', Number(you.critChance ?? 0).toLocaleString(), Number(enemy.critChance ?? 0).toLocaleString()],
     ];
     return `
         <div class="battle-stats-grid">
@@ -14004,12 +15308,12 @@ function showShopItemTooltip(event, itemJson) {
     }
         </div>
         <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${item.name || ''}</div>
+            <div class="tt-name" style="color:${qColor}">${translateItemNamePT(item.name || '')}</div>
             <div class="tt-meta">
-                ${capitalize(itemSlot || 'item')}
+                ${slotLabelPT(itemSlot || 'item')}
                 ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}
             </div>
-            ${item.desc ? `<div class="tt-desc">${item.desc}</div>` : ''}
+            ${getCanonicalItemDesc(item.desc, item.name) ? `<div class="tt-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>` : ''}
             <div class="tt-stats">
                 ${statsHtml || `<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}
                 ${effectHtml}
@@ -14829,7 +16133,7 @@ async function exitAbyss() {
             character.current_map = 'overworld';
             await checkTravelStatus();
             renderWorldMap();
-            showMsg('missions-msg', 'You return from the Abyss to Dark City.');
+            showMsg('missions-msg', CURRENT_LANG === 'pt' ? 'Você retorna do Abismo à Cidade das Sombras.' : 'You return from the Abyss to Dark City.');
         }
     } catch (e) {
         showMsg('missions-msg', e.message, true);
@@ -14885,23 +16189,23 @@ function renderAbyssMap() {
         const badge = isCurrent ? '📍' : isTraveling ? '🚶' : !isUnlocked ? '⚔️' : '';
         const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#9b59b6' : !isUnlocked ? 'rgba(231,76,60,0.7)' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isUnlocked ? ';filter:saturate(0.85);box-shadow:0 0 0 2px rgba(231,76,60,0.2)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(155,89,182,0.4)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
 
-        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zone.name}">
+        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zName(zone)}">
             <div style="position:relative;display:inline-block">
                 ${badge ? `<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>` : ''}
-                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zone.name}" data-error-background="#2c3e50">
+                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zName(zone)}" data-error-background="#2c3e50">
             </div>
-            <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zone.name}</div>
-            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? 'HERE' : '') : 'Gatekeeper'}</div>
+            <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zName(zone)}</div>
+            <div style="font-size:10px;color:rgba(255,255,255,0.6);text-align:center">${isUnlocked ? (isCurrent ? (CURRENT_LANG === 'pt' ? 'AQUI' : 'HERE') : '') : (CURRENT_LANG === 'pt' ? 'Guardião' : 'Gatekeeper')}</div>
         </div>`;
     }).join('');
 
     // Add exit to Dark City as a zone-style circle (only from Shadowfen)
     const showExit = currentZone === 'shadowfen';
     const exitButton = showExit ? `
-        <div style="position:absolute;left:40%;top:92%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center" ${actionAttrs('exitAbyss')} title="Return to Dark City">
+        <div style="position:absolute;left:40%;top:92%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center" ${actionAttrs('exitAbyss')} title="${CURRENT_LANG === 'pt' ? 'Voltar à Cidade das Sombras' : 'Return to Dark City'}">
             <div style="position:relative;display:inline-block">
                 <img style="width:72px;height:72px;border-radius:50%;border:3px solid #e74c3c;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 0 3px rgba(231,76,60,0.3)" src="/images/zones/dark-city.jpg" alt="Dark City" data-error-background="#2c3e50">
-                <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.9);text-transform:uppercase;letter-spacing:2px">EXIT</span>
+                <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.9);text-transform:uppercase;letter-spacing:2px">${CURRENT_LANG === 'pt' ? 'SAIR' : 'EXIT'}</span>
             </div>
         </div>
     ` : '';
