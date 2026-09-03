@@ -203,7 +203,8 @@ function stTreeCss() {
     .st-dd-btn .st-dd-caret { font-size:0.55rem; opacity:0.7; }
     .st-dd-list { position:absolute; z-index:40; top:calc(100% + 4px); left:0; min-width:52px;
                   background:rgba(15,15,28,0.98); border:1px solid rgba(255,255,255,0.25); border-radius:6px;
-                  box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow:hidden; padding:3px; }
+                  box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow-y:auto; padding:3px;
+                  touch-action: pan-y; overscroll-behavior: contain; }
     .st-dd-opt, .st-dd-list .st-dd-opt { display:block; width:100%; border:0; background:transparent; color:rgba(255,255,255,0.85);
                  font-size:0.62rem; font-weight:700; padding:4px 8px; border-radius:4px; cursor:pointer; text-align:center; }
     .st-dd-list .st-dd-opt:hover { background:rgba(255,255,255,0.08); }
