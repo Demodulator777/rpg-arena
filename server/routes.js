@@ -2027,6 +2027,7 @@ const ACHIEVEMENTS = [
         icon: '👑',
         metric: 'wins',
         target: 500,
+        milestone: true,
         rewards: { gold: 200000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     },
     {
@@ -2038,6 +2039,7 @@ const ACHIEVEMENTS = [
         icon: '🌟',
         metric: 'wins',
         target: 1000,
+        milestone: true,
         rewards: { gold: 500000, gems: 25, premium: { id: 'apprentice', days: 7 } },
     },
     {
@@ -2049,6 +2051,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'wins',
         target: 2500,
+        milestone: true,
         rewards: { gold: 1500000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 }, premium: { id: 'fortune_hunter', days: 14 } },
     },
     {
@@ -2082,6 +2085,7 @@ const ACHIEVEMENTS = [
         icon: '⚜️',
         metric: 'battles',
         target: 500,
+        milestone: true,
         rewards: { gold: 100000, consumable: { id: 'special_mana_potion', qty: 2 } },
     },
     {
@@ -2159,6 +2163,7 @@ const ACHIEVEMENTS = [
         icon: '👹',
         metric: 'dungeon_floor',
         target: 50,
+        milestone: true,
         rewards: { gold: 250000, gems: 25, premium: { id: 'iron_fortress', days: 10 } },
     },
     {
@@ -2258,6 +2263,7 @@ const ACHIEVEMENTS = [
         icon: '🏆',
         metric: 'crawler_defeats',
         target: 100,
+        milestone: true,
         rewards: { gold: 500000, gems: 25 },
     },
     {
@@ -2313,6 +2319,7 @@ const ACHIEVEMENTS = [
         icon: '🌌',
         metric: 'mp_spent',
         target: 5000,
+        milestone: true,
         rewards: { gold: 175000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     },
     {
@@ -2346,6 +2353,7 @@ const ACHIEVEMENTS = [
         icon: '⚔️',
         metric: 'mission_wins_total',
         target: 250,
+        milestone: true,
         rewards: { gold: 125000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } },
     },
     {
@@ -2599,6 +2607,7 @@ const ACHIEVEMENTS = [
         metric: 'monster_kills_total',
         metric_source: 'dungeon',
         target: 300,
+        milestone: true,
         rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
     },
     {
@@ -10241,6 +10250,13 @@ async function buildCharacterResponse(char, db) {
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
 
+    // Check if the character is currently learning a skill (new skill-training system).
+    let activeSkillTraining = false;
+    try {
+        const skillTrainingRow = char.id ? await dbGet(db, 'SELECT 1 AS x FROM skill_training WHERE char_id=? AND ends_at>?', [char.id, now]) : null;
+        activeSkillTraining = !!skillTrainingRow;
+    } catch (e) { activeSkillTraining = false; }
+
     const activePremium   = getActivePremium(char);
     const activeSynergies = getActiveSynergies(activePremium);
     const ultimateActive  = hasUltimate(activePremium);
@@ -10319,6 +10335,7 @@ async function buildCharacterResponse(char, db) {
 
     return {
         ...withTrain,
+        activeSkillTraining: activeSkillTraining,
         tutorial_skipped: char.tutorial_skipped || 0,
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
