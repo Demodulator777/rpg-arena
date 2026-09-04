@@ -5098,7 +5098,7 @@ function ensureWeeklyTasksModal() {
             <div class="modal-box achievements-modal-box">
                 <div class="modal-header">
                     <h3>Weekly Tasks</h3>
-                    <button class="btn-secondary" ${actionAttrs('closeWeeklyTasksModal')}>?</button>
+                    <button class="btn-secondary" ${actionAttrs('closeWeeklyTasksModal')}>X</button>
                 </div>
                 <div id="weekly-tasks-modal-content" class="achievements-panel-loading">Loading weekly tasks...</div>
                 <div id="weekly-tasks-msg" class="msg-bar hidden" style="margin-top:12px"></div>
