@@ -2668,6 +2668,7 @@ function showTab(name) {
         }
     } catch (_) {}
     try { if (typeof hideItemTooltip === 'function') hideItemTooltip(); } catch (_) {}
+    try { if (typeof stHideTipNow === 'function') stHideTipNow(); } catch (_) {}
     try { document.getElementById('forge-alert-modal')?.classList.add('hidden'); } catch (_) {}
 
     if (name === 'upgrade' && getServerId() === 'server1') name = 'character';
