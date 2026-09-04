@@ -12887,7 +12887,7 @@ function skipBattlePlayback() {
 
 function getMyAttackBlockReason() {
     if (character?.activeSkillTraining) return 'Training in progress';
-    if (window.activeMission) return 'Mission in progress';
+    if (character?.activeMission || window.activeMission) return 'Mission in progress';
     const myBattleCd = character?.battle_cooldown_remaining || 0;
     if (myBattleCd > 0) return `Wait ${Math.ceil(myBattleCd / 60)}m to fight again`;
     return '';
