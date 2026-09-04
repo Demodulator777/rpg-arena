@@ -828,6 +828,8 @@ async function stStartTrain(skillId, branchId, doubleSpeed = false) {
      try {
         const d = await api('POST', '/skills/train/start', { skillId, branchId, hours, doubleSpeed });
         showMsg('skill-tree-msg', d.message);
+        stHideTipNow();
+        _stTipActiveEl = null;
         character = await api('GET', '/game/character');
         renderTopBar();
         await renderSkillTreeTab();
