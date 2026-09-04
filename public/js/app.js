@@ -12492,6 +12492,7 @@ async function openProfile(id) {
             const myAttackBlockReason=getMyAttackBlockReason();
             let blocked=false, reason='';
             if(myAttackBlockReason){blocked=true;reason=myAttackBlockReason;}
+            else if((character?.hp_current??character?.hp_max)<=0){blocked=true;reason='No HP';}
             else if(ptc>0){blocked=true;const h=Math.ceil(ptc/3600),m=Math.ceil(ptc/60);reason='Cooldown '+(h>=1?h+'h':m+'m');}
             else if(gc>0){blocked=true;const h=Math.ceil(gc/3600),m=Math.ceil(gc/60);reason='Recovery '+(h>=1?h+'h':m+'m');}
             else if(hpLow){blocked=true;reason='Too little HP';}
