@@ -10257,6 +10257,13 @@ async function buildCharacterResponse(char, db) {
         activeSkillTraining = !!skillTrainingRow;
     } catch (e) { activeSkillTraining = false; }
 
+    // Check if the character has an active mission.
+    let activeMission = false;
+    try {
+        const missionRow = char.id ? await dbGet(db, 'SELECT 1 AS x FROM active_missions WHERE character_id=?', [char.id]) : null;
+        activeMission = !!missionRow;
+    } catch (e) { activeMission = false; }
+
     const activePremium   = getActivePremium(char);
     const activeSynergies = getActiveSynergies(activePremium);
     const ultimateActive  = hasUltimate(activePremium);
@@ -10336,6 +10343,7 @@ async function buildCharacterResponse(char, db) {
     return {
         ...withTrain,
         activeSkillTraining: activeSkillTraining,
+        activeMission: activeMission,
         tutorial_skipped: char.tutorial_skipped || 0,
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
