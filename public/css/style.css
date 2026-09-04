@@ -7995,11 +7995,11 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     * { scrollbar-width: none !important; -ms-overflow-style: none !important; }
 }
 @media (min-width: 641px) {
-    .auth-container { top: -50px; max-width: 960px !important; padding: 60px 48px !important; display: grid !important; grid-template-columns: 1fr 1.2fr !important; gap: 60px !important; align-items: start !important; }
-    .auth-left { text-align: left !important; }
-    .auth-right { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 20px !important; padding: 36px !important; }
-    .auth-tabs .tab-btn { padding: 10px 28px !important; font-size: 0.9rem !important; }
-    .input-field { padding: 14px 16px !important; font-size: 1rem !important; }
+    #screen-auth .auth-container { top: -50px; max-width: 960px !important; padding: 60px 48px !important; display: grid !important; grid-template-columns: 1fr 1.2fr !important; gap: 60px !important; align-items: start !important; }
+    #screen-auth .auth-left { text-align: left !important; }
+    #screen-auth .auth-right { background: rgba(255,255,255,0.03) !important; border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 20px !important; padding: 36px !important; }
+    #screen-auth .auth-tabs .tab-btn { padding: 10px 28px !important; font-size: 0.9rem !important; }
+    #screen-auth .input-field { padding: 14px 16px !important; font-size: 1rem !important; }
 }
 @media (max-width: 640px) {
     .auth-left { display: none !important; }
