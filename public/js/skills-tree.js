@@ -714,7 +714,15 @@ function stWireHourDropdowns(root) {
         if (!btn || !list) return;
 
         const positionList = () => {
-            const wrapRect = wrap.getBoundingClientRect();
+            const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+            const raw = wrap.getBoundingClientRect();
+            const wrapRect = {
+                left: raw.left / zf,
+                right: raw.right / zf,
+                top: raw.top / zf,
+                bottom: raw.bottom / zf,
+                width: raw.width / zf
+            };
             const gap = 4;
             const spaceBelow = window.innerHeight - wrapRect.bottom - gap;
             const spaceAbove = wrapRect.top - gap;
