@@ -2553,6 +2553,7 @@ async function createCharacter() {
     try {
         character=await api('POST','/game/character',{name,class:selectedClass});
         activeCharacterId = character?.id || null;
+        if (typeof resetDungeonState === 'function') resetDungeonState();
         await loadCharacterRoster();
         showScreen('game');
     } catch(e) { setError('create-error',e.message); }
