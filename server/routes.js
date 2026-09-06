@@ -19255,11 +19255,13 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { floor, roomIndex } = req.body;
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, user_id');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
         const now = Math.floor(Date.now() / 1000);
 
         await db.execute({
-            sql: `DELETE FROM dungeon_room_instances WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-            args: [req.user.userId, floor, roomIndex]
+            sql: `DELETE FROM dungeon_room_instances WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+            args: [char.id, floor, roomIndex]
         });
 
         // If the player exits a room (flee/death/leave), ensure any active combat session for that room
@@ -19268,8 +19270,8 @@ router.post('/dungeon/room-exit', auth, async (req, res) => {
             db,
             `UPDATE dungeon_combat_sessions
              SET status = 'ended', updated_at = ?
-             WHERE user_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
-            [now, req.user.userId, floor, roomIndex]
+             WHERE char_id = ? AND floor_number = ? AND room_index = ? AND status = 'active'`,
+            [now, char.id, floor, roomIndex]
         );
 
         res.json({ success: true });
@@ -19306,21 +19308,21 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
             hasStatus = names.has('status');
         } catch {}
 
-        // Legacy DBs may have UNIQUE(user_id, floor_number, room_index) from older anti-exploit logic.
-        // So we treat (user_id,floor,roomIndex) as the natural key and "re-clear" by updating the
-        // existing row after cooldown rather than inserting a new one that would violate the unique index.
+        // Clear/cooldown state is scoped per character (char_id), NOT per account (user_id),
+        // so switching characters on the same account doesn't inherit another character's
+        // cleared-room cooldown. id = `${char.id}_${floor}_${roomIndex}_cleared` is the PK.
         const existing = await db.execute({
             sql: hasCreatedAt
                 ? `SELECT id, created_at
                    FROM dungeon_room_instances
-                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+                   WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
                    ORDER BY COALESCE(created_at, 0) DESC
                        LIMIT 1`
                 : `SELECT id
                    FROM dungeon_room_instances
-                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+                   WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
            LIMIT 1`,
-            args: [userId, floor, roomIndex]
+            args: [char.id, floor, roomIndex]
         });
 
         if (existing.rows.length > 0) {
@@ -19338,30 +19340,30 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [now, char.id, floor, roomIndex, runKey, char.id, floor, roomIndex]
                 });
             } else if (hasCreatedAt) {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [now, char.id, floor, roomIndex, char.id, floor, roomIndex]
                 });
             } else {
                 // No created_at column: treat as always re-clearable, but keep row present.
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET char_id = ?, floor_number = ?, room_index = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [char.id, floor, roomIndex, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [char.id, floor, roomIndex, char.id, floor, roomIndex]
                 });
             }
 
             return res.json({ success: true, recleared: true });
         }
 
-        // No existing row for this (user,floor,room) — insert. If a legacy UNIQUE constraint still
+        // No existing row for this (char,floor,room) — insert. If a legacy UNIQUE constraint still
         // trips (races/old ids), fall back to an UPDATE by the natural key.
         const newId = `${char.id}_${floor}_${roomIndex}_cleared`;
         try {
@@ -19394,22 +19396,22 @@ router.post('/dungeon/room-clear', auth, async (req, res) => {
                     await db.execute({
                         sql: `UPDATE dungeon_room_instances
                               SET created_at = ?, char_id = ?, session_id = ?
-                              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                        args: [now, char.id, runKey, userId, floor, roomIndex]
+                              WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                        args: [now, char.id, runKey, char.id, floor, roomIndex]
                     });
                 } else if (hasCreatedAt) {
                     await db.execute({
                         sql: `UPDATE dungeon_room_instances
                               SET created_at = ?, char_id = ?
-                              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                        args: [now, char.id, userId, floor, roomIndex]
+                              WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                        args: [now, char.id, char.id, floor, roomIndex]
                     });
                 } else {
                     await db.execute({
                         sql: `UPDATE dungeon_room_instances
                               SET char_id = ?
-                              WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                        args: [char.id, userId, floor, roomIndex]
+                              WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                        args: [char.id, char.id, floor, roomIndex]
                     });
                 }
             } else {
@@ -19462,13 +19464,13 @@ router.post('/dungeon/treasure-loot', auth, async (req, res) => {
             sql: hasCreatedAt
                 ? `SELECT id, created_at
                    FROM dungeon_room_instances
-                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'treasure_looted'" : ''}
+                   WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'treasure_looted'" : ''}
                    ORDER BY COALESCE(created_at, 0) DESC LIMIT 1`
                 : `SELECT id
                    FROM dungeon_room_instances
-                   WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'treasure_looted'" : ''}
+                   WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'treasure_looted'" : ''}
                    LIMIT 1`,
-            args: [userId, floor, roomIndex]
+            args: [char.id, floor, roomIndex]
         });
 
         if (existing.rows.length > 0) {
@@ -19483,8 +19485,8 @@ router.post('/dungeon/treasure-loot', auth, async (req, res) => {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET created_at = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [now, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [now, char.id, floor, roomIndex]
                 });
             }
         } else {
@@ -19519,8 +19521,8 @@ router.post('/dungeon/treasure-loot', auth, async (req, res) => {
                         await db.execute({
                             sql: `UPDATE dungeon_room_instances
                                   SET created_at = ?
-                                  WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                            args: [now, userId, floor, roomIndex]
+                                  WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                            args: [now, char.id, floor, roomIndex]
                         });
                     }
                 } else {
@@ -20126,14 +20128,14 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
         sql: hasCreatedAt
             ? `SELECT id, created_at
                FROM dungeon_room_instances
-               WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+               WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
                ORDER BY COALESCE(created_at, 0) DESC
                    LIMIT 1`
             : `SELECT id
                FROM dungeon_room_instances
-               WHERE user_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
+               WHERE char_id = ? AND floor_number = ? AND room_index = ? ${hasStatus ? "AND status = 'cleared'" : ''}
          LIMIT 1`,
-        args: [userId, floor, roomIndex]
+        args: [char.id, floor, roomIndex]
     });
 
     if (existing.rows.length > 0) {
@@ -20149,22 +20151,22 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
             await db.execute({
                 sql: `UPDATE dungeon_room_instances
                       SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?, session_id = ?
-                      WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                args: [now, char.id, floor, roomIndex, runKey, userId, floor, roomIndex]
+                      WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                args: [now, char.id, floor, roomIndex, runKey, char.id, floor, roomIndex]
             });
         } else if (hasCreatedAt) {
             await db.execute({
                 sql: `UPDATE dungeon_room_instances
                       SET created_at = ?, char_id = ?, floor_number = ?, room_index = ?
-                      WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                args: [now, char.id, floor, roomIndex, userId, floor, roomIndex]
+                      WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                args: [now, char.id, floor, roomIndex, char.id, floor, roomIndex]
             });
         } else {
             await db.execute({
                 sql: `UPDATE dungeon_room_instances
                       SET char_id = ?, floor_number = ?, room_index = ?
-                      WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                args: [char.id, floor, roomIndex, userId, floor, roomIndex]
+                      WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                args: [char.id, floor, roomIndex, char.id, floor, roomIndex]
             });
         }
         return { cleared: false, recleared: true };
@@ -20201,22 +20203,22 @@ async function claimDungeonRoomClearInternal(db, userId, char, floor, roomIndex,
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET created_at = ?, char_id = ?, session_id = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [now, char.id, runKey, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [now, char.id, runKey, char.id, floor, roomIndex]
                 });
             } else if (hasCreatedAt) {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET created_at = ?, char_id = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [now, char.id, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [now, char.id, char.id, floor, roomIndex]
                 });
             } else {
                 await db.execute({
                     sql: `UPDATE dungeon_room_instances
                           SET char_id = ?
-                          WHERE user_id = ? AND floor_number = ? AND room_index = ?`,
-                    args: [char.id, userId, floor, roomIndex]
+                          WHERE char_id = ? AND floor_number = ? AND room_index = ?`,
+                    args: [char.id, char.id, floor, roomIndex]
                 });
             }
             return { cleared: false, recleared: true };
