@@ -1105,6 +1105,14 @@ const WEEKLY_TASKS = [
                                                                       squad_win_top10_data TEXT NOT NULL DEFAULT '[]'
              )`,
             `ALTER TABLE characters ADD COLUMN last_gatekeeper_time INTEGER DEFAULT 0`,
+            `ALTER TABLE characters ADD COLUMN honor INTEGER DEFAULT 0`,
+            `CREATE TABLE IF NOT EXISTS honor_changes (
+                                                          char_id INTEGER NOT NULL,
+                                                          delta INTEGER NOT NULL,
+                                                          created_at INTEGER NOT NULL
+             )`,
+            `CREATE INDEX IF NOT EXISTS idx_honor_changes_char_time ON honor_changes(char_id, created_at)`,
+            `ALTER TABLE character_guild_bounties ADD COLUMN skip_available_at INTEGER NOT NULL DEFAULT 0`,
             `CREATE TABLE IF NOT EXISTS vouchers (
                                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                      code TEXT NOT NULL UNIQUE,
@@ -1377,7 +1385,8 @@ const WEEKLY_TASKS = [
                                                                                          reward_reputation INTEGER NOT NULL DEFAULT 0,
                                                                                          completed_at INTEGER NOT NULL DEFAULT 0,
                                                                                          claimed_at INTEGER NOT NULL DEFAULT 0,
-                                                                                         rolled_at INTEGER NOT NULL DEFAULT 0
+                                                                                         rolled_at INTEGER NOT NULL DEFAULT 0,
+                                                                                         skip_available_at INTEGER NOT NULL DEFAULT 0
                                  )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS character_weekly_state (
                                                                                        char_id INTEGER PRIMARY KEY,
@@ -6031,10 +6040,9 @@ async function recordMissionSpotResult(db, { charId, mapType = 'overworld', zone
     );
 }
 
-async function ensureActiveGuildBounty(db, charId) {
-    let bounty = await dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
-    if (bounty && !bounty.claimed_at) return bounty;
-
+async function insertRandomGuildBounty(db, charId, opts = {}) {
+    const existing = await dbGet(db, 'SELECT skip_available_at FROM character_guild_bounties WHERE char_id = ?', [charId]);
+    const skipAvailableAt = (opts.skipUntil != null) ? opts.skipUntil : (existing?.skip_available_at || 0);
     const template = DUNGEON_GUILD_BOUNTY_POOL[Math.floor(Math.random() * DUNGEON_GUILD_BOUNTY_POOL.length)];
     const targetCount = template.minCount + Math.floor(Math.random() * (template.maxCount - template.minCount + 1));
     const now = Math.floor(Date.now() / 1000);
@@ -6053,8 +6061,8 @@ async function ensureActiveGuildBounty(db, charId) {
     };
 
     await dbRun(db, `INSERT INTO character_guild_bounties
-                     (char_id, bounty_id, target_source, target_key, target_name, target_count, progress, reward_gold, reward_reputation, completed_at, claimed_at, rolled_at)
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     (char_id, bounty_id, target_source, target_key, target_name, target_count, progress, reward_gold, reward_reputation, completed_at, claimed_at, rolled_at, skip_available_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                          ON CONFLICT(char_id) DO UPDATE SET
                 bounty_id = excluded.bounty_id,
                                                      target_source = excluded.target_source,
@@ -6066,10 +6074,17 @@ async function ensureActiveGuildBounty(db, charId) {
                                                      reward_reputation = excluded.reward_reputation,
                                                      completed_at = excluded.completed_at,
                                                      claimed_at = excluded.claimed_at,
-                                                     rolled_at = excluded.rolled_at`,
-        [charId, nextBounty.bountyId, nextBounty.targetSource, nextBounty.targetKey, nextBounty.targetName, nextBounty.targetCount, nextBounty.progress, nextBounty.rewardGold, nextBounty.rewardReputation, nextBounty.completedAt, nextBounty.claimedAt, nextBounty.rolledAt]
+                                                     rolled_at = excluded.rolled_at,
+                                                     skip_available_at = excluded.skip_available_at`,
+        [charId, nextBounty.bountyId, nextBounty.targetSource, nextBounty.targetKey, nextBounty.targetName, nextBounty.targetCount, nextBounty.progress, nextBounty.rewardGold, nextBounty.rewardReputation, nextBounty.completedAt, nextBounty.claimedAt, nextBounty.rolledAt, skipAvailableAt]
     );
     return dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+}
+
+async function ensureActiveGuildBounty(db, charId) {
+    let bounty = await dbGet(db, 'SELECT * FROM character_guild_bounties WHERE char_id = ?', [charId]);
+    if (bounty && !bounty.claimed_at) return bounty;
+    return insertRandomGuildBounty(db, charId, {});
 }
 
 async function getGuildRaidMembers(db, raidId) {
@@ -10348,6 +10363,7 @@ async function buildCharacterResponse(char, db) {
         wins:         (char.wins        || 0),
         losses:       (char.losses      || 0),
         draws:        (char.draws       || 0),
+        honor:        (char.honor      || 0),
         vitality:     (char.vitality    || 10) + tempBonus('vitality'),
         gems:         char.gems        || 0,
         hp_max:       hpMaxBoosted,
@@ -13105,6 +13121,21 @@ router.post('/missions/start', auth, async (req, res) => {
 });
 
 // ── Missions Collect (UPDATED with skill tree passive bonuses) ────────────
+// Net honor gained/lost during the last 7 days (rolling window).
+async function getHonorNet7d(db, characterId) {
+    try {
+        const cutoff = Math.floor(Date.now() / 1000) - 7 * 86400;
+        const row = await dbGet(db, 'SELECT COALESCE(SUM(delta),0) AS net FROM honor_changes WHERE char_id=? AND created_at > ?', [characterId, cutoff]);
+        return Number(row && row.net || 0);
+    } catch (e) { return 0; }
+}
+// Hidden mechanic: honorable players get +25% mission gold, bullies -25%.
+function honorGoldMultiplier(netHonor7d) {
+    if (netHonor7d > 0) return 1.25;
+    if (netHonor7d < 0) return 0.75;
+    return 1;
+}
+
 async function collectMissionForCharacter(db, characterId) {
     try {
         const character = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [characterId]);
@@ -13446,6 +13477,12 @@ async function collectMissionForCharacter(db, characterId) {
                 xpEarned = Math.floor(xpEarned * 1.50);
             }
         }
+
+        // Hidden mechanic: last-7-days honor adjusts mission gold payout ±25%.
+        try {
+            const honorMult = honorGoldMultiplier(await getHonorNet7d(db, freshChar.id));
+            if (honorMult !== 1) goldEarned = Math.floor(goldEarned * honorMult);
+        } catch (e) { console.error('Honor payout error:', e.message); }
 
         const gemChance = isTutorial ? 0 : (isEvent ? 0.15 : 0.05);
         let gemsFound = 0;
@@ -15799,6 +15836,19 @@ router.post('/attack/:targetId', auth, async (req, res) => {
             if (d <= -1) return 0; if (d <= 0) return 1; if (d <= 1) return 1;
             if (d <= 2) return 2; return 3;
         }
+        // Honor delta for the attacker based on level difference (defenderLevel - attackerLevel).
+        // Positive = attacker is lower level (attacking up = honorable), negative = bully pickings.
+        function calculateHonorDelta(attackerLevel, defenderLevel) {
+            const d = defenderLevel - attackerLevel;
+            if (d <= -10) return -10 * Math.floor(-d / 10);
+            if (d <= -6) return 0;
+            if (d <= -3) return 5;
+            if (d <= 2) return 10;
+            if (d <= 5) return 14;
+            if (d <= 9) return 18;
+            return 25;
+        }
+        const honorDelta = calculateHonorDelta(freshA.level, freshD.level);
         const xpGained = attackerWon ? calculateBattleXP(freshA.level, freshD.level) : 0;
         const atkGoldStake = Math.floor((freshA.gold || 0) * 0.10);
         const defStakeRate = hasPremium(premD, 'vault_keeper') ? 0.05 : 0.10;
@@ -15830,9 +15880,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
 
         await ensureWeeklyTaskState(db, freshA);
         await ensureWeeklyTaskState(db, freshD);
-        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+? WHERE id=?`,
-            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, battle.totalDmgToB || 0, battle.totalDmgToB || 0, battle.totalAbsorbedPhysA || 0, battle.totalAbsorbedElemA || 0, battle.totalAbsorbedShieldA || 0, freshA.id]);
+        await dbRun(db, `UPDATE characters SET xp=?,gold=MAX(0,gold+?),level=?,wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+?,honor=honor+? WHERE id=?`,
+            [atkXp, goldGained, atkLevel, attackerWon?1:0, attackerWon?0:1, isDraw?1:0, atkFinalHp, goldGained>0?goldGained:0, goldGained<0?-goldGained:0, battle.totalDmgToB || 0, battle.totalDmgToB || 0, battle.totalAbsorbedPhysA || 0, battle.totalAbsorbedElemA || 0, battle.totalAbsorbedShieldA || 0, honorDelta, freshA.id]);
         await handleReferralLevelMilestone(db, freshA.user_id, freshA.level, atkLevel);
+        if (honorDelta !== 0) {
+            try { await dbRun(db, 'INSERT INTO honor_changes (char_id, delta, created_at) VALUES (?,?,?)', [freshA.id, honorDelta, now]); }
+            catch (e) { console.error('Honor history error:', e.message); }
+        }
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+? WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, battle.totalAbsorbedPhysB || 0, battle.totalAbsorbedElemB || 0, battle.totalAbsorbedShieldB || 0, freshD.id]);
         const pvpWeekStart = getCurrentWeekStart();
@@ -15890,6 +15944,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 goldEarned: goldGained>0?goldGained:0,
                 goldLost: goldGained<0?-goldGained:0,
                 xpEarned:xpGained,
+                honorChanged: honorDelta,
                 type:'pvp',
                 opponentName:freshD.name,
                 opponentClass:freshD.class,
@@ -15904,6 +15959,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         res.json({
             won: attackerWon, isDraw, log: battle.log, xpGained,
             goldGained: goldGained>0?goldGained:0, goldLost: goldGained<0?-goldGained:0,
+            honorChanged: honorDelta,
+            honor: (updatedAttacker.honor || 0),
             leveledUp, atkLevelUpMessage,
             character: await buildCharacterResponse(updatedAttacker, db),
             totalDmgDealt: battle.totalDmgToB,
@@ -15922,7 +15979,7 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.profile_pic,c.profile_badges,c.profile_pic_offset,
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.honor,c.profile_pic,c.profile_badges,c.profile_pic_offset,
                                                 (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
                                                 sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo
                                          FROM characters c
@@ -16227,6 +16284,7 @@ router.get('/player/:id', auth, async (req, res) => {
             hp_max:hpMax,
             hp_current: player.hp_current ?? hpMax,
             wins:player.wins, losses:player.losses, draws:player.draws||0,
+            honor:player.honor || 0,
             tournament_wins: player.tournament_wins || 0,
             dungeon_highest_floor: player.dungeon_highest_floor || 0,
             achievements_completed: achievementCountRow?.count || 0,
@@ -17817,6 +17875,9 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
     if (mutation_type === 'untrusted_api' && charName) {
         const d = String(detail || '') + ' ' + String(target_info || '');
         if (d.includes('/setups') || d.includes('/tutorial')) return res.json({ success: true, ignored: true });
+        // File uploads are picked via the OS file dialog, so the API call reliably
+        // lands >3s after the last trusted event — never a scripting signal.
+        if (d.includes('/squads/logo')) return res.json({ success: true, ignored: true });
         await ensureFlaggedTable(db);
         const reasonType = 'untrusted_api';
         const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
@@ -17837,7 +17898,10 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
             await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
         }
         // Automatic escalating ban on untrusted API calls
-        await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
+        // Admins/moderators are trusted operators — never auto-lock them.
+        if (!req.user.isAdmin && !req.user.isModerator) {
+            await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
+        }
     }
     res.json({ success: true });
 } catch (e) { res.status(500).json({ error: e.message }); }
@@ -21657,6 +21721,43 @@ router.post('/dungeon/guild/bounty/claim', auth, async (req, res) => {
             gold: updated?.gold || 0,
             guildReputation: updated?.guild_reputation || 0,
             bounty: nextBounty
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+const GUILD_BOUNTY_SKIP_COOLDOWN = 24 * 60 * 60;
+
+router.post('/dungeon/guild/bounty/skip', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        const bounty = await ensureActiveGuildBounty(db, char.id);
+        if (!bounty) return res.status(404).json({ error: 'No active bounty found' });
+        if (bounty.claimed_at) {
+            return res.status(400).json({ error: 'This bounty was already claimed' });
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        const availableAt = Number(bounty.skip_available_at || 0);
+        if (now < availableAt) {
+            const remaining = availableAt - now;
+            const hoursLeft = Math.ceil(remaining / 3600);
+            return res.status(429).json({
+                error: `You can skip your bounty again in ${hoursLeft}h.`,
+                skipAvailableAt: availableAt
+            });
+        }
+
+        const nextBounty = await insertRandomGuildBounty(db, char.id, { skipUntil: now + GUILD_BOUNTY_SKIP_COOLDOWN });
+        res.json({
+            success: true,
+            message: 'Bounty skipped. A new contract awaits.',
+            bounty: nextBounty,
+            skipAvailableAt: nextBounty.skip_available_at || 0
         });
     } catch (e) {
         res.status(500).json({ error: e.message });
