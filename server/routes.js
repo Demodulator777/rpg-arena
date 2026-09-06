@@ -13129,11 +13129,18 @@ async function getHonorNet7d(db, characterId) {
         return Number(row && row.net || 0);
     } catch (e) { return 0; }
 }
-// Hidden mechanic: honorable players get +25% mission gold, bullies -25%.
+// Hidden mechanic: mission gold payout rolls a dynamic ±0-25% each collect.
+// Net 7d honor >= 0 (including 0 — high-levels sit at 0 honor) biases the roll
+// toward +25%; net < 0 biases toward -25%. More honor = more chance of a
+// higher payout/penalty. Both sides asymptote to 25% but never hard-cap.
 function honorGoldMultiplier(netHonor7d) {
-    if (netHonor7d > 0) return 1.25;
-    if (netHonor7d < 0) return 0.75;
-    return 1;
+    const x = Math.random();
+    if (netHonor7d >= 0) {
+        const q = 1 / (1 + netHonor7d / 25);
+        return 1 + Math.round(25 * Math.pow(x, q)) / 100;
+    }
+    const q = 1 + (-netHonor7d) / 25;
+    return 1 - Math.round(25 * (1 - Math.pow(x, q))) / 100;
 }
 
 async function collectMissionForCharacter(db, characterId) {
@@ -13478,7 +13485,7 @@ async function collectMissionForCharacter(db, characterId) {
             }
         }
 
-        // Hidden mechanic: last-7-days honor adjusts mission gold payout ±25%.
+        // Hidden mechanic: last-7-days honor rolls a dynamic mission gold payout (±0-25%).
         try {
             const honorMult = honorGoldMultiplier(await getHonorNet7d(db, freshChar.id));
             if (honorMult !== 1) goldEarned = Math.floor(goldEarned * honorMult);
