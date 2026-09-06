@@ -828,6 +828,12 @@
   cursor: not-allowed;
 }
 
+.exchange-btn-skip {
+  margin-top: 8px;
+  background: rgba(239,68,68,0.10);
+  border-color: rgba(239,68,68,0.30);
+}
+
 .raid-create-card,
 .raid-card {
   display: grid;
