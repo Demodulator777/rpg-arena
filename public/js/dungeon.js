@@ -7,6 +7,55 @@
 (function (global) {
   'use strict';
 
+  // ── Translation helper (PT when app is in PT mode, else EN) ──────────────
+  const _pt = (ptText, enText) =>
+    (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG === 'pt') ? ptText : enText;
+
+  // ── Combat log translator: server sends battle-log lines in EN; convert to PT ──
+  function _ptCombat(text) {
+    if (!text || (typeof CURRENT_LANG !== 'undefined' && CURRENT_LANG !== 'pt')) return text;
+    const exact = {
+      '💨 You attempt to flee...': '💨 Você tenta fugir...',
+      '✅ Escape successful.': '✅ Fuga bem-sucedida.',
+      '✅ Escape successful. You can leave now, or keep fighting.': '✅ Fuga bem-sucedida. Você pode sair agora, ou continuar lutando.',
+      '⚠️ Escape failed! The enemies strike!': '⚠️ Fuga falhou! Os inimigos atacam!',
+      '⚠️ Escape failed! The Crawler strikes!': '⚠️ Fuga falhou! O Devorador ataca!',
+      'The Crawler is already on you!': 'O Devorador já está em cima de você!',
+      'The Crawler drops from the dark and pins your escape route!': 'O Devorador surge das sombras e bloqueia sua rota de fuga!',
+      '⚠️ Boss battle begins!': '⚠️ A batalha do chefe começa!',
+      'Enemies close in...': 'Os inimigos se aproximam...',
+      '🏆 Against all odds, you bring down The Crawler!': '🏆 Contra todas as probabilidades, você derruba o Devorador!'
+    };
+    if (exact[text]) return exact[text];
+
+    let m = text.match(/^✅ (.+) defeated!$/);
+    if (m) return `✅ ${m[1]} derrotado!`;
+
+    m = text.match(/^(💥 )?(.+) hits you for (\d+)!$/);
+    if (m) return `${m[1] || ''}${m[2]} acerta você com ${m[3]}!`;
+
+    m = text.match(/^You strike (.+) for (\d+) damage!$/);
+    if (m) return `Você ataca ${m[1]} causando ${m[2]} de dano!`;
+
+    m = text.match(/^🛡️ You take (\d+) damage\.$/);
+    if (m) return `🛡️ Você sofre ${m[1]} de dano.`;
+
+    m = text.match(/^(⚔️|💥|⚡) (Strike|Burst|Ultimate)( \[(PERFECT!|GOOD|MISS)\])? → (.+) for (\d+) damage!$/);
+    if (m) {
+      const atkPt = { 'Strike': 'Ataque', 'Burst': 'Rajada', 'Ultimate': 'Supremo' }[m[2]];
+      const zonePt = { 'PERFECT!': ' [PERFEITO!]', 'GOOD': ' [BOM]', 'MISS': ' [ERROU]' }[m[4]] || '';
+      return `${m[1]} ${atkPt}${zonePt} → ${m[5]} por ${m[6]} de dano!`;
+    }
+
+    m = text.match(/^🔥 (.+) enrages as a HP bar shatters!$/);
+    if (m) return `🔥 ${m[1]} fica enfurecido ao quebrar uma barra de PV!`;
+
+    m = text.match(/^💢 (.+) uses SPECIAL ATTACK for (\d+)!$/);
+    if (m) return `💢 ${m[1]} usa ATAQUE ESPECIAL causando ${m[2]}!`;
+
+    return text;
+  }
+
   // ── API Wrapper (uses your existing api function) ──────────────────────────
   const apiFetch = global.api || (async () => {
     console.error('[Dungeon] api not available!');
@@ -27,65 +76,65 @@
   const DUNGEON_VISUALS = {
     start: {
       image: '/images/dungeon/entrance.jpg',
-      description: "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones."
+      description: _pt("Você está na entrada de uma torre escura e ameaçadora. Runas antigas pulsam com luz fraca nas pedras desgastadas.", "You stand at the entrance of a dark, foreboding tower. Ancient runes pulse with faint light on the weathered stones.")
     },
     corridor: {
       image: '/images/dungeon/corridor.jpg',
-      description: "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows."
+      description: _pt("Um corredor estreito se estende diante de você. Tochas oscilam nas paredes, projetando sombras dançantes.", "A narrow passage stretches before you. Torches flicker on the walls, casting dancing shadows.")
     },
     area: {
       image: '/images/dungeon/stairs.jpg',
-      description: "An open chamber where multiple paths converge. Stone arches lead in several directions."
+      description: _pt("Uma câmara aberta onde múltiplos caminhos convergem. Arcos de pedra levam em várias direções.", "An open chamber where multiple paths converge. Stone arches lead in several directions.")
     },
     treasure: {
       image: '/images/dungeon/treasure.jpg',
-      description: "A glint of gold catches your eye! An ornate chest sits in the center of this chamber."
+      description: _pt("Um reflexo de ouro chama sua atenção! Um baú ornamentado está no centro desta câmara.", "A glint of gold catches your eye! An ornate chest sits in the center of this chamber.")
     },
     miniboss: {
       image: '/images/dungeon/boss-chamber.jpg',
-      description: "A powerful guardian blocks this passage. Defeat it to proceed."
+      description: _pt("Um guardião poderoso bloqueia esta passagem. Derrote-o para prosseguir.", "A powerful guardian blocks this passage. Defeat it to proceed.")
     },
     boss: {
       image: '/images/dungeon/boss-chamber.jpg',
-      description: "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master."
+      description: _pt("O ar fica pesado. Grandes colunas se erguem até o teto. Esta é a sala do trono do mestre do andar.", "The air grows heavy. Grand pillars rise to the ceiling. This is the throne room of the floor's master.")
     }
   };
 
   // ── Adventurer's Guild ─────────────────────────────────────────
 const GUILD_EXCHANGES = [
-  { id: 'exchange_gold', name: 'Exchange Dungeon Gold', icon: '💰',
+  { id: 'exchange_gold', name: _pt('Trocar Ouro da Masmorra', 'Exchange Dungeon Gold'), icon: '💰',
     cost: { dungeonGold: 100 }, reward: { gold: 80, reputation: 1 },
-    desc: 'Convert 100 dungeon gold into 80 real gold + 1 reputation point', minRep: 0 },
-  { id: 'buy_elem_common', name: 'Buy Common Element', icon: '🔥',
+    desc: _pt('Converta 100 de ouro da masmorra em 80 de ouro real + 1 ponto de reputação', 'Convert 100 dungeon gold into 80 real gold + 1 reputation point'), minRep: 0 },
+  { id: 'buy_elem_common', name: _pt('Comprar Elemento Comum', 'Buy Common Element'), icon: '🔥',
     cost: { dungeonGold: 40 }, reward: { elemTier: 'common' },
-    desc: 'Purchase 1 random common elemental material (3 XP)', minRep: 0 },
-  { id: 'buy_elem_uncommon', name: 'Buy Uncommon Element', icon: '💧',
+    desc: _pt('Compre 1 material elemental comum aleatório (3 XP)', 'Purchase 1 random common elemental material (3 XP)'), minRep: 0 },
+  { id: 'buy_elem_uncommon', name: _pt('Comprar Elemento Incomum', 'Buy Uncommon Element'), icon: '💧',
     cost: { dungeonGold: 100 }, reward: { elemTier: 'uncommon' },
-    desc: 'Purchase 1 random uncommon elemental material (8 XP)', minRep: 10 },
-  { id: 'buy_elem_rare', name: 'Buy Rare Element', icon: '⚡',
+    desc: _pt('Compre 1 material elemental incomum aleatório (8 XP)', 'Purchase 1 random uncommon elemental material (8 XP)'), minRep: 10 },
+  { id: 'buy_elem_rare', name: _pt('Comprar Elemento Raro', 'Buy Rare Element'), icon: '⚡',
     cost: { dungeonGold: 180 }, reward: { elemTier: 'rare' },
-    desc: 'Purchase 1 random rare elemental material (15 XP)', minRep: 50 },
-  { id: 'buy_elem_epic', name: 'Buy Epic Element', icon: '🌪️',
+    desc: _pt('Compre 1 material elemental raro aleatório (15 XP)', 'Purchase 1 random rare elemental material (15 XP)'), minRep: 50 },
+  { id: 'buy_elem_epic', name: _pt('Comprar Elemento Épico', 'Buy Epic Element'), icon: '🌪️',
     cost: { dungeonGold: 300 }, reward: { elemTier: 'epic' },
-    desc: 'Purchase 1 random epic elemental material (25 XP)', minRep: 200 },
-  { id: 'buy_elem_legendary', name: 'Buy Legendary Element', icon: '👑',
+    desc: _pt('Compre 1 material elemental épico aleatório (25 XP)', 'Purchase 1 random epic elemental material (25 XP)'), minRep: 200 },
+  { id: 'buy_elem_legendary', name: _pt('Comprar Elemento Lendário', 'Buy Legendary Element'), icon: '👑',
     cost: { dungeonGold: 500 }, reward: { elemTier: 'legendary' },
-    desc: 'Purchase 1 random legendary elemental material (45 XP)', minRep: 500 },
-  { id: 'swap_elem_common', name: 'Swap Common Elements', icon: '🔄',
+    desc: _pt('Compre 1 material elemental lendário aleatório (45 XP)', 'Purchase 1 random legendary elemental material (45 XP)'), minRep: 500 },
+  { id: 'swap_elem_common', name: _pt('Trocar Elementos Comuns', 'Swap Common Elements'), icon: '🔄',
     cost: { tier_common: 2 }, reward: { elemTier: 'common' },
-    desc: 'Trade 2 common elemental materials for 1 random common', minRep: 0 },
-  { id: 'swap_elem_uncommon', name: 'Swap Uncommon Elements', icon: '🔄',
+    desc: _pt('Troque 2 materiais elementais comuns por 1 comum aleatório', 'Trade 2 common elemental materials for 1 random common'), minRep: 0 },
+  { id: 'swap_elem_uncommon', name: _pt('Trocar Elementos Incomuns', 'Swap Uncommon Elements'), icon: '🔄',
     cost: { tier_uncommon: 2 }, reward: { elemTier: 'uncommon' },
-    desc: 'Trade 2 uncommon elemental materials for 1 random uncommon', minRep: 10 },
-  { id: 'swap_elem_rare', name: 'Swap Rare Elements', icon: '🔄',
+    desc: _pt('Troque 2 materiais elementais incomuns por 1 incomum aleatório', 'Trade 2 uncommon elemental materials for 1 random uncommon'), minRep: 10 },
+  { id: 'swap_elem_rare', name: _pt('Trocar Elementos Raros', 'Swap Rare Elements'), icon: '🔄',
     cost: { tier_rare: 2 }, reward: { elemTier: 'rare' },
-    desc: 'Trade 2 rare elemental materials for 1 random rare', minRep: 50 },
-  { id: 'swap_elem_epic', name: 'Swap Epic Elements', icon: '🔄',
+    desc: _pt('Troque 2 materiais elementais raros por 1 raro aleatório', 'Trade 2 rare elemental materials for 1 random rare'), minRep: 50 },
+  { id: 'swap_elem_epic', name: _pt('Trocar Elementos Épicos', 'Swap Epic Elements'), icon: '🔄',
     cost: { tier_epic: 2 }, reward: { elemTier: 'epic' },
-    desc: 'Trade 2 epic elemental materials for 1 random epic', minRep: 200 },
-  { id: 'swap_elem_legendary', name: 'Swap Legendary Elements', icon: '🔄',
+    desc: _pt('Troque 2 materiais elementais épicos por 1 épico aleatório', 'Trade 2 epic elemental materials for 1 random epic'), minRep: 200 },
+  { id: 'swap_elem_legendary', name: _pt('Trocar Elementos Lendários', 'Swap Legendary Elements'), icon: '🔄',
     cost: { tier_legendary: 2 }, reward: { elemTier: 'legendary' },
-    desc: 'Trade 2 legendary elemental materials for 1 random legendary', minRep: 500 },
+    desc: _pt('Troque 2 materiais elementais lendários por 1 lendário aleatório', 'Trade 2 legendary elemental materials for 1 random legendary'), minRep: 500 },
 ];
 
 const ELEM_TIER_INFO = {
@@ -113,6 +162,11 @@ const GUILD_RANKS = [
   { rank: 4, name: 'Master', reputationNeeded: 500, discount: 20 },
   { rank: 5, name: 'Grand Master', reputationNeeded: 1000, discount: 25 },
 ];
+
+const _guildRankName = (name) => _pt({
+  Novice: 'Novato', Apprentice: 'Aprendiz', Journeyman: 'Jornaleiro',
+  Expert: 'Especialista', Master: 'Mestre', 'Grand Master': 'Grão-Mestre'
+}[name] || name, name);
 
 // Add to state
 // Add to D object:
@@ -531,7 +585,7 @@ async function refreshCharacter() {
   try {
     const response = await apiFetch('GET', '/game/dungeon/data');
     if (response && response.conflict) {
-      log(`⚠️ Dungeon already active on another device. Please close it there first.`, 'log-danger');
+      log(`${CURRENT_LANG === 'pt' ? '⚠️ A masmorra já está ativa em outro dispositivo. Feche-a lá primeiro.' : '⚠️ Dungeon already active on another device. Please close it there first.'}`, 'log-danger');
       setTimeout(() => renderDungeonList(), 2000);
       return false;
     }
@@ -628,7 +682,7 @@ async function refreshCharacter() {
           D.tokens = response.totalTokens;
           updateTokenDisplay();
           saveState();
-          log(`⚗️ Gained ${response.tokensEarned} Boss Clearance Token${response.tokensEarned > 1 ? 's' : ''} from MP spent.`, 'log-token');
+          log(`${_pt(`⚗️ Ganhou ${response.tokensEarned} Token de Permissão de Chefe${response.tokensEarned > 1 ? 's' : ''} pelo MP gasto.`, `⚗️ Gained ${response.tokensEarned} Boss Clearance Token${response.tokensEarned > 1 ? 's' : ''} from MP spent.`)}`, 'log-token');
         }
       })
       .catch(e => console.error('Failed to process MP:', e));
@@ -971,9 +1025,9 @@ async function refreshCharacter() {
     if (!D.crawler || D.crawler.defeated || !D.crawler.active) return;
     const path = buildRoomPath(D.playerPos, D.crawler.roomIdx);
     if (path.length === 2) {
-      log(`🕷️ You hear skittering just beyond the next chamber...`, 'log-danger');
+      log(`${_pt('🕷️ Você ouve um farfalhar logo além da próxima câmara...', '🕷️ You hear skittering just beyond the next chamber...')}`, 'log-danger');
     } else if (path.length === 3) {
-      log(`🕷️ The stone beneath your feet trembles for a moment. Something huge is moving nearby.`, 'log-warning');
+      log(`${_pt('🕷️ A pedra sob seus pés treme por um momento. Algo enorme está se movendo por perto.', '🕷️ The stone beneath your feet trembles for a moment. Something huge is moving nearby.')}`, 'log-warning');
     }
   }
 
@@ -985,9 +1039,9 @@ async function refreshCharacter() {
     const c0 = getChar();
     const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
     if (Number.isFinite(hp0) && hp0 <= 0) {
-      const msg = 'You are at 0 HP. Leave the dungeon to recover before fighting again.';
+      const msg = _pt('Você está com 0 de HP. Saia da masmorra para se recuperar antes de lutar novamente.', 'You are at 0 HP. Leave the dungeon to recover before fighting again.');
       if (typeof openGameDialog === 'function') {
-        openGameDialog({ title: 'Out of HP', message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+        openGameDialog({ title: _pt('Sem HP', 'Out of HP'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
       } else {
         alert(msg);
       }
@@ -1018,7 +1072,7 @@ async function refreshCharacter() {
       combatId: null,
       turnNonce: 0,
     };
-    log(`🕷️ The Crawler is upon you! Running may be your only chance.`, 'log-danger');
+    log(`${_pt('🕷️ O Devorador caiu sobre você! Fugir pode ser sua única chance.', '🕷️ The Crawler is upon you! Running may be your only chance.')}`, 'log-danger');
     saveState();
     saveProgressToDB();
     renderCombatPanel();
@@ -1077,7 +1131,7 @@ async function refreshCharacter() {
       if (D.crawler.chaseTurnsLeft <= 0 && nextRoomIdx !== D.playerPos) {
         D.crawler.encountered = false;
         D.crawler.chaseTurnsLeft = 0;
-        log(`🕷️ The skittering fades. The Crawler loses your trail... for now.`, 'log-warning');
+        log(`${_pt('🕷️ O farfalhar desaparece. O Devorador perde seu rastro... por enquanto.', '🕷️ The skittering fades. The Crawler loses your trail... for now.')}`, 'log-warning');
       }
     } else {
       const currentRoom = D.rooms[D.crawler.roomIdx];
@@ -1179,7 +1233,7 @@ function enterDungeon(dungeonId) {
     apiFetch('POST', '/game/dungeon/lock-acquire')
         .then(res => {
             if (res.locked || res.error) {
-                alert('⚠️ Dungeon is already active on another device.\nPlease close it there first.');
+                alert(_pt('⚠️ A masmorra já está ativa em outro dispositivo.\nFeche-a lá primeiro.', '⚠️ Dungeon is already active on another device.\nPlease close it there first.'));
                 return;
             }
             // Lock acquired - now verify and enter
@@ -1188,7 +1242,7 @@ function enterDungeon(dungeonId) {
         })
         .catch(e => {
             console.error('Failed to acquire lock:', e);
-            alert('⚠️ Failed to enter dungeon. Please try again.');
+            alert(_pt('⚠️ Falha ao entrar na masmorra. Tente novamente.', '⚠️ Failed to enter dungeon. Please try again.'));
         });
 }
 
@@ -1237,7 +1291,7 @@ function startDungeonEnter(dungeonId) {
         apiFetch('POST', '/game/dungeon/lock-acquire')
             .then(res => {
                 if (res.locked || res.error) {
-                    alert('⚠️ Dungeon is already active on another device.');
+                    alert(_pt('⚠️ A masmorra já está ativa em outro dispositivo.', '⚠️ Dungeon is already active on another device.'));
                     return;
                 }
                 D.hasLock = true;
@@ -1245,7 +1299,7 @@ function startDungeonEnter(dungeonId) {
             })
             .catch(e => {
                 console.error('Lock verification failed:', e);
-                alert('⚠️ Failed to verify lock.');
+                alert(_pt('⚠️ Falha ao verificar o bloqueio.', '⚠️ Failed to verify lock.'));
             });
         return;
     }
@@ -1306,7 +1360,7 @@ function proceedStartDungeon(dungeonId) {
         }
         ensureCrawlerState();
         
-        log(`🔮 Resuming Floor ${D.floor}...`, 'log-enter');
+        log(`${_pt(`🔮 Retomando Andar ${D.floor}...`, `🔮 Resuming Floor ${D.floor}...`)}`, 'log-enter');
         renderDungeonView();
         return;
     }
@@ -1318,7 +1372,7 @@ function proceedStartDungeon(dungeonId) {
     D.rooms = normalizeRoomMonsters(normalizeMiniBossRooms(generateFloor('tower', startFloor), startFloor), startFloor);
     
     if (!D.rooms || D.rooms.length === 0) {
-        log('Failed to generate dungeon. Please try again.', 'log-danger');
+        log(_pt('Falha ao gerar a masmorra. Tente novamente.', 'Failed to generate dungeon. Please try again.'), 'log-danger');
         return;
     }
     
@@ -1332,7 +1386,7 @@ function proceedStartDungeon(dungeonId) {
     saveState();
     saveProgressToDB();
 
-    log(`⚔️ Entered The Endless Tower – Floor ${startFloor}`, 'log-enter');
+    log(`${_pt(`⚔️ Entrou na Torre Infinita – Andar ${startFloor}`, `⚔️ Entered The Endless Tower – Floor ${startFloor}`)}`, 'log-enter');
     renderDungeonView();
 }
 
@@ -1349,7 +1403,7 @@ function travelToRoom(targetIdx) {
     const canLeaveWithoutFight = current.isMiniBoss || current.type === 'miniboss';
     
     if (hasAliveMonsters && !hasEvaded && !canLeaveWithoutFight) {
-        log(`⚠️ You must defeat or escape from the ${current.monsters.length} enemies in this room before leaving!`, 'log-danger');
+        log(`${_pt(`⚠️ Você deve derrotar ou fugir dos ${current.monsters.length} inimigos nesta sala antes de sair!`, `⚠️ You must defeat or escape from the ${current.monsters.length} enemies in this room before leaving!`)}`, 'log-danger');
         return;
     }
     
@@ -1372,7 +1426,11 @@ function travelToRoom(targetIdx) {
             bar.style.width = '0%';
         }
 
-        log(`📍 Arrived at ${target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`}`, 'log-arrive');
+        const destLabel = _pt(
+          target.isBoss ? '⚠️ SALA DO CHEFE' : target.type === 'treasure' ? '💰 Sala do Tesouro' : `Sala ${targetIdx+1}`,
+          target.isBoss ? '⚠️ BOSS ROOM' : target.type === 'treasure' ? '💰 Treasure Room' : `Room ${targetIdx+1}`
+        );
+        log(`📍 ${_pt('Chegou a ', 'Arrived at ')}${destLabel}`, 'log-arrive');
 
         if (target.type === 'treasure' && !target.looted) {
             target.looted = true;
@@ -1381,19 +1439,19 @@ function travelToRoom(targetIdx) {
                     if (!res || !res.success) throw new Error(res?.error || 'Treasure loot failed.');
                     if (Array.isArray(res.granted) && res.granted.length) {
                         for (const it of res.granted) {
-                            if (it.type === 'dungeon_gold') log(`💰 +${it.amount} dungeon gold`, 'log-loot');
-                            else log(`🎁 Loot found: ${it.name || it.id || it.type}`, 'log-loot');
+                            if (it.type === 'dungeon_gold') log(`${_pt(`💰 +${it.amount} ouro de masmorra`, `💰 +${it.amount} dungeon gold`)}`, 'log-loot');
+                            else log(`${_pt(`🎁 Tesouro encontrado: ${it.name || it.id || it.type}`, `🎁 Loot found: ${it.name || it.id || it.type}`)}`, 'log-loot');
                         }
                         updateDungeonGoldDisplay();
                     } else if (res.alreadyLooted) {
-                        log(`⚠️ This treasure was already collected — no loot gained.`, 'log-warning');
+                        log(`${_pt('⚠️ Este tesouro já foi coletado — nenhum saque obtido.', '⚠️ This treasure was already collected — no loot gained.')}`, 'log-warning');
                     } else {
-                        log(`🕳️ The chest is empty...`, 'log-loot');
+                        log(`${_pt('🕳️ O baú está vazio...', '🕳️ The chest is empty...')}`, 'log-loot');
                     }
                 })
                 .catch(e => {
                     console.error('Failed to collect treasure loot:', e);
-                    log(`⚠️ Could not collect treasure loot.`, 'log-warning');
+                    log(`${_pt('⚠️ Não foi possível coletar o tesouro.', '⚠️ Could not collect treasure loot.')}`, 'log-warning');
                 });
         }
         if (!moveCrawlerAfterPlayerMove()) {
@@ -1408,7 +1466,7 @@ function travelToRoom(targetIdx) {
 
     D.isTraveling = true;
     updateTravelBtn(targetIdx, true);
-    log(`🚶 Traveling to Room ${targetIdx + 1}...`, 'log-travel');
+    log(`${_pt(`🚶 Viajando para a Sala ${targetIdx + 1}...`, `🚶 Traveling to Room ${targetIdx + 1}...`)}`, 'log-travel');
 
     const travelMs = TRAVEL_BASE_MS;
     if (bar) {
@@ -1432,9 +1490,9 @@ function startCombat(roomIdx) {
     const c0 = getChar();
     const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
     if (Number.isFinite(hp0) && hp0 <= 0) {
-        const msg = 'You are at 0 HP. Leave the dungeon to recover before fighting again.';
+        const msg = _pt('Você está com 0 de HP. Saia da masmorra para se recuperar antes de lutar novamente.', 'You are at 0 HP. Leave the dungeon to recover before fighting again.');
         if (typeof openGameDialog === 'function') {
-            openGameDialog({ title: 'Out of HP', message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+            openGameDialog({ title: _pt('Sem HP', 'Out of HP'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
         } else {
             alert(msg);
         }
@@ -1449,7 +1507,7 @@ function startCombat(roomIdx) {
         // Cooldown is aligned with MONSTER_RESPAWN_H. After respawn, allow clearing again.
         if (!elapsed(Number(room.monstersCleared), MONSTER_RESPAWN_H)) {
             const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - Number(room.monstersCleared)) / 3600000).toFixed(1);
-            log(`💤 Loot on cooldown (${hoursLeft}h) — you can still fight.`, 'log-info');
+            log(`${_pt(`💤 Saque em recarga (${hoursLeft}h) — você ainda pode lutar.`, `💤 Loot on cooldown (${hoursLeft}h) — you can still fight.`)}`, 'log-info');
             // Cooldown should only block loot, not combat itself.
         }
         // Only clear the flag when cooldown elapsed; otherwise keep it so we still know loot is gated.
@@ -1460,7 +1518,7 @@ function startCombat(roomIdx) {
     const anyAlive = room.monsters.some(m => !m.lastKilled || elapsed(Number(m.lastKilled), MONSTER_RESPAWN_H));
     if (!anyAlive) {
         const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - Number(room.monsters[0].lastKilled)) / 3600000).toFixed(1);
-        log(`💤 Monsters respawn in ${hoursLeft}h`, 'log-info');
+        log(`${_pt(`💤 Monstros renascem em ${hoursLeft}h`, `💤 Monsters respawn in ${hoursLeft}h`)}`, 'log-info');
         return;
     }
 
@@ -1540,7 +1598,7 @@ function startCombat(roomIdx) {
             console.error('Failed to start server combat:', err);
             if (D.combat && D.combat.roomIdx === roomIdx) {
                 D.combat.resolving = false;
-                D.combat.roundLog.push({ actor: 'monster', text: '⚠️ Server combat unavailable. Try reconnecting.' });
+          D.combat.roundLog.push({ actor: 'monster', text: _pt('⚠️ Combate do servidor indisponível. Tente reconectar.', '⚠️ Server combat unavailable. Try reconnecting.') });
                 renderCombatPanel();
             }
         });
@@ -1556,7 +1614,7 @@ function fightRound() {
     const manaNeeded = atkType === 'ultimate' ? 100 : atkType === 'burst' ? 60 : 0;
     if (manaNeeded > 0 && (D.combat.manaPoints ?? 0) < manaNeeded) {
         D.combat.attackType = 'regular';
-        D.combat.roundLog.push({ actor: 'player', text: '⚠️ Not enough mana — switched to regular attack.' });
+        D.combat.roundLog.push({ actor: 'player', text: _pt('⚠️ Mana insuficiente — voltou para ataque normal.', '⚠️ Not enough mana — switched to regular attack.') });
         D.combat._skillCheckDone = false;
         renderCombatPanel();
         return;
@@ -1649,7 +1707,7 @@ function fightRound() {
         // Regular room + boss combat uses unified endpoint.
         if (D.combat.resolving) return;
         if (!D.combat.combatId) {
-            D.combat.roundLog.push({ actor: 'monster', text: '⚠️ Still connecting to server combat...' });
+            D.combat.roundLog.push({ actor: 'monster', text: _pt('⚠️ Ainda conectando ao combate do servidor...', '⚠️ Still connecting to server combat...') });
             renderCombatPanel();
             triggerCombatAnimations();
             return;
@@ -1729,11 +1787,11 @@ function fightRound() {
                     }
                     if (Array.isArray(res.lootGranted) && res.lootGranted.length) {
                         for (const it of res.lootGranted) {
-                            if (it.type === 'dungeon_gold') log(`💰 +${it.amount} dungeon gold`, 'log-loot');
-                            else log(`🎁 Loot granted: ${it.name || it.id || it.type}`, 'log-loot');
+                            if (it.type === 'dungeon_gold') log(`${_pt(`💰 +${it.amount} ouro de masmorra`, `💰 +${it.amount} dungeon gold`)}`, 'log-loot');
+                            else log(`${_pt(`🎁 Tesouro concedido: ${it.name || it.id || it.type}`, `🎁 Loot granted: ${it.name || it.id || it.type}`)}`, 'log-loot');
                         }
                     } else if (res.cleared) {
-                        log(`⚠️ Room already cleared — no loot gained.`, 'log-warning');
+                        log(`${_pt('⚠️ Sala já limpa — nenhum saque obtido.', '⚠️ Room already cleared — no loot gained.')}`, 'log-warning');
                     }
                     if (room && room.id) {
                         apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true }).catch(() => {});
@@ -1777,8 +1835,8 @@ function fightRound() {
                     const loot = res.bossLoot;
                     const boss = D.combat.monsters?.[0] || { name: 'Boss', icon: '⚠️' };
                     if (loot) {
-                        log(`🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`, 'log-boss');
-                        log(`💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | ✨ ${loot.premium?.name || 'Premium'}`, 'log-success');
+                        log(`${_pt(`🏆 ANDAR ${D.floor} LIMPO! ${boss.name} derrotado!`, `🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`)}`, 'log-boss');
+                        log(`${_pt(`💰 Saque: ${loot.gold} ouro | 💎 ${loot.gems} gemas | ✨ ${loot.premium?.name || 'Premium'}`, `💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | ✨ ${loot.premium?.name || 'Premium'}`)}`, 'log-success');
                     }
                     if (typeof res.tokens === 'number') {
                         D.tokens = res.tokens;
@@ -1917,7 +1975,7 @@ function fightRound() {
     D.crawler.encountered = false;
     D.crawler.chaseTurnsLeft = 0;
     D.crawler.monster.currentHp = 0;
-    log(`🏆 Against all odds, you bring down The Crawler!`, 'log-boss');
+    log(`${_pt('🏆 Contra todas as probabilidades, você derruba o Devorador!', '🏆 Against all odds, you bring down The Crawler!')}`, 'log-boss');
     apiFetch('POST', '/game/dungeon/crawler-event', { event: 'defeat' }).catch(() => {});
     D.combat = null;
     D._combatPrefetch = null;
@@ -1941,13 +1999,13 @@ function tryRun(roomIdx) {
         return;
     }
 
-    pushCombatLog('player', `💨 You attempt to flee...`);
+    pushCombatLog('player', `${_pt('💨 Você tenta fugir...', '💨 You attempt to flee...')}`);
 
     // Server-authoritative fleeing (Crawler uses its own endpoint; others use unified endpoint).
     if (D.combat.serverAuth && D.combat.isCrawler) {
         if (D.combat.resolving) return;
         if (!D.combat.combatId) {
-            pushCombatLog('monster', `⚠️ Still connecting to server combat...`);
+            pushCombatLog('monster', `${_pt('⚠️ Ainda conectando ao combate do servidor...', '⚠️ Still connecting to server combat...')}`);
             renderCombatPanel();
             return;
         }
@@ -2006,7 +2064,7 @@ function tryRun(roomIdx) {
     if (D.combat.serverAuth) {
         if (D.combat.resolving) return;
         if (!D.combat.combatId) {
-            pushCombatLog('monster', `⚠️ Still connecting to server combat...`);
+            pushCombatLog('monster', `${_pt('⚠️ Ainda conectando ao combate do servidor...', '⚠️ Still connecting to server combat...')}`);
             renderCombatPanel();
             return;
         }
@@ -2062,7 +2120,7 @@ function tryRun(roomIdx) {
     }
 
     if (chance(RUN_ESCAPE_CHANCE)) {
-        pushCombatLog('player', `✅ Escape successful. You can leave now, or keep fighting.`);
+        pushCombatLog('player', `${_pt('✅ Fuga bem-sucedida. Você pode sair agora ou continuar lutando.', '✅ Escape successful. You can leave now, or keep fighting.')}`);
 
         // Mark the room as evaded so travel is allowed even if multiple monsters are alive.
         // (Reset in travelToRoom once you actually leave.)
@@ -2078,7 +2136,7 @@ function tryRun(roomIdx) {
         D.combat.escapeReady = true;
         renderCombatPanel();
     } else {
-        pushCombatLog('monster', `⚠️ Escape failed! The enemies strike!`);
+        pushCombatLog('monster', `${_pt('⚠️ Fuga falhou! Os inimigos atacam!', '⚠️ Escape failed! The enemies strike!')}`);
         const c = getChar();
         if (c && D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
             const pStats = calcPlayerStats();
@@ -2089,14 +2147,14 @@ function tryRun(roomIdx) {
                 if (m.currentHp > 0) {
                     const mDmg = Math.max(1, Math.floor(m.atk - pStats.def * 0.5 + rand(-2, 2)));
                     totalDamage += mDmg;
-                    pushCombatLog('monster', `💥 ${m.name} hits you for ${mDmg}!`);
+                    pushCombatLog('monster', `${_pt(`💥 ${m.name} acerta você com ${mDmg}!`, `💥 ${m.name} hits you for ${mDmg}!`)}`);
                 }
             }
             
             // hp_current can be 0; don't treat it as "missing".
             c.hp_current = Math.max(0, Number((c.hp_current ?? c.hp ?? 100)) - totalDamage);
             c.hp = c.hp_current;
-            pushCombatLog('player', `💔 You take ${totalDamage} damage.`);
+            pushCombatLog('player', `${_pt(`💔 Você sofre ${totalDamage} de dano.`, `💔 You take ${totalDamage} damage.`)}`);
             
             if (c.hp_current <= 0) {
                 onPlayerDeath();
@@ -2127,12 +2185,12 @@ function cancelEscape() {
     if (!D.combat) return;
     D.combat.escapeReady = false;
     if (!Array.isArray(D.combat.roundLog)) D.combat.roundLog = [];
-    D.combat.roundLog.push({ actor: 'player', text: `⚔️ You decide to keep fighting.` });
+    D.combat.roundLog.push({ actor: 'player', text: `${_pt('⚔️ Você decide continuar lutando.', '⚔️ You decide to keep fighting.')}` });
     renderCombatPanel();
 }
 
 function onPlayerDeath() {
-    log(`💀 You have been slain! Progress saved.`, 'log-danger');
+    log(`${_pt('💀 Você foi derrotado! Progresso salvo.', '💀 You have been slain! Progress saved.')}`, 'log-danger');
     if (D.combat && (D.combat.isCrawler || D.combat.monsters?.some(m => m.isCrawler))) {
         apiFetch('POST', '/game/dungeon/crawler-event', { event: 'death' }).catch(() => {});
     }
@@ -2180,7 +2238,7 @@ async function fightBoss(roomIdx) {
     // Check tokens before attempting boss fight
     const tokensNeeded = 50;
     if ((D.tokens || 0) < tokensNeeded) {
-        log(`⚠️ Need ${tokensNeeded} tokens to challenge the boss. You have ${D.tokens || 0}.`, 'log-warning');
+        log(`${_pt(`⚠️ Você precisa de ${tokensNeeded} tokens para desafiar o chefe. Você tem ${D.tokens || 0}.`, `⚠️ Need ${tokensNeeded} tokens to challenge the boss. You have ${D.tokens || 0}.`)}`, 'log-warning');
         return;
     }
 
@@ -2188,9 +2246,9 @@ async function fightBoss(roomIdx) {
     const c0 = getChar();
     const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
     if (Number.isFinite(hp0) && hp0 <= 0) {
-        const msg = 'You are at 0 HP. Leave the dungeon to recover before challenging the boss.';
+        const msg = _pt('Você está com 0 de HP. Saia da masmorra para se recuperar antes de desafiar o chefe.', 'You are at 0 HP. Leave the dungeon to recover before challenging the boss.');
         if (typeof openGameDialog === 'function') {
-            await openGameDialog({ title: 'Out of HP', message: msg, confirmLabel: 'OK', showCancel: false });
+            await openGameDialog({ title: _pt('Sem HP', 'Out of HP'), message: msg, confirmLabel: 'OK', showCancel: false });
         } else {
             alert(msg);
         }
@@ -2273,23 +2331,23 @@ function renderDungeonTab() {
                         <div class="dungeon-title-wrap">
                             <span class="dungeon-title-icon">⚔️</span>
                             <div>
-                                <div class="dungeon-title-text">Dungeon Raids</div>
-                                <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
+                                <div class="dungeon-title-text">${_pt('Invasões da Masmorra', 'Dungeon Raids')}</div>
+                                <div class="dungeon-title-sub">${_pt('Avance fundo. Vença a escuridão. Alcance a glória.', 'Delve deep. Conquer darkness. Claim glory.')}</div>
                             </div>
                         </div>
                         <div class="dungeon-token-wrap" style="display: flex; gap: 12px;">
                             <div class="dungeon-token-pill">
                                 <span class="dungeon-token-icon">🗝️</span>
-                                <span>Boss Tokens:</span>
+                                <span>${_pt('Tokens de Chefe:', 'Boss Tokens:')}</span>
                                 <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
                             </div>
                             <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
                                 <span class="dungeon-token-icon">💰</span>
-                                <span>Dungeon Gold:</span>
+                                <span>${_pt('Ouro de Masmorra:', 'Dungeon Gold:')}</span>
                                 <span id="dungeon-gold-count" class="dungeon-token-num">${D.dungeonGold || 0}</span>
                             </div>
                         </div>
-                        <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
+                        <div class="dungeon-token-hint">${_pt(`20 MP gastos = 1 Token · ${TOKENS_PER_RUN} Tokens por chefe`, `20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss`)}</div>
                     </div>
                     <div id="dungeon-main-area"></div>
                 </div>
@@ -2312,23 +2370,23 @@ function renderDungeonTab() {
                     <div class="dungeon-title-wrap">
                         <span class="dungeon-title-icon">⚔️</span>
                         <div>
-                            <div class="dungeon-title-text">Dungeon Raids</div>
-                            <div class="dungeon-title-sub">Delve deep. Conquer darkness. Claim glory.</div>
+                            <div class="dungeon-title-text">${_pt('Invasões da Masmorra', 'Dungeon Raids')}</div>
+                            <div class="dungeon-title-sub">${_pt('Avance fundo. Vença a escuridão. Alcance a glória.', 'Delve deep. Conquer darkness. Claim glory.')}</div>
                         </div>
                     </div>
                     <div class="dungeon-token-wrap" style="display: flex; gap: 12px;">
                         <div class="dungeon-token-pill">
                             <span class="dungeon-token-icon">🗝️</span>
-                            <span>Boss Tokens:</span>
+                            <span>${_pt('Tokens de Chefe:', 'Boss Tokens:')}</span>
                             <span id="dungeon-token-count" class="dungeon-token-num">${D.tokens}</span>
                         </div>
                         <div class="dungeon-token-pill" style="background: rgba(241,196,15,0.1); border-color: rgba(241,196,15,0.3);">
                             <span class="dungeon-token-icon">💰</span>
-                            <span>Dungeon Gold:</span>
+                            <span>${_pt('Ouro de Masmorra:', 'Dungeon Gold:')}</span>
                             <span id="dungeon-gold-count" class="dungeon-token-num">${D.dungeonGold || 0}</span>
                         </div>
                     </div>
-                    <div class="dungeon-token-hint">20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss</div>
+                    <div class="dungeon-token-hint">${_pt(`20 MP gastos = 1 Token · ${TOKENS_PER_RUN} Tokens por chefe`, `20 MP spent = 1 Token · ${TOKENS_PER_RUN} Tokens per boss`)}</div>
                 </div>
                 <div id="dungeon-main-area"></div>
             </div>
@@ -2363,7 +2421,7 @@ function renderDungeonRaidHub(guildData) {
     const createLocked = isRaidLocked || hasRaidCommitment;
     const raids = isRaidLocked ? [] : allRaids;
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
-        .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
+        .map(floor => `<option value="${floor}">${_pt(`Andar ${floor}`, `Floor ${floor}`)}</option>`)
         .join('');
     const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
     const constraintMin = 1;
@@ -2372,12 +2430,12 @@ function renderDungeonRaidHub(guildData) {
         const members = Array.isArray(raid.members) ? raid.members : [];
         const membersHtml = members.map(member => `
             <span class="cost-item ${member.isLeader ? 'raid-member-leader' : ''}">
-                ${member.isLeader ? 'Leader' : 'Member'} · ${member.name} Lv.${member.level}
+                ${member.isLeader ? _pt('Líder', 'Leader') : _pt('Membro', 'Member')} · ${member.name} Lv.${member.level}
             </span>
         `).join('');
         const rewardBits = [];
-        if (raid.reward?.gold) rewardBits.push(`${Number(raid.reward.gold).toLocaleString()} Gold`);
-        if (raid.reward?.gems) rewardBits.push(`${Number(raid.reward.gems).toLocaleString()} Gems`);
+        if (raid.reward?.gold) rewardBits.push(`${Number(raid.reward.gold).toLocaleString()} ${_pt('Ouro', 'Gold')}`);
+        if (raid.reward?.gems) rewardBits.push(`${Number(raid.reward.gems).toLocaleString()} ${_pt('Gemas', 'Gems')}`);
         if (raid.reward?.item?.itemData?.name) rewardBits.push(raid.reward.item.itemData.name);
 
         const viewerLevel = guildData.level || 0;
@@ -2385,85 +2443,85 @@ function renderDungeonRaidHub(guildData) {
         const canStart = raid.status === 'forming' && raid.isLeader;
         const canClaim = raid.status === 'completed' && raid.isMember && !raid.rewardClaimed && raid.reward;
         const autoStartLabel = raid.autoStartMode === 'full'
-            ? 'Auto-start when full'
+            ? _pt('Início automático quando cheio', 'Auto-start when full')
             : raid.autoStartMode === 'scheduled'
-                ? `Scheduled: ${formatRaidTime(raid.scheduledStartAt)}`
-                : 'Manual start';
+                ? _pt(`Agendado: ${formatRaidTime(raid.scheduledStartAt)}`, `Scheduled: ${formatRaidTime(raid.scheduledStartAt)}`)
+                : _pt('Início manual', 'Manual start');
         const resultLog = Array.isArray(raid.resultLog) && raid.resultLog.length
             ? `<div class="raid-result-log">${raid.resultLog.map(line => `<div class="raid-result-line">${line}</div>`).join('')}</div>`
             : '';
 
         return `
             <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
-                <div class="exchange-icon raid-card-icon">Raid</div>
+                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
-                    <div class="exchange-name">Floor ${raid.floor} Raid: ${raid.bossName}</div>
-                    <div class="exchange-desc">Up to six players combine into one strike against a floor-scaled raid boss.</div>
+                    <div class="exchange-name">${_pt(`Andar ${raid.floor} Invasão:`, `Floor ${raid.floor} Raid:`)} ${raid.bossName}</div>
+                    <div class="exchange-desc">${_pt('Até seis jogadores se unem em um único ataque contra um chefe de invasão escalonado pelo andar.', 'Up to six players combine into one strike against a floor-scaled raid boss.')}</div>
                     <div class="exchange-cost">
-                        <span class="cost-item">Status: ${raid.status}</span>
+                        <span class="cost-item">${_pt('Status:', 'Status:')} ${raid.status}</span>
                         <span class="cost-item">${autoStartLabel}</span>
-                        <span class="cost-item">Boss HP ${Number(raid.bossHp || 0).toLocaleString()}</span>
+                        <span class="cost-item">${_pt('HP do Chefe', 'Boss HP')} ${Number(raid.bossHp || 0).toLocaleString()}</span>
                     </div>
                     <div class="exchange-cost">${membersHtml}</div>
                     ${raid.resultSummary ? `<div class="exchange-desc raid-summary">${raid.resultSummary}</div>` : ''}
-                    ${rewardBits.length ? `<div class="exchange-reward"><span class="reward-item">Rewards: ${rewardBits.join(' · ')}</span></div>` : ''}
+                    ${rewardBits.length ? `<div class="exchange-reward"><span class="reward-item">${_pt('Recompensas:', 'Rewards:')} ${rewardBits.join(' · ')}</span></div>` : ''}
                     ${resultLog}
-                    ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
-                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<div class="exchange-desc raid-summary" style="margin-top:8px;color:var(--text-dim)">Another character on your account is already in this raid.</div>` : ''}
-                    ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>Start Raid</button>` : ''}
-                    ${canClaim ? `<button class="exchange-btn" ${actionAttrs('claimGuildRaidReward', raid.id)}>Claim Reward</button>` : ''}
-                    ${raid.status === 'forming' && raid.isMember && !raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('leaveGuildRaid', raid.id)}>Leave Raid</button>` : ''}
-                    ${raid.status === 'forming' && raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('deleteGuildRaid', raid.id)}>Delete Raid</button>` : ''}
+                    ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>${_pt('Entrar na Invasão', 'Join Raid')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<div class="exchange-desc raid-summary" style="margin-top:8px;color:var(--text-dim)">${_pt('Outro personagem da sua conta já está nesta invasão.', 'Another character on your account is already in this raid.')}</div>` : ''}
+                    ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>${_pt('Iniciar Invasão', 'Start Raid')}</button>` : ''}
+                    ${canClaim ? `<button class="exchange-btn" ${actionAttrs('claimGuildRaidReward', raid.id)}>${_pt('Reivindicar Recompensa', 'Claim Reward')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isMember && !raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('leaveGuildRaid', raid.id)}>${_pt('Sair da Invasão', 'Leave Raid')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('deleteGuildRaid', raid.id)}>${_pt('Excluir Invasão', 'Delete Raid')}</button>` : ''}
                 </div>
             </div>
         `;
     }).join('') : `
         <div class="exchange-card exchange-unavailable">
             <div class="exchange-info">
-                <div class="exchange-name">No active raids yet</div>
-                <div class="exchange-desc">When an Apprentice posts a raid, it will appear here for everyone to join.</div>
+                <div class="exchange-name">${_pt('Nenhuma invasão ativa ainda', 'No active raids yet')}</div>
+                <div class="exchange-desc">${_pt('Quando um Aprendiz publicar uma invasão, ela aparecerá aqui para todos entrarem.', 'When an Apprentice posts a raid, it will appear here for everyone to join.')}</div>
             </div>
         </div>
     `;
 
     return `
         <div class="dungeon-raid-hub-head">
-            <div class="dungeon-raid-hub-title">Raids</div>
-            <div class="dungeon-raid-hub-subtitle">Apprentice-ranked players can open raids for anyone to join.</div>
+            <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
+            <div class="dungeon-raid-hub-subtitle">${_pt('Jogadores com rank Aprendiz podem abrir invasões para qualquer um entrar.', 'Apprentice-ranked players can open raids for anyone to join.')}</div>
         </div>
-        ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.</div>` : ''}
+        ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">${_pt(`Recuperação de invasão ativa: ${formatRaidDuration(cooldownLeft)} restantes.`, `Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.`)}</div>` : ''}
         ${canCreateRaid ? `
             <div class="exchange-card exchange-available raid-create-card">
-                <div class="exchange-icon raid-card-icon">Raid</div>
+                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
-                    <div class="exchange-name">Create a Raid</div>
-                    <div class="exchange-desc">Choose any floor up to your highest cleared dungeon floor. You can start manually, when full, or on a schedule.</div>
+                    <div class="exchange-name">${_pt('Criar Invasão', 'Create a Raid')}</div>
+                    <div class="exchange-desc">${_pt('Escolha qualquer andar até o andar de masmorra mais alto que você já limpou. Inicie manualmente, quando cheio, ou em um agendamento.', 'Choose any floor up to your highest cleared dungeon floor. You can start manually, when full, or on a schedule.')}</div>
                     <div class="raid-create-grid">
                         <label class="raid-field">
-                            <span>Floor</span>
+                            <span>${_pt('Andar', 'Floor')}</span>
                             <select id="guild-raid-floor" class="raid-input">${raidFloorOptions}</select>
                         </label>
                         <label class="raid-field">
-                            <span>Start mode</span>
+                            <span>${_pt('Modo de início', 'Start mode')}</span>
                             <select id="guild-raid-mode" class="raid-input">
-                                <option value="manual">Manual</option>
-                                <option value="full">Auto-start when full</option>
-                                <option value="scheduled">Scheduled</option>
+                                <option value="manual">${_pt('Manual', 'Manual')}</option>
+                                <option value="full">${_pt('Início automático quando cheio', 'Auto-start when full')}</option>
+                                <option value="scheduled">${_pt('Agendado', 'Scheduled')}</option>
                             </select>
                         </label>
                         <label class="raid-field raid-field-wide">
-                            <span>Scheduled start</span>
+                            <span>${_pt('Início agendado', 'Scheduled start')}</span>
                             <input id="guild-raid-scheduled-at" class="raid-input" type="datetime-local">
                         </label>
                     </div>
-                    <button class="exchange-btn" ${actionAttrs('createGuildRaid')}>Create Raid</button>
+                    <button class="exchange-btn" ${actionAttrs('createGuildRaid')}>${_pt('Criar Invasão', 'Create Raid')}</button>
                 </div>
             </div>
         ` : `
             <div class="exchange-card exchange-unavailable">
                 <div class="exchange-info">
-                    <div class="exchange-name">Raids unlock at Apprentice</div>
-                    <div class="exchange-desc">Reach ${apprenticeReq} guild reputation to create raids. You can still join raids listed below.</div>
+                    <div class="exchange-name">${_pt('Invasões desbloqueadas no rank Aprendiz', 'Raids unlock at Apprentice')}</div>
+                    <div class="exchange-desc">${_pt(`Alcance ${apprenticeReq} de reputação de guilda para criar invasões. Você ainda pode entrar nas invasões listadas abaixo.`, `Reach ${apprenticeReq} guild reputation to create raids. You can still join raids listed below.`)}</div>
                 </div>
             </div>
         `}
@@ -2487,7 +2545,7 @@ function createGuildRaid() {
     apiFetch('POST', '/game/dungeon/guild/raid/create', { floor, autoStartMode, scheduledStartAt })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Raid created.', 'log-success');
+                log(response.message || _pt('Invasão criada.', 'Raid created.'), 'log-success');
                 refreshRaidUi();
             }
         })
@@ -2498,7 +2556,7 @@ function joinGuildRaid(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/join', { raidId })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Joined raid.', 'log-success');
+                log(response.message || _pt('Entrou na invasão.', 'Joined raid.'), 'log-success');
                 refreshRaidUi();
                 refreshCharacter();
             } else if (response?.error) {
@@ -2506,7 +2564,7 @@ function joinGuildRaid(raidId) {
             }
         })
         .catch(e => {
-            log(e?.message || 'Failed to join raid.', 'log-warning');
+            log(e?.message || _pt('Falha ao entrar na invasão.', 'Failed to join raid.'), 'log-warning');
             console.error('Raid join failed:', e);
         });
 }
@@ -2515,7 +2573,7 @@ function leaveGuildRaid(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/leave', { raidId })
         .then(response => {
             if (response && response.success) {
-                log(response.message || 'Left raid.', 'log-success');
+                log(response.message || _pt('Saiu da invasão.', 'Left raid.'), 'log-success');
                 refreshRaidUi();
             }
         })
@@ -2526,7 +2584,7 @@ function deleteGuildRaid(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/delete', { raidId })
         .then(response => {
             if (response && response.success) {
-                log(response.message || 'Raid deleted.', 'log-success');
+                log(response.message || _pt('Invasão excluída.', 'Raid deleted.'), 'log-success');
                 refreshRaidUi();
             }
         })
@@ -2537,7 +2595,7 @@ function startGuildRaid(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/start', { raidId })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Raid battle resolved.', 'log-success');
+                log(response.message || _pt('Batalha de invasão resolvida.', 'Raid battle resolved.'), 'log-success');
                 refreshRaidUi();
                 refreshCharacter();
             }
@@ -2549,7 +2607,7 @@ function claimGuildRaidReward(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/claim', { raidId })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Raid reward claimed.', 'log-success');
+                log(response.message || _pt('Recompensa de invasão reivindicada.', 'Raid reward claimed.'), 'log-success');
                 if (typeof window.refreshRaidTokens === 'function' && response.raidTokens != null) {
                     window.refreshRaidTokens(response.raidTokens);
                 }
@@ -2576,7 +2634,7 @@ function renderDungeonRaidHub(guildData) {
     const createLocked = isRaidLocked || hasRaidCommitment;
     const raids = isRaidLocked ? [] : allRaids;
     const raidFloorOptions = Array.from({ length: highestFloor }, (_, idx) => idx + 1)
-        .map(floor => `<option value="${floor}">Floor ${floor}</option>`)
+        .map(floor => `<option value="${floor}">${_pt(`Andar ${floor}`, `Floor ${floor}`)}</option>`)
         .join('');
     const constraintMax = guildData.level ? Number(guildData.level) + Math.floor(Number(guildData.level) / 3) : 999;
     const constraintMin = 1;
@@ -2591,18 +2649,18 @@ function renderDungeonRaidHub(guildData) {
         const showMembers = raid.isMember || raid.isAccountMember;
         const membersHtml = showMembers ? members.map(member => `
             <span class="cost-item ${member.isLeader ? 'raid-member-leader' : ''}">
-                ${member.isLeader ? 'Leader' : 'Member'} В· ${member.name} Lv.${member.level}
+                ${member.isLeader ? _pt('Líder', 'Leader') : _pt('Membro', 'Member')} В· ${member.name} Lv.${member.level}
             </span>
-        `).join('') : `<span class="cost-item">${raid.memberCount}/${raid.maxMemberCount || 6} members</span>`;
+        `).join('') : `<span class="cost-item">${raid.memberCount}/${raid.maxMemberCount || 6} ${_pt('membros', 'members')}</span>`;
         const canJoin = raid.status === 'forming' && !raid.isMember && !raid.isAccountMember && raid.memberCount < 6 && viewerLevel >= raid.minLevel && viewerLevel <= raid.maxLevel;
         const canStart = raid.status === 'forming' && raid.isLeader;
         const autoStartLabel = raid.autoStartPlayers > 0
-            ? `Auto-start at ${raid.autoStartPlayers} player${raid.autoStartPlayers === 1 ? '' : 's'}`
-            : 'Manual start';
+            ? _pt(`Início automático com ${raid.autoStartPlayers} jogador${raid.autoStartPlayers === 1 ? '' : 'es'}`, `Auto-start at ${raid.autoStartPlayers} player${raid.autoStartPlayers === 1 ? '' : 's'}`)
+            : _pt('Início manual', 'Manual start');
         const mercenaryCards = raid.isLeader && Array.isArray(raid.mercenaryPool) && raid.mercenaryPool.length
             ? `
-                <div class="raid-mercenary-head">Recruit Mercenaries</div>
-                <div class="raid-mercenary-sub">Spend 1 gem to add a dungeon recruit to this raid. They count toward party size and strength.</div>
+                <div class="raid-mercenary-head">${_pt('Recrutar Mercenários', 'Recruit Mercenaries')}</div>
+                <div class="raid-mercenary-sub">${_pt('Gaste 1 gema para adicionar um recruta da masmorra a esta invasão. Eles contam para o tamanho e a força do grupo.', 'Spend 1 gem to add a dungeon recruit to this raid. They count toward party size and strength.')}</div>
                 <div class="raid-mercenary-board">
                     ${raid.mercenaryPool.map(merc => `
                         <div class="raid-mercenary-card ${merc.recruited ? 'is-recruited' : ''}">
@@ -2614,8 +2672,8 @@ function renderDungeonRaidHub(guildData) {
                                 AGI ${merc.stats.agility} · MAG ${merc.stats.magic} · HIT ${merc.stats.hitChance}% · CRIT ${merc.stats.critChance}%
                             </div>
                             ${merc.recruited
-                                ? `<div class="raid-mercenary-status">Recruited</div>`
-                                : `<button class="exchange-btn raid-mercenary-btn" ${actionAttrs('recruitGuildRaidMercenary', raid.id, merc.id)}>Recruit · 1 Gem</button>`}
+                                ? `<div class="raid-mercenary-status">${_pt('Recrutado', 'Recruited')}</div>`
+                                : `<button class="exchange-btn raid-mercenary-btn" ${actionAttrs('recruitGuildRaidMercenary', raid.id, merc.id)}>${_pt('Recrutar · 1 Gema', 'Recruit · 1 Gem')}</button>`}
                         </div>
                     `).join('')}
                 </div>
@@ -2624,37 +2682,37 @@ function renderDungeonRaidHub(guildData) {
 
         return `
             <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
-                <div class="exchange-icon raid-card-icon">Raid</div>
+                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
-                    <div class="exchange-name">Floor ${raid.floor} Raid: ${raid.bossName} (${raid.minLevel || 1}-${raid.maxLevel || 999})</div>
-                    <div class="exchange-desc">The whole party strikes as one. Raid attacks always connect and do not use zone setups.</div>
+                    <div class="exchange-name">${_pt(`Andar ${raid.floor} · Invasão:`, `Floor ${raid.floor} Raid:`)} ${raid.bossName} (${raid.minLevel || 1}-${raid.maxLevel || 999})</div>
+                    <div class="exchange-desc">${_pt('O grupo inteiro ataca como um só. Os ataques de invasão sempre acertam e não usam config de zonas.', 'The whole party strikes as one. Raid attacks always connect and do not use zone setups.')}</div>
                     <div class="exchange-cost">
-                        <span class="cost-item">Status: ${raid.status}</span>
+                        <span class="cost-item">${_pt('Status:', 'Status:')} ${raid.status}</span>
                         <span class="cost-item">${autoStartLabel}</span>
-                        <span class="cost-item">Boss HP ${Number(raid.bossHp || 0).toLocaleString()}</span>
+                        <span class="cost-item">${_pt('HP do Chefe', 'Boss HP')} ${Number(raid.bossHp || 0).toLocaleString()}</span>
                     </div>
                     <div class="exchange-cost">${membersHtml}</div>
-                    <div class="exchange-desc raid-summary">Raid results and rewards are sent to your inbox after completion.</div>
+                    <div class="exchange-desc raid-summary">${_pt('Resultados e recompensas da invasão são enviados à sua caixa de entrada ao concluir.', 'Raid results and rewards are sent to your inbox after completion.')}</div>
                         ${raid.isLeader ? `
                         <div class="raid-setting-row">
                             <select id="raid-start-threshold-${raid.id}" class="raid-input raid-inline-input">
-                                <option value="0" ${raid.autoStartPlayers === 0 ? 'selected' : ''}>Manual start</option>
-                                <option value="1" ${raid.autoStartPlayers === 1 ? 'selected' : ''}>Auto at 1</option>
-                                <option value="2" ${raid.autoStartPlayers === 2 ? 'selected' : ''}>Auto at 2</option>
-                                <option value="3" ${raid.autoStartPlayers === 3 ? 'selected' : ''}>Auto at 3</option>
-                                <option value="4" ${raid.autoStartPlayers === 4 ? 'selected' : ''}>Auto at 4</option>
-                                <option value="5" ${raid.autoStartPlayers === 5 ? 'selected' : ''}>Auto at 5</option>
-                                <option value="6" ${raid.autoStartPlayers === 6 ? 'selected' : ''}>Auto at 6</option>
-                            </select>
-                            <button class="exchange-btn raid-settings-btn" ${actionAttrs('updateGuildRaidSettings', raid.id)}>Update Start</button>
+                                 <option value="0" ${raid.autoStartPlayers === 0 ? 'selected' : ''}>${_pt('Início manual', 'Manual start')}</option>
+                                 <option value="1" ${raid.autoStartPlayers === 1 ? 'selected' : ''}>${_pt('Auto com 1', 'Auto at 1')}</option>
+                                 <option value="2" ${raid.autoStartPlayers === 2 ? 'selected' : ''}>${_pt('Auto com 2', 'Auto at 2')}</option>
+                                 <option value="3" ${raid.autoStartPlayers === 3 ? 'selected' : ''}>${_pt('Auto com 3', 'Auto at 3')}</option>
+                                 <option value="4" ${raid.autoStartPlayers === 4 ? 'selected' : ''}>${_pt('Auto com 4', 'Auto at 4')}</option>
+                                 <option value="5" ${raid.autoStartPlayers === 5 ? 'selected' : ''}>${_pt('Auto com 5', 'Auto at 5')}</option>
+                                 <option value="6" ${raid.autoStartPlayers === 6 ? 'selected' : ''}>${_pt('Auto com 6', 'Auto at 6')}</option>
+                             </select>
+                             <button class="exchange-btn raid-settings-btn" ${actionAttrs('updateGuildRaidSettings', raid.id)}>${_pt('Atualizar Início', 'Update Start')}</button>
                         </div>
                     ` : ''}
-                    ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>Join Raid</button>` : ''}
-                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<button class="exchange-btn" disabled title="Another character on your account is already in this raid.">Join Raid</button>` : ''}
-                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<div class="exchange-desc raid-summary" style="margin-top:8px;color:var(--text-dim)">Another character on your account is already in this raid.</div>` : ''}
-                    ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>Start Raid</button>` : ''}
-                    ${raid.status === 'forming' && raid.isMember && !raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('leaveGuildRaid', raid.id)}>Leave Raid</button>` : ''}
-                    ${raid.status === 'forming' && raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('deleteGuildRaid', raid.id)}>Delete Raid</button>` : ''}
+                    ${canJoin ? `<button class="exchange-btn" ${actionAttrs('joinGuildRaid', raid.id)}>${_pt('Entrar na Invasão', 'Join Raid')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<button class="exchange-btn" disabled title="${_pt('Outro personagem da sua conta já está nesta invasão.', 'Another character on your account is already in this raid.')}">${_pt('Entrar na Invasão', 'Join Raid')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isAccountMember && !raid.isMember ? `<div class="exchange-desc raid-summary" style="margin-top:8px;color:var(--text-dim)">${_pt('Outro personagem da sua conta já está nesta invasão.', 'Another character on your account is already in this raid.')}</div>` : ''}
+                    ${canStart ? `<button class="exchange-btn" ${actionAttrs('startGuildRaid', raid.id)}>${_pt('Iniciar Invasão', 'Start Raid')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isMember && !raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('leaveGuildRaid', raid.id)}>${_pt('Sair da Invasão', 'Leave Raid')}</button>` : ''}
+                    ${raid.status === 'forming' && raid.isLeader ? `<button class="exchange-btn" ${actionAttrs('deleteGuildRaid', raid.id)}>${_pt('Excluir Invasão', 'Delete Raid')}</button>` : ''}
                     ${mercenaryCards}
                 </div>
             </div>
@@ -2662,62 +2720,62 @@ function renderDungeonRaidHub(guildData) {
     }).join('') : `
         <div class="exchange-card exchange-unavailable">
             <div class="exchange-info">
-                <div class="exchange-name">No active raids yet</div>
-                <div class="exchange-desc">When an Apprentice posts a raid, it will appear here for everyone to join.</div>
+                <div class="exchange-name">${_pt('Nenhuma invasão ativa ainda', 'No active raids yet')}</div>
+                <div class="exchange-desc">${_pt('Quando um Aprendiz publicar uma invasão, ela aparecerá aqui para todos entrarem.', 'When an Apprentice posts a raid, it will appear here for everyone to join.')}</div>
             </div>
         </div>
     `;
 
     return `
         <div class="dungeon-raid-hub-head">
-            <div class="dungeon-raid-hub-title">Raids</div>
-            <div class="dungeon-raid-hub-subtitle">Apprentice-ranked players can open raids for anyone to join. Finished raids are delivered through inbox reports.</div>
+            <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
+            <div class="dungeon-raid-hub-subtitle">${_pt('Jogadores com rank Aprendiz podem abrir invasões para qualquer um entrar. Invasões concluídas são entregues via relatórios na caixa de entrada.', 'Apprentice-ranked players can open raids for anyone to join. Finished raids are delivered through inbox reports.')}</div>
         </div>
-        ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.</div>` : ''}
+        ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">${_pt(`Recuperação de invasão ativa: ${formatRaidDuration(cooldownLeft)} restantes.`, `Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.`)}</div>` : ''}
         ${canCreateRaid ? `
             <div class="exchange-card exchange-available raid-create-card">
-                <div class="exchange-icon raid-card-icon">Raid</div>
+                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
-                    <div class="exchange-name">Create a Raid</div>
+                    <div class="exchange-name">${_pt('Criar Invasão', 'Create a Raid')}</div>
                     <div class="exchange-desc">${isRaidLocked
-                        ? `Raid recovery is active. You can create or view raids again in ${formatRaidDuration(cooldownLeft)}.`
+                        ? _pt(`A recuperação de invasão está ativa. Você poderá criar ou ver invasões novamente em ${formatRaidDuration(cooldownLeft)}.`, `Raid recovery is active. You can create or view raids again in ${formatRaidDuration(cooldownLeft)}.`)
                         : hasRaidCommitment
-                            ? `You are already committed to a forming raid${existingRaid?.isLeader ? ' as leader' : ''}. Finish or leave that raid before creating another one.`
-                            : 'Choose any floor up to your highest cleared dungeon floor. Start manually or auto-launch when the party reaches the selected size.'}</div>
+                            ? _pt(`Você já está comprometido com uma invasão em formação${existingRaid?.isLeader ? ' como líder' : ''}. Conclua ou saia dessa invasão antes de criar outra.`, `You are already committed to a forming raid${existingRaid?.isLeader ? ' as leader' : ''}. Finish or leave that raid before creating another one.`)
+                            : _pt('Escolha qualquer andar até o andar de masmorra mais alto que você já limpou. Inicie manualmente ou inicie automaticamente quando o grupo atingir o tamanho selecionado.', 'Choose any floor up to your highest cleared dungeon floor. Start manually or auto-launch when the party reaches the selected size.')}</div>
                     <div class="raid-create-grid">
                         <label class="raid-field">
-                            <span>Floor</span>
+                            <span>${_pt('Andar', 'Floor')}</span>
                             <select id="guild-raid-floor" class="raid-input" ${createLocked ? 'disabled' : ''}>${raidFloorOptions}</select>
                         </label>
                         <label class="raid-field">
-                            <span>Auto-start at</span>
+                            <span>${_pt('Início automático em', 'Auto-start at')}</span>
                             <select id="guild-raid-autostart" class="raid-input" ${createLocked ? 'disabled' : ''}>
-                                <option value="0">Manual only</option>
-                                <option value="1">1 player</option>
-                                <option value="2">2 players</option>
-                                <option value="3">3 players</option>
-                                <option value="4">4 players</option>
-                                <option value="5">5 players</option>
-                                <option value="6">6 players</option>
+                                <option value="0">${_pt('Somente manual', 'Manual only')}</option>
+                                <option value="1">${_pt('1 jogador', '1 player')}</option>
+                                <option value="2">${_pt('2 jogadores', '2 players')}</option>
+                                <option value="3">${_pt('3 jogadores', '3 players')}</option>
+                                <option value="4">${_pt('4 jogadores', '4 players')}</option>
+                                <option value="5">${_pt('5 jogadores', '5 players')}</option>
+                                <option value="6">${_pt('6 jogadores', '6 players')}</option>
                             </select>
                         </label>
                         <div class="raid-field">
-                            <span>Min Level: <span id="guild-raid-min-level-val">1</span></span>
+                            <span>${_pt('Nível Mín.:', 'Min Level:')} <span id="guild-raid-min-level-val">1</span></span>
                             <input type="range" id="guild-raid-min-level" min="1" max="${constraintMax}" value="1">
                         </div>
                         <div class="raid-field">
-                            <span>Max Level: <span id="guild-raid-max-level-val">${constraintMax}</span></span>
+                            <span>${_pt('Nível Máx.:', 'Max Level:')} <span id="guild-raid-max-level-val">${constraintMax}</span></span>
                             <input type="range" id="guild-raid-max-level" min="1" max="${constraintMax}" value="${constraintMax}">
                         </div>
                     </div>
-                    <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? `Raid Ready In ${formatRaidDuration(cooldownLeft)}` : hasRaidCommitment ? 'Already In Raid' : 'Create Raid'}</button>
+                    <button class="exchange-btn ${createLocked ? 'disabled' : ''}" ${createLocked ? 'disabled' : actionAttrs('createGuildRaid')}>${isRaidLocked ? _pt(`Invasão pronta em ${formatRaidDuration(cooldownLeft)}`, `Raid Ready In ${formatRaidDuration(cooldownLeft)}`) : hasRaidCommitment ? _pt('Já em Invasão', 'Already In Raid') : _pt('Criar Invasão', 'Create Raid')}</button>
                 </div>
             </div>
         ` : `
             <div class="exchange-card exchange-unavailable">
                 <div class="exchange-info">
-                    <div class="exchange-name">Raids unlock at Apprentice</div>
-                    <div class="exchange-desc">Reach ${apprenticeReq} guild reputation to create raids. You can still join raids listed below.</div>
+                    <div class="exchange-name">${_pt('Invasões desbloqueadas no rank Aprendiz', 'Raids unlock at Apprentice')}</div>
+                    <div class="exchange-desc">${_pt(`Alcance ${apprenticeReq} de reputação de guilda para criar invasões. Você ainda pode entrar nas invasões listadas abaixo.`, `Reach ${apprenticeReq} guild reputation to create raids. You can still join raids listed below.`)}</div>
                 </div>
             </div>
         `}
@@ -2745,7 +2803,7 @@ function createGuildRaid() {
     apiFetch('POST', '/game/dungeon/guild/raid/create', { floor, autoStartPlayers, minLevel, maxLevel })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Raid created.', 'log-success');
+                log(response.message || _pt('Invasão criada.', 'Raid created.'), 'log-success');
                 refreshRaidUi();
                 refreshCharacter();
             }
@@ -2758,7 +2816,7 @@ function updateGuildRaidSettings(raidId) {
     apiFetch('POST', '/game/dungeon/guild/raid/update-settings', { raidId, autoStartPlayers })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Raid settings updated.', 'log-success');
+                log(response.message || _pt('Configurações da invasão atualizadas.', 'Raid settings updated.'), 'log-success');
                 refreshRaidUi();
             }
         })
@@ -2769,7 +2827,7 @@ function recruitGuildRaidMercenary(raidId, recruitId) {
     apiFetch('POST', '/game/dungeon/guild/raid/recruit', { raidId, recruitId })
         .then(response => {
             if (response?.success) {
-                log(response.message || 'Mercenary recruited.', 'log-success');
+                log(response.message || _pt('Mercenário recrutado.', 'Mercenary recruited.'), 'log-success');
                 refreshRaidUi();
                 refreshCharacter();
             }
@@ -2824,19 +2882,19 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         <div class="dungeon-tower-top">
           <div class="dungeon-tower-icon">🗼</div>
           <div class="dungeon-tower-info">
-            <div class="dungeon-card-name">The Endless Tower</div>
-            <div class="dungeon-card-desc">An infinite tower of darkness. Clear each floor to ascend. Bosses grow stronger forever.</div>
+            <div class="dungeon-card-name">${_pt('A Torre Infinita', 'The Endless Tower')}</div>
+            <div class="dungeon-card-desc">${_pt('Uma torre infinita de escuridão. Limpe cada andar para subir. Os chefes ficam mais fortes para sempre.', 'An infinite tower of darkness. Clear each floor to ascend. Bosses grow stronger forever.')}</div>
             <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;font-size:0.78rem;color:var(--dungeon-muted)">
-              <span>🏆 Your best: <strong style="color:var(--dungeon-text)">Floor ${highFloor}</strong></span>
-              <span>🗝️ <strong style="color:var(--dungeon-token)">${D.tokens}</strong> tokens · ${TOKENS_PER_RUN} per boss</span>
-              ${hasSave ? `<span class="dungeon-save-badge">📌 Saved on Floor ${curFloor}</span>` : ''}
+              <span>🏆 ${_pt('Seu recorde:', 'Your best:')} <strong style="color:var(--dungeon-text)">${_pt(`Andar ${highFloor}`, `Floor ${highFloor}`)}</strong></span>
+              <span>🗝️ <strong style="color:var(--dungeon-token)">${D.tokens}</strong> tokens · ${_pt(`${TOKENS_PER_RUN} por chefe`, `${TOKENS_PER_RUN} per boss`)}</span>
+              ${hasSave ? `<span class="dungeon-save-badge">📌 ${_pt(`Salvo no Andar ${curFloor}`, `Saved on Floor ${curFloor}`)}</span>` : ''}
             </div>
           </div>
         </div>
 
         <div class="dungeon-tower-next">
           <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">
-            Next boss — Floor ${curFloor}
+            ${_pt(`Próximo chefe — Andar ${curFloor}`, `Next boss — Floor ${curFloor}`)}
           </div>
 <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
     <img src="${nextBoss.image}" alt="${nextBoss.name}" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid ${nextTheme.theme}" data-error-hide="true" data-error-next-display="flex">
@@ -2844,10 +2902,10 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     <div>
         <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
         <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
-            ❤️ ${nextBoss.hp} HP · ⚔️ ${nextBoss.atk} ATK · 🛡️ ${nextBoss.def} DEF
+            ❤️ ${nextBoss.hp} ${_pt('PV', 'HP')} · ⚔️ ${nextBoss.atk} ${_pt('ATQ', 'ATK')} · 🛡️ ${nextBoss.def} ${_pt('DEF', 'DEF')}
         </div>
         <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
-            Drops: 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · ✨ Random Premium (${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]} days)
+            ${_pt('Saque:', 'Drops:')} 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · ✨ ${_pt('Premium Aleatório', 'Random Premium')} (${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]} ${_pt('dias', 'days')})
         </div>
     </div>
 </div>
@@ -2855,18 +2913,18 @@ const previewFloors = [0,1,2,3,4].map(offset => {
 
         <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
             ${actionAttrs('dungeonEnter', 'tower')}>
-        ${hasAnyProgress ? '🔮 Resume Delve (Floor '+curFloor+')' : '⚔️ Begin the Ascent'}
+        ${hasAnyProgress ? `${_pt('🔮 Retomar Jornada (Andar ', '🔮 Resume Delve (Floor ')}${curFloor}${_pt(')', ')')}` : _pt('⚔️ Iniciar a Subida', '⚔️ Begin the Ascent')}
     </button>
       </div>
 
       <div class="dungeon-floor-history">
-        <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 Upcoming floors</div>
+        <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 ${_pt('Próximos andares', 'Upcoming floors')}</div>
         <div class="dungeon-floor-preview-row">${previewFloors}</div>
       </div>
       <div id="dungeon-raid-hub" class="dungeon-floor-history dungeon-raid-hub-shell">
         <div class="dungeon-raid-hub-head">
-          <div class="dungeon-raid-hub-title">Raids</div>
-          <div class="dungeon-raid-hub-subtitle">Loading guild raids...</div>
+          <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
+          <div class="dungeon-raid-hub-subtitle">${_pt('Carregando invasões da guilda...', 'Loading guild raids...')}</div>
         </div>
       </div>
     `;
@@ -2893,8 +2951,8 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         if (raidHub) {
           raidHub.innerHTML = `
             <div class="dungeon-raid-hub-head">
-              <div class="dungeon-raid-hub-title">Raids</div>
-              <div class="dungeon-raid-hub-subtitle">Raid hub failed to load from the server.</div>
+              <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
+              <div class="dungeon-raid-hub-subtitle">${_pt('Falha ao carregar o centro de invasões do servidor.', 'Raid hub failed to load from the server.')}</div>
             </div>
           `;
         }
@@ -2915,7 +2973,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     
     if (!D.rooms || D.rooms.length === 0) {
       console.error('No rooms generated');
-      area.innerHTML = '<div class="error">Dungeon not generated. Please re-enter.</div>';
+      area.innerHTML = '<div class="error">'+_pt('Masmorra não gerada. Entre novamente.', 'Dungeon not generated. Please re-enter.')+'</div>';
       return;
     }
     
@@ -2924,7 +2982,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       const startIndex = D.rooms.findIndex(r => r.isStart);
       if (startIndex !== -1) D.playerPos = startIndex;
       else {
-        area.innerHTML = '<div class="error">Invalid dungeon state. Please re-enter.</div>';
+        area.innerHTML = '<div class="error">'+_pt('Estado de masmorra inválido. Entre novamente.', 'Invalid dungeon state. Please re-enter.')+'</div>';
         return;
       }
     }
@@ -2935,21 +2993,21 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     const currentRoom = D.rooms[D.playerPos];
     const visual = currentRoom.visual || (currentRoom.isBoss ? DUNGEON_VISUALS.boss : currentRoom.isStart ? DUNGEON_VISUALS.start : DUNGEON_VISUALS.corridor);
     const roomImage = visual.image || '';
-    const roomDescription = visual.description || (currentRoom.isBoss ? "A massive chamber opens before you." : "You enter another room of the tower.");
+    const roomDescription = visual.description || (currentRoom.isBoss ? _pt('Uma câmara massiva se abre diante de você.', 'A massive chamber opens before you.') : _pt('Você entra em outra sala da torre.', 'You enter another room of the tower.'));
     const latestLogMessage = D.dungeonLog && D.dungeonLog[0] ? D.dungeonLog[0].msg : '';
     const exploredCount = D.exploredRooms ? D.exploredRooms.size : 0;
     const totalRoomCount = Array.isArray(D.rooms) ? D.rooms.length : 0;
     const roomLabel = currentRoom.isBoss
-      ? 'Boss Room'
+      ? _pt('Sala do Chefe', 'Boss Room')
       : currentRoom.isStart
-        ? 'Entrance'
+        ? _pt('Entrada', 'Entrance')
         : currentRoom.type === 'treasure'
-          ? 'Treasure Room'
+          ? _pt('Sala do Tesouro', 'Treasure Room')
           : currentRoom.type === 'miniboss'
-            ? 'Mini-Boss Chamber'
+            ? _pt('Câmara do Mini-Chefe', 'Mini-Boss Chamber')
             : currentRoom.isArea || currentRoom.type === 'area'
-              ? 'Open Chamber'
-              : 'Corridor';
+              ? _pt('Câmara Aberta', 'Open Chamber')
+              : _pt('Corredor', 'Corridor');
 
     const roomHasAliveMonsters =
       !!(currentRoom.monsters && currentRoom.monsters.some(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)));
@@ -2960,22 +3018,22 @@ const previewFloors = [0,1,2,3,4].map(offset => {
       <div class="dungeon-game ${isEncounter ? 'dungeon-has-encounter' : ''}" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
         <div class="dungeon-game-screen">
           ${roomImage ? `
-            <img class="dungeon-game-scene" src="${roomImage}" alt="Dungeon Scene" data-error-hide="true">
+            <img class="dungeon-game-scene" src="${roomImage}" alt="${_pt('Cena da Masmorra', 'Dungeon Scene')}" data-error-hide="true">
           ` : `<div class="dungeon-game-scene dungeon-game-scene-fallback"></div>`}
           <div class="dungeon-game-vignette"></div>
 
 <div class="dungeon-hud-top">
   <div class="dungeon-hud-title">${def.icon} ${def.name}</div>
-  <div class="dungeon-hud-floor">Floor ${D.floor}</div>
+  <div class="dungeon-hud-floor">${_pt(`Andar ${D.floor}`, `Floor ${D.floor}`)}</div>
   <div class="dungeon-hud-actions">
-    ${!getChar()?.elemental && (D.floor||1) >= 5 ? `<button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonDiscoverElemental')}>✨ Spirit</button>` : ''}
-    <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>Guild</button>
-    <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" ${actionAttrs('dungeonExit')}>Exit</button>
+    ${!getChar()?.elemental && (D.floor||1) >= 5 ? `<button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonDiscoverElemental')}>✨ ${_pt('Espírito', 'Spirit')}</button>` : ''}
+    <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('openGuild')}>${_pt('Guilda', 'Guild')}</button>
+    <button class="dungeon-btn dungeon-btn-exit dungeon-btn-hud" ${actionAttrs('dungeonExit')}>${_pt('Sair', 'Exit')}</button>
   </div>
 </div>
 
           <div class="dungeon-hud-minimap">
-            <div class="dungeon-hud-minimap-title">Map</div>
+            <div class="dungeon-hud-minimap-title">${_pt('Mapa', 'Map')}</div>
             <div id="dungeon-minimap" class="dungeon-minimap">${renderMapGrid()}</div>
           </div>
 
@@ -2983,10 +3041,10 @@ const previewFloors = [0,1,2,3,4].map(offset => {
             <div class="dungeon-hud-room ${roomHasAliveMonsters ? 'has-monster' : ''}">
               <div class="dungeon-hud-room-title">
                 ${roomLabel}
-                <span class="dungeon-hud-room-id"> � Room ${D.playerPos + 1}</span>
+                <span class="dungeon-hud-room-id"> � ${_pt(`Sala ${D.playerPos + 1}`, `Room ${D.playerPos + 1}`)}</span>
               </div>
               <div class="dungeon-hud-room-desc">${roomDescription}</div>
-              <div class="dungeon-hud-room-progress">${exploredCount}/${totalRoomCount} explored</div>
+              <div class="dungeon-hud-room-progress">${exploredCount}/${totalRoomCount} ${_pt('exploradas', 'explored')}</div>
               ${latestLogMessage ? `<div class="dungeon-hud-room-log"><span>${latestLogMessage}</span></div>` : ''}
               <div class="dungeon-hud-room-info">
                 ${renderRoomInfo(currentRoom)}
@@ -3026,7 +3084,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
                   const monsterAlive = cr.monsters && cr.monsters.length > 0 && cr.monsters.some(m => 
                     !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
                   );
-                  const text = explored ? `Room ${ci+1}` : 'Unknown';
+                  const text = explored ? `${_pt('Sala ', 'Room ')}${ci+1}` : _pt('Desconhecida', 'Unknown');
                   return `
                     <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
                             ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
@@ -3299,7 +3357,7 @@ function renderRoomInfo(room) {
                     💰${boss.loot.gold[0]}-${boss.loot.gold[1]}g · 💎${boss.loot.gems[0]}-${boss.loot.gems[1]} · ✨${boss.loot.premiumDays[0]}-${boss.loot.premiumDays[1]}d premium
                 </div>
                 <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" ${actionAttrs('dungeonFightBoss', room.id)}>
-                    ⚔️ Challenge Boss (${TOKENS_PER_RUN} Tokens Required)
+                    ⚔️ ${_pt(`Desafiar Chefe (${TOKENS_PER_RUN} Tokens Necessários)`, `Challenge Boss (${TOKENS_PER_RUN} Tokens Required)`)}
                 </button>
             </div>
         `;
@@ -3314,10 +3372,10 @@ function renderRoomInfo(room) {
                     ${hasImg ? `<img src="${m.image}" alt="${m.name}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">` : ''}
                     <span class="battle-fighter-fallback" style="${hasImg ? 'display:none' : ''}">${m.icon || '👾'}</span>
                 </div>
-                <div class="fighter-name" style="margin-bottom:2px;font-weight:700">MINI-BOSS: ${m.name}</div>
+                <div class="fighter-name" style="margin-bottom:2px;font-weight:700">${_pt('MINI-CHEFE:', 'MINI-BOSS:')} ${m.name}</div>
                 <div class="fighter-class">⚔️ ${m.atk || '?'} · 🛡️ ${m.def || '?'}</div>
                 <div class="monster-btns" style="margin-top:6px">
-                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ Challenge Mini-Boss</button>
+                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFightMiniBoss', room.id)}>⚔️ ${_pt('Desafiar Mini-Chefe', 'Challenge Mini-Boss')}</button>
                 </div>
             </div>
         `;
@@ -3362,13 +3420,13 @@ function renderRoomInfo(room) {
                     </div>
                     ${nextArrow}
                 </div>
-                ${aliveCount > 1 ? `<div class="deck-counter" style="margin-top:2px">${offset + 1}–${Math.min(offset + perPage, aliveCount)} of ${aliveCount}</div>` : ''}
+                ${aliveCount > 1 ? `<div class="deck-counter" style="margin-top:2px">${offset + 1}–${Math.min(offset + perPage, aliveCount)} ${_pt('de', 'of')} ${aliveCount}</div>` : ''}
                 <div class="monster-btns" style="margin-top:6px">
-                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ Fight</button>
+                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ ${_pt('Lutar', 'Fight')}</button>
                 </div>
                 ${(() => { const anyStolen = room.monsters.find(m => m.stolenItems?.length); return anyStolen ? `
                     <div class="stolen-items-notice" style="margin-top:4px">
-                        🎒 Monster carries stolen items
+                        🎒 ${_pt('O monstro carrega itens roubados', 'Monster carries stolen items')}
                     </div>` : '';
                 })()}
             </div>
@@ -3379,8 +3437,8 @@ function renderRoomInfo(room) {
         const hoursLeft = (MONSTER_RESPAWN_H - (Date.now() - room.monsters[0].lastKilled) / 3600000).toFixed(1);
         return `
             <div class="dungeon-room-clear">
-                <div style="color:var(--dungeon-muted);font-size:0.9rem">💤 ${monsterCount} monster${monsterCount > 1 ? 's' : ''} respawn${monsterCount > 1 ? '' : 's'} in ${hoursLeft}h</div>
-                ${room.type === 'treasure' ? '<div style="color:#f1c40f;margin-top:8px">💰 Treasure already looted</div>' : ''}
+                <div style="color:var(--dungeon-muted);font-size:0.9rem">💤 ${_pt(`${monsterCount} monstro${monsterCount > 1 ? 's' : ''} renasce${monsterCount > 1 ? 'm' : ''} em ${hoursLeft}h`, `${monsterCount} monster${monsterCount > 1 ? 's' : ''} respawn${monsterCount > 1 ? '' : 's'} in ${hoursLeft}h`)}</div>
+                ${room.type === 'treasure' ? `<div style="color:#f1c40f;margin-top:8px">💰 ${_pt('Tesouro já saqueado', 'Treasure already looted')}</div>` : ''}
             </div>
         `;
     }
@@ -3388,9 +3446,9 @@ function renderRoomInfo(room) {
     return `
         <div class="dungeon-room-clear">
             <div style="color:var(--dungeon-muted)">
-                ${room.isStart ? '🚪 Dungeon Entrance — choose a path to explore.' :
-                    room.type === 'treasure' ? (room.looted ? '💰 Treasure already collected.' : '✨ Peaceful chamber. Treasure collected!') :
-                    '🏚️ Empty corridor. All clear.'}
+                ${room.isStart ? _pt('🚪 Entrada da Masmorra — escolha um caminho para explorar.', '🚪 Dungeon Entrance — choose a path to explore.') :
+                    room.type === 'treasure' ? (room.looted ? _pt('💰 Tesouro já coletado.', '💰 Treasure already collected.') : _pt('✨ Câmara tranquila. Tesouro coletado!', '✨ Peaceful chamber. Treasure collected!')) :
+                    _pt('🏚️ Corredor vazio. Tudo limpo.', '🏚️ Empty corridor. All clear.')}
             </div>
         </div>
     `;
@@ -3428,9 +3486,9 @@ function renderRoomInfo(room) {
     const nextAlive = findAlive(viewIdx, 1);
 
     const monsterDeckHtml = isLoadingMonsters
-        ? `<div style="padding:10px;color:var(--dungeon-muted)">Loading enemies...</div>`
+        ? `<div style="padding:10px;color:var(--dungeon-muted)">${_pt('Carregando inimigos...', 'Loading enemies...')}</div>`
         : aliveCount === 0
-        ? `<div style="padding:10px;color:var(--dungeon-muted);text-align:center">All enemies defeated!</div>`
+        ? `<div style="padding:10px;color:var(--dungeon-muted);text-align:center">${_pt('Todos os inimigos derrotados!', 'All enemies defeated!')}</div>`
         : (() => {
         const m = monsters[viewIdx];
         const hpPercent = Math.round(m.currentHp / m.maxHp * 100);
@@ -3465,12 +3523,12 @@ function renderRoomInfo(room) {
                     </div>
                     <div class="fighter-stats">${m.currentHp}/${m.maxHp}</div>
                 </div>
-                <div class="deck-counter">Monster ${alivePos}/${aliveCount}</div>
+                <div class="deck-counter">${_pt('Monstro', 'Monster')} ${alivePos}/${aliveCount}</div>
             </div>`;
     })();
 
     const roundEntries = D.combat.roundLog.slice(-10).reverse().map(e =>
-        `<div class="combat-log-entry ${e.actor}">${e.text}</div>`
+        `<div class="combat-log-entry ${e.actor}">${_ptCombat(e.text)}</div>`
     ).join('');
 
     const escapeReady = !!D.combat.escapeReady;
@@ -3480,8 +3538,8 @@ function renderRoomInfo(room) {
         <div class="dungeon-overlay-backdrop"></div>
         <div class="dungeon-overlay-card dungeon-combat-panel" style="--dtheme:${def.theme};--dglow:${def.themeGlow}">
             <div class="combat-header">
-                ${D.combat.isCrawler ? `<div class="combat-boss-warning">🕷️ THE CRAWLER</div>` : currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ BOSS BATTLE</div>` : ''}
-                <div class="combat-title">${D.combat.isCrawler ? 'Run or be torn apart.' : `You vs ${monsters.length} ${monsters.length === 1 ? 'Monster' : 'Monsters'}`}</div>
+                ${D.combat.isCrawler ? `<div class="combat-boss-warning">🕷️ ${_pt('O DEVORADOR', 'THE CRAWLER')}</div>` : currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ ${_pt('BATALHA DE CHEFE', 'BOSS BATTLE')}</div>` : ''}
+                <div class="combat-title">${D.combat.isCrawler ? _pt('Fuja ou seja dilacerado.', 'Run or be torn apart.') : `${_pt('Você contra', 'You vs')} ${monsters.length} ${monsters.length === 1 ? _pt('Monstro', 'Monster') : _pt('Monstros', 'Monsters')}`}</div>
             </div>
 
             <div class="combat-fighters">
@@ -3490,12 +3548,12 @@ function renderRoomInfo(room) {
                         <img src="${playerSplash}" alt="${playerClass}" data-error-hide="true" data-error-next-display="flex" style="width:100%;height:100%;object-fit:cover">
                         <span class="battle-fighter-fallback" style="display:none">🧙</span>
                     </div>
-                    <div class="fighter-name">You</div>
+                    <div class="fighter-name">${_pt('Você', 'You')}</div>
                     <div class="fighter-class">${capitalize(playerClass)} Lv.${playerLevel}</div>
                     <div class="fighter-hp-bar-wrap" style="width:130px;height:6px;margin:4px auto">
                         <div class="fighter-hp-bar player-hp" style="width:${pHpPct}%"></div>
                     </div>
-                    <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} HP</div>
+                    <div class="fighter-stats">${pStats.hp} / ${pStats.maxHp} ${_pt('PV', 'HP')}</div>
                     <div style="margin-top:4px;width:130px">
                         <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:var(--dungeon-muted);margin-bottom:2px">
                             <span>🔷 Mana</span>
@@ -3512,23 +3570,23 @@ function renderRoomInfo(room) {
                 ${monsterDeckHtml}
             </div>
 
-            <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">Battle begins...</div>'}</div>
+            <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">'+_pt('A batalha começa...', 'Battle begins...')+'</div>'}</div>
 
              <div class="combat-actions">
                  ${escapeReady
                      ? `
-                         <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonEscapeConfirm')}>🚪 Get Out</button>
-                         <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ Keep Fighting</button>
+                         <button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonEscapeConfirm')}>🚪 ${_pt('Sair', 'Get Out')}</button>
+                         <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ ${_pt('Continuar Lutando', 'Keep Fighting')}</button>
                        `
                      : `
                          <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-                           <button class="dungeon-btn ${D.combat.attackType === 'regular' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')}>⚔️ Strike</button>
-                           <button class="dungeon-btn ${D.combat.attackType === 'burst' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')}>💥 Burst (60)</button>
-                           <button class="dungeon-btn ${D.combat.attackType === 'ultimate' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')}>⚡ Ultimate (100)</button>
+                           <button class="dungeon-btn ${D.combat.attackType === 'regular' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')}>⚔️ ${_pt('Atacar', 'Strike')}</button>
+                           <button class="dungeon-btn ${D.combat.attackType === 'burst' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')}>💥 ${_pt('Rajada (60)', 'Burst (60)')}</button>
+                           <button class="dungeon-btn ${D.combat.attackType === 'ultimate' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')}>⚡ ${_pt('Supremo (100)', 'Ultimate (100)')}</button>
                          </div>
                          <div style="display:flex;gap:4px;justify-content:center;margin-top:4px">
-                           <button class="dungeon-btn dungeon-btn-fight" style="font-size:0.85rem;padding:8px 20px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonAttack')}>⚔️ Attack</button>
-                           <button class="dungeon-btn dungeon-btn-run" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 Flee (75%)</button>
+                           <button class="dungeon-btn dungeon-btn-fight" style="font-size:0.85rem;padding:8px 20px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonAttack')}>⚔️ ${_pt('Atacar', 'Attack')}</button>
+                           <button class="dungeon-btn dungeon-btn-run" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 ${_pt('Fugir (75%)', 'Flee (75%)')}</button>
                          </div>
                        `}
              </div>
@@ -3895,18 +3953,18 @@ function renderLog() {
   modal.innerHTML = `
     <div class="modal-box dungeon-victory-box">
       <div class="victory-icon">${boss.icon}</div>
-      <div class="victory-title">BOSS DEFEATED!</div>
+      <div class="victory-title">${_pt('CHEFE DERROTADO!', 'BOSS DEFEATED!')}</div>
       <div class="victory-boss-name">${boss.name}</div>
       <div class="victory-loot">
-        <div class="loot-row">💰 <strong>${loot.gold.toLocaleString()}</strong> Gold</div>
-        <div class="loot-row">💎 <strong>${loot.gems}</strong> Gems</div>
+        <div class="loot-row">💰 <strong>${loot.gold.toLocaleString()}</strong> ${_pt('Ouro', 'Gold')}</div>
+        <div class="loot-row">💎 <strong>${loot.gems}</strong> ${_pt('Gemas', 'Gems')}</div>
         <div class="loot-row premium-reward">
-          ✨ <strong>${loot.premium.emoji} ${loot.premium.name}</strong> (${loot.premium.days} days)
+          ✨ <strong>${loot.premium.emoji} ${loot.premium.name}</strong> (${loot.premium.days} ${_pt('dias', 'days')})
           <div class="premium-desc">${loot.premium.desc}</div>
         </div>
       </div>
-      <div class="victory-next">Advancing to Floor ${D.floor}...</div>
-      <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('closeDungeonVictory')}>Continue Delving</button>
+      <div class="victory-next">${_pt(`Avançando para o Andar ${D.floor}...`, `Advancing to Floor ${D.floor}...`)}</div>
+      <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('closeDungeonVictory')}>${_pt('Continuar Explorando', 'Continue Delving')}</button>
     </div>
   `;
 }
@@ -3964,7 +4022,7 @@ function showSkillCheck(attackType, callback) {
   overlay.innerHTML = `
 <div style="background:#1a1a2e;border:2px solid ${isUlt ? '#e74c3c' : '#3498db'};border-radius:12px;padding:24px 32px;text-align:center;max-width:450px;width:90%;user-select:none">
   <div style="font-size:1.1rem;font-weight:bold;color:${isUlt ? '#e74c3c' : '#3498db'};margin-bottom:16px">
-    ${isUlt ? '⚡ Ultimate' : '💥 Burst'} — Tap to stop!
+    ${isUlt ? `${_pt('⚡ Supremo', '⚡ Ultimate')}` : `${_pt('💥 Rajada', '💥 Burst')}`} — ${_pt('toque para parar!', 'Tap to stop!')}
   </div>
   <div style="position:relative;height:36px;margin:8px 0;border-radius:6px;overflow:hidden;background:#2c2c3e" id="skill-check-track">
     <div style="position:absolute;inset:0;display:flex">
@@ -3978,13 +4036,13 @@ function showSkillCheck(attackType, callback) {
     <div id="skill-check-marker" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);width:10px;height:32px;background:${isUlt ? '#e74c3c' : '#3498db'};border-radius:3px;z-index:2;transition:none"></div>
   </div>
   <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;padding:0 4px">
-    <span>MISS</span>
-    <span>GOOD</span>
-    <span>PERFECT</span>
-    <span>GOOD</span>
-    <span>MISS</span>
+    <span>${_pt('ERROU', 'MISS')}</span>
+    <span>${_pt('BOM', 'GOOD')}</span>
+    <span>${_pt('PERFEITO', 'PERFECT')}</span>
+    <span>${_pt('BOM', 'GOOD')}</span>
+    <span>${_pt('ERROU', 'MISS')}</span>
   </div>
-  <div id="skill-check-cycle" style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:12px">Cycle 1/10</div>
+  <div id="skill-check-cycle" style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:12px">${_pt('Ciclo 1/10', 'Cycle 1/10')}</div>
 </div>`;
   document.body.appendChild(overlay);
 
@@ -4029,7 +4087,7 @@ function showSkillCheck(attackType, callback) {
   }
 
   function updateCycle() {
-    cycleEl.textContent = 'Cycle ' + Math.ceil(bounces / 2) + '/10';
+    cycleEl.textContent = _pt('Ciclo ', 'Cycle ') + Math.ceil(bounces / 2) + '/10';
   }
 
   overlay.addEventListener('click', resolve);
@@ -4118,6 +4176,7 @@ function closeDungeonVictory() {
 
     D.dungeonGold = dungeonGold;
     D._elemInv = elemInv;
+    D._guildBounty = bounty;
 
     // Calculate current rank
     let currentRank = GUILD_RANKS[0];
@@ -4138,65 +4197,69 @@ function closeDungeonVictory() {
         <div class="guild-header">
           <span class="guild-icon">🏛️</span>
           <div>
-            <div class="guild-title">Adventurer's Guild</div>
-            <div class="guild-subtitle">Exchange dungeon spoils for real rewards</div>
+            <div class="guild-title">${_pt('Guilda do Aventureiro', "Adventurer's Guild")}</div>
+            <div class="guild-subtitle">${_pt('Troque os despojos da masmorra por recompensas reais', 'Exchange dungeon spoils for real rewards')}</div>
           </div>
-<button class="dungeon-btn dungeon-btn-exit" ${actionAttrs('closeGuild')}>← Back to Dungeon</button>
+<button class="dungeon-btn dungeon-btn-exit" ${actionAttrs('closeGuild')}>← ${_pt('Voltar à Masmorra', 'Back to Dungeon')}</button>
         </div>
 
         <div class="guild-stats">
           <div class="guild-stat-card">
             <div class="guild-stat-icon">💰</div>
             <div class="guild-stat-info">
-              <div class="guild-stat-label">Dungeon Gold</div>
+              <div class="guild-stat-label">${_pt('Ouro da Masmorra', 'Dungeon Gold')}</div>
               <div class="guild-stat-value">${dungeonGold.toLocaleString()}</div>
             </div>
           </div>
           <div class="guild-stat-card">
             <div class="guild-stat-icon">⭐</div>
             <div class="guild-stat-info">
-              <div class="guild-stat-label">Reputation</div>
+              <div class="guild-stat-label">${_pt('Reputação', 'Reputation')}</div>
               <div class="guild-stat-value">${reputation}</div>
-              <div class="guild-stat-rank">${currentRank.name}</div>
+              <div class="guild-stat-rank">${_guildRankName(currentRank.name)}</div>
             </div>
           </div>
         </div>
 
         <div class="guild-reputation-bar">
-          <div class="rep-bar-label">Progress to ${nextRank.name}</div>
+          <div class="rep-bar-label">${_pt(`Progresso para ${_guildRankName(nextRank.name)}`, `Progress to ${nextRank.name}`)}</div>
           <div class="rep-bar-track">
             <div class="rep-bar-fill" style="width: ${repProgress}%"></div>
           </div>
-          <div class="rep-bar-text">${repNeeded > 0 ? repNeeded + ' reputation needed' : 'MAX RANK'}</div>
+          <div class="rep-bar-text">${repNeeded > 0 ? _pt(`${repNeeded} reputação necessária`, repNeeded + ' reputation needed') : _pt('RANK MÁXIMO', 'MAX RANK')}</div>
         </div>
 
         ${bounty ? `
         <div class="guild-exchanges" style="margin-top:18px">
-          <div class="guild-section-title">🎯 Active Bounty</div>
+          <div class="guild-section-title">🎯 ${_pt('Caça Ativa', 'Active Bounty')}</div>
           <div class="exchange-card exchange-available">
             <div class="exchange-icon">🎯</div>
             <div class="exchange-info">
-              <div class="exchange-name">Hunt ${bounty.target_name}</div>
-              <div class="exchange-desc">Defeat ${bounty.target_count}x ${bounty.target_name} in dungeon rooms and report back here for your payout.</div>
+              <div class="exchange-name">${_pt(`Caçar ${bounty.target_name}`, `Hunt ${bounty.target_name}`)}</div>
+              <div class="exchange-desc">${_pt(`Derrote ${bounty.target_count}x ${bounty.target_name} em salas da masmorra e volte aqui para receber seu pagamento.`, `Defeat ${bounty.target_count}x ${bounty.target_name} in dungeon rooms and report back here for your payout.`)}</div>
               <div class="exchange-cost">
-                <span class="cost-item">Progress: ${bounty.progress || 0}/${bounty.target_count || 0}</span>
+                <span class="cost-item">${_pt('Progresso:', 'Progress:')} ${bounty.progress || 0}/${bounty.target_count || 0}</span>
               </div>
               <div class="rep-bar-track" style="margin:10px 0 8px">
                 <div class="rep-bar-fill" style="width: ${bountyProgress}%"></div>
               </div>
               <div class="exchange-reward">
-                <span class="reward-gold">💰 ${(bounty.reward_gold || 0).toLocaleString()} Gold</span>
-                <span class="reward-rep">⭐ +${bounty.reward_reputation || 0} Reputation</span>
+                <span class="reward-gold">💰 ${(bounty.reward_gold || 0).toLocaleString()} ${_pt('Ouro', 'Gold')}</span>
+                <span class="reward-rep">⭐ +${bounty.reward_reputation || 0} ${_pt('Reputação', 'Reputation')}</span>
               </div>
-<button class="exchange-btn" ${actionAttrs('claimGuildBounty')} ${(bounty.progress || 0) < (bounty.target_count || 0) ? 'disabled' : ''}>
-                ${(bounty.progress || 0) < (bounty.target_count || 0) ? 'Bounty In Progress' : 'Claim Bounty'}
+              <button class="exchange-btn" ${actionAttrs('claimGuildBounty')} ${(bounty.progress || 0) < (bounty.target_count || 0) ? 'disabled' : ''}>
+                ${(bounty.progress || 0) < (bounty.target_count || 0) ? _pt('Caça em Progresso', 'Bounty In Progress') : _pt('Reivindicar Caça', 'Claim Bounty')}
               </button>
+              <button class="exchange-btn exchange-btn-skip" ${actionAttrs('skipGuildBounty')} ${formatBountySkipDisabled(bounty) ? 'disabled' : ''}>
+                ${formatBountySkipLabel(bounty)}
+              </button>
+
             </div>
           </div>
         </div>` : ''}
 
         <div class="guild-exchanges">
-          <div class="guild-section-title">📜 Available Exchanges</div>
+          <div class="guild-section-title">📜 ${_pt('Trocas Disponíveis', 'Available Exchanges')}</div>
           <div class="exchanges-grid">
             ${GUILD_EXCHANGES.map(exchange => {
               let canExchange = true;
@@ -4207,13 +4270,13 @@ function closeDungeonVictory() {
               if (exchange.minRep > 0 && reputation < exchange.minRep) {
                 isLocked = true;
                 canExchange = false;
-                missingReason = '🔒 Unlocks at ' + exchange.minRep + ' reputation';
+                missingReason = _pt(`🔒 Desbloqueia em ${exchange.minRep} de reputação`, '🔒 Unlocks at ' + exchange.minRep + ' reputation');
               }
 
               // Dungeon gold check
               if (canExchange && exchange.cost.dungeonGold && dungeonGold < exchange.cost.dungeonGold) {
                 canExchange = false;
-                missingReason = 'Need ' + exchange.cost.dungeonGold + ' dungeon gold';
+                missingReason = _pt(`Necessário ${exchange.cost.dungeonGold} de ouro da masmorra`, 'Need ' + exchange.cost.dungeonGold + ' dungeon gold');
               }
 
               // Tier material check (swap exchanges)
@@ -4233,7 +4296,7 @@ function closeDungeonVictory() {
                 }
                 if (totalTierMats < tierCostQty) {
                   canExchange = false;
-                  missingReason = 'Need ' + tierCostQty + ' ' + tierCostKey + ' materials (have ' + totalTierMats + ')';
+                  missingReason = _pt(`Necessário ${tierCostQty} materiais ${tierCostKey} (tem ${totalTierMats})`, 'Need ' + tierCostQty + ' ' + tierCostKey + ' materials (have ' + totalTierMats + ')');
                 }
               }
 
@@ -4243,7 +4306,7 @@ function closeDungeonVictory() {
               // Build cost display
               let costHtml = '';
               if (exchange.cost.dungeonGold) {
-                costHtml += '<span class="cost-item">💰 ' + exchange.cost.dungeonGold + ' Dungeon Gold</span>';
+                costHtml += '<span class="cost-item">💰 ' + exchange.cost.dungeonGold + ' ' + _pt('Ouro da Masmorra', 'Dungeon Gold') + '</span>';
               }
               if (tierCostKey) {
                 costHtml += '<span class="cost-item">📦 ' + tierCostQty + 'x ' + capitalize(tierCostKey) + '</span>';
@@ -4252,20 +4315,22 @@ function closeDungeonVictory() {
               // Build reward display
               let rewardHtml = '';
               if (discountedGold) {
-                rewardHtml += '<span class="reward-gold">💰 ' + discountedGold.toLocaleString() + ' Gold</span>';
+                rewardHtml += '<span class="reward-gold">💰 ' + discountedGold.toLocaleString() + ' ' + _pt('Ouro', 'Gold') + '</span>';
               }
               if (exchange.reward.reputation) {
-                rewardHtml += '<span class="reward-rep">⭐ +' + exchange.reward.reputation + ' Reputation</span>';
+                rewardHtml += '<span class="reward-rep">⭐ +' + exchange.reward.reputation + ' ' + _pt('Reputação', 'Reputation') + '</span>';
               }
               if (exchange.reward.elemTier) {
                 const ti = ELEM_TIER_INFO[exchange.reward.elemTier];
-                rewardHtml += '<span class="reward-item">📦 1x ' + (ti ? ti.name : capitalize(exchange.reward.elemTier)) + ' Element</span>';
+                rewardHtml += '<span class="reward-item">📦 1x ' + (ti ? _pt({
+                  Common: 'Comum', Uncommon: 'Incomum', Rare: 'Raro', Epic: 'Épico', Legendary: 'Lendário'
+                }[ti.name] || ti.name, ti.name) : capitalize(exchange.reward.elemTier)) + ' ' + _pt('Elemental', 'Element') + '</span>';
               }
               if (exchange.reward.item) {
                 rewardHtml += '<span class="reward-item">📦 ' + exchange.reward.item + '</span>';
               }
               if (currentRank.discount > 0 && discountedGold > 0) {
-                rewardHtml += '<span class="reward-discount">✨ +' + currentRank.discount + '% Gold Bonus (' + currentRank.name + ')</span>';
+                rewardHtml += '<span class="reward-discount">✨ +' + currentRank.discount + '% ' + _pt('Bônus de Ouro', 'Gold Bonus') + ' (' + _guildRankName(currentRank.name) + ')</span>';
               }
 
               return '<div class="exchange-card ' + (isLocked ? 'exchange-unavailable' : canExchange ? 'exchange-available' : 'exchange-unavailable') + '">' +
@@ -4276,7 +4341,7 @@ function closeDungeonVictory() {
                   '<div class="exchange-cost">' + costHtml + '</div>' +
                   '<div class="exchange-reward">' + rewardHtml + '</div>' +
                   '<button class="exchange-btn" ' + actionAttrs('exchangeAtGuild', exchange.id) + ' ' + ((!canExchange || D._guildExchangeInFlight) ? 'disabled' : '') + '>' +
-                    (isLocked ? '🔒 Locked' : canExchange ? 'Exchange' : missingReason || 'Missing Requirements') +
+                    (isLocked ? _pt('🔒 Bloqueado', '🔒 Locked') : canExchange ? _pt('Trocar', 'Exchange') : missingReason || _pt('Requisitos Ausentes', 'Missing Requirements')) +
                   '</button>' +
                 '</div>' +
               '</div>';
@@ -4284,7 +4349,7 @@ function closeDungeonVictory() {
           </div>
         </div>
 
-<button class="dungeon-btn" ${actionAttrs('closeGuild')} style="width:100%;margin-top:20px">Continue Exploring</button>
+<button class="dungeon-btn" ${actionAttrs('closeGuild')} style="width:100%;margin-top:20px">${_pt('Continuar Explorando', 'Continue Exploring')}</button>
       </div>
     `;
 
@@ -4334,7 +4399,7 @@ function exchangeAtGuild(exchangeId) {
   apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId })
     .then(response => {
       if (response.success) {
-        const msg = response.goldGained ? `Exchanged dungeon gold → ${response.goldGained} gold${response.rankBonus > 0 ? ` (${response.rankBonus}% rank bonus)` : ''}` : response.message;
+        const msg = response.goldGained ? _pt(`Ouro da masmorra trocado → ${response.goldGained} ouro${response.rankBonus > 0 ? ` (+${response.rankBonus}% bônus de rank)` : ''}`, `Exchanged dungeon gold → ${response.goldGained} gold${response.rankBonus > 0 ? ` (${response.rankBonus}% rank bonus)` : ''}`) : response.message;
         log(msg, 'log-success');
         const goldEl = document.getElementById('dungeon-gold-count');
         if (goldEl) goldEl.textContent = response.dungeonGold;
@@ -4363,14 +4428,91 @@ function showExchangeRewardModal(item) {
   modal.innerHTML = `
 <div style="text-align:center;padding:20px 24px">
   <div style="font-size:2.5rem;margin-bottom:8px">${item.emoji || '📦'}</div>
-  <div style="font-size:1.1rem;margin-bottom:6px;color:#fff">You obtained:</div>
+  <div style="font-size:1.1rem;margin-bottom:6px;color:#fff">${_pt('Você obteve:', 'You obtained:')}</div>
   <div style="font-size:1.3rem;font-weight:bold;color:#ffcc00;margin-bottom:4px">${item.name}</div>
-  <div style="font-size:0.85rem;opacity:0.6;text-transform:capitalize;color:#aaa">${item.rarity} Elemental Material</div>
+  <div style="font-size:0.85rem;opacity:0.6;text-transform:capitalize;color:#aaa">${_pt({
+    common: 'Comum', uncommon: 'Incomum', rare: 'Raro', epic: 'Épico', legendary: 'Lendário'
+  }[item.rarity] || item.rarity, item.rarity)} ${_pt('Material Elemental', 'Elemental Material')}</div>
 <button class="dungeon-btn" style="margin-top:16px;width:100%;cursor:pointer" data-action="closeExchangeRewardModal">OK</button>
 </div>`;
   modal.setAttribute('data-action', 'closeExchangeRewardModal');
   overlay.appendChild(modal);
   overlay.style.display = 'flex';
+}
+
+function bountySkipRemainingSecs(bounty) {
+  const until = Number(bounty?.skip_available_at || 0);
+  const now = Math.floor(Date.now() / 1000);
+  return until > now ? (until - now) : 0;
+}
+
+function formatBountySkipDisabled(bounty) {
+  return bountySkipRemainingSecs(bounty) > 0;
+}
+
+function formatBountySkipLabel(bounty) {
+  const rem = bountySkipRemainingSecs(bounty);
+  if (rem > 0) {
+    const hours = Math.floor(rem / 3600);
+    const mins = Math.floor((rem % 3600) / 60);
+    if (hours > 0) return _pt(`Pular (${hours}h ${mins}m)`, `Skip (${hours}h ${mins}m)`);
+    return _pt(`Pular (${mins}m)`, `Skip (${mins}m)`);
+  }
+  return _pt('Pular Caça', 'Skip Bounty');
+}
+
+function removeBountySkipModal() {
+  const el = document.getElementById('bounty-skip-modal');
+  if (el) el.remove();
+}
+
+function skipGuildBounty() {
+  if (D._guildBountySkipInFlight) return;
+  const bounty = D._guildBounty || {};
+  const targetName = bounty.target_name || '';
+  const targetCount = bounty.target_count || 0;
+  const progress = bounty.progress || 0;
+
+  const div = document.createElement('div');
+  div.id = 'bounty-skip-modal';
+  div.innerHTML = `
+    <div class="spirit-overlay"></div>
+    <div class="spirit-dialog">
+      <div class="spirit-dialog-title">🎯 ${_pt('Pular Caça?', 'Skip Bounty?')}</div>
+      <div class="spirit-dialog-body">
+        ${targetName ? `<div style="margin-bottom:8px">${_pt('Caça atual:', 'Current bounty:')} <strong>${escHtml(targetName)}</strong> (${progress}/${targetCount})</div>` : ''}
+        ${_pt('Abandonar esta caça e sortear um novo contrato?', 'Abandon this bounty and roll a new contract?')}
+        <div style="margin-top:8px;opacity:0.8">⏳ ${_pt('A nova caça só poderá ser pulada novamente após 24h.', 'The new bounty can only be skipped again after 24h.')}</div>
+      </div>
+      <div class="spirit-dialog-actions">
+        <button class="btn-secondary">${_pt('Cancelar', 'Cancel')}</button>
+        <button class="btn-primary">🎯 ${_pt('Pular Caça', 'Skip Bounty')}</button>
+      </div>
+    </div>
+  `;
+  function cancel() { removeBountySkipModal(); }
+  function confirmSkip() {
+    removeBountySkipModal();
+    if (D._guildBountySkipInFlight) return;
+    D._guildBountySkipInFlight = true;
+    apiFetch('POST', '/game/dungeon/guild/bounty/skip', {})
+      .then(response => {
+        if (response.success) {
+          log(response.message || _pt('Caça pulada. Um novo contrato aguarda.', 'Bounty skipped. A new contract awaits.'), 'log-success');
+          renderGuild();
+          refreshCharacter();
+        }
+      })
+      .catch(e => {
+        log(e?.message || _pt('Falha ao pular a caça. Tente novamente.', 'Failed to skip bounty. Try again.'), 'log-danger');
+        renderGuild();
+      })
+      .finally(() => { D._guildBountySkipInFlight = false; });
+  }
+  div.querySelector('.spirit-overlay').addEventListener('click', cancel);
+  div.querySelector('.btn-secondary').addEventListener('click', cancel);
+  div.querySelector('.btn-primary').addEventListener('click', confirmSkip);
+  document.body.appendChild(div);
 }
 
 function claimGuildBounty() {
@@ -4461,10 +4603,10 @@ global.debugDungeonDetails = function() {
 
     if (!hasElem && floor >= 5) {
       return `<div class="dungeon-elem-panel">
-        <div class="dungeon-elem-header">🐉 Elemental Spirit</div>
+        <div class="dungeon-elem-header">🐉 ${_pt('Espírito Elemental', 'Elemental Spirit')}</div>
         <div class="dungeon-elem-body">
-          <p style="font-size:0.7rem;color:var(--text-dim);margin:0 0 6px">An ancient altar glows faintly. You sense a connection to a spirit beast on this floor.</p>
-          <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonDiscoverElemental')}>✨ Discover Elemental</button>
+          <p style="font-size:0.7rem;color:var(--text-dim);margin:0 0 6px">${_pt('Um altar antigo brilha fracamente. Você sente uma conexão com uma besta espiritual neste andar.', 'An ancient altar glows faintly. You sense a connection to a spirit beast on this floor.')}</p>
+          <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonDiscoverElemental')}>✨ ${_pt('Descobrir Elemental', 'Discover Elemental')}</button>
         </div>
       </div>`;
     }
@@ -4486,7 +4628,7 @@ global.debugDungeonDetails = function() {
         <div class="dungeon-elem-bar"><div class="dungeon-elem-bar-fill hp-fill" style="width:${hpPct}%"></div></div>
         <div style="font-size:0.65rem;margin:4px 0">XP ${e.xp || 0}/${e.xpNext}</div>
         <div class="dungeon-elem-bar"><div class="dungeon-elem-bar-fill xp-fill" style="width:${xpPct}%"></div></div>
-        <button class="dungeon-btn dungeon-btn-hud" style="margin-top:6px" ${actionAttrs('dungeonShowFeedModal')}>🍽️ Feed Materials</button>
+        <button class="dungeon-btn dungeon-btn-hud" style="margin-top:6px" ${actionAttrs('dungeonShowFeedModal')}>🍽️ ${_pt('Alimentar com Materiais', 'Feed Materials')}</button>
       </div>
     </div>`;
   }
@@ -4509,17 +4651,15 @@ global.debugDungeonDetails = function() {
       div.innerHTML = `
         <div class="spirit-overlay"></div>
         <div class="spirit-dialog">
-          <div class="spirit-dialog-title">🐉 Spirit Beast Found!</div>
+          <div class="spirit-dialog-title">🐉 ${_pt('Besta Espiritual Encontrada!', 'Spirit Beast Found!')}</div>
           <div class="spirit-dialog-body">
-            Deep within the tower, you discover a mystical ${spiritType} spirit.
-            Its essence pulses with ancient power, waiting to bond with a worthy champion.
-            The spirit will fight alongside you in battle.
+            ${_pt(`No interior da torre, você descobre um místico espírito ${spiritType}. Sua essência pulsa com poder ancestral, esperando se vincular com um campeão digno. O espírito lutará ao seu lado em batalha.`, `Deep within the tower, you discover a mystical ${spiritType} spirit. Its essence pulses with ancient power, waiting to bond with a worthy champion. The spirit will fight alongside you in battle.`)}
           </div>
-          <label class="spirit-dialog-label">Name your Spirit Beast:</label>
-          <input id="spirit-name-input" class="spirit-dialog-input" type="text" maxlength="24" placeholder="Enter a name..." value="${spiritType}">
+          <label class="spirit-dialog-label">${_pt('Nomeie sua Besta Espiritual:', 'Name your Spirit Beast:')}</label>
+          <input id="spirit-name-input" class="spirit-dialog-input" type="text" maxlength="24" placeholder="${_pt('Digite um nome...', 'Enter a name...')}" value="${spiritType}">
           <div class="spirit-dialog-actions">
-            <button class="btn-secondary">Skip</button>
-            <button class="btn-primary">✨ Bond</button>
+            <button class="btn-secondary">${_pt('Pular', 'Skip')}</button>
+            <button class="btn-primary">✨ ${_pt('Vincular', 'Bond')}</button>
           </div>
         </div>
       `;
@@ -4537,12 +4677,12 @@ global.debugDungeonDetails = function() {
       setTimeout(() => document.getElementById('spirit-name-input')?.focus(), 100);
     });
 
-    if (!name) { log('❌ Discovery cancelled', 'log-info'); return; }
+    if (!name) { log(_pt('❌ Descoberta cancelada', '❌ Discovery cancelled'), 'log-info'); return; }
 
     // Show loading
     const loadingEl = document.createElement('div');
     loadingEl.id = 'spirit-discover-modal';
-    loadingEl.innerHTML = `<div class="spirit-overlay"></div><div class="spirit-dialog" style="text-align:center;padding:30px">✨ Bonding spirit...</div>`;
+    loadingEl.innerHTML = `<div class="spirit-overlay"></div><div class="spirit-dialog" style="text-align:center;padding:30px">✨ ${_pt('Vinculando espírito...', 'Bonding spirit...')}</div>`;
     document.body.appendChild(loadingEl);
 
     try {
@@ -4553,14 +4693,14 @@ global.debugDungeonDetails = function() {
         const charR = await apiFetch('GET', '/game/character');
         if (charR) Object.assign(getChar(), charR);
         renderDungeonView();
-        log(`🐉 ${r.message || 'Spirit beast bonded!'}`, 'log-arrive');
+        log(`🐉 ${r.message || _pt('Besta espiritual vinculada!', 'Spirit beast bonded!')}`, 'log-arrive');
       } else {
-        log('⚠️ ' + (r.error || 'Failed to bond'), 'log-danger');
+        log(_pt('⚠️ ') + (r.error || _pt('Falha ao vincular', 'Failed to bond')), 'log-danger');
       }
     } catch (e) {
       loadingEl.remove();
       console.error('[Discover] Error:', e);
-      log('⚠️ Error bonding spirit: ' + e.message, 'log-danger');
+      log(_pt('⚠️ Erro ao vincular espírito: ', '⚠️ Error bonding spirit: ') + e.message, 'log-danger');
     }
   };
 
@@ -4576,7 +4716,7 @@ global.debugDungeonDetails = function() {
     });
 
     if (mats.length === 0) {
-      log('📭 No materials to feed. Clear dungeon rooms for drops!', 'log-info');
+      log(_pt('📭 Sem materiais para alimentar. Limpe salas da masmorra para obter drops!', '📭 No materials to feed. Clear dungeon rooms for drops!'), 'log-info');
       return;
     }
 
@@ -4586,7 +4726,7 @@ global.debugDungeonDetails = function() {
     const xpPct = elem.xpNext > 0 ? Math.round(((elem.xp || 0) / elem.xpNext) * 100) : 0;
     let html = `<div class="dungeon-overlay-backdrop" ${actionAttrs('closeDungeonOverlay')}></div>
       <div class="dungeon-modal">
-        <div class="dungeon-modal-title">🍽️ Feed ${elem.name}</div>
+        <div class="dungeon-modal-title">🍽️ ${_pt('Alimentar', 'Feed')} ${elem.name}</div>
         <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px">
           Lv.${elem.level}  XP ${elem.xp || 0}/${elem.xpNext} (${xpPct}%)
         </div>
@@ -4605,7 +4745,7 @@ global.debugDungeonDetails = function() {
     }
 
     html += `</div>
-      <button class="dungeon-btn" style="margin-top:10px;width:100%" ${actionAttrs('closeDungeonOverlay')}>Cancel</button>
+      <button class="dungeon-btn" style="margin-top:10px;width:100%" ${actionAttrs('closeDungeonOverlay')}>${_pt('Cancelar', 'Cancel')}</button>
     </div>`;
 
     overlay.innerHTML = html;
@@ -4619,16 +4759,16 @@ global.debugDungeonDetails = function() {
       const r = await apiFetch('POST', '/game/elemental/feed', { inventory_id: invId });
       if (r.elemental) {
         _cachedElemental = r.elemental;
-        log(r.message || '🍽️ Fed elemental!', 'log-arrive');
+        log(r.message || _pt('🍽️ Elemental alimentado!', '🍽️ Fed elemental!'), 'log-arrive');
         // Refresh character data
         const charR = await apiFetch('GET', '/game/character');
         if (charR) Object.assign(getChar(), charR);
         renderDungeonView();
       } else {
-        log('⚠️ ' + (r.error || 'Failed to feed'), 'log-danger');
+        log(_pt('⚠️ ') + (r.error || _pt('Falha ao alimentar', 'Failed to feed')), 'log-danger');
       }
     } catch (e) {
-      log('⚠️ Error feeding elemental', 'log-danger');
+      log(_pt('⚠️ Erro ao alimentar elemental', '⚠️ Error feeding elemental'), 'log-danger');
     }
   };
 
@@ -4712,6 +4852,7 @@ global.closeExchangeRewardModal = function() {
   renderGuild();
 };
 global.claimGuildBounty = claimGuildBounty;
+  global.skipGuildBounty    = skipGuildBounty;
   global.createGuildRaid    = createGuildRaid;
   global.joinGuildRaid      = joinGuildRaid;
   global.leaveGuildRaid     = leaveGuildRaid;
