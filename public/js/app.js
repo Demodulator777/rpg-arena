@@ -967,11 +967,13 @@ async function api(method, path, body=null) {
 
     // Trusted-event check: flag state-changing calls without recent user interaction
     if ((method === 'POST' || method === 'PUT' || method === 'DELETE') && 
+        !(body instanceof FormData) &&
         path.indexOf('/auth/') === -1 && 
         path.indexOf('/missions/tab-viewed') === -1 &&
         path.indexOf('/dungeon/lock-refresh') === -1 &&
         path.indexOf('/dungeon/mp-spent') === -1 &&
         path.indexOf('/dungeon/progress') === -1 &&
+        path.indexOf('/squads/logo') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
@@ -7371,7 +7373,34 @@ function ensureGameDialogModal() {
         </div>`);
 }
 
+function _ptDialogLabel(label) {
+    if (CURRENT_LANG !== 'pt') return label;
+    const map = {
+        'Continue': 'Continuar',
+        'Close': 'Fechar',
+        'Cancel': 'Cancelar',
+        'OK': 'OK',
+        'Notice': 'Aviso',
+        'Skip': 'Pular',
+        'Leave Dungeon': 'Sair da Masmorra',
+        'Skip Tutorial': 'Pular Tutorial',
+        'Load': 'Carregar',
+        'Open': 'Abrir',
+        'Enter': 'Entrar',
+        'Sell Item': 'Vender Item',
+        'I Understand': 'Eu Entendi',
+        'Awesome!': 'Incrível!',
+        'Yes, stop now': 'Sim, parar agora',
+        'Cancel Training': 'Cancelar Treinamento',
+        'Delete All': 'Excluir Tudo'
+    };
+    return map[label] || label;
+}
+
 function openGameDialog({ title = 'Notice', message = '', confirmLabel = 'Continue', cancelLabel = 'Cancel', showCancel = false, danger = false } = {}) {
+    title = _ptDialogLabel(title);
+    confirmLabel = _ptDialogLabel(confirmLabel);
+    cancelLabel = _ptDialogLabel(cancelLabel);
     ensureGameDialogModal();
     const modal = document.getElementById('game-dialog-modal');
     const titleEl = document.getElementById('game-dialog-title');
@@ -10976,7 +11005,7 @@ let squadsData = null;
 async function loadSquads() {
     const el = document.getElementById('squads-content');
     if (!el) return;
-    el.innerHTML = '<p class="loading">Loading squads...</p>';
+    el.innerHTML = CURRENT_LANG === 'pt' ? '<p class="loading">Carregando esquadrões...</p>' : '<p class="loading">Loading squads...</p>';
     try {
         const [me, lb] = await Promise.all([
             api('GET', '/game/squads/me').catch(() => ({ squad: null, members: [] })),
@@ -11022,14 +11051,19 @@ function renderSquads() {
     const isOfficer = myRole === 'officer';
     const isCoLeader = myRole === 'co_leader';
     const canManageApps = isLeader || isCoLeader || isOfficer;
-    const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
+    const roleLabels = {
+        leader: CURRENT_LANG === 'pt' ? '👑 Líder' : '👑 Leader',
+        co_leader: CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader',
+        officer: '⚔️ Officer',
+        member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
+    };
     const canAssignRoles = isLeader || isCoLeader;
 
     function roleOptions(currentRole, isLeaderAssigner) {
         const opts = [];
-        if (isLeaderAssigner) opts.push(['co_leader', '⭐ Co-Leader']);
+        if (isLeaderAssigner) opts.push(['co_leader', CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader']);
         opts.push(['officer', '⚔️ Officer']);
-        opts.push(['member', '🪖 Member']);
+        opts.push(['member', CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member']);
         return opts.map(([v, l]) => `<option value="${v}" ${v === currentRole ? 'selected' : ''}>${l}</option>`).join('');
     }
 
@@ -11038,22 +11072,22 @@ function renderSquads() {
         el.innerHTML = `
         <div class="squads-card">
             <div class="squads-card-head">
-                <div class="squads-title">🛡️ Squad Management</div>
-                <div class="squads-meta">Gather your allies or join a legendary squad.</div>
+                <div class="squads-title">🛡️ ${CURRENT_LANG === 'pt' ? 'Gestão de Esquadrão' : 'Squad Management'}</div>
+                <div class="squads-meta">${CURRENT_LANG === 'pt' ? 'Reúna seus aliados ou entre para um esquadrão lendário.' : 'Gather your allies or join a legendary squad.'}</div>
             </div>
             
             <div class="squads-setup-grid">
                 <div class="squads-setup-box">
-                    <div class="squads-subhead">Create New Squad</div>
-                    <input id="squad-name" class="input-field" placeholder="Squad Name (3-20)">
-                    <input id="squad-tag" class="input-field" placeholder="Tag (1-5 chars)" required>
-                    <button class="btn-primary" ${actionAttrs('createSquad')}>Create Squad</button>
+                    <div class="squads-subhead">${CURRENT_LANG === 'pt' ? 'Criar Novo Esquadrão' : 'Create New Squad'}</div>
+                    <input id="squad-name" class="input-field" placeholder="${CURRENT_LANG === 'pt' ? 'Nome do Esquadrão (3-20)' : 'Squad Name (3-20)'}">
+                    <input id="squad-tag" class="input-field" placeholder="${CURRENT_LANG === 'pt' ? 'Tag (1-5 caracteres)' : 'Tag (1-5 chars)'}" required>
+                    <button class="btn-primary" ${actionAttrs('createSquad')}>${CURRENT_LANG === 'pt' ? 'Criar Esquadrão' : 'Create Squad'}</button>
                 </div>
                 
                 <div class="squads-setup-box">
-                    <div class="squads-subhead">Join Existing Squad</div>
-                    <input id="squad-code" class="input-field" placeholder="Invite Code">
-                    <button class="btn-secondary" ${actionAttrs('joinSquad')}>Join Squad</button>
+                    <div class="squads-subhead">${CURRENT_LANG === 'pt' ? 'Entrar em Esquadrão Existente' : 'Join Existing Squad'}</div>
+                    <input id="squad-code" class="input-field" placeholder="${CURRENT_LANG === 'pt' ? 'Código de Convite' : 'Invite Code'}">
+                    <button class="btn-secondary" ${actionAttrs('joinSquad')}>${CURRENT_LANG === 'pt' ? 'Entrar' : 'Join Squad'}</button>
                 </div>
             </div>
         </div>`;
@@ -11071,12 +11105,12 @@ function renderSquads() {
                 ${logoDisplay}
                 <div>
                     <div class="squads-title">${escHtml(squad.name)}${squad.squad_tag ? ` [${escHtml(squad.squad_tag)}]` : ''}</div>
-                    <div class="squads-meta">Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong></div>
+                    <div class="squads-meta">${CURRENT_LANG === 'pt' ? `Código de convite: <strong>${escHtml(squad.invite_code || '')}</strong> · Membros: <strong>${members.length}</strong>` : `Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong>`}</div>
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
                 ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
-                <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>Leave</button>
+                <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>${CURRENT_LANG === 'pt' ? 'Sair' : 'Leave'}</button>
             </div>
         </div>
     </div>`;
@@ -11101,9 +11135,9 @@ function renderSquads() {
 
             if (treasury) {
                 tabContent += `<div class="squads-card" style="margin-top:10px">
-                    <div class="squads-title">💰 Squad Treasury</div>
+                    <div class="squads-title">💰 ${CURRENT_LANG === 'pt' ? 'Tesouro do Esquadrão' : 'Squad Treasury'}</div>
                     <div class="squads-members" style="padding:8px 12px">
-                        <span class="squads-meta">💵 ${treasury.gold.toLocaleString()} gold · 💎 ${treasury.gems} gems</span>
+                        <span class="squads-meta">💵 ${treasury.gold.toLocaleString()} ${CURRENT_LANG === 'pt' ? 'ouro' : 'gold'} · 💎 ${treasury.gems} ${CURRENT_LANG === 'pt' ? 'gemas' : 'gems'}</span>
                     </div>
                 </div>`;
             }
@@ -11112,27 +11146,27 @@ function renderSquads() {
                 tabContent += `<div class="squads-card" style="margin-top:10px">
                     <div class="squads-card-head">
                         <div><div class="squads-title">🏰 ${escHtml(base.name)}</div>
-                        <div class="squads-meta">${tierNames[base.tier] || base.tier} · Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}</div>
+                        <div class="squads-meta">${tierNames[base.tier] || base.tier} · ${CURRENT_LANG === 'pt' ? `Nível ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% de desconto em status` : '❌ Desconto inativo'}` : `Level ${base.upgrade_level}/${base.max_upgrades} · ${base.discount_pct > 0 ? `🏷️ ${base.discount_pct}% stat discount` : '❌ Discount inactive'}`}</div>
                     </div></div>
                     ${renderUpkeepStatus(base)}
                     ${base.upgrade_cost ? `<div class="squads-members" style="padding:8px 12px">
-                        <div class="squads-meta">Next upgrade: 💰 ${base.upgrade_cost.gold.toLocaleString()} gold · 💎 ${base.upgrade_cost.gems} gems</div>
+                        <div class="squads-meta">${CURRENT_LANG === 'pt' ? 'Próximo upgrade' : 'Next upgrade'}: 💰 ${base.upgrade_cost.gold.toLocaleString()} ${CURRENT_LANG === 'pt' ? 'ouro' : 'gold'} · 💎 ${base.upgrade_cost.gems} ${CURRENT_LANG === 'pt' ? 'gemas' : 'gems'}</div>
                         <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-                            <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ Upgrade</button>
+                            <button class="btn-primary btn-sm" ${actionAttrs('upgradeBase', base.id)}>⬆️ ${CURRENT_LANG === 'pt' ? 'Melhorar' : 'Upgrade'}</button>
                         </div>
-                    </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">Base at max level.</span></div>'}
+                    </div>` : '<div class="squads-members" style="padding:8px 12px"><span class="squads-meta">' + (CURRENT_LANG === 'pt' ? 'Base no nível máximo.' : 'Base at max level.') + '</span></div>'}
                 </div>`;
             }
 
             // Donation form — always visible when in a squad
             tabContent += `<div class="squads-card" style="margin-top:10px">
-                <div class="squads-title">💰 Donate to Treasury</div>
+                <div class="squads-title">💰 ${CURRENT_LANG === 'pt' ? 'Doar ao Tesouro' : 'Donate to Treasury'}</div>
                 <div class="squads-members" style="padding:8px 12px">
-                    <div class="squads-meta">Contribute gold or gems to the squad treasury for upgrades and upkeep:</div>
+                    <div class="squads-meta">${CURRENT_LANG === 'pt' ? 'Contribua com ouro ou gemas para o tesouro do esquadrão para upgrades e manutenção:' : 'Contribute gold or gems to the squad treasury for upgrades and upkeep:'}</div>
                     <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;justify-content:center">
-                        <input id="clan-donate-gold" class="input-field" type="number" placeholder="Gold" style="width:100px;padding:4px 8px;font-size:0.8rem">
-                        <input id="clan-donate-gems" class="input-field" type="number" placeholder="Gems" style="width:100px;padding:4px 8px;font-size:0.8rem">
-                        <button class="btn-primary btn-sm" ${actionAttrs('donateToTreasury')}>Donate</button>
+                        <input id="clan-donate-gold" class="input-field" type="number" placeholder="${CURRENT_LANG === 'pt' ? 'Ouro' : 'Gold'}" style="width:100px;padding:4px 8px;font-size:0.8rem">
+                        <input id="clan-donate-gems" class="input-field" type="number" placeholder="${CURRENT_LANG === 'pt' ? 'Gemas' : 'Gems'}" style="width:100px;padding:4px 8px;font-size:0.8rem">
+                        <button class="btn-primary btn-sm" ${actionAttrs('donateToTreasury')}>${CURRENT_LANG === 'pt' ? 'Doar' : 'Donate'}</button>
                     </div>
                 </div>
             </div>`;
@@ -11140,12 +11174,12 @@ function renderSquads() {
             wars.forEach(function(w) {
                 tabContent += `<div class="squads-card" style="margin-top:10px;border-color:${w.is_attacker ? 'rgba(231,76,60,0.27)' : 'rgba(46,204,113,0.27)'}">
                     <div class="squads-card-head">
-                        <div><div class="squads-title">⚔️ ${w.is_attacker ? 'Attacking' : 'Defending'} ${escHtml(w.base_name)}</div>
-                        <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
-                        <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture' : ''} ${!w.is_npc_war && w.scout_ends_at ? `Defense phase ends: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· Auto-resolve: ${formatDate(w.attack_ends_at)}` : ''}</div>
+                        <div><div class="squads-title">⚔️ ${w.is_attacker ? (CURRENT_LANG === 'pt' ? 'Atacando' : 'Attacking') : (CURRENT_LANG === 'pt' ? 'Defendendo' : 'Defending')} ${escHtml(w.base_name)}</div>
+                        <div class="squads-meta">${w.is_attacker ? `vs ${escHtml(w.defender_name)}` : `vs ${escHtml(w.attacker_name)}`} · ${CURRENT_LANG === 'pt' ? 'Fase' : 'Phase'}: ${w.phase}</div>
+                        <div class="squads-meta" style="font-size:0.65rem">${w.is_npc_war ? (CURRENT_LANG === 'pt' ? '⚔️ Todas as 5 bases avançadas devem ser conquistadas para capturar' : '⚔️ All 5 outposts must be won to capture') : ''} ${!w.is_npc_war && w.scout_ends_at ? `${CURRENT_LANG === 'pt' ? 'A fase de defesa termina' : 'Defense phase ends'}: ${formatDate(w.scout_ends_at)}` : ''} ${w.attack_ends_at ? `· ${CURRENT_LANG === 'pt' ? 'Resolução automática' : 'Auto-resolve'}: ${formatDate(w.attack_ends_at)}` : ''}</div>
                     </div></div>
                     <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
-                        ${w.phase !== 'resolved' ? `<button class="btn-primary btn-sm" ${actionAttrs('openWarPanel', w.id)}>⚔️ War Panel</button>` : ''}
+                        ${w.phase !== 'resolved' ? `<button class="btn-primary btn-sm" ${actionAttrs('openWarPanel', w.id)}>⚔️ ${CURRENT_LANG === 'pt' ? 'Painel de Guerra' : 'War Panel'}</button>` : ''}
                     </div>
                 </div>`;
             });
@@ -11153,26 +11187,26 @@ function renderSquads() {
     } else if (_squadSubTab === 'members') {
         const appsHtml = canManageApps && apps.length > 0 ? `
         <div class="squads-card" style="margin-top:10px">
-            <div class="squads-title">📋 Pending Applications (${apps.length})</div>
+            <div class="squads-title">📋 ${CURRENT_LANG === 'pt' ? `Inscrições Pendentes (${apps.length})` : `Pending Applications (${apps.length})`}</div>
             <div class="squads-members">
                 ${apps.map(a => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
                     <span><span class="squads-member-name">${escHtml(a.name)}</span>
                     <span class="squads-member-sub">Lv.${a.level} ${escHtml(capitalize(a.class))}</span></span>
                     <span style="display:flex;gap:4px">
-                        <button class="btn-primary btn-sm" ${actionAttrs('acceptApplication', a.id)}>✅ Accept</button>
-                        <button class="btn-secondary btn-sm" ${actionAttrs('rejectApplication', a.id)}>❌ Reject</button>
+                        <button class="btn-primary btn-sm" ${actionAttrs('acceptApplication', a.id)}>✅ ${CURRENT_LANG === 'pt' ? 'Aceitar' : 'Accept'}</button>
+                        <button class="btn-secondary btn-sm" ${actionAttrs('rejectApplication', a.id)}>❌ ${CURRENT_LANG === 'pt' ? 'Recusar' : 'Reject'}</button>
                     </span>
                 </div>`).join('')}
             </div>
         </div>` : '';
 
         tabContent = `<div class="squads-card" style="margin-top:10px">
-            <div class="squads-title">👥 Members (${members.length})</div>
+            <div class="squads-title">👥 ${CURRENT_LANG === 'pt' ? `Membros (${members.length})` : `Members (${members.length})`}</div>
             <div class="squads-members">
                 ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
                    <span>
                        <span class="squads-member-name" style="cursor:pointer" ${actionAttrs('openProfile', m.id)}>${escHtml(m.name)}</span>
-                       <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || '🪖 Member'}</span>
+                       <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || (CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member')}</span>
                        <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)} · ${onlineDot(m.last_online_at)} ${formatRelativeTime(m.last_online_at)}</span>
                    </span>
                     <span style="display:flex;align-items:center;gap:4px">
@@ -11182,7 +11216,7 @@ function renderSquads() {
                             </select>
                         ` : ''}
                         ${(isLeader || (isCoLeader && m.role !== 'leader') || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
-                            <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 Kick</button>
+                            <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 ${CURRENT_LANG === 'pt' ? 'Expulsar' : 'Kick'}</button>
                         ` : ''}
                     </span>
                 </div>`).join('')}
@@ -11335,24 +11369,24 @@ async function loadClanData() {
 }
 
 function renderBaseMapContent() {
-    if (!clanData.squad_id) return '<div class="squads-meta">Squad has no base.</div>';
+    if (!clanData.squad_id) return '<div class="squads-meta">' + (CURRENT_LANG === 'pt' ? 'O esquadrão não tem base.' : 'Squad has no base.') + '</div>';
     // Map is fully locked while the squad is in an active war
     if (clanData.wars.length > 0 || clanData.in_war) {
         return `<div class="squads-card" style="margin-top:0">
-            <div class="squads-title">🗺️ Clan Base Map</div>
+            <div class="squads-title">🗺️ ${CURRENT_LANG === 'pt' ? 'Mapa de Bases do Clã' : 'Clan Base Map'}</div>
             <div class="squads-members" style="padding:24px 12px;text-align:center">
                 <div style="font-size:1.6rem;margin-bottom:8px">⚔️</div>
-                <div class="squads-meta"><strong>Base map is locked while your squad is in a war.</strong></div>
-                <div class="squads-meta" style="font-size:0.7rem;opacity:0.6">Resolve the active war to access the map.</div>
+                <div class="squads-meta"><strong>${CURRENT_LANG === 'pt' ? 'O mapa de bases está bloqueado enquanto seu esquadrão está em guerra.' : 'Base map is locked while your squad is in a war.'}</strong></div>
+                <div class="squads-meta" style="font-size:0.7rem;opacity:0.6">${CURRENT_LANG === 'pt' ? 'Resolva a guerra ativa para acessar o mapa.' : 'Resolve the active war to access the map.'}</div>
             </div>
         </div>`;
     }
     const tierColors = { main: '#ff6b35', large: '#e74c3c', medium: '#f39c12', small: '#3498db' };
     return `<div class="squads-card" style="margin-top:0">
-        <div class="squads-title">🗺️ Clan Base Map</div>
+        <div class="squads-title">🗺️ ${CURRENT_LANG === 'pt' ? 'Mapa de Bases do Clã' : 'Clan Base Map'}</div>
         ${window._canEditBases ? `<div style="display:flex;gap:6px;justify-content:flex-end;margin:8px 0">
-            <button class="btn-sm" ${actionAttrs('toggleBaseEditing')}>${window._editingBases ? '✓ Done Moving' : '✥ Move Bases'}</button>
-            ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 Save Positions${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
+            <button class="btn-sm" ${actionAttrs('toggleBaseEditing')}>${window._editingBases ? (CURRENT_LANG === 'pt' ? '✓ Concluir' : '✓ Done Moving') : (CURRENT_LANG === 'pt' ? '✥ Mover Bases' : '✥ Move Bases')}</button>
+            ${window._editingBases ? `<button class="btn-sm" style="background:var(--green-dim);border-color:rgba(46,204,113,0.4)" ${actionAttrs('saveBasePositions')}>💾 ${CURRENT_LANG === 'pt' ? 'Salvar Posições' : 'Save Positions'}${Object.keys(window._basePosChanges||{}).length ? ` (${Object.keys(window._basePosChanges).length})` : ''}</button>` : ''}
         </div>` : ''}
         <div id="clan-base-scroll" class="clan-base-scroll">
         <div id="clan-base-map" class="clan-base-map${window._editingBases ? ' base-editing' : ''}" style="position:relative;overflow:hidden;background:linear-gradient(rgba(0,0,0,0.55),rgba(0,0,0,0.55)),url('/images/assets/basemap.png') center/100% 100% no-repeat">
@@ -11377,14 +11411,14 @@ function renderBaseMapContent() {
 
 function renderUpkeepStatus(base) {
     if (!base) return '';
-    if (base.upgrade_level <= 0) return '<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)"><div class="squads-meta">Daily Upkeep: No upgrades yet — no upkeep required.</div></div>';
+    if (base.upgrade_level <= 0) return `<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)"><div class="squads-meta">${CURRENT_LANG === 'pt' ? 'Manutenção diária: sem upgrades ainda — nenhuma manutenção necessária.' : 'Daily Upkeep: No upgrades yet — no upkeep required.'}</div></div>`;
     var expiresAt = base.discount_expires_at || 0;
     return '<div class="squads-members" style="padding:8px 12px;border-top:1px solid rgba(255,255,255,0.06)">' +
-        '<div class="squads-meta">Daily Upkeep: 💰 ' + base.upkeep_cost.toLocaleString() + ' gold' +
+        '<div class="squads-meta">' + (CURRENT_LANG === 'pt' ? 'Manutenção diária' : 'Daily Upkeep') + ': 💰 ' + base.upkeep_cost.toLocaleString() + ' ' + (CURRENT_LANG === 'pt' ? 'ouro' : 'gold') +
         ' · <span class="upkeep-timer" data-expires="' + expiresAt + '" data-discount="' + (base.discount_pct || 0) + '">' +
         _formatUpkeepTime(expiresAt, base.discount_pct) +
         '</span></div>' +
-        '<div class="squads-meta" style="font-size:0.65rem;opacity:0.6">Upkeep deducted from treasury daily at 00:00 UTC. Stat discount requires active upkeep.</div>' +
+        '<div class="squads-meta" style="font-size:0.65rem;opacity:0.6">' + (CURRENT_LANG === 'pt' ? 'A manutenção é deduzida do tesouro diariamente às 00:00 UTC. O desconto de status exige manutenção ativa.' : 'Upkeep deducted from treasury daily at 00:00 UTC. Stat discount requires active upkeep.') + '</div>' +
     '</div>';
 }
 
@@ -11395,9 +11429,9 @@ function _formatUpkeepTime(expiresAt, discountPct) {
     var h = Math.floor(remaining / 3600);
     var m = Math.floor((remaining % 3600) / 60);
     var s = remaining % 60;
-    var timeStr = active ? h + 'h ' + m + 'm ' + s + 's' : 'Expired';
+    var timeStr = active ? h + 'h ' + m + 'm ' + s + 's' : (CURRENT_LANG === 'pt' ? 'Expirado' : 'Expired');
     return '<span style="color:' + (active ? '#2ecc71' : '#e74c3c') + '">' +
-        (active ? '✅ Active (' + timeStr + ' remaining)' : '❌ ' + timeStr) + '</span>';
+        (active ? (CURRENT_LANG === 'pt' ? '✅ Ativo (' + timeStr + ' restantes)' : '✅ Active (' + timeStr + ' remaining)') : '❌ ' + timeStr) + '</span>';
 }
 
 // Live upkeep countdown ticker
@@ -11416,7 +11450,7 @@ function _startUpkeepTicker() {
 // Live countdown for defender-protection timers on bases
 function _formatCountdown(expiresMs) {
     var ms = Number(expiresMs) - Date.now();
-    if (ms <= 0) return 'Available now';
+    if (ms <= 0) return CURRENT_LANG === 'pt' ? 'Disponível agora' : 'Available now';
     var s = Math.floor(ms / 1000);
     var d = Math.floor(s / 86400); s -= d * 86400;
     var h = Math.floor(s / 3600); s -= h * 3600;
@@ -11449,25 +11483,25 @@ async function showClanBaseDetail(baseId) {
             <div class="squads-card-head">
                 <div><div class="squads-title"><img src="/images/assets/base${b.tier}.png" style="width:28px;height:auto;vertical-align:middle;margin-right:6px">${escHtml(b.name)}</div>
                 <div class="squads-meta">${tierNames[b.tier] || b.tier}
-                    ${b.is_owned ? '· Owned by your squad' : b.is_occupied ? `· Owned by ${escHtml(b.owner_squad_name)}` : '· Unoccupied'}
+                    ${b.is_owned ? `· ${CURRENT_LANG === 'pt' ? 'Pertencente ao seu esquadrão' : 'Owned by your squad'}` : b.is_occupied ? `· ${CURRENT_LANG === 'pt' ? 'Pertencente a' : 'Owned by'} ${escHtml(b.owner_squad_name)}` : `· ${CURRENT_LANG === 'pt' ? 'Desocupada' : 'Unoccupied'}`}
                 </div>
             </div></div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
-                ${(clanData.wars.length > 0 || clanData.in_war) ? '<div class="squads-meta">⚔️ Base actions are locked while your squad is in a war.</div>'
-                    : `${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ Capture Base</button>` : ''}
-                       ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ Capture Base</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 Loot Raid</button>` : ''}`}
+                ${(clanData.wars.length > 0 || clanData.in_war) ? '<div class="squads-meta">' + (CURRENT_LANG === 'pt' ? '⚔️ Ações de base bloqueadas enquanto seu esquadrão está em guerra.' : '⚔️ Base actions are locked while your squad is in a war.') + '</div>'
+                    : `${b.can_capture ? `<button class="btn-primary btn-sm" ${actionAttrs('captureBase', b.id)}>⚔️ ${CURRENT_LANG === 'pt' ? 'Capturar Base' : 'Capture Base'}</button>` : ''}
+                       ${b.can_attack ? `<button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'capture')}>⚔️ ${CURRENT_LANG === 'pt' ? 'Capturar Base' : 'Capture Base'}</button> <button class="btn-primary btn-sm" ${actionAttrs('startBaseWar', b.id, 'loot')}>💰 ${CURRENT_LANG === 'pt' ? 'Saque' : 'Loot Raid'}</button>` : ''}`}
             </div>
-            ${b.owner_at_war && b.owner_war_resolves_at > Date.now() ? `<div class="squads-meta" style="padding:0 12px 8px;color:#ff6b35">⚔️ ${escHtml(b.owner_squad_name || 'This squad')} is at war — resolves in <span class="sb-protect-countdown" data-expires="${b.owner_war_resolves_at}">${_formatCountdown(b.owner_war_resolves_at)}</span></div>` : ''}
+            ${b.owner_at_war && b.owner_war_resolves_at > Date.now() ? `<div class="squads-meta" style="padding:0 12px 8px;color:#ff6b35">⚔️ ${escHtml(b.owner_squad_name || (CURRENT_LANG === 'pt' ? 'Este esquadrão' : 'This squad'))} ${CURRENT_LANG === 'pt' ? 'está em guerra — resolve-se em' : 'is at war — resolves in'} <span class="sb-protect-countdown" data-expires="${b.owner_war_resolves_at}">${_formatCountdown(b.owner_war_resolves_at)}</span></div>` : ''}
             ${b.last_defended_at ? (b.defender_protected_until && b.defender_protected_until > Date.now()
-                ? `<div class="squads-meta" style="padding:0 12px 8px;color:#2ecc71">🛡️ Protected — can be attacked again in <span class="sb-protect-countdown" data-expires="${b.defender_protected_until}">${_formatCountdown(b.defender_protected_until)}</span></div>`
-                : `<div class="squads-meta" style="padding:0 12px 8px;color:#e74c3c">⚔️ No longer protected — eligible to be attacked.</div>`)
+                ? `<div class="squads-meta" style="padding:0 12px 8px;color:#2ecc71">🛡️ ${CURRENT_LANG === 'pt' ? 'Protegida — pode ser atacada novamente em' : 'Protected — can be attacked again in'} <span class="sb-protect-countdown" data-expires="${b.defender_protected_until}">${_formatCountdown(b.defender_protected_until)}</span></div>`
+                : `<div class="squads-meta" style="padding:0 12px 8px;color:#e74c3c">⚔️ ${CURRENT_LANG === 'pt' ? 'Sem proteção — pode ser atacada.' : 'No longer protected — eligible to be attacked.'}</div>`)
                 : ''}
-                ${b.last_defended_at ? `<div class="squads-meta" style="padding:0 12px 8px;font-size:0.7rem;opacity:0.6">Last defended: ${formatRelativeTime(b.last_defended_at)}</div>` : ''}
+                ${b.last_defended_at ? `<div class="squads-meta" style="padding:0 12px 8px;font-size:0.7rem;opacity:0.6">${CURRENT_LANG === 'pt' ? 'Última defesa' : 'Last defended'}: ${formatRelativeTime(b.last_defended_at)}</div>` : ''}
         </div>`;
         _startCountdownTicker();
-        await openGameNoticeDialog({ title: 'Base Detail', message: html, confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Detalhes da Base' : 'Base Detail', message: html, confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Base Detail', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Detalhes da Base' : 'Base Detail', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.showClanBaseDetail = showClanBaseDetail;
@@ -11475,23 +11509,23 @@ window.showClanBaseDetail = showClanBaseDetail;
 async function captureBase(baseId) {
     try {
         const res = await api('POST', `/game/squads/bases/${baseId}/capture`);
-        await openGameNoticeDialog({ title: '⚔️ NPC Capture', message: `War started! Defeat all ${res.npc_count} NPC defenders (lvl ${res.npc_level}, ~${res.npc_power.toLocaleString()} power each) across 5 outposts.` });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? '⚔️ Captura de NPC' : '⚔️ NPC Capture', message: (CURRENT_LANG === 'pt' ? `Guerra iniciada! Derrote todos os ${res.npc_count} defensores NPC (nvl ${res.npc_level}, ~${res.npc_power.toLocaleString()} de poder cada) nas 5 bases avançadas.` : `War started! Defeat all ${res.npc_count} NPC defenders (lvl ${res.npc_level}, ~${res.npc_power.toLocaleString()} power each) across 5 outposts.`) });
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '⚔️ Capture Failed', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? '⚔️ Falha na Captura' : '⚔️ Capture Failed', message: e.message || String(e) });
     }
 }
 window.captureBase = captureBase;
 
 async function startBaseWar(baseId, intent) {
     try {
-        const label = intent === 'loot' ? 'Loot Raid' : 'Capture';
+        const label = intent === 'loot' ? (CURRENT_LANG === 'pt' ? 'Saque' : 'Loot Raid') : (CURRENT_LANG === 'pt' ? 'Captura' : 'Capture');
         const res = await api('POST', '/game/squads/wars/start', { base_id: baseId, intent });
-        const timeLabel = '24 hours';
-        await openGameNoticeDialog({ title: `⚔️ ${label}`, message: `${label} started! Phases complete in ${timeLabel}. Assign fighters from the War Panel.` });
+        const timeLabel = CURRENT_LANG === 'pt' ? '24 horas' : '24 hours';
+        await openGameNoticeDialog({ title: `⚔️ ${label}`, message: CURRENT_LANG === 'pt' ? `${label} iniciado! Fases concluídas em ${timeLabel}. Atribua lutadores pelo Painel de Guerra.` : `${label} started! Phases complete in ${timeLabel}. Assign fighters from the War Panel.` });
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '⚔️ War Failed', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? '⚔️ Falha na Guerra' : '⚔️ War Failed', message: e.message || String(e) });
     }
 }
 window.startBaseWar = startBaseWar;
@@ -11507,7 +11541,7 @@ async function donateToTreasury() {
         if (character) { character.gold = Math.max(0, (character.gold || 0) - gold); character.gems = Math.max(0, (character.gems || 0) - gems); renderTopBar(); }
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Donate Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Falha na Doação' : 'Donate Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.donateToTreasury = donateToTreasury;
@@ -11515,11 +11549,11 @@ window.donateToTreasury = donateToTreasury;
 async function payBaseUpkeep(baseId) {
     try {
         const res = await api('POST', `/game/squads/bases/${baseId}/pay-upkeep`);
-        const msg = res.upkeep_paid ? `Upkeep paid! Discount active for 24h.` : `Already paid.`;
+        const msg = res.upkeep_paid ? (CURRENT_LANG === 'pt' ? 'Manutenção paga! Desconto ativo por 24h.' : 'Upkeep paid! Discount active for 24h.') : (CURRENT_LANG === 'pt' ? 'Já paga.' : 'Already paid.');
         await loadClanData(); renderSquads();
-        await openGameNoticeDialog({ title: '💰 Upkeep', message: msg, confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? '💰 Manutenção' : '💰 Upkeep', message: msg, confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Upkeep Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Falha na Manutenção' : 'Upkeep Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.payBaseUpkeep = payBaseUpkeep;
@@ -11528,9 +11562,9 @@ async function upgradeBase(baseId) {
     try {
         const res = await api('POST', `/game/squads/bases/${baseId}/upgrade`);
         await loadClanData(); renderSquads(); renderUpgrade();
-        await openGameNoticeDialog({ title: '⬆️ Upgrade', message: `Base upgraded to level ${res.level}!`, confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: '⬆️ ' + (CURRENT_LANG === 'pt' ? 'Melhorar' : 'Upgrade'), message: CURRENT_LANG === 'pt' ? `Base melhorada para o nível ${res.level}!` : `Base upgraded to level ${res.level}!`, confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Upgrade Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Falha no Upgrade' : 'Upgrade Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.upgradeBase = upgradeBase;
@@ -11544,45 +11578,45 @@ async function openWarPanel(warId) {
         let html = `<div class="squads-card" style="max-width:100%">
             <div class="squads-card-head">
                 <div><div class="squads-title">⚔️ ${escHtml(w.base_name)}</div>
-                <div class="squads-meta">${w.is_attacker ? `Attacking ${escHtml(w.defender_name)}` : `Defending vs ${escHtml(w.attacker_name)}`} · Phase: ${w.phase}</div>
+                <div class="squads-meta">${w.is_attacker ? (CURRENT_LANG === 'pt' ? `Atacando ${escHtml(w.defender_name)}` : `Attacking ${escHtml(w.defender_name)}`) : (CURRENT_LANG === 'pt' ? `Defendendo vs ${escHtml(w.attacker_name)}` : `Defending vs ${escHtml(w.attacker_name)}`)} · ${CURRENT_LANG === 'pt' ? 'Fase' : 'Phase'}: ${w.phase}</div>
                 <div class="squads-meta" style="font-size:0.65rem">
-                    ${w.is_npc_war ? '⚔️ All 5 outposts must be won to capture this base' : ''}
-                    ${!w.is_npc_war && w.scout_ends_at ? `Defense phase ends: ${formatDate(w.scout_ends_at)}` : ''}
-                    ${w.attack_ends_at ? `· Auto-resolve: ${formatDate(w.attack_ends_at)}` : ''}
+                    ${w.is_npc_war ? (CURRENT_LANG === 'pt' ? '⚔️ Todas as 5 bases avançadas devem ser conquistadas para capturar esta base' : '⚔️ All 5 outposts must be won to capture this base') : ''}
+                    ${!w.is_npc_war && w.scout_ends_at ? `${CURRENT_LANG === 'pt' ? 'A fase de defesa termina' : 'Defense phase ends'}: ${formatDate(w.scout_ends_at)}` : ''}
+                    ${w.attack_ends_at ? `· ${CURRENT_LANG === 'pt' ? 'Resolução automática' : 'Auto-resolve'}: ${formatDate(w.attack_ends_at)}` : ''}
                 </div>
-                ${w.is_attacker && w.phase !== 'attacking' ? `<div class="squads-meta" style="font-size:0.7rem;margin-top:4px;color:#f1c40f;font-weight:700">⏳ Wait for the attack phase to start to scout and assign fighters.</div>` : ''}
+                ${w.is_attacker && w.phase !== 'attacking' ? `<div class="squads-meta" style="font-size:0.7rem;margin-top:4px;color:#f1c40f;font-weight:700">⏳ ${CURRENT_LANG === 'pt' ? 'Aguarde o início da fase de ataque para espionar e atribuir lutadores.' : 'Wait for the attack phase to start to scout and assign fighters.'}</div>` : ''}
             </div></div>
             <div class="squads-members" style="padding:8px 12px">
-                <div class="squads-title" style="font-size:0.8rem">Outposts</div>
+                <div class="squads-title" style="font-size:0.8rem">${CURRENT_LANG === 'pt' ? 'Bases Avançadas' : 'Outposts'}</div>
                 ${w.outposts.map((o, i) => {
                     let info;
                     if (w.is_attacker) {
-                        info = `<span>Attacker: ${o.attacker_power.toLocaleString()}`;
+                        info = `<span>${CURRENT_LANG === 'pt' ? 'Atacante' : 'Attacker'}: ${o.attacker_power.toLocaleString()}`;
                         if (w.phase === 'attacking') {
                             const parts = [];
-                            if (o.scouted_count != null) parts.push(`👥 ${o.scouted_count} defenders`);
-                            if (o.scouted_power != null) parts.push(`⚡ ${o.scouted_power.toLocaleString()} power`);
+                            if (o.scouted_count != null) parts.push(`👥 ${o.scouted_count} ${CURRENT_LANG === 'pt' ? 'defensores' : 'defenders'}`);
+                            if (o.scouted_power != null) parts.push(`⚡ ${o.scouted_power.toLocaleString()} ${CURRENT_LANG === 'pt' ? 'poder' : 'power'}`);
                             info += parts.length ? ` · ${parts.join(' · ')}` : ' · 🔍 ?';
                         }
                         info += `</span>`;
                     } else {
-                        info = `<span>Defender: ${o.defender_power.toLocaleString()} · Attacker: ???</span>`;
+                        info = `<span>${CURRENT_LANG === 'pt' ? 'Defensor' : 'Defender'}: ${o.defender_power.toLocaleString()} · ${CURRENT_LANG === 'pt' ? 'Atacante' : 'Attacker'}: ???</span>`;
                     }
                     return `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.07)">
-                    <span>Outpost ${i + 1}</span>
+                    <span>${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${i + 1}</span>
                     ${info}
-                    <span>${o.winner ? (o.winner === 'attacker' ? '✅ Won' : '❌ Lost') : '⏳ Pending'}${o.battle_log && o.battle_log.length ? ` <button class="btn-secondary btn-sm" style="margin-left:6px" ${actionAttrs('viewOutpostLog', w.id, i)}>📜 Log</button>` : ''}</span>
+                    <span>${o.winner ? (o.winner === 'attacker' ? (CURRENT_LANG === 'pt' ? '✅ Venceu' : '✅ Won') : (CURRENT_LANG === 'pt' ? '❌ Perdeu' : '❌ Lost')) : (CURRENT_LANG === 'pt' ? '⏳ Pendente' : '⏳ Pending')}${o.battle_log && o.battle_log.length ? ` <button class="btn-secondary btn-sm" style="margin-left:6px" ${actionAttrs('viewOutpostLog', w.id, i)}>📜 ${CURRENT_LANG === 'pt' ? 'Log' : 'Log'}</button>` : ''}</span>
                 </div>`;
                 }).join('')}
             </div>
             <div class="squads-members" style="padding:8px 12px;display:flex;gap:6px;flex-wrap:wrap">
-                ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 Scout</button>` : ''}
-                ${w.is_attacker ? (w.phase === 'attacking' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : '') : (w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 Assign</button>` : '')}
+                ${w.phase === 'attacking' && w.is_attacker ? `<button class="btn-primary btn-sm" ${actionAttrs('scoutOutpost', w.id)}>🔍 ${CURRENT_LANG === 'pt' ? 'Espionar' : 'Scout'}</button>` : ''}
+                ${w.is_attacker ? (w.phase === 'attacking' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 ${CURRENT_LANG === 'pt' ? 'Atribuir' : 'Assign'}</button>` : '') : (w.phase === 'defense' || w.phase === 'scout' ? `<button class="btn-primary btn-sm" ${actionAttrs('assignToOutpost', w.id)}>📋 ${CURRENT_LANG === 'pt' ? 'Atribuir' : 'Assign'}</button>` : '')}
             </div>
         </div>`;
-        openGameNoticeDialog({ title: 'War Panel', message: html, confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Painel de Guerra' : 'War Panel', message: html, confirmLabel: 'Close' });
     } catch (e) {
-        openGameNoticeDialog({ title: 'War Panel', message: e.message || String(e), confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Painel de Guerra' : 'War Panel', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.openWarPanel = openWarPanel;
@@ -11594,17 +11628,17 @@ async function viewOutpostLog(warId, outpostIndex) {
         if (!w) return;
         const op = w.outposts.find(o => o.outpost_index === outpostIndex);
         if (!op || !Array.isArray(op.battle_log) || !op.battle_log.length) {
-            openGameNoticeDialog({ title: `Outpost ${outpostIndex + 1} — Battle Log`, message: 'No battle log recorded for this outpost.', confirmLabel: 'Close' });
+            openGameNoticeDialog({ title: `${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${outpostIndex + 1} — ${CURRENT_LANG === 'pt' ? 'Log de Batalha' : 'Battle Log'}`, message: CURRENT_LANG === 'pt' ? 'Nenhum log de batalha registrado para esta base avançada.' : 'No battle log recorded for this outpost.', confirmLabel: 'Close' });
             return;
         }
         const lines = op.battle_log.map(l => `<div style="padding:1px 0;font-size:0.72rem;${l.startsWith('  ') ? 'color:var(--text-dim);padding-left:14px' : 'color:#e8e8e8;font-weight:700'}">${escHtml(l)}</div>`).join('');
         openGameNoticeDialog({
-            title: `Outpost ${outpostIndex + 1} — Battle Log`,
+            title: `${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${outpostIndex + 1} — ${CURRENT_LANG === 'pt' ? 'Log de Batalha' : 'Battle Log'}`,
             message: `<div style="max-height:60vh;overflow-y:auto;border:1px solid rgba(255,255,255,0.13);border-radius:8px;padding:8px 10px;background:rgba(0,0,0,0.25)">${lines}</div>`,
             confirmLabel: 'Close'
         });
     } catch (e) {
-        openGameNoticeDialog({ title: 'Battle Log', message: e.message || String(e), confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Log de Batalha' : 'Battle Log', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.viewOutpostLog = viewOutpostLog;
@@ -11615,31 +11649,31 @@ async function scoutOutpost(warId) {
     if (!w) return;
     const eligible = (w.squad_members || []).filter(m => !m.captured);
     const scoutedCharIds = new Set((w.scouts || []).map(s => s.char_id));
-    if (eligible.length === 0) return await openGameNoticeDialog({ title: 'Scout', message: 'No eligible squad members to send.', confirmLabel: 'Close' });
+    if (eligible.length === 0) return await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Espionagem' : 'Scout', message: CURRENT_LANG === 'pt' ? 'Nenhum membro do esquadrão elegível para enviar.' : 'No eligible squad members to send.', confirmLabel: 'Close' });
     let html = `<div style="display:flex;flex-direction:column;gap:8px">
-        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:4px">Choose a scout:</div>`;
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:4px">${CURRENT_LANG === 'pt' ? 'Escolha um espião:' : 'Choose a scout:'}</div>`;
     for (const m of eligible) {
         const alreadyScouted = scoutedCharIds.has(m.id);
         html += `<button class="btn-primary btn-sm" ${actionAttrs('showScoutOptions', warId, m.id, m.name)} style="width:100%;text-align:left${alreadyScouted ? ';opacity:0.5' : ''}" ${alreadyScouted ? 'disabled' : ''}>
-            ${escHtml(m.name)} · ⚡${m.power.toLocaleString()}${alreadyScouted ? ' (already scouted)' : ''}
+            ${escHtml(m.name)} · ⚡${m.power.toLocaleString()}${alreadyScouted ? (CURRENT_LANG === 'pt' ? ' (já espionado)' : ' (already scouted)') : ''}
         </button>`;
     }
     html += `</div>`;
-    openGameNoticeDialog({ title: 'Select Scout', message: html, confirmLabel: 'Cancel' });
+    openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Selecionar Espião' : 'Select Scout', message: html, confirmLabel: 'Cancel' });
 }
 window.scoutOutpost = scoutOutpost;
 
 async function showScoutOptions(warId, charId, charName) {
     const html = `<div style="display:flex;flex-direction:column;gap:6px">
-        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:4px">Sending <strong>${escHtml(charName)}</strong> — pick target:</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:4px">${CURRENT_LANG === 'pt' ? 'Enviando' : 'Sending'} <strong>${escHtml(charName)}</strong> — ${CURRENT_LANG === 'pt' ? 'escolha o alvo:' : 'pick target:'}</div>
         ${[0,1,2,3,4].map(i => `
             <div style="display:flex;gap:4px">
-                <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, charId, i, 'count')} style="flex:1">👀 Outpost ${i+1} — Count</button>
-                <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, charId, i, 'power')} style="flex:1">⚡ Outpost ${i+1} — Power (risky)</button>
+                <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, charId, i, 'count')} style="flex:1">👀 ${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${i+1} — ${CURRENT_LANG === 'pt' ? 'Contagem' : 'Count'}</button>
+                <button class="btn-primary btn-sm" ${actionAttrs('doScout', warId, charId, i, 'power')} style="flex:1">⚡ ${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${i+1} — ${CURRENT_LANG === 'pt' ? 'Poder (arriscado)' : 'Power (risky)'}</button>
             </div>
         `).join('')}
     </div>`;
-    openGameNoticeDialog({ title: 'Scout Outpost', message: html, confirmLabel: 'Cancel' });
+    openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Espionar Base Avançada' : 'Scout Outpost', message: html, confirmLabel: 'Cancel' });
 }
 window.showScoutOptions = showScoutOptions;
 
@@ -11647,15 +11681,15 @@ async function doScout(warId, charId, outpostIdx, type) {
     try {
         const res = await api('POST', `/game/squads/wars/${warId}/scout`, { char_id: charId, outpost_index: outpostIdx, type });
         if (res.type === 'count') {
-            openGameNoticeDialog({ title: 'Count Report', message: `${res.message}`, confirmLabel: 'OK' });
+            openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Relatório de Contagem' : 'Count Report', message: `${res.message}`, confirmLabel: 'OK' });
         } else if (res.status === 'captured') {
-            openGameNoticeDialog({ title: 'Captured!', message: res.message, confirmLabel: 'OK' });
+            openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Capturada!' : 'Captured!', message: res.message, confirmLabel: 'OK' });
         } else {
-            openGameNoticeDialog({ title: 'Intel Received', message: `${res.message}`, confirmLabel: 'OK' });
+            openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Inteligência Recebida' : 'Intel Received', message: `${res.message}`, confirmLabel: 'OK' });
         }
         openWarPanel(warId);
     } catch (e) {
-        openGameNoticeDialog({ title: 'Scout Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Falha na Espionagem' : 'Scout Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.doScout = doScout;
@@ -11671,18 +11705,18 @@ function ensureAssignModal() {
         <div id="assign-war-modal" class="modal-overlay hidden">
             <div class="modal-box game-dialog-box">
                 <div class="modal-header">
-                    <h3 id="assign-war-title">📋 Assign Fighters</h3>
+                    <h3 id="assign-war-title">📋 ${CURRENT_LANG === 'pt' ? 'Atribuir Lutadores' : 'Assign Fighters'}</h3>
                     <button class="btn-secondary" data-action="closeAssignModal">✕</button>
                 </div>
                 <div id="assign-war-list" class="game-dialog-message"></div>
                 <div class="game-dialog-actions">
-                    <button class="btn-primary" data-action="saveAssignments">💾 Save Assignments</button>
+                    <button class="btn-primary" data-action="saveAssignments">💾 ${CURRENT_LANG === 'pt' ? 'Salvar Atribuições' : 'Save Assignments'}</button>
                 </div>
             </div>
         </div>
         <div id="assign-outpost-modal" class="modal-overlay hidden">
             <div class="modal-box game-dialog-box" style="max-width:340px">
-                <div class="modal-header"><h3 id="assign-outpost-title">Choose Outpost</h3><button class="btn-secondary" data-action="closeAssignOutpostModal">✕</button></div>
+                <div class="modal-header"><h3 id="assign-outpost-title">${CURRENT_LANG === 'pt' ? 'Escolher Base Avançada' : 'Choose Outpost'}</h3><button class="btn-secondary" data-action="closeAssignOutpostModal">✕</button></div>
                 <div id="assign-outpost-list" class="game-dialog-message"></div>
             </div>
         </div>`);
@@ -11705,7 +11739,7 @@ function _renderAssignList() {
         return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.15)${isCaptured(m) ? ';opacity:0.5' : ''}">
                 <div style="flex:1 1 130px;min-width:115px;display:flex;align-items:center;gap:6px">
                     <span style="font-size:0.8rem;font-weight:600">${escHtml(m.name)}</span>
-                    ${isCaptured(m) ? '<span style="font-size:0.62rem;color:#e74c3c">(captured)</span>' : ''}
+                    ${isCaptured(m) ? '<span style="font-size:0.62rem;color:#e74c3c">' + (CURRENT_LANG === 'pt' ? '(capturado)' : '(captured)') + '</span>' : ''}
                 </div>
                 <div style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap">⚡ ${m.power.toLocaleString()}</div>
                 ${!_assignIsAttacker ? `<select data-assign-role="${m.id}" ${isCaptured(m) ? 'disabled' : ''} style="padding:4px 5px;border-radius:6px;border:1px solid #3a2a55;background:#1a1230;color:#fff;font-size:0.7rem;flex:1 1 90px;min-width:90px">
@@ -11716,7 +11750,7 @@ function _renderAssignList() {
                     <option value="support" ${cur.role === 'support' ? 'selected' : ''}>✨ Support</option>
                 </select>` : ''}
                 <button class="btn-secondary btn-sm" data-action="openAssignOutpost" data-args="${encodeActionArgs([m.id])}" ${isCaptured(m) ? 'disabled' : ''} style="flex:1 1 100px;min-width:90px;padding:5px 8px;font-size:0.76rem">
-                    ${cur.outpost >= 0 ? `Outpost ${cur.outpost + 1}` : '— Unassigned —'}
+                    ${cur.outpost >= 0 ? `${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${cur.outpost + 1}` : '— ' + (CURRENT_LANG === 'pt' ? 'Sem atribuição' : 'Unassigned') + ' —'}
                 </button>
             </div>`;
     }
@@ -11734,15 +11768,15 @@ function _renderAssignList() {
         }
     }
 
-    let html = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px">${_assignIsAttacker ? 'Attackers assign to outposts' : 'Defenders assign to outposts'}</div>
-        ${!_assignIsAttacker ? '<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">🛡️ Defenders pick a battle role. This only applies when you defend an outpost.</div>' : ''}
+    let html = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:8px">${_assignIsAttacker ? (CURRENT_LANG === 'pt' ? 'Atacantes atribuem às bases avançadas' : 'Attackers assign to outposts') : (CURRENT_LANG === 'pt' ? 'Defensores atribuem às bases avançadas' : 'Defenders assign to outposts')}</div>
+        ${!_assignIsAttacker ? `<div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:6px">🛡️ ${CURRENT_LANG === 'pt' ? 'Defensores escolhem uma função de batalha. Isso só se aplica quando você defende uma base avançada.' : 'Defenders pick a battle role. This only applies when you defend an outpost.'}</div>` : ''}
         <div style="display:flex;flex-direction:column;gap:10px">`;
 
     for (let i = 0; i < 5; i++) {
         const b = buckets[i];
         const total = b.tank.length + b.dps.length + b.heal.length;
         html += `<div style="border:1px solid rgba(255,255,255,0.08);border-radius:10px;background:rgba(0,0,0,0.20);overflow:hidden">
-            <div style="padding:6px 10px;background:rgba(241,196,15,0.10);font-size:0.78rem;font-weight:700;color:var(--gold)">🏰 Outpost ${i + 1} <span style="font-weight:400;color:var(--text-dim)">${total ? `(${total} assigned)` : ''}</span></div>
+            <div style="padding:6px 10px;background:rgba(241,196,15,0.10);font-size:0.78rem;font-weight:700;color:var(--gold)">🏰 ${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${i + 1} <span style="font-weight:400;color:var(--text-dim)">${total ? `(${total} ${CURRENT_LANG === 'pt' ? 'atribuídos' : 'assigned'})` : ''}</span></div>
             <div style="padding:8px;display:flex;flex-direction:column;gap:6px">
                 ${['tank', 'dps', 'heal'].map(g => {
                     if (!b[g].length) return '';
@@ -11750,15 +11784,15 @@ function _renderAssignList() {
                         <div style="font-size:0.68rem;font-weight:600;color:var(--text-dim);margin-bottom:4px">${roleGroupLabel[g]}:</div>
                         <div style="display:flex;flex-direction:column;gap:5px">${b[g].map(memberRow).join('')}</div>
                     </div>`;
-                }).join('') || '<div style="font-size:0.7rem;color:var(--text-dim)">No fighters assigned.</div>'}
+                }).join('') || '<div style="font-size:0.7rem;color:var(--text-dim)">' + (CURRENT_LANG === 'pt' ? 'Nenhum lutador atribuído.' : 'No fighters assigned.') + '</div>'}
             </div>
         </div>`;
     }
 
     html += `<div style="border:1px solid rgba(255,255,255,0.07);border-radius:10px;background:rgba(0,0,0,0.16);overflow:hidden">
-        <div style="padding:6px 10px;background:rgba(231,76,60,0.10);font-size:0.78rem;font-weight:700;color:#e74c3c">— Unassigned — <span style="font-weight:400;color:var(--text-dim)">${unassigned.length ? `(${unassigned.length})` : ''}</span></div>
+        <div style="padding:6px 10px;background:rgba(231,76,60,0.10);font-size:0.78rem;font-weight:700;color:#e74c3c">— ${CURRENT_LANG === 'pt' ? 'Sem atribuição' : 'Unassigned'} — <span style="font-weight:400;color:var(--text-dim)">${unassigned.length ? `(${unassigned.length})` : ''}</span></div>
         <div style="padding:8px;display:flex;flex-direction:column;gap:5px">
-            ${unassigned.length ? unassigned.map(memberRow).join('') : '<div style="font-size:0.7rem;color:var(--text-dim)">All fighters assigned.</div>'}
+            ${unassigned.length ? unassigned.map(memberRow).join('') : '<div style="font-size:0.7rem;color:var(--text-dim)">' + (CURRENT_LANG === 'pt' ? 'Todos os lutadores atribuídos.' : 'All fighters assigned.') + '</div>'}
         </div>
     </div>`;
 
@@ -11779,12 +11813,12 @@ function openAssignOutpost(charId) {
     const modal = document.getElementById('assign-outpost-modal');
     const list = document.getElementById('assign-outpost-list');
     if (!modal || !list) return;
-    document.getElementById('assign-outpost-title').textContent = `Assign ${m.name}`;
+    document.getElementById('assign-outpost-title').textContent = `${CURRENT_LANG === 'pt' ? 'Atribuir' : 'Assign'} ${m.name}`;
     const cur = (_assignSelections[charId] || {}).outpost != null ? _assignSelections[charId].outpost : -1;
-    list.innerHTML = '<button class="btn-secondary" style="width:100%;margin-bottom:6px" data-action="pickAssignOutpost" data-args="' + encodeActionArgs([charId, -1]) + '">— Unassigned —</button>' +
+    list.innerHTML = '<button class="btn-secondary" style="width:100%;margin-bottom:6px" data-action="pickAssignOutpost" data-args="' + encodeActionArgs([charId, -1]) + '">— ' + (CURRENT_LANG === 'pt' ? 'Sem atribuição' : 'Unassigned') + ' —</button>' +
         [0,1,2,3,4].map(i => {
             const active = cur === i;
-            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAssignOutpost" data-args="${encodeActionArgs([charId, i])}">Outpost ${i + 1}${active ? ' ✓' : ''}</button>`;
+            return `<button class="btn-primary btn-sm" style="width:100%;margin-bottom:6px${active ? ';outline:2px solid var(--gold)' : ''}" data-action="pickAssignOutpost" data-args="${encodeActionArgs([charId, i])}">${CURRENT_LANG === 'pt' ? 'Base Avançada' : 'Outpost'} ${i + 1}${active ? ' ✓' : ''}</button>`;
         }).join('');
     modal.classList.remove('hidden');
 }
@@ -11805,9 +11839,9 @@ async function saveAssignments() {
     try {
         await api('POST', `/game/squads/wars/${_assignWarId}/assign`, { assignments });
         closeAssignModal();
-        await openGameNoticeDialog({ title: 'Assignments Saved', message: 'Fighters assigned to outposts!', confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Atribuições Salvas' : 'Assignments Saved', message: CURRENT_LANG === 'pt' ? 'Lutadores atribuídos às bases avançadas!' : 'Fighters assigned to outposts!', confirmLabel: 'Close' });
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Assign Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Falha na Atribuição' : 'Assign Failed', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.saveAssignments = saveAssignments;
@@ -11818,11 +11852,11 @@ async function assignToOutpost(warId) {
         const w = res.war;
         if (!w) return;
         if (w.phase !== 'attacking' && w.phase !== 'defense' && w.phase !== 'scout') {
-            return await openGameNoticeDialog({ title: 'Assign', message: 'Cannot assign fighters at this phase.', confirmLabel: 'Close' });
+            return await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Atribuir' : 'Assign', message: CURRENT_LANG === 'pt' ? 'Não é possível atribuir lutadores nesta fase.' : 'Cannot assign fighters at this phase.', confirmLabel: 'Close' });
         }
         const isAttacker = w.is_attacker;
         if (w.is_npc_war && !isAttacker) {
-            return openGameNoticeDialog({ title: 'Assign', message: 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
+            return openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Atribuir' : 'Assign', message: CURRENT_LANG === 'pt' ? 'Defensores NPC são atribuídos automaticamente.' : 'NPC defenders are automatically assigned.', confirmLabel: 'Close' });
         }
         ensureAssignModal();
         _assignWarId = warId;
@@ -11843,13 +11877,15 @@ window.assignToOutpost = assignToOutpost;
 async function startWarBattle(warId) {
     try {
         const res = await api('POST', `/game/squads/wars/${warId}/start-battle`);
-        let msg = `⚔️ Battle resolved!<br>Attacker wins: ${res.attacker_wins}/5<br>Defender wins: ${res.defender_wins}/5`;
-        if (res.captured_base) msg += '<br>🏰 Base captured!';
-        if (res.loot) msg += '<br>💰 Loot deducted from defender!';
-        await openGameNoticeDialog({ title: '⚔️ War Battle', message: msg, confirmLabel: 'Close' });
+        let msg = CURRENT_LANG === 'pt'
+            ? `⚔️ Batalha resolvida!<br>Vitórias do atacante: ${res.attacker_wins}/5<br>Vitórias do defensor: ${res.defender_wins}/5`
+            : `⚔️ Battle resolved!<br>Attacker wins: ${res.attacker_wins}/5<br>Defender wins: ${res.defender_wins}/5`;
+        if (res.captured_base) msg += '<br>🏰 ' + (CURRENT_LANG === 'pt' ? 'Base capturada!' : 'Base captured!');
+        if (res.loot) msg += '<br>💰 ' + (CURRENT_LANG === 'pt' ? 'Saque deduzido do defensor!' : 'Loot deducted from defender!');
+        await openGameNoticeDialog({ title: '⚔️ ' + (CURRENT_LANG === 'pt' ? 'Batalha de Guerra' : 'War Battle'), message: msg, confirmLabel: 'Close' });
         await loadClanData(); renderSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '⚔️ Battle Failed', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: '⚔️ ' + (CURRENT_LANG === 'pt' ? 'Batalha Falhou' : 'Battle Failed'), message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.startWarBattle = startWarBattle;
@@ -11861,7 +11897,12 @@ async function showSquadDetail(squadId) {
         const members = res.members || [];
         if (!s) return;
         const amMember = (members || []).some(m => m.id === character?.id);
-        const roleLabels = { leader: '👑 Leader', co_leader: '⭐ Co-Leader', officer: '⚔️ Officer', member: '🪖 Member' };
+        const roleLabels = {
+            leader: CURRENT_LANG === 'pt' ? '👑 Líder' : '👑 Leader',
+            co_leader: CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader',
+            officer: '⚔️ Officer',
+            member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
+        };
         const membersHtml = members.map(m => {
             const splashSrc = `/images/class/${m.class}-st.png`;
             const portraitSrc = `/images/class/${m.class}.png`;
@@ -11873,7 +11914,7 @@ async function showSquadDetail(squadId) {
                 <div style="flex:1;min-width:0;padding:8px 8px 8px 0">
                     <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
                         <span class="squads-member-name" style="font-size:0.9rem">${escHtml(m.name)}</span>
-                        <span style="font-size:0.7rem;padding:1px 8px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--text-dim)">${roleLabels[m.role] || '🪖 Member'}</span>
+                        <span style="font-size:0.7rem;padding:1px 8px;border-radius:8px;background:rgba(255,255,255,0.06);color:var(--text-dim)">${roleLabels[m.role] || (CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member')}</span>
                     </div>
                     <div class="squads-member-sub" style="font-size:0.75rem;color:var(--text-dim);margin-top:4px">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()}</div>
                 </div>
@@ -11894,11 +11935,11 @@ async function showSquadDetail(squadId) {
             </div>
             <div style="padding:0 4px 16px">
                 <div class="squads-title" style="font-size:1.4rem;font-weight:700;color:#fff">${escHtml(s.name)}</div>
-                <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:var(--text-dim)">${members.length} member${members.length !== 1 ? 's' : ''}</div>
+                <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:var(--text-dim)">${members.length} ${CURRENT_LANG === 'pt' ? (members.length !== 1 ? 'membros' : 'membro') : (members.length !== 1 ? 'members' : 'member')}</div>
             </div>
             <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
             ${!amMember ? `<div style="margin:14px 4px 0;text-align:center">
-                <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>Apply</button>
+                <button class="btn-primary" ${actionAttrs('applyToSquad', s.id)}>${CURRENT_LANG === 'pt' ? 'Inscrever-se' : 'Apply'}</button>
             </div>` : ''}
         </div>`;
         ensureGameDialogModal();
@@ -11907,7 +11948,7 @@ async function showSquadDetail(squadId) {
         await openGameNoticeDialog({ title: '', message: html, confirmLabel: 'Close' });
         if (dialogBox) dialogBox.classList.remove('squad-detail-box');
     } catch (e) {
-        await openGameNoticeDialog({ title: 'Squad Details', message: e.message || String(e), confirmLabel: 'Close' });
+        await openGameNoticeDialog({ title: CURRENT_LANG === 'pt' ? 'Detalhes do Esquadrão' : 'Squad Details', message: e.message || String(e), confirmLabel: 'Close' });
     }
 }
 window.showSquadDetail = showSquadDetail;
@@ -11916,15 +11957,15 @@ async function createSquad() {
     const name = document.getElementById('squad-name')?.value || '';
     const tag = document.getElementById('squad-tag')?.value || '';
     if (!tag) {
-        await openGameNoticeDialog({ title: '🛡️ Squads', message: 'Squad tag is required.' });
+        await openGameNoticeDialog({ title: (CURRENT_LANG === 'pt' ? '🛡️ Esquadrões' : '🛡️ Squads'), message: CURRENT_LANG === 'pt' ? 'A tag do esquadrão é obrigatória.' : 'Squad tag is required.' });
         return;
     }
     try {
         const res = await api('POST', '/game/squads/create', { name, tag });
-        await openGameNoticeDialog({ title: '🛡️ Squad Created', message: `Created "${res.squad?.name || name}".` });
+        await openGameNoticeDialog({ title: '🛡️ ' + (CURRENT_LANG === 'pt' ? 'Esquadrão Criado' : 'Squad Created'), message: CURRENT_LANG === 'pt' ? `Criado "${res.squad?.name || name}".` : `Created "${res.squad?.name || name}".` });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '🛡️ Squads', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: (CURRENT_LANG === 'pt' ? '🛡️ Esquadrões' : '🛡️ Squads'), message: e.message || String(e) });
     }
 }
 window.createSquad = createSquad;
@@ -11933,10 +11974,10 @@ async function joinSquad() {
     const code = document.getElementById('squad-code')?.value || '';
     try {
         const res = await api('POST', '/game/squads/join', { code });
-        await openGameNoticeDialog({ title: '🛡️ Joined Squad', message: `Joined "${res.squad?.name || 'Squad'}".` });
+        await openGameNoticeDialog({ title: '🛡️ ' + (CURRENT_LANG === 'pt' ? 'Entrou no Esquadrão' : 'Joined Squad'), message: CURRENT_LANG === 'pt' ? `Entrou em "${res.squad?.name || 'Esquadrão'}".` : `Joined "${res.squad?.name || 'Squad'}".` });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '🛡️ Squads', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: (CURRENT_LANG === 'pt' ? '🛡️ Esquadrões' : '🛡️ Squads'), message: e.message || String(e) });
     }
 }
 window.joinSquad = joinSquad;
@@ -11944,10 +11985,10 @@ window.joinSquad = joinSquad;
 async function leaveSquad() {
     try {
         await api('POST', '/game/squads/leave');
-        await openGameNoticeDialog({ title: '🛡️ Squads', message: 'You left the squad.' });
+        await openGameNoticeDialog({ title: (CURRENT_LANG === 'pt' ? '🛡️ Esquadrões' : '🛡️ Squads'), message: CURRENT_LANG === 'pt' ? 'Você saiu do esquadrão.' : 'You left the squad.' });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '🛡️ Squads', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: (CURRENT_LANG === 'pt' ? '🛡️ Esquadrões' : '🛡️ Squads'), message: e.message || String(e) });
     }
 }
 window.leaveSquad = leaveSquad;
@@ -11973,7 +12014,7 @@ async function uploadSquadLogo() {
             const fd = new FormData();
             fd.append('logo', blob, filename);
             const res = await api('POST', '/game/squads/logo', fd);
-            await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo updated!' });
+            await openGameNoticeDialog({ title: 'Logo', message: CURRENT_LANG === 'pt' ? 'Logo do esquadrão atualizada!' : 'Squad logo updated!' });
             await loadSquads();
         } catch (err) {
             await openGameNoticeDialog({ title: 'Logo', message: err.message || String(err) });
@@ -12021,7 +12062,7 @@ function resizeImageToBlob(file, maxBytes) {
 async function removeSquadLogo() {
     try {
         await api('DELETE', '/game/squads/logo');
-        await openGameNoticeDialog({ title: 'Logo', message: 'Squad logo removed.' });
+        await openGameNoticeDialog({ title: 'Logo', message: CURRENT_LANG === 'pt' ? 'Logo do esquadrão removida.' : 'Squad logo removed.' });
         await loadSquads();
     } catch (e) {
         await openGameNoticeDialog({ title: 'Logo', message: e.message || String(e) });
@@ -12032,10 +12073,10 @@ window.removeSquadLogo = removeSquadLogo;
 async function applyToSquad(squadId) {
     try {
         await api('POST', '/game/squads/apply', { squad_id: squadId });
-        await openGameNoticeDialog({ title: '📋 Application Sent', message: 'Your application has been sent to the squad leader.' });
+        await openGameNoticeDialog({ title: '📋 ' + (CURRENT_LANG === 'pt' ? 'Inscrição Enviada' : 'Application Sent'), message: CURRENT_LANG === 'pt' ? 'Sua inscrição foi enviada ao líder do esquadrão.' : 'Your application has been sent to the squad leader.' });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '📋 Squad Application', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '📋 ' + (CURRENT_LANG === 'pt' ? 'Inscrição no Esquadrão' : 'Squad Application'), message: e.message || String(e) });
     }
 }
 window.applyToSquad = applyToSquad;
@@ -12043,10 +12084,10 @@ window.applyToSquad = applyToSquad;
 async function acceptApplication(appId) {
     try {
         await api('POST', `/game/squads/applications/${appId}/accept`);
-        await openGameNoticeDialog({ title: '✅ Application Accepted', message: 'The applicant has been added to your squad.' });
+        await openGameNoticeDialog({ title: '✅ ' + (CURRENT_LANG === 'pt' ? 'Inscrição Aceita' : 'Application Accepted'), message: CURRENT_LANG === 'pt' ? 'O candidato foi adicionado ao seu esquadrão.' : 'The applicant has been added to your squad.' });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '✅ Accept Application', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '✅ ' + (CURRENT_LANG === 'pt' ? 'Aceitar Inscrição' : 'Accept Application'), message: e.message || String(e) });
     }
 }
 window.acceptApplication = acceptApplication;
@@ -12054,10 +12095,10 @@ window.acceptApplication = acceptApplication;
 async function rejectApplication(appId) {
     try {
         await api('POST', `/game/squads/applications/${appId}/reject`);
-        await openGameNoticeDialog({ title: '❌ Application Rejected', message: 'The application has been rejected.' });
+        await openGameNoticeDialog({ title: '❌ ' + (CURRENT_LANG === 'pt' ? 'Inscrição Recusada' : 'Application Rejected'), message: CURRENT_LANG === 'pt' ? 'A inscrição foi recusada.' : 'The application has been rejected.' });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '❌ Reject Application', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '❌ ' + (CURRENT_LANG === 'pt' ? 'Recusar Inscrição' : 'Reject Application'), message: e.message || String(e) });
     }
 }
 window.rejectApplication = rejectApplication;
@@ -12065,22 +12106,22 @@ window.rejectApplication = rejectApplication;
 async function changeMemberRole(charId, role) {
     try {
         await api('POST', `/game/squads/members/${charId}/role`, { role });
-        await openGameNoticeDialog({ title: '🔰 Role Changed', message: `Member role updated to "${role}".` });
+        await openGameNoticeDialog({ title: '🔰 ' + (CURRENT_LANG === 'pt' ? 'Função Alterada' : 'Role Changed'), message: CURRENT_LANG === 'pt' ? `Função do membro atualizada para "${role}".` : `Member role updated to "${role}".` });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '🔰 Squad Role', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '🔰 ' + (CURRENT_LANG === 'pt' ? 'Função no Esquadrão' : 'Squad Role'), message: e.message || String(e) });
     }
 }
 window.changeMemberRole = changeMemberRole;
 
 async function kickMember(charId) {
-    if (!confirm('Kick this member from the squad?')) return;
+    if (!confirm(CURRENT_LANG === 'pt' ? 'Expulsar este membro do esquadrão?' : 'Kick this member from the squad?')) return;
     try {
         await api('POST', `/game/squads/members/${charId}/kick`);
-        await openGameNoticeDialog({ title: '👢 Member Kicked', message: 'The member has been removed from the squad.' });
+        await openGameNoticeDialog({ title: '👢 ' + (CURRENT_LANG === 'pt' ? 'Membro Expulso' : 'Member Kicked'), message: CURRENT_LANG === 'pt' ? 'O membro foi removido do esquadrão.' : 'The member has been removed from the squad.' });
         await loadSquads();
     } catch (e) {
-        await openGameNoticeDialog({ title: '👢 Kick Member', message: e.message || String(e) });
+        await openGameNoticeDialog({ title: '👢 ' + (CURRENT_LANG === 'pt' ? 'Expulsar Membro' : 'Kick Member'), message: e.message || String(e) });
     }
 }
 window.kickMember = kickMember;
@@ -12104,7 +12145,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
             ${framedAvatar(lbImg, 36, { imgClass: 'lb-class-img', errorHide: false, alt: p.class, data: `data-class="${p.class}" data-profile-pic="${profilePic || ''}"`, imgStyle: `object-fit:cover;${lbPos}` })}
-            <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements</div></div>
+            <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements · ⚜️ ${(p.honor||0)} Honor</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div></div>
@@ -12470,6 +12511,7 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Draws</span><span style="color:var(--gold);font-weight:600">${draws}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Honor</span><span style="color:${(p.honor||0) < 0 ? 'var(--red-light)' : '#e6c39a'};font-weight:700">⚜️ ${(p.honor||0)}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Dungeon Floor</span><span style="color:#8fd3ff;font-weight:600">🕯️ ${dungeonHighestFloor}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Tournament Wins</span><span style="color:#e040ff;font-weight:600">🏟️ ${(p.tournament_wins||0).toLocaleString()}</span></div>
@@ -12962,11 +13004,13 @@ async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
 }
 function showBattleResult(r, targetId, targetName, targetClass=null, targetLevel=null) {
     const xpSummary = `${r.xpGained >= 0 ? '+' : ''}${r.xpGained} XP`;
-    const summary = r.isDraw
+    const honorDelta = Math.round(r.honorChanged || 0);
+    const honorSuffix = honorDelta !== 0 ? ` · ⚜️ Honor ${honorDelta > 0 ? '+' : ''}${honorDelta}` : '';
+    const summary = (r.isDraw
         ? `Draw! No gold lost`
         : r.won
             ? `+${r.goldGained} gold · ${xpSummary}`
-            : `-${r.goldLost} gold`;
+            : `-${r.goldLost} gold`) + honorSuffix;
     showBattleReportModal(r.log, r.won, summary, r.totalDmgDealt, r.totalDmgTaken, {
         enemyName: targetName,
         enemyClass: targetClass,
@@ -13252,6 +13296,7 @@ function renderInboxFilter(filter) {
                 ${report.gemsEarned ? ` · <span class="gain">💎 +${report.gemsEarned}</span>` : ''}
                 ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
                 ${report.xpEarned ? ` · <span class="${report.xpEarned >= 0 ? 'gain' : 'loss'}">⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP</span>` : ''}
+                ${report.honorChanged ? ` · <span class="${report.honorChanged > 0 ? 'gain' : 'loss'}">⚜️ ${report.honorChanged > 0 ? '+' : ''}${report.honorChanged} Honor</span>` : ''}
                 ${report.totalDmgDealt ? ` · <span style="color:#e74c3c">⚔️ ${report.totalDmgDealt} dealt</span>` : ''}
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
@@ -13333,7 +13378,8 @@ function viewBattleReport(msgId) {
         report.isDraw ? '🤝 Draw' : (report.won ? '✅ Victory' : '💀 Defeated'),
         report.goldEarned ? `💰 ${report.goldEarned > 0 ? '+' : ''}${report.goldEarned} gold` : null,
         report.gemsEarned ? `💎 ${report.gemsEarned > 0 ? '+' : ''}${report.gemsEarned} gem${report.gemsEarned > 1 ? 's' : ''}` : null,
-        report.xpEarned ? `⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP` : null
+        report.xpEarned ? `⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP` : null,
+        report.honorChanged ? `⚜️ ${report.honorChanged > 0 ? '+' : ''}${report.honorChanged} Honor` : null
     ].filter(Boolean).join(' · ');
     showBattleReportModal(report.log, report.won, summary, report.totalDmgDealt, report.totalDmgTaken, {
         enemyName: report.opponentName || report.npcName || 'Enemy',
