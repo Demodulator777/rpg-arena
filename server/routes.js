@@ -18346,6 +18346,24 @@ router.post('/admin/bots/logs/clear', auth, async (req, res) => {
 });
 
 // ── Weekly Leaderboard — Award top damage dealer & top wins ────────────
+
+// In-process guard: prevents overlapping runs (server init + 10-min tick) from
+// double-sending the same week's rewards even when both read stale flags.
+const __weeklyRewardsAttempted = new Set();
+
+// Deliver a weekly reward exactly-once. The "sent" flag was already persisted
+// before delivery, so a failed inbox INSERT here can never cause a re-send on the
+// next tick. Failures are logged and never retried. Returns true on success.
+async function safeSendWeekly(label, fn) {
+    try {
+        await fn();
+        return true;
+    } catch (e) {
+        console.error(`[WeeklyLB] Weekly ${label} reward FAILED to send: ${e.message}`);
+        return false;
+    }
+}
+
 async function computeWeeklyLeaderboard(db) {
     const now = Math.floor(Date.now() / 1000);
     const currentWeekStart = getCurrentWeekStart(now);
@@ -18584,76 +18602,23 @@ async function computeWeeklyLeaderboard(db) {
             }
         }
 
-        // Send rewards only for the most recent week (skip if already sent)
-        if (isPrevWeek) {
-            if (dmgWinner && !existing?.reward_sent) {
-                const payload = JSON.stringify({ gems: 5 });
-                await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                                 VALUES (?,?,?,?,?,1)`,
-                    [dmgWinner.char_id, dmgWinner.char_id, '🏆 Weekly Damage King!',
-                        `You dealt the most damage this week: ${dmgWinner.total_dmg.toLocaleString()} damage across ${dmgWinner.total_battles} battles! Claim your 5💎 reward below.`,
-                        payload]);
-            }
-            if (winWinner && !existing?.win_reward_sent) {
-                const payload = JSON.stringify({ gems: 5 });
-                await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                                 VALUES (?,?,?,?,?,1)`,
-                    [winWinner.char_id, winWinner.char_id, '🏆 Weekly Win Champion!',
-                        `You won the most battles this week: ${winWinner.total_wins} wins across ${winWinner.total_battles} battles! Claim your 5💎 reward below.`,
-                        payload]);
-            }
-            // Squad rewards — every member of the top damage / top wins squad gets 5💎
-            if (squadWeekly.dmgWinner && !existing?.squad_dmg_reward_sent) {
-                const payload = JSON.stringify({ gems: 5 });
-                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadWeekly.dmgWinner.squad_id]);
-                for (const m of memberRows) {
-                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                                     VALUES (?,?,?,?,?,1)`,
-                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Top Damage Squad!',
-                            `Your squad ${squadWeekly.dmgWinner.name} dealt the most squad damage this week: ${squadWeekly.dmgWinner.total_dmg.toLocaleString()} damage (best ${squadWeekly.dmgWinner.counted_members} members)! Claim your 5💎 squad reward below.`,
-                            payload]);
-                }
-            }
-            if (squadWeekly.winWinner && !existing?.squad_win_reward_sent) {
-                const payload = JSON.stringify({ gems: 5 });
-                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadWeekly.winWinner.squad_id]);
-                for (const m of memberRows) {
-                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                                     VALUES (?,?,?,?,?,1)`,
-                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Top Wins Squad!',
-                            `Your squad ${squadWeekly.winWinner.name} won the most squad battles this week: ${squadWeekly.winWinner.total_wins} wins (best ${squadWeekly.winWinner.counted_members} members)! Claim your 5💎 squad reward below.`,
-                            payload]);
-                }
-            }
-            // Honor reward — top net honor gainer gets 5💎
-            if (honorWinner && !existing?.honor_reward_sent) {
-                const payload = JSON.stringify({ gems: 5 });
-                await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                                 VALUES (?,?,?,?,?,1)`,
-                    [honorWinner.char_id, honorWinner.char_id, '🏆 Weekly Most Honorable!',
-                        `You gained the most honor this week: ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor across ${honorWinner.total_claims} battles! Claim your 5💎 reward below.`,
-                        payload]);
-            }
-            // Squad honor reward — every member of the top honor squad gets 5💎
-            if (squadHonorWeekly.honorWinner && !existing?.squad_honor_reward_sent) {
-                const payload = JSON.stringify({ gems: 5 });
-                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadHonorWeekly.honorWinner.squad_id]);
-                for (const m of memberRows) {
-                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
-                                     VALUES (?,?,?,?,?,1)`,
-                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Most Honorable Squad!',
-                            `Your squad ${squadHonorWeekly.honorWinner.name} gained the most honor this week: +${squadHonorWeekly.honorWinner.total_honor} honor (best ${squadHonorWeekly.honorWinner.counted_members || squadHonorWeekly.honorWinner.member_count} members)! Claim your 5💎 squad reward below.`,
-                            payload]);
-                }
-            }
-        }
+        // Decisions are computed BEFORE the DB write: the "sent" flags are persisted
+        // first (INSERT OR REPLACE) so a failed inbox INSERT can never leave flags at 0
+        // and trigger a re-send on the next 10-min tick. Failures get logged, never
+        // retried, and already-sent rewards stay untouched.
+        const sendDmg = isPrevWeek && dmgWinner && !existing?.reward_sent;
+        const sendWin = isPrevWeek && winWinner && !existing?.win_reward_sent;
+        const sendSquadDmg = isPrevWeek && squadWeekly.dmgWinner && !existing?.squad_dmg_reward_sent;
+        const sendSquadWin = isPrevWeek && squadWeekly.winWinner && !existing?.squad_win_reward_sent;
+        const sendHonor = isPrevWeek && honorWinner && !existing?.honor_reward_sent;
+        const sendSquadHonor = isPrevWeek && squadHonorWeekly.honorWinner && !existing?.squad_honor_reward_sent;
 
-        const dmgRewardSent = isPrevWeek && dmgWinner ? 1 : (existing?.reward_sent || 0);
-        const winRewardSent = isPrevWeek && winWinner ? 1 : (existing?.win_reward_sent || 0);
-        const squadDmgRewardSent = isPrevWeek && squadWeekly.dmgWinner ? 1 : (existing?.squad_dmg_reward_sent || 0);
-        const squadWinRewardSent = isPrevWeek && squadWeekly.winWinner ? 1 : (existing?.squad_win_reward_sent || 0);
-        const honorRewardSent = isPrevWeek && honorWinner ? 1 : (existing?.honor_reward_sent || 0);
-        const squadHonorRewardSent = isPrevWeek && squadHonorWeekly.honorWinner ? 1 : (existing?.squad_honor_reward_sent || 0);
+        const dmgRewardSent = sendDmg ? 1 : (existing?.reward_sent || 0);
+        const winRewardSent = sendWin ? 1 : (existing?.win_reward_sent || 0);
+        const squadDmgRewardSent = sendSquadDmg ? 1 : (existing?.squad_dmg_reward_sent || 0);
+        const squadWinRewardSent = sendSquadWin ? 1 : (existing?.squad_win_reward_sent || 0);
+        const honorRewardSent = sendHonor ? 1 : (existing?.honor_reward_sent || 0);
+        const squadHonorRewardSent = sendSquadHonor ? 1 : (existing?.squad_honor_reward_sent || 0);
 
         await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
             (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data,
@@ -18683,13 +18648,98 @@ async function computeWeeklyLeaderboard(db) {
                 squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.member_count : 0, squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.total_honor : 0,
                 squadHonorRewardSent, JSON.stringify(squadHonorWeekly.honorTop10)]);
 
+        let awardedDmg = false, awardedWin = false, awardedSquadDmg = false,
+            awardedSquadWin = false, awardedHonor = false, awardedSquadHonor = false;
+
+        // Deliver inbox rewards only when this run actually claimed them (flags were
+        // just persisted above). __weeklyRewardsAttempted keeps overlapping init + tick
+        // runs from double-sending even if both read stale flags.
+        if (sendDmg && !__weeklyRewardsAttempted.has(`weekly:${weekStart}:dmg`)) {
+            __weeklyRewardsAttempted.add(`weekly:${weekStart}:dmg`);
+            awardedDmg = await safeSendWeekly('damage', () => {
+                const payload = JSON.stringify({ gems: 5 });
+                return dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                 VALUES (?,?,?,?,?,1)`,
+                    [dmgWinner.char_id, dmgWinner.char_id, '🏆 Weekly Damage King!',
+                        `You dealt the most damage this week: ${dmgWinner.total_dmg.toLocaleString()} damage across ${dmgWinner.total_battles} battles! Claim your 5💎 reward below.`,
+                        payload]);
+            });
+        }
+        if (sendWin && !__weeklyRewardsAttempted.has(`weekly:${weekStart}:win`)) {
+            __weeklyRewardsAttempted.add(`weekly:${weekStart}:win`);
+            awardedWin = await safeSendWeekly('win champion', () => {
+                const payload = JSON.stringify({ gems: 5 });
+                return dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                 VALUES (?,?,?,?,?,1)`,
+                    [winWinner.char_id, winWinner.char_id, '🏆 Weekly Win Champion!',
+                        `You won the most battles this week: ${winWinner.total_wins} wins across ${winWinner.total_battles} battles! Claim your 5💎 reward below.`,
+                        payload]);
+            });
+        }
+        // Squad rewards — every member of the top damage / top wins squad gets 5💎
+        if (sendSquadDmg && !__weeklyRewardsAttempted.has(`weekly:${weekStart}:squad-dmg`)) {
+            __weeklyRewardsAttempted.add(`weekly:${weekStart}:squad-dmg`);
+            awardedSquadDmg = await safeSendWeekly('top damage squad', async () => {
+                const payload = JSON.stringify({ gems: 5 });
+                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadWeekly.dmgWinner.squad_id]);
+                for (const m of memberRows) {
+                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                     VALUES (?,?,?,?,?,1)`,
+                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Top Damage Squad!',
+                            `Your squad ${squadWeekly.dmgWinner.name} dealt the most squad damage this week: ${squadWeekly.dmgWinner.total_dmg.toLocaleString()} damage (best ${squadWeekly.dmgWinner.counted_members} members)! Claim your 5💎 squad reward below.`,
+                            payload]);
+                }
+            });
+        }
+        if (sendSquadWin && !__weeklyRewardsAttempted.has(`weekly:${weekStart}:squad-win`)) {
+            __weeklyRewardsAttempted.add(`weekly:${weekStart}:squad-win`);
+            awardedSquadWin = await safeSendWeekly('top win squad', async () => {
+                const payload = JSON.stringify({ gems: 5 });
+                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadWeekly.winWinner.squad_id]);
+                for (const m of memberRows) {
+                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                     VALUES (?,?,?,?,?,1)`,
+                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Top Wins Squad!',
+                            `Your squad ${squadWeekly.winWinner.name} won the most squad battles this week: ${squadWeekly.winWinner.total_wins} wins (best ${squadWeekly.winWinner.counted_members} members)! Claim your 5💎 squad reward below.`,
+                            payload]);
+                }
+            });
+        }
+        // Honor reward — top net honor gainer gets 5💎
+        if (sendHonor && !__weeklyRewardsAttempted.has(`weekly:${weekStart}:honor`)) {
+            __weeklyRewardsAttempted.add(`weekly:${weekStart}:honor`);
+            awardedHonor = await safeSendWeekly('honor', () => {
+                const payload = JSON.stringify({ gems: 5 });
+                return dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                 VALUES (?,?,?,?,?,1)`,
+                    [honorWinner.char_id, honorWinner.char_id, '🏆 Weekly Most Honorable!',
+                        `You gained the most honor this week: ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor across ${honorWinner.total_claims} battles! Claim your 5💎 reward below.`,
+                        payload]);
+            });
+        }
+        // Squad honor reward — every member of the top honor squad gets 5💎
+        if (sendSquadHonor && !__weeklyRewardsAttempted.has(`weekly:${weekStart}:squad-honor`)) {
+            __weeklyRewardsAttempted.add(`weekly:${weekStart}:squad-honor`);
+            awardedSquadHonor = await safeSendWeekly('honor squad', async () => {
+                const payload = JSON.stringify({ gems: 5 });
+                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadHonorWeekly.honorWinner.squad_id]);
+                for (const m of memberRows) {
+                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                     VALUES (?,?,?,?,?,1)`,
+                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Most Honorable Squad!',
+                            `Your squad ${squadHonorWeekly.honorWinner.name} gained the most honor this week: +${squadHonorWeekly.honorWinner.total_honor} honor (best ${squadHonorWeekly.honorWinner.counted_members || squadHonorWeekly.honorWinner.member_count} members)! Claim your 5💎 squad reward below.`,
+                            payload]);
+                }
+            });
+        }
+
         if (isPrevWeek) {
-            if (dmgWinner) console.log(`📊 Weekly damage: ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg — 5💎 awarded`);
-            if (winWinner) console.log(`📊 Weekly wins: ${winWinner.name} (#${winWinner.char_id}) ${winWinner.total_wins} wins — 5💎 awarded`);
-            if (squadWeekly.dmgWinner) console.log(`📊 Weekly squad damage: ${squadWeekly.dmgWinner.name} (#${squadWeekly.dmgWinner.squad_id}) ${squadWeekly.dmgWinner.total_dmg} dmg — 5💎 to ${squadWeekly.dmgWinner.member_count} members`);
-            if (squadWeekly.winWinner) console.log(`📊 Weekly squad wins: ${squadWeekly.winWinner.name} (#${squadWeekly.winWinner.squad_id}) ${squadWeekly.winWinner.total_wins} wins — 5💎 to ${squadWeekly.winWinner.member_count} members`);
-            if (honorWinner) console.log(`📊 Weekly honor: ${honorWinner.name} (#${honorWinner.char_id}) ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor — 5💎 awarded`);
-            if (squadHonorWeekly.honorWinner) console.log(`📊 Weekly squad honor: ${squadHonorWeekly.honorWinner.name} (#${squadHonorWeekly.honorWinner.squad_id}) ${squadHonorWeekly.honorWinner.total_honor} honor — 5💎 to ${squadHonorWeekly.honorWinner.member_count} members`);
+            if (awardedDmg) console.log(`📊 Weekly damage: ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg — 5💎 awarded`);
+            if (awardedWin) console.log(`📊 Weekly wins: ${winWinner.name} (#${winWinner.char_id}) ${winWinner.total_wins} wins — 5💎 awarded`);
+            if (awardedSquadDmg) console.log(`📊 Weekly squad damage: ${squadWeekly.dmgWinner.name} (#${squadWeekly.dmgWinner.squad_id}) ${squadWeekly.dmgWinner.total_dmg} dmg — 5💎 to ${squadWeekly.dmgWinner.member_count} members`);
+            if (awardedSquadWin) console.log(`📊 Weekly squad wins: ${squadWeekly.winWinner.name} (#${squadWeekly.winWinner.squad_id}) ${squadWeekly.winWinner.total_wins} wins — 5💎 to ${squadWeekly.winWinner.member_count} members`);
+            if (awardedHonor) console.log(`📊 Weekly honor: ${honorWinner.name} (#${honorWinner.char_id}) ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor — 5💎 awarded`);
+            if (awardedSquadHonor) console.log(`📊 Weekly squad honor: ${squadHonorWeekly.honorWinner.name} (#${squadHonorWeekly.honorWinner.squad_id}) ${squadHonorWeekly.honorWinner.total_honor} honor — 5💎 to ${squadHonorWeekly.honorWinner.member_count} members`);
         } else {
             if (dmgWinner) console.log(`📊 Weekly backfill damage: week ${weekStart} — ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg`);
             if (winWinner) console.log(`📊 Weekly backfill wins: week ${weekStart} — ${winWinner.name} (#${winWinner.char_id}) ${winWinner.total_wins} wins`);
