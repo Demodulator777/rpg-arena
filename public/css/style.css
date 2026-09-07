@@ -1273,6 +1273,106 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
 .class-discounts { font-size: 0.65rem; color: rgba(46,204,113,0.7); margin-bottom: 5px; }
 .class-desc { font-family: 'IM Fell English', serif; font-style: italic; font-size: 0.82rem; color: var(--text); margin-top: auto; }
 
+/* ── Character Creation Wizard ─────────────────────────────────────────── */
+.create-wizard { text-align: center; gap: 18px; }
+.create-step { display: flex; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.create-step.hidden { display: none; }
+.create-foreword-icon { font-size: 3rem; margin-bottom: 4px; text-shadow: 0 0 30px rgba(201,146,42,0.45); }
+.create-foreword-title {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.5rem, 5vw, 2.4rem);
+    color: var(--gold-light);
+    letter-spacing: 0.04em;
+    margin: 0;
+}
+.create-foreword-text {
+    max-width: 560px;
+    font-family: 'IM Fell English', serif;
+    font-style: italic;
+    font-size: 1.05rem;
+    line-height: 1.75;
+    color: rgba(255,255,255,0.86);
+    margin: 0;
+}
+.create-class-carousel {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
+}
+.create-carousel-nav {
+    flex: 0 0 auto;
+    width: 44px;
+    align-self: center;
+    padding: 16px 0;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.04);
+    color: var(--text-bright);
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.create-carousel-nav:hover {
+    border-color: var(--gold-dim);
+    color: var(--gold-light);
+    transform: translateY(-2px);
+}
+.create-class-stage {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: 340px;
+}
+.create-class-stage .class-card {
+    cursor: default;
+    height: 680px;
+}
+.create-class-stage .class-card.class-card-taken { pointer-events: none; }
+.create-class-dots { display: flex; gap: 8px; justify-content: center; }
+.create-class-dot {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    border: none;
+    padding: 0;
+    background: rgba(255,255,255,0.18);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.create-class-dot.active { background: var(--gold); box-shadow: 0 0 10px rgba(201,146,42,0.6); transform: scale(1.25); }
+.create-class-dot.class-card-taken { background: rgba(224,82,82,0.35); cursor: not-allowed; }
+.create-back-link {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: color 0.2s;
+    margin-top: 2px;
+}
+.create-back-link:hover { color: var(--gold-light); }
+.create-class-role {
+    font-family: 'IM Fell English', serif;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    color: rgba(255,255,255,0.8);
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.07);
+}
+.create-class-tip {
+    font-size: 0.74rem;
+    color: var(--gold-light);
+    margin-top: 8px;
+    letter-spacing: 0.02em;
+}
+@media (max-width: 520px) {
+    .create-carousel-nav { width: 34px; padding: 12px 0; font-size: 0.9rem; }
+    .create-foreword-text { font-size: 0.95rem; }
+    .create-class-stage .class-card { height: 660px; }
+}
+
 /* ════════════════════════════════════════════════════════════════════════
    SHARED BUTTONS
    ════════════════════════════════════════════════════════════════════════ */
