@@ -1329,6 +1329,10 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     cursor: default;
     height: 680px;
 }
+.create-class-stage .class-card.dragging {
+    transition: none !important;
+    will-change: transform;
+}
 .create-class-stage .class-card.class-card-taken { pointer-events: none; }
 .create-class-dots { display: flex; gap: 8px; justify-content: center; }
 .create-class-dot {
