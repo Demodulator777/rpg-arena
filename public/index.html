@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-09-04-create-ui-fix"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-09-08-create-wizard"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-09-04-bounty-skip"/>
     <style>
@@ -660,37 +660,39 @@
     <!-- CHARACTER CREATION -->
     <div id="screen-create" class="screen">
         <div class="auth-bg"></div>
-        <div class="auth-container wide">
-            <h2 class="game-title small" data-pt="Crie Seu Herói">Create Your Hero</h2>
-            <input type="text" id="char-name" placeholder="Hero name..." class="input-field center" maxlength="20" data-ph-pt="Nome do herói..."/>
-            <div id="create-error" class="error-msg hidden"></div>
-            <div class="class-grid">
-                <div class="class-card" data-class="warrior" data-action="selectClass">
-                    <div class="class-icon">🛡️</div><div class="class-name">Warrior</div>
-                    <div class="class-stats">STR 16 · DEF 14 · AGI 10 · MAG 5</div>
-                    <div class="class-discounts" data-pt="30% off STR · 15% off nas melhorias de DEF">30% off STR · 15% off DEF upgrades</div>
-                    <div class="class-desc" data-pt="Força imparável, objeto imóvel">Unstoppable force, immovable object</div>
-                </div>
-                <div class="class-card" data-class="mage" data-action="selectClass">
-                    <div class="class-icon">🔮</div><div class="class-name">Mage</div>
-                    <div class="class-stats">STR 8 · DEF 8 · AGI 10 · MAG 20</div>
-                    <div class="class-discounts" data-pt="35% off MAG · 10% off AGI · 1.5× dano elemental">35% off MAG · 10% off AGI · 1.5× elemental dmg</div>
-                    <div class="class-desc" data-pt="Canhão de vidro de destruição arcana">Glass cannon of arcane destruction</div>
-                </div>
-                <div class="class-card" data-class="rogue" data-action="selectClass">
-                    <div class="class-icon">🗡️</div><div class="class-name">Rogue</div>
-                    <div class="class-stats">STR 12 · DEF 8 · AGI 20 · MAG 6</div>
-                    <div class="class-discounts" data-pt="35% off AGI · 10% off nas melhorias de STR">35% off AGI · 10% off STR upgrades</div>
-                    <div class="class-desc" data-pt="Atinja rápido, desapareça mais rápido">Strike fast, vanish faster</div>
-                </div>
-                <div class="class-card" data-class="paladin" data-action="selectClass">
-                    <div class="class-icon">✨</div><div class="class-name">Paladin</div>
-                    <div class="class-stats">STR 12 · DEF 16 · AGI 8 · MAG 12</div>
-                    <div class="class-discounts" data-pt="25% off DEF · 20% off nas melhorias de MAG">25% off DEF · 20% off MAG upgrades</div>
-                    <div class="class-desc" data-pt="Lâmina sagrada e escudo divino">Holy blade and divine shield</div>
-                </div>
+        <div class="auth-container wide create-wizard">
+
+            <!-- Step 1: Foreword -->
+            <div class="create-step hidden" id="create-step-foreword">
+                <div class="create-foreword-icon">⚔️</div>
+                <h2 class="create-foreword-title" data-pt="Bem-vindo, Aventureiro">Welcome, Adventurer</h2>
+                <p class="create-foreword-text" data-pt="Ecos de batalhas antigas ressoam pelas terras, e a Arena volta a chamar por novos heróis. Hoje, você atende a esse chamado.">Echoes of age-old battles ripple across the land, and the Arena once more calls for new heroes. Today, you answer that call.</p>
+                <p class="create-foreword-text" data-pt="Todo campeão começa com uma escolha — o caminho que trilhará, a lenda que forjará. Antes do seu nome honrar estas paredes, escolha sua vocação.">Every champion begins with a choice — the path they will walk, the legend they will forge. Before your name graces these halls, choose your calling.</p>
+                <button type="button" class="btn-primary" data-action="createForewordNext" data-pt="Começar Minha Jornada">Begin My Journey</button>
             </div>
-            <button class="btn-primary" data-action="createCharacter" data-pt="Forjar Meu Herói">Forge My Hero</button>
+
+            <!-- Step 2: Class selection -->
+            <div class="create-step hidden" id="create-step-classes">
+                <h2 class="game-title small" data-pt="Escolha Seu Destino">Choose Your Destiny</h2>
+                <div class="create-class-carousel">
+                    <button type="button" class="create-carousel-nav" data-action="createClassPrev" aria-label="Previous class">◀</button>
+                    <div id="create-class-stage" class="create-class-stage"></div>
+                    <button type="button" class="create-carousel-nav" data-action="createClassNext" aria-label="Next class">▶</button>
+                </div>
+                <div id="create-class-dots" class="create-class-dots"></div>
+                <div id="create-class-error" class="error-msg hidden"></div>
+                <button type="button" class="btn-primary" data-action="createChooseClass" data-pt="Escolher Este Caminho">Choose This Path</button>
+            </div>
+
+            <!-- Step 3: Name -->
+            <div class="create-step hidden" id="create-step-name">
+                <h2 class="game-title small" data-pt="Qual é o seu nome, viajante?">What is your name, traveler?</h2>
+                <input type="text" id="char-name" placeholder="Hero name..." class="input-field center" maxlength="20" data-ph-pt="Nome do herói..."/>
+                <div id="create-error" class="error-msg hidden"></div>
+                <button type="button" class="btn-primary" data-action="createCharacter" data-pt="Forjar Meu Herói">Forge My Hero</button>
+                <button type="button" class="create-back-link" data-action="createBackToClasses" data-pt="← Voltar às classes">← Back to classes</button>
+            </div>
+
         </div>
     </div>
 
@@ -1290,7 +1292,7 @@
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-09-06-honor-lb"></script>
+<script src="/js/app.js?v=2026-09-08-create-wizard"></script>
     <script src="/js/skills-tree.js?v=2026-09-04-train-dd-zoom2"></script>
 <script src="/js/dungeon.js?v=2026-09-04-combat-log-pt"></script>
 <script src="/js/tournaments.js?v=2026-09-05-tournament-logs-pt"></script>
