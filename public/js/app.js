@@ -10946,6 +10946,7 @@ function setLbSort(sort, btn) {
             window._weeklyLbHistoryWin = hist.history_win || [];
             window._weeklyLbHistorySquadDmg = hist.history_squad_dmg || [];
             window._weeklyLbHistorySquadWin = hist.history_squad_win || [];
+            window._weeklyLbHistorySquadHonor = hist.history_squad_honor || [];
             window._weeklyLbHistoryHonor = hist.history_honor || [];
             renderLeaderboard();
         }).catch(() => renderLeaderboard());
@@ -10975,6 +10976,7 @@ async function loadLeaderboard() {
         window._weeklyLbHistoryWin = weeklyHist.history_win || [];
         window._weeklyLbHistorySquadDmg = weeklyHist.history_squad_dmg || [];
         window._weeklyLbHistorySquadWin = weeklyHist.history_squad_win || [];
+        window._weeklyLbHistorySquadHonor = weeklyHist.history_squad_honor || [];
         window._weeklyLbHistoryHonor = weeklyHist.history_honor || [];
         renderLeaderboard();
     }
@@ -12180,16 +12182,14 @@ function renderLeaderboard() {
         const wMode = window._weeklyLbMode || 'players';
         const isDmg = sub === 'damage';
         const isHonor = sub === 'honor';
-        const isPlayers = wMode === 'players' || isHonor;
+        const isPlayers = wMode === 'players';
         let html = '';
 
-        // Players / Squads toggle (characters-only view for Honor, no squads)
-        if (!isHonor) {
-            html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-                `<button class="filter-btn ${isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'players')}>👤 Players</button>` +
-                `<button class="filter-btn ${!isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'squads')}>🛡️ Squads</button>` +
-                '</div>';
-        }
+        // Players / Squads toggle
+        html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
+            `<button class="filter-btn ${isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'players')}>👤 Players</button>` +
+            `<button class="filter-btn ${!isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'squads')}>🛡️ Squads</button>` +
+            '</div>';
 
         // Sub-tab toggle (Damage / Wins / Honor)
         html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
@@ -12259,9 +12259,9 @@ function renderLeaderboard() {
             }
         } else {
             // Squads view — stats from each squad's best 10 members this week.
-            const squads = isDmg ? (data?.current_squad_dmg_top || []) : (data?.current_squad_win_top || []);
-            const squadHistory = isDmg ? (window._weeklyLbHistorySquadDmg || []) : (window._weeklyLbHistorySquadWin || []);
-            const squadPrev = isDmg ? data?.previous_squad_dmg_winner : data?.previous_squad_win_winner;
+            const squads = isHonor ? (data?.current_squad_honor_top || []) : (isDmg ? (data?.current_squad_dmg_top || []) : (data?.current_squad_win_top || []));
+            const squadHistory = isHonor ? (window._weeklyLbHistorySquadHonor || []) : (isDmg ? (window._weeklyLbHistorySquadDmg || []) : (window._weeklyLbHistorySquadWin || []));
+            const squadPrev = isHonor ? data?.previous_squad_honor_winner : (isDmg ? data?.previous_squad_dmg_winner : data?.previous_squad_win_winner);
 
             // Squad Hall of Fame — Past Champions
             if (squadHistory.length > 0) {
@@ -12270,7 +12270,7 @@ function renderLeaderboard() {
                 squadHistory.forEach(h => {
                     const wn = getWeekNumber(h.week_start);
                     const y = new Date(h.week_start * 1000).getUTCFullYear();
-                    const val = isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins';
+                    const val = isHonor ? (Number(h.net_honor) > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + ' honor' : (isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins');
                     const logoHtml = h.logo
                         ? `<img src="${escHtml(h.logo)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">`
                         : `<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);margin-bottom:4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>`;
@@ -12285,8 +12285,8 @@ function renderLeaderboard() {
             }
             // Previous week squad winner
             if (squadPrev) {
-                const label = isDmg ? 'Last Week\'s Squad Damage King' : 'Last Week\'s Squad Win Champion';
-                const stat = isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} damage` : `${Number(squadPrev.total_wins).toLocaleString()} wins`;
+                const label = isHonor ? 'Last Week\'s Most Honorable Squad' : (isDmg ? 'Last Week\'s Squad Damage King' : 'Last Week\'s Squad Win Champion');
+                const stat = isHonor ? `${Number(squadPrev.net_honor) > 0 ? '+' : ''}${Number(squadPrev.net_honor).toLocaleString()} honor` : (isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} damage` : `${Number(squadPrev.total_wins).toLocaleString()} wins`);
                 html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
                     <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 ${label}</div>
                     <div style="font-size:15px;margin-top:4px">${escHtml(squadPrev.name)}${squadPrev.tag ? ` [${escHtml(squadPrev.tag)}]` : ''} · ${stat}</div>
@@ -12296,13 +12296,15 @@ function renderLeaderboard() {
             if (squads.length === 0) {
                 html += '<p class="empty">No squad data recorded yet this week.</p>';
             } else {
-                const col1 = isDmg ? '⚔️ DAMAGE' : '🏆 WINS';
+                const col1 = isHonor ? '⚜️ NET HONOR' : (isDmg ? '⚔️ DAMAGE' : '🏆 WINS');
+                const col2 = isHonor ? 'COUNTED' : 'BATTLES';
                 html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 Current Week — Top Squads</div>' +
-                    '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">' + col1 + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">BATTLES</div></div></div></div>';
+                    '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">' + col1 + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">' + col2 + '</div></div></div></div>';
                 squads.forEach((s, i) => {
                     const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
                     const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
-                    const val = isDmg ? Number(s.total_dmg).toLocaleString() : Number(s.total_wins).toLocaleString();
+                    const val = isHonor ? (Number(s.total_honor) > 0 ? '+' : '') + Number(s.total_honor).toLocaleString() : (isDmg ? Number(s.total_dmg).toLocaleString() : Number(s.total_wins).toLocaleString());
+                    const secondVal = isHonor ? (s.counted_members || 0) : s.total_battles;
                     const logoHtml = s.logo
                         ? `<img src="${escHtml(s.logo)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0">`
                         : `<div style="width:36px;height:36px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1rem">🛡️</div>`;
@@ -12313,7 +12315,7 @@ function renderLeaderboard() {
                         <div class="lb-sub">${s.member_count} members · best ${s.counted_members} counted this week</div></div>
                         <div class="lb-stats" style="grid-template-columns:1fr 1fr">
                             <div class="lb-stat"><div class="lb-stat-val">${val}</div></div>
-                            <div class="lb-stat"><div class="lb-stat-val">${s.total_battles}</div></div>
+                            <div class="lb-stat"><div class="lb-stat-val">${secondVal}</div></div>
                         </div>
                     </div>`;
                 });
