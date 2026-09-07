@@ -1108,7 +1108,15 @@ const WEEKLY_TASKS = [
                honor_winner_class TEXT NOT NULL DEFAULT '',
                honor_winner_net INTEGER NOT NULL DEFAULT 0,
                honor_reward_sent INTEGER NOT NULL DEFAULT 0,
-               honor_top10_data TEXT NOT NULL DEFAULT '[]'
+               honor_top10_data TEXT NOT NULL DEFAULT '[]',
+               squad_honor_winner_id INTEGER NOT NULL DEFAULT 0,
+               squad_honor_winner_name TEXT NOT NULL DEFAULT '',
+               squad_honor_winner_tag TEXT NOT NULL DEFAULT '',
+               squad_honor_winner_logo TEXT NOT NULL DEFAULT '',
+               squad_honor_winner_members INTEGER NOT NULL DEFAULT 0,
+               squad_honor_net INTEGER NOT NULL DEFAULT 0,
+               squad_honor_reward_sent INTEGER NOT NULL DEFAULT 0,
+               squad_honor_top10_data TEXT NOT NULL DEFAULT '[]'
               )`,
             `ALTER TABLE characters ADD COLUMN last_gatekeeper_time INTEGER DEFAULT 0`,
             `ALTER TABLE characters ADD COLUMN honor INTEGER DEFAULT 0`,
@@ -1118,6 +1126,8 @@ const WEEKLY_TASKS = [
                                                           created_at INTEGER NOT NULL
              )`,
             `CREATE INDEX IF NOT EXISTS idx_honor_changes_char_time ON honor_changes(char_id, created_at)`,
+            `ALTER TABLE character_weekly_performance ADD COLUMN honor INTEGER NOT NULL DEFAULT 0`,
+            `ALTER TABLE character_weekly_performance ADD COLUMN honor_claims INTEGER NOT NULL DEFAULT 0`,
             `ALTER TABLE character_guild_bounties ADD COLUMN skip_available_at INTEGER NOT NULL DEFAULT 0`,
             `CREATE TABLE IF NOT EXISTS vouchers (
                                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1184,6 +1194,20 @@ const WEEKLY_TASKS = [
             'honor_top10_data TEXT NOT NULL DEFAULT \'[]\'',
         ];
         for (const colDef of honorCols) {
+            try { await db.execute({ sql: `ALTER TABLE weekly_leaderboard_awards ADD COLUMN ${colDef}`, args: [] }); } catch {}
+        }
+        // Add squad honor columns to existing weekly_leaderboard_awards table
+        const squadHonorCols = [
+            'squad_honor_winner_id INTEGER NOT NULL DEFAULT 0',
+            'squad_honor_winner_name TEXT NOT NULL DEFAULT \'\'',
+            'squad_honor_winner_tag TEXT NOT NULL DEFAULT \'\'',
+            'squad_honor_winner_logo TEXT NOT NULL DEFAULT \'\'',
+            'squad_honor_winner_members INTEGER NOT NULL DEFAULT 0',
+            'squad_honor_net INTEGER NOT NULL DEFAULT 0',
+            'squad_honor_reward_sent INTEGER NOT NULL DEFAULT 0',
+            'squad_honor_top10_data TEXT NOT NULL DEFAULT \'[]\'',
+        ];
+        for (const colDef of squadHonorCols) {
             try { await db.execute({ sql: `ALTER TABLE weekly_leaderboard_awards ADD COLUMN ${colDef}`, args: [] }); } catch {}
         }
         try { await db.execute({ sql: `UPDATE inventory SET weapon_type = json_extract(item_data, '$.weaponType') WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon'`, args: [] }); } catch {}
@@ -1428,6 +1452,8 @@ const WEEKLY_TASKS = [
                                                                                              wins INTEGER NOT NULL DEFAULT 0,
                                                                                              losses INTEGER NOT NULL DEFAULT 0,
                                                                                              battles_fought INTEGER NOT NULL DEFAULT 0,
+                                                                                             honor INTEGER NOT NULL DEFAULT 0,
+                                                                                             honor_claims INTEGER NOT NULL DEFAULT 0,
                                                                                              PRIMARY KEY (char_id, week_start)
                 )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS admin_reward_batches (
@@ -5793,15 +5819,37 @@ async function ensureWeeklyTaskState(db, char) {
     return dbGet(db, 'SELECT * FROM character_weekly_state WHERE char_id = ?', [char.id]);
 }
 
-async function incrementWeeklyPerformance(db, charId, damage, won, weekStart) {
-    await dbRun(db, `INSERT INTO character_weekly_performance (char_id, week_start, damage_dealt, wins, losses, battles_fought)
-                     VALUES (?, ?, ?, ?, ?, 1)
+async function incrementWeeklyPerformance(db, charId, damage, won, weekStart, honorDelta = 0) {
+    const honor = Math.round(honorDelta || 0);
+    const claims = honor !== 0 ? 1 : 0;
+    await dbRun(db, `INSERT INTO character_weekly_performance (char_id, week_start, damage_dealt, wins, losses, battles_fought, honor, honor_claims)
+                     VALUES (?, ?, ?, ?, ?, 1, ?, ?)
                          ON CONFLICT(char_id, week_start) DO UPDATE SET
                 damage_dealt = damage_dealt + excluded.damage_dealt,
                                                                  wins = wins + excluded.wins,
                                                                  losses = losses + excluded.losses,
-                                                                 battles_fought = battles_fought + 1`,
-        [charId, weekStart, Math.round(damage || 0), won ? 1 : 0, won ? 0 : 1]);
+                                                                 battles_fought = battles_fought + 1,
+                                                                 honor = honor + excluded.honor,
+                                                                 honor_claims = honor_claims + excluded.honor_claims`,
+        [charId, weekStart, Math.round(damage || 0), won ? 1 : 0, won ? 0 : 1, honor, claims]);
+}
+
+async function getWeeklyHonorStats(db, weekStart, weekEnd) {
+    // Prefer the persisted per-week summary table (same as damage/wins).
+    const wpRows = await dbAll(db, `
+        SELECT wp.char_id, wp.honor AS net_honor, wp.honor_claims AS total_claims
+        FROM character_weekly_performance wp
+        WHERE wp.week_start = ? AND wp.honor != 0
+    `, [weekStart]);
+    if (wpRows.length > 0) return wpRows;
+    // Fall back to honor_changes for weeks that predate the summary columns.
+    return dbAll(db, `
+        SELECT hc.char_id, SUM(hc.delta) AS net_honor, COUNT(*) AS total_claims
+        FROM honor_changes hc
+        WHERE hc.created_at >= ? AND hc.created_at < ?
+        GROUP BY hc.char_id
+        HAVING SUM(hc.delta) != 0
+    `, [weekStart, weekEnd]);
 }
 
 async function getWeeklyTaskProgress(db, char, weeklyState, metric) {
@@ -15915,7 +15963,7 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         await dbRun(db, `UPDATE characters SET gold=MAX(0,gold+?),wins=wins+?,losses=losses+?,draws=draws+?,hp_current=?,total_gold_earned=total_gold_earned+?,total_gold_lost=total_gold_lost+?,damage_dealt=damage_dealt+?,top_damage_dealt=MAX(top_damage_dealt, ?),damage_negated_phys=damage_negated_phys+?,damage_negated_elem=damage_negated_elem+?,damage_negated_shield=damage_negated_shield+? WHERE id=?`,
             [defGoldChange, attackerWon?0:1, attackerWon?1:0, isDraw?1:0, newHpD, defGoldChange>0?defGoldChange:0, defGoldChange<0?-defGoldChange:0, battle.totalDmgToA || 0, battle.totalDmgToA || 0, battle.totalAbsorbedPhysB || 0, battle.totalAbsorbedElemB || 0, battle.totalAbsorbedShieldB || 0, freshD.id]);
         const pvpWeekStart = getCurrentWeekStart();
-        await incrementWeeklyPerformance(db, freshA.id, battle.totalDmgToB || 0, attackerWon || false, pvpWeekStart);
+        await incrementWeeklyPerformance(db, freshA.id, battle.totalDmgToB || 0, attackerWon || false, pvpWeekStart, honorDelta);
         await incrementWeeklyPerformance(db, freshD.id, battle.totalDmgToA || 0, (!attackerWon && !isDraw) || false, pvpWeekStart);
         try {
             await dbRun(db, `INSERT INTO battles (attacker_id,defender_id,winner_id,attacker_name,defender_name,log,fought_at,battle_type,xp_gained,gold_gained,total_dmg_dealt,total_dmg_taken) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
@@ -16077,18 +16125,11 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
             });
         }
 
-        // Get top 10 current week by net honor (characters only)
-        const honorRows = await dbAll(db, `
-            SELECT hc.char_id, SUM(hc.delta) AS net_honor, COUNT(*) AS total_claims
-            FROM honor_changes hc
-            WHERE hc.created_at >= ? AND hc.created_at < ?
-            GROUP BY hc.char_id
-            HAVING SUM(hc.delta) != 0
-            ORDER BY net_honor DESC LIMIT 10
-        `, [weekStart, now]);
-
+        // Get top 10 current week by net honor (loaded like damage/wins)
+        const honorRows = await getWeeklyHonorStats(db, weekStart, now);
+        honorRows.sort((a, b) => (Number(b.net_honor || 0)) - (Number(a.net_honor || 0)));
         const currentHonorTop = [];
-        for (const r of honorRows) {
+        for (const r of honorRows.slice(0, 10)) {
             const ch = await dbGet(db, 'SELECT id, name, class, level, profile_pic, profile_pic_offset FROM characters WHERE id=?', [Number(r.char_id)]);
             if (!ch) continue;
             currentHonorTop.push({
@@ -16104,6 +16145,7 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
         const prevAward = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [prevWeekStart]);
         let previousDmgWinner = null, previousWinWinner = null;
         let previousSquadDmgWinner = null, previousSquadWinWinner = null;
+        let previousSquadHonorWinner = null;
         let previousHonorWinner = null;
         if (prevAward) {
             if (prevAward.reward_sent && Number(prevAward.winner_char_id) > 0) {
@@ -16157,6 +16199,17 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
                     reward_gems: 5,
                 };
             }
+            if (prevAward.squad_honor_reward_sent && Number(prevAward.squad_honor_winner_id) > 0) {
+                previousSquadHonorWinner = {
+                    squad_id: Number(prevAward.squad_honor_winner_id),
+                    name: prevAward.squad_honor_winner_name,
+                    tag: prevAward.squad_honor_winner_tag || null,
+                    logo: await resolveSquadLogo(db, prevAward.squad_honor_winner_id, prevAward.squad_honor_winner_logo || null),
+                    member_count: Number(prevAward.squad_honor_winner_members || 0),
+                    total_honor: Number(prevAward.squad_honor_net || 0),
+                    reward_gems: 5,
+                };
+            }
         }
 
         // Squad leaderboard: stats from each squad's best 10 members this week.
@@ -16205,17 +16258,27 @@ router.get('/leaderboard/weekly', auth, async (req, res) => {
         currentSquadDmgTop.sort((a, b2) => b2.total_dmg - a.total_dmg);
         currentSquadWinTop.sort((a, b2) => b2.total_wins - a.total_wins);
 
+        // Squad honor: each squad's best-10-member net honor for the current week.
+        const squadHonorWeekly = await computeSquadHonorWeeklyWinners(db, weekStart, now);
+        const currentSquadHonorTop = (squadHonorWeekly.honorTop10 || []).map(h => ({
+            squad_id: h.squad_id, name: h.name, tag: h.tag || null, squad_tag: h.tag || null,
+            logo: h.logo || null, member_count: Number(h.member_count || 0), counted_members: Number(h.counted_members || 0),
+            total_honor: Number(h.total_honor || 0), total_claims: 0,
+        }));
+
         res.json({
             current_dmg_top: currentDmgTop,
             current_win_top: currentWinTop,
             current_honor_top: currentHonorTop,
             current_squad_dmg_top: currentSquadDmgTop.slice(0, 10),
             current_squad_win_top: currentSquadWinTop.slice(0, 10),
+            current_squad_honor_top: currentSquadHonorTop.slice(0, 10),
             previous_dmg_winner: previousDmgWinner,
             previous_win_winner: previousWinWinner,
             previous_honor_winner: previousHonorWinner,
             previous_squad_dmg_winner: previousSquadDmgWinner,
             previous_squad_win_winner: previousSquadWinWinner,
+            previous_squad_honor_winner: previousSquadHonorWinner,
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -16225,12 +16288,13 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
     try {
         const db = await getDb();
         const limit = Math.min(Number(req.query.limit) || 10, 52);
-        const rows = await dbAll(db, `SELECT * FROM weekly_leaderboard_awards WHERE winner_char_id>0 OR win_winner_char_id>0 OR squad_winner_id>0 OR squad_win_winner_id>0 OR honor_winner_char_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
+        const rows = await dbAll(db, `SELECT * FROM weekly_leaderboard_awards WHERE winner_char_id>0 OR win_winner_char_id>0 OR squad_winner_id>0 OR squad_win_winner_id>0 OR honor_winner_char_id>0 OR squad_honor_winner_id>0 ORDER BY week_start DESC LIMIT ?`, [limit]);
         const history_dmg = [];
         const history_win = [];
         const history_squad_dmg = [];
         const history_squad_win = [];
         const history_honor = [];
+        const history_squad_honor = [];
         for (const r of rows) {
             if (Number(r.winner_char_id) > 0) {
                 const ch = await dbGet(db, 'SELECT profile_pic, profile_pic_offset FROM characters WHERE id=?', [Number(r.winner_char_id)]);
@@ -16297,8 +16361,20 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
                     type: 'honor',
                 });
             }
+            if (Number(r.squad_honor_winner_id) > 0) {
+                history_squad_honor.push({
+                    week_start: Number(r.week_start),
+                    squad_id: Number(r.squad_honor_winner_id),
+                    name: r.squad_honor_winner_name,
+                    tag: r.squad_honor_winner_tag || null,
+                    logo: await resolveSquadLogo(db, r.squad_honor_winner_id, r.squad_honor_winner_logo || null),
+                    member_count: Number(r.squad_honor_winner_members || 0),
+                    net_honor: Number(r.squad_honor_net || 0),
+                    type: 'honor',
+                });
+            }
         }
-        res.json({ history_dmg, history_win, history_squad_dmg, history_squad_win, history_honor });
+        res.json({ history_dmg, history_win, history_squad_dmg, history_squad_win, history_honor, history_squad_honor });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -18283,7 +18359,7 @@ async function computeWeeklyLeaderboard(db) {
         const weekEnd = weekStart + 7 * 86400;
 
         const existing = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
-        if (existing && existing.reward_sent && existing.win_reward_sent && existing.honor_reward_sent) continue;
+        if (existing && existing.reward_sent && existing.win_reward_sent && existing.honor_reward_sent && existing.squad_honor_reward_sent) continue;
 
         const isPrevWeek = (w === 0);
         const params = [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd];
@@ -18294,6 +18370,7 @@ async function computeWeeklyLeaderboard(db) {
         // Fame. Preserve whatever the DB already froze for a past week.
         const keepExistingDmg = !isPrevWeek && existing && existing.winner_char_id > 0;
         const keepExistingWin = !isPrevWeek && existing && existing.win_winner_char_id > 0;
+        const keepExistingSquadHonor = !isPrevWeek && existing && existing.squad_honor_winner_id > 0;
         const keepExistingHonor = !isPrevWeek && existing && existing.honor_winner_char_id > 0;
 
         // ── Top 10 by damage ──
@@ -18461,19 +18538,13 @@ async function computeWeeklyLeaderboard(db) {
             }
         }
 
-        // ── Top 10 by net honor (characters only) ──
+        // ── Top 10 by net honor ──
         let honorTop10 = [], honorWinner = null;
         {
             if (!keepExistingHonor) {
-                const rows = await dbAll(db, `
-                    SELECT char_id, SUM(delta) AS net_honor, COUNT(*) AS total_claims
-                    FROM honor_changes
-                    WHERE created_at >= ? AND created_at < ?
-                    GROUP BY char_id
-                    HAVING SUM(delta) != 0
-                    ORDER BY net_honor DESC LIMIT 10
-                `, [weekStart, weekEnd]);
-                for (const r of rows) {
+                const rows = await getWeeklyHonorStats(db, weekStart, weekEnd);
+                rows.sort((a, b) => (Number(b.net_honor || 0)) - (Number(a.net_honor || 0)));
+                for (const r of rows.slice(0, 10)) {
                     const ch = await dbGet(db, 'SELECT id, name, class, level FROM characters WHERE id=?', [Number(r.char_id)]);
                     if (!ch) continue;
                     const entry = {
@@ -18489,6 +18560,26 @@ async function computeWeeklyLeaderboard(db) {
                 }
                 if (existing.honor_top10_data) {
                     try { const prev = JSON.parse(existing.honor_top10_data); if (Array.isArray(prev)) honorTop10 = prev.slice(0, 10); } catch {}
+                }
+            }
+        }
+
+        // ── Top squads by net honor (sum of each squad's best 10 members) ──
+        let squadHonorWeekly = { honorWinner: null, honorTop10: [] };
+        {
+            if (!keepExistingSquadHonor) {
+                squadHonorWeekly = await computeSquadHonorWeeklyWinners(db, weekStart, weekEnd);
+            } else {
+                if (existing.squad_honor_winner_id > 0) {
+                    squadHonorWeekly = {
+                        honorWinner: {
+                            squad_id: Number(existing.squad_honor_winner_id), name: existing.squad_honor_winner_name || '',
+                            tag: existing.squad_honor_winner_tag || '', logo: existing.squad_honor_winner_logo || '',
+                            member_count: Number(existing.squad_honor_winner_members || 0), total_honor: Number(existing.squad_honor_net || 0),
+                            counted_members: 0,
+                        },
+                        honorTop10: existing.squad_honor_top10_data ? (() => { try { const p = JSON.parse(existing.squad_honor_top10_data); return Array.isArray(p) ? p : []; } catch { return []; } })() : [],
+                    };
                 }
             }
         }
@@ -18543,6 +18634,18 @@ async function computeWeeklyLeaderboard(db) {
                         `You gained the most honor this week: ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor across ${honorWinner.total_claims} battles! Claim your 5💎 reward below.`,
                         payload]);
             }
+            // Squad honor reward — every member of the top honor squad gets 5💎
+            if (squadHonorWeekly.honorWinner && !existing?.squad_honor_reward_sent) {
+                const payload = JSON.stringify({ gems: 5 });
+                const memberRows = await dbAll(db, 'SELECT char_id FROM squad_members WHERE squad_id=?', [squadHonorWeekly.honorWinner.squad_id]);
+                for (const m of memberRows) {
+                    await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, subject, body, reward_payload, system_message)
+                                     VALUES (?,?,?,?,?,1)`,
+                        [Number(m.char_id), Number(m.char_id), '🏆 Weekly Most Honorable Squad!',
+                            `Your squad ${squadHonorWeekly.honorWinner.name} gained the most honor this week: +${squadHonorWeekly.honorWinner.total_honor} honor (best ${squadHonorWeekly.honorWinner.counted_members || squadHonorWeekly.honorWinner.member_count} members)! Claim your 5💎 squad reward below.`,
+                            payload]);
+                }
+            }
         }
 
         const dmgRewardSent = isPrevWeek && dmgWinner ? 1 : (existing?.reward_sent || 0);
@@ -18550,14 +18653,16 @@ async function computeWeeklyLeaderboard(db) {
         const squadDmgRewardSent = isPrevWeek && squadWeekly.dmgWinner ? 1 : (existing?.squad_dmg_reward_sent || 0);
         const squadWinRewardSent = isPrevWeek && squadWeekly.winWinner ? 1 : (existing?.squad_win_reward_sent || 0);
         const honorRewardSent = isPrevWeek && honorWinner ? 1 : (existing?.honor_reward_sent || 0);
+        const squadHonorRewardSent = isPrevWeek && squadHonorWeekly.honorWinner ? 1 : (existing?.squad_honor_reward_sent || 0);
 
         await dbRun(db, `INSERT OR REPLACE INTO weekly_leaderboard_awards
             (week_start, winner_char_id, winner_name, winner_class, winner_dmg, winner_battles, reward_sent, top10_data,
              win_winner_char_id, win_winner_name, win_winner_class, win_winner_wins, win_winner_battles, win_reward_sent, win_top10_data,
              squad_winner_id, squad_winner_name, squad_winner_tag, squad_winner_logo, squad_winner_members, squad_winner_dmg, squad_dmg_reward_sent, squad_dmg_top10_data,
              squad_win_winner_id, squad_win_winner_name, squad_win_winner_tag, squad_win_winner_logo, squad_win_winner_members, squad_win_wins, squad_win_reward_sent, squad_win_top10_data,
-             honor_winner_char_id, honor_winner_name, honor_winner_class, honor_winner_net, honor_reward_sent, honor_top10_data)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+             honor_winner_char_id, honor_winner_name, honor_winner_class, honor_winner_net, honor_reward_sent, honor_top10_data,
+             squad_honor_winner_id, squad_honor_winner_name, squad_honor_winner_tag, squad_honor_winner_logo, squad_honor_winner_members, squad_honor_net, squad_honor_reward_sent, squad_honor_top10_data)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
             [weekStart,
                 dmgWinner ? dmgWinner.char_id : 0, dmgWinner ? dmgWinner.name : '', dmgWinner ? dmgWinner.class : '',
                 dmgWinner ? dmgWinner.total_dmg : 0, dmgWinner ? dmgWinner.total_battles : 0,
@@ -18573,7 +18678,10 @@ async function computeWeeklyLeaderboard(db) {
                 squadWinRewardSent, JSON.stringify(squadWeekly.winTop10),
                 honorWinner ? honorWinner.char_id : 0, honorWinner ? honorWinner.name : '', honorWinner ? honorWinner.class : '',
                 honorWinner ? honorWinner.net_honor : 0,
-                honorRewardSent, JSON.stringify(honorTop10)]);
+                honorRewardSent, JSON.stringify(honorTop10),
+                squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.squad_id : 0, squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.name : '', squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.tag : '', squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.logo : '',
+                squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.member_count : 0, squadHonorWeekly.honorWinner ? squadHonorWeekly.honorWinner.total_honor : 0,
+                squadHonorRewardSent, JSON.stringify(squadHonorWeekly.honorTop10)]);
 
         if (isPrevWeek) {
             if (dmgWinner) console.log(`📊 Weekly damage: ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg — 5💎 awarded`);
@@ -18581,12 +18689,14 @@ async function computeWeeklyLeaderboard(db) {
             if (squadWeekly.dmgWinner) console.log(`📊 Weekly squad damage: ${squadWeekly.dmgWinner.name} (#${squadWeekly.dmgWinner.squad_id}) ${squadWeekly.dmgWinner.total_dmg} dmg — 5💎 to ${squadWeekly.dmgWinner.member_count} members`);
             if (squadWeekly.winWinner) console.log(`📊 Weekly squad wins: ${squadWeekly.winWinner.name} (#${squadWeekly.winWinner.squad_id}) ${squadWeekly.winWinner.total_wins} wins — 5💎 to ${squadWeekly.winWinner.member_count} members`);
             if (honorWinner) console.log(`📊 Weekly honor: ${honorWinner.name} (#${honorWinner.char_id}) ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor — 5💎 awarded`);
+            if (squadHonorWeekly.honorWinner) console.log(`📊 Weekly squad honor: ${squadHonorWeekly.honorWinner.name} (#${squadHonorWeekly.honorWinner.squad_id}) ${squadHonorWeekly.honorWinner.total_honor} honor — 5💎 to ${squadHonorWeekly.honorWinner.member_count} members`);
         } else {
             if (dmgWinner) console.log(`📊 Weekly backfill damage: week ${weekStart} — ${dmgWinner.name} (#${dmgWinner.char_id}) ${dmgWinner.total_dmg} dmg`);
             if (winWinner) console.log(`📊 Weekly backfill wins: week ${weekStart} — ${winWinner.name} (#${winWinner.char_id}) ${winWinner.total_wins} wins`);
             if (squadWeekly.dmgWinner) console.log(`📊 Weekly backfill squad damage: week ${weekStart} — ${squadWeekly.dmgWinner.name} (#${squadWeekly.dmgWinner.squad_id}) ${squadWeekly.dmgWinner.total_dmg} dmg`);
             if (squadWeekly.winWinner) console.log(`📊 Weekly backfill squad wins: week ${weekStart} — ${squadWeekly.winWinner.name} (#${squadWeekly.winWinner.squad_id}) ${squadWeekly.winWinner.total_wins} wins`);
             if (honorWinner) console.log(`📊 Weekly backfill honor: week ${weekStart} — ${honorWinner.name} (#${honorWinner.char_id}) ${honorWinner.net_honor > 0 ? '+' : ''}${honorWinner.net_honor} honor`);
+            if (squadHonorWeekly.honorWinner) console.log(`📊 Weekly backfill squad honor: week ${weekStart} — ${squadHonorWeekly.honorWinner.name} (#${squadHonorWeekly.honorWinner.squad_id}) ${squadHonorWeekly.honorWinner.total_honor} honor`);
         }
     }
 }
@@ -18631,6 +18741,40 @@ async function computeSquadWeeklyWinners(db, dmgAllRows, winAllRows) {
         winWinner: winSquad[0] || null,
         dmgTop10: dmgSquad.slice(0, 10),
         winTop10: winSquad.slice(0, 10),
+    };
+}
+
+// Compute each squad's weekly honor as the sum of its best 10 members' net honor
+// (members who gained positive honor), then return the top squad + top-10 list.
+async function computeSquadHonorWeeklyWinners(db, weekStart, weekEnd) {
+    const honorRows = await getWeeklyHonorStats(db, weekStart, weekEnd);
+    const honorMap = new Map();
+    for (const r of honorRows) honorMap.set(Number(r.char_id), Number(r.net_honor || 0));
+
+    const squads = new Map();
+    for (const sq of await dbAll(db, 'SELECT id, name, squad_tag, logo FROM squads')) {
+        squads.set(Number(sq.id), { name: sq.name, tag: sq.squad_tag || '', logo: sq.logo || '', memberCount: 0, honorMembers: [] });
+    }
+    for (const m of await dbAll(db, 'SELECT squad_id, char_id FROM squad_members')) {
+        const s = squads.get(Number(m.squad_id));
+        if (!s) continue;
+        s.memberCount++;
+        s.honorMembers.push(honorMap.get(Number(m.char_id)) || 0);
+    }
+
+    const honorSquad = [];
+    for (const [squadId, s] of squads) {
+        const positive = s.honorMembers.filter(v => v > 0).sort((a, b) => b - a);
+        const top10 = positive.slice(0, 10);
+        const net = top10.reduce((a, v) => a + v, 0);
+        if (top10.length > 0) {
+            honorSquad.push({ squad_id: squadId, name: s.name, tag: s.tag, logo: s.logo, member_count: s.memberCount, total_honor: net, counted_members: top10.length });
+        }
+    }
+    honorSquad.sort((a, b) => b.total_honor - a.total_honor);
+    return {
+        honorWinner: honorSquad[0] || null,
+        honorTop10: honorSquad.slice(0, 10),
     };
 }
 
@@ -24164,9 +24308,36 @@ async function backfillWeeklyPerformance() {
     try {
         const db = await getDb();
         const weekStart = getCurrentWeekStart();
-        const existing = await dbGet(db, 'SELECT 1 FROM character_weekly_performance WHERE week_start=? LIMIT 1', [weekStart]);
-        if (existing) return; // Already has data for this week
         const now = Math.floor(Date.now() / 1000);
+        const existing = await dbGet(db, 'SELECT 1 FROM character_weekly_performance WHERE week_start=? LIMIT 1', [weekStart]);
+
+        // Honor for the current week: seed from honor_changes into the summary
+        // table only when NO live honor data has been written yet (i.e. honor_claims
+        // is still 0 for every row). Once live PvP flows through incrementWeeklyPerformance
+        // the totals are maintained there directly, so re-seeding would double count.
+        const honorClaimMax = await dbGet(db, 'SELECT COALESCE(MAX(honor_claims),0) AS mx FROM character_weekly_performance WHERE week_start=?', [weekStart]);
+        if (Number(honorClaimMax?.mx || 0) === 0) {
+            const honorRows = await dbAll(db, `
+                SELECT char_id, SUM(delta) AS net_honor, COUNT(*) AS claims
+                FROM honor_changes
+                WHERE created_at >= ? AND created_at < ?
+                GROUP BY char_id
+                HAVING SUM(delta) != 0
+            `, [weekStart, now]);
+            for (const r of honorRows) {
+                const cid = Number(r.char_id);
+                const net = Number(r.net_honor || 0);
+                const claims = Number(r.claims || 0);
+                await dbRun(db, `INSERT INTO character_weekly_performance (char_id, week_start, damage_dealt, wins, losses, battles_fought, honor, honor_claims)
+                                 VALUES (?,?,?,?,?,?,?,?)
+                                     ON CONFLICT(char_id, week_start) DO UPDATE SET honor=excluded.honor, honor_claims=excluded.honor_claims`,
+                    [cid, weekStart, 0, 0, 0, 0, net, claims]);
+            }
+            if (honorRows.length > 0) console.log(`[WeeklyPerf] Seeded honor for ${honorRows.length} characters (week ${weekStart})`);
+        }
+
+        if (existing) return; // Already has data for this week
+
         console.log('[WeeklyPerf] Backfilling current week performance data...');
         // Aggregate from battles (PvP)
         const battleRows = await dbAll(db, `
