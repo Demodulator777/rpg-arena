@@ -1368,9 +1368,13 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     letter-spacing: 0.02em;
 }
 @media (max-width: 520px) {
-    .create-carousel-nav { width: 34px; padding: 12px 0; font-size: 0.9rem; }
+    .create-carousel-nav {
+        width: 34px; padding: 12px 0; font-size: 0.9rem;
+        align-self: flex-start;
+        margin-top: 200px;
+    }
     .create-foreword-text { font-size: 0.95rem; }
-    .create-class-stage .class-card { height: 660px; }
+    .create-class-stage .class-card { height: auto; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════
