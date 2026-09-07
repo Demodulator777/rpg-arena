@@ -1150,12 +1150,7 @@ function ensureCreateClassArt() {
 
 function openCharacterCreation() {
     closeCharacterSwitcher();
-    selectedClass = null;
-    document.getElementById('char-name').value = '';
-    setError('create-error', '');
-    document.querySelectorAll('.class-card').forEach(card => card.classList.remove('selected'));
-    syncCreateClassAvailability();
-    showScreen('create');
+    openCreateScreen('classes');
 }
 
 async function openCharacterSwitcher() {
@@ -2076,7 +2071,7 @@ window.addEventListener('DOMContentLoaded', async () => {
             if (window._dismissOverlay) window._dismissOverlay();
         }
         catch (e) {
-            if (e.message==='No character found') { await loadCharacterRoster(); showScreen('create'); if (window._dismissOverlay) window._dismissOverlay(); }
+            if (e.message==='No character found') { await loadCharacterRoster(); openCreateScreen('classes'); if (window._dismissOverlay) window._dismissOverlay(); }
             else { token=null; tokenStorage().removeItem('rpg_token'); showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
         }
     } else { showScreen('auth'); if (window._dismissOverlay) window._dismissOverlay(); }
@@ -2321,7 +2316,7 @@ async function login() {
         } catch(e) {
             if (e.message === 'No character found') {
                 await loadCharacterRoster();
-                showScreen('create');
+                openCreateScreen('classes');
             }
         }
     } catch(e) { setError('auth-error',e.message); }
@@ -2342,7 +2337,7 @@ async function register() {
         localStorage.setItem('rpg_remember_me', rememberMe ? 'true' : 'false');
         setToken(token); setUsername(username);
         syncLangToServer();
-        showScreen('create');
+        openCreateScreen('foreword');
     } catch(e) { setError('auth-error',e.message); }
 }
 
@@ -2371,7 +2366,7 @@ async function handleGoogleCredential(resp) {
         } catch (e) {
             if (e.message === 'No character found') {
                 await loadCharacterRoster();
-                showScreen('create');
+                openCreateScreen('classes');
             } else {
                 setError('auth-error', e.message);
             }
@@ -2543,9 +2538,169 @@ function logout() {
     }
 }
 
-// ── Character Creation ────────────────────────────────────────────────────
-let selectedClass=null;
-function selectClass(el) { document.querySelectorAll('.class-card').forEach(c=>c.classList.remove('selected')); el.classList.add('selected'); selectedClass=el.dataset.class; }
+// ── Character Creation Wizard ─────────────────────────────────────────────
+let selectedClass = null;
+let createStep = 'classes'; // 'foreword' | 'classes' | 'name'
+let createClassIndex = 0;
+
+const CREATE_CLASSES = [
+    {
+        id: 'warrior', name: 'Warrior', icon: '🛡️',
+        stats: 'STR 16 · DEF 14 · AGI 10 · MAG 5',
+        discounts: { en: '30% off STR · 15% off DEF upgrades', pt: '30% off STR · 15% off nas melhorias de DEF' },
+        desc: { en: 'Unstoppable force, immovable object', pt: 'Força imparável, objeto imóvel' },
+        role: {
+            en: 'Highest early Strength and strong Defense. Best for simple, reliable physical damage and solid frontline PvP.',
+            pt: 'Força inicial mais alta e Defesa forte. Ideal para dano físico simples e confiável e PvP sólido na linha de frente.'
+        },
+        tip: { en: 'Start with Strength, then Defense, then Vitality.', pt: 'Comece com Força, depois Defesa, depois Vitalidade.' }
+    },
+    {
+        id: 'mage', name: 'Mage', icon: '🔮',
+        stats: 'STR 8 · DEF 8 · AGI 10 · MAG 20',
+        discounts: { en: '35% off MAG · 10% off AGI · 1.5× elemental dmg', pt: '35% off MAG · 10% off AGI · 1.5× dano elemental' },
+        desc: { en: 'Glass cannon of arcane destruction', pt: 'Canhão de vidro de destruição arcana' },
+        role: {
+            en: 'Highest Magic and lowest HP. Best for elemental damage, resist shredding, and scaling through magical gear.',
+            pt: 'Mágica mais alta e menor PV. Ideal para dano elemental, redução de resistência e crescimento com equipamento mágico.'
+        },
+        tip: { en: 'Start with Magic, then Hit Chance or Agility for consistency.', pt: 'Comece com Mágica, depois Chance de Acerto ou Agilidade para consistência.' }
+    },
+    {
+        id: 'rogue', name: 'Rogue', icon: '🗡️',
+        stats: 'STR 12 · DEF 8 · AGI 20 · MAG 6',
+        discounts: { en: '35% off AGI · 10% off STR upgrades', pt: '35% off AGI · 10% off nas melhorias de STR' },
+        desc: { en: 'Strike fast, vanish faster', pt: 'Atinja rápido, desapareça mais rápido' },
+        role: {
+            en: 'Highest Agility. Best for dodge, crit pressure, fast builds, and no-shield progression paths.',
+            pt: 'Agilidade mais alta. Ideal para esquiva, pressão de crítico, builds rápidas e caminhos sem escudo.'
+        },
+        tip: { en: 'Start with Agility, then Crit/Hit, then enough Strength to finish fights.', pt: 'Comece com Agilidade, depois Crítico/Acerto, e Força suficiente para terminar as lutas.' }
+    },
+    {
+        id: 'paladin', name: 'Paladin', icon: '✨',
+        stats: 'STR 12 · DEF 16 · AGI 8 · MAG 12',
+        discounts: { en: '25% off DEF · 20% off MAG upgrades', pt: '25% off DEF · 20% off nas melhorias de MAG' },
+        desc: { en: 'Holy blade and divine shield', pt: 'Lâmina sagrada e escudo divino' },
+        role: {
+            en: 'Balanced hybrid with strong Defense and HP. Great for sustain, reflect, and durable mixed damage setups.',
+            pt: 'Híbrido equilibrado com Defesa e PV fortes. Ótimo para sustento, reflexo e builds de dano misto duráveis.'
+        },
+        tip: { en: 'Start with Defense and Vitality, then lean toward Strength or Magic.', pt: 'Comece com Defesa e Vitalidade, depois incline para Força ou Mágica.' }
+    }
+];
+
+function openCreateScreen(step) {
+    createStep = step === 'foreword' ? 'foreword' : 'classes';
+    selectedClass = null;
+    createClassIndex = 0;
+    const nameInput = document.getElementById('char-name');
+    if (nameInput) nameInput.value = '';
+    setError('create-error', '');
+    setError('create-class-error', '');
+    showScreen('create');
+}
+
+function renderCreateWizard() {
+    for (const s of ['foreword', 'classes', 'name']) {
+        const el = document.getElementById(`create-step-${s}`);
+        if (el) el.classList.toggle('hidden', s !== createStep);
+    }
+    if (createStep === 'classes') renderCreateClassPage();
+}
+
+function createUsedClassSet() {
+    return new Set((accountCharacters || []).map(c => String(c.class || '').toLowerCase()));
+}
+
+function renderCreateClassPage() {
+    const stage = document.getElementById('create-class-stage');
+    if (!stage) return;
+    const used = createUsedClassSet();
+    const availIdx = CREATE_CLASSES.findIndex(d => !used.has(d.id));
+    if (used.has(CREATE_CLASSES[createClassIndex].id) && availIdx !== -1) createClassIndex = availIdx;
+    const def = CREATE_CLASSES[createClassIndex];
+    if (!def) return;
+    const pt = CURRENT_LANG === 'pt';
+    const taken = used.has(def.id);
+    const html = `
+        <div class="class-card ${taken ? 'class-card-taken' : ''}" data-class="${def.id}">
+            <div class="class-icon">${def.icon}</div>
+            <div class="class-name">${def.name}</div>
+            <div class="class-stats">${def.stats}</div>
+            <div class="class-discounts">${pt ? escHtml(def.discounts.pt) : escHtml(def.discounts.en)}</div>
+            <div class="class-desc">${pt ? escHtml(def.desc.pt) : escHtml(def.desc.en)}</div>
+            <div class="create-class-role">${pt ? escHtml(def.role.pt) : escHtml(def.role.en)}</div>
+            <div class="create-class-tip">💡 ${pt ? escHtml(def.tip.pt) : escHtml(def.tip.en)}</div>
+        </div>`;
+    stage.innerHTML = html;
+    ensureCreateClassArt();
+    syncCreateClassAvailability();
+    renderCreateClassDots();
+}
+
+function renderCreateClassDots() {
+    const dots = document.getElementById('create-class-dots');
+    if (!dots) return;
+    const used = createUsedClassSet();
+    dots.innerHTML = CREATE_CLASSES.map((d, i) => {
+        const taken = used.has(d.id);
+        const active = i === createClassIndex;
+        const cls = `create-class-dot${active ? ' active' : ''}${taken ? ' class-card-taken' : ''}`;
+        if (taken) return `<button type="button" class="${cls}" disabled title="Already unlocked"></button>`;
+        if (active) return `<button type="button" class="${cls}" aria-current="true"></button>`;
+        return `<button type="button" class="${cls}" ${actionAttrs('createClassJump', i)}></button>`;
+    }).join('');
+}
+
+function createClassStep(dir) {
+    const used = createUsedClassSet();
+    let idx = createClassIndex;
+    for (let guard = 0; guard < CREATE_CLASSES.length; guard++) {
+        idx = (idx + dir + CREATE_CLASSES.length) % CREATE_CLASSES.length;
+        if (!used.has(CREATE_CLASSES[idx].id) || idx === createClassIndex) break;
+    }
+    createClassIndex = idx;
+    renderCreateClassPage();
+}
+
+function createClassPrev() { createClassStep(-1); }
+function createClassNext() { createClassStep(1); }
+function createClassJump(i) {
+    const idx = Number(i);
+    if (isNaN(idx) || idx < 0 || idx >= CREATE_CLASSES.length) return;
+    if (createUsedClassSet().has(CREATE_CLASSES[idx].id)) return;
+    createClassIndex = idx;
+    renderCreateClassPage();
+}
+
+function createForewordNext() {
+    setError('create-error', '');
+    setError('create-class-error', '');
+    createStep = 'classes';
+    renderCreateWizard();
+}
+
+function createBackToClasses() {
+    createStep = 'classes';
+    renderCreateWizard();
+}
+
+function createChooseClass() {
+    setError('create-class-error', '');
+    const def = CREATE_CLASSES[createClassIndex];
+    if (!def) return;
+    if (createUsedClassSet().has(def.id)) {
+        setError('create-class-error', 'You already have this class');
+        return;
+    }
+    selectedClass = def.id;
+    createStep = 'name';
+    renderCreateWizard();
+    const input = document.getElementById('char-name');
+    if (input) input.focus();
+}
+
 async function createCharacter() {
     const name=document.getElementById('char-name').value.trim();
     if (!name) return setError('create-error','Enter a name');
@@ -2563,7 +2718,7 @@ async function createCharacter() {
 function showScreen(name) {
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(`screen-${name}`).classList.add('active');
-    if (name === 'create') syncCreateClassAvailability();
+    if (name === 'create') renderCreateWizard();
     if (name==='game') {
         window.scrollTo(0, 0);
         renderTopBar();
