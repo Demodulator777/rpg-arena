@@ -13552,10 +13552,13 @@ async function collectMissionForCharacter(db, characterId) {
         }
 
         // Hidden mechanic: last-7-days honor rolls a dynamic mission gold payout (±0-25%).
-        try {
-            const honorMult = honorGoldMultiplier(await getHonorNet7d(db, freshChar.id));
-            if (honorMult !== 1) goldEarned = Math.floor(goldEarned * honorMult);
-        } catch (e) { console.error('Honor payout error:', e.message); }
+        // Tutorial missions always pay a fixed 250 gold, so skip the roll for them.
+        if (!isTutorial) {
+            try {
+                const honorMult = honorGoldMultiplier(await getHonorNet7d(db, freshChar.id));
+                if (honorMult !== 1) goldEarned = Math.floor(goldEarned * honorMult);
+            } catch (e) { console.error('Honor payout error:', e.message); }
+        }
 
         const gemChance = isTutorial ? 0 : (isEvent ? 0.15 : 0.05);
         let gemsFound = 0;
@@ -16068,7 +16071,7 @@ router.get('/leaderboard', auth, async (req, res) => {
             } catch {}
             const badges = ids.map(id => {
                 const def = defById.get(id);
-                return def ? { id: def.id, icon: def.icon, name: def.name } : null;
+                return def ? { id: def.id, icon: def.icon, name: def.name, metric: def.metric || '', metric_key: def.metric_key || '', target: Number(def.target) || 0 } : null;
             }).filter(Boolean);
             return { ...p, rank: i + 1, profile_badges: badges, profile_pic_offset: (() => { try { return JSON.parse(p.profile_pic_offset || '{"x":50,"y":50}'); } catch { return { x: 50, y: 50 }; } })(), char_pic_offset: (() => { try { return JSON.parse(p.char_pic_offset || '{"x":50,"y":50,"z":1}'); } catch { return { x: 50, y: 50, z: 1 }; } })() };
         }));
