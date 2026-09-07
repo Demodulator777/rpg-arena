@@ -5105,7 +5105,7 @@ function badgeIconImg(id, def) {
     if (!type) return d?.icon || '🏅';
     const tier = badgeTierFor(d);
     const name = getAchievementPt(id)?.name || d?.name || id || 'Badge';
-    return `<img src="/images/assets/badges/${type.key}.svg" alt="${escHtml(name)}" title="${escHtml(name)}" class="badge-icon badge-tier-${tier}" loading="lazy">`;
+    return `<img src="/images/assets/badges/${type.key}.png" alt="${escHtml(name)}" title="${escHtml(name)}" class="badge-icon badge-tier-${tier}" loading="lazy">`;
 }
 window.badgeIconImg = badgeIconImg;
 
