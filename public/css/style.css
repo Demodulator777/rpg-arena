@@ -3226,17 +3226,18 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     font-size: 1rem;
 }
 .profile-badges-empty { font-size: 0.74rem; color: var(--text-dim); }
-img.badge-icon { display: inline-block; object-fit: cover; vertical-align: middle; }
-.badge-icon.badge-tier-2 { outline: 1px solid rgba(255,255,255,0.35); box-shadow: 0 0 4px rgba(255,255,255,0.28); }
-.badge-icon.badge-tier-3 { outline: 2px solid #cd7f32; box-shadow: 0 0 6px rgba(205,127,50,0.65); }
-.badge-icon.badge-tier-4 { outline: 2px solid #c0c0c0; box-shadow: 0 0 7px rgba(192,192,192,0.75); }
-.badge-icon.badge-tier-5 { outline: 2px solid #ffd700; box-shadow: 0 0 9px rgba(255,215,0,0.85); }
-.badge-icon.badge-tier-6 { outline: 2px solid #4dd7ff; box-shadow: 0 0 12px rgba(77,215,255,0.9); animation: badge-tier-glow 2s ease-in-out infinite; }
+img.badge-icon { display: inline-block; object-fit: contain; vertical-align: middle; background: none; }
+.badge-icon.badge-tier-1 { filter: none; opacity: 0.95; }
+.badge-icon.badge-tier-2 { filter: drop-shadow(0 0 3px rgba(255,255,255,0.65)); }
+.badge-icon.badge-tier-3 { filter: drop-shadow(0 0 5px rgba(205,127,50,0.95)) drop-shadow(0 0 1px rgba(205,127,50,0.6)); }
+.badge-icon.badge-tier-4 { filter: drop-shadow(0 0 6px rgba(192,192,192,0.95)) drop-shadow(0 0 2px rgba(192,192,192,0.6)); }
+.badge-icon.badge-tier-5 { filter: drop-shadow(0 0 8px rgba(255,215,0,1)) drop-shadow(0 0 3px rgba(255,215,0,0.7)); }
+.badge-icon.badge-tier-6 { filter: drop-shadow(0 0 10px rgba(77,215,255,1)) drop-shadow(0 0 4px rgba(77,215,255,0.7)); animation: badge-tier-glow 2s ease-in-out infinite; }
 @keyframes badge-tier-glow {
-    0%, 100% { filter: drop-shadow(0 0 1px rgba(255,255,255,0.2)); }
-    50% { filter: drop-shadow(0 0 4px rgba(77,215,255,0.95)); }
+    0%, 100% { filter: drop-shadow(0 0 3px rgba(255,255,255,0.25)); }
+    50% { filter: drop-shadow(0 0 12px rgba(77,215,255,1)) drop-shadow(0 0 5px rgba(77,215,255,0.7)); }
 }
-.profile-badge-chip img.badge-icon { width: 26px; height: 26px; border-radius: 6px; }
+.profile-badge-chip img.badge-icon { width: 26px; height: 26px; border-radius: 0; }
 
 .lb-badges {
     display: flex;
