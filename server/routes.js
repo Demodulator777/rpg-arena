@@ -18282,34 +18282,65 @@ async function computeWeeklyLeaderboard(db) {
         const weekStart = currentWeekStart - (w + 1) * 7 * 86400;
         const weekEnd = weekStart + 7 * 86400;
 
-        const existing = await dbGet(db, 'SELECT reward_sent, win_reward_sent, honor_reward_sent FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
+        const existing = await dbGet(db, 'SELECT * FROM weekly_leaderboard_awards WHERE week_start=?', [weekStart]);
         if (existing && existing.reward_sent && existing.win_reward_sent && existing.honor_reward_sent) continue;
 
         const isPrevWeek = (w === 0);
         const params = [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd];
 
+        // For past (backfill) weeks the raw battle/mission logs may already be purged
+        // (messages BATTLE_REPORTs are deleted after MESSAGE_RETENTION_SECONDS), so
+        // re-running the aggregation would wipe already-recorded winners from the Hall of
+        // Fame. Preserve whatever the DB already froze for a past week.
+        const keepExistingDmg = !isPrevWeek && existing && existing.winner_char_id > 0;
+        const keepExistingWin = !isPrevWeek && existing && existing.win_winner_char_id > 0;
+        const keepExistingHonor = !isPrevWeek && existing && existing.honor_winner_char_id > 0;
+
         // ── Top 10 by damage ──
         let dmgTop10 = [], dmgWinner = null, dmgAllRows = [];
         {
-            const rows = await dbAll(db, `
-                SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
-                FROM (
-                         SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
-                         FROM battles WHERE fought_at >= ? AND fought_at < ?
-                         UNION ALL
-                         SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
-                         FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                         UNION ALL
-                         SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
-                         FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                                         AND json_extract(substr(body, 15), '$.type') = 'mission'
-                                         AND sent_at >= ? AND sent_at < ?
-                     ) GROUP BY char_id ORDER BY total_dmg DESC
-            `, params);
+            let rows = [];
+            if (!keepExistingDmg) {
+                rows = await dbAll(db, `
+                    SELECT char_id, SUM(dmg) AS total_dmg, SUM(bats) AS total_battles
+                    FROM (
+                             SELECT attacker_id AS char_id, COALESCE(total_dmg_dealt, 0) AS dmg, 1 AS bats
+                             FROM battles WHERE fought_at >= ? AND fought_at < ?
+                             UNION ALL
+                             SELECT defender_id AS char_id, COALESCE(total_dmg_taken, 0) AS dmg, 1 AS bats
+                             FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                             UNION ALL
+                             SELECT receiver_id AS char_id, COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0) AS dmg, 1 AS bats
+                             FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                                             AND json_extract(substr(body, 15), '$.type') = 'mission'
+                                             AND sent_at >= ? AND sent_at < ?
+                         ) GROUP BY char_id ORDER BY total_dmg DESC
+                `, params);
+                // The mission logs (messages) for a past week may already be purged after 14
+                // days of retention. Fall back to the permanent character_weekly_performance
+                // snapshot so the Hall of Fame can still be reconstructed.
+                if (!isPrevWeek && rows.length === 0) {
+                    rows = await dbAll(db, `
+                        SELECT char_id, SUM(damage_dealt) AS total_dmg, SUM(battles_fought) AS total_battles
+                        FROM character_weekly_performance
+                        WHERE week_start = ? AND damage_dealt > 0
+                        GROUP BY char_id ORDER BY total_dmg DESC
+                    `, [weekStart]);
+                }
+            } else if (!existing.top10_data) {
+                rows = await dbAll(db, `
+                    SELECT char_id, SUM(damage_dealt) AS total_dmg, SUM(battles_fought) AS total_battles
+                    FROM character_weekly_performance
+                    WHERE week_start = ? AND damage_dealt > 0
+                    GROUP BY char_id ORDER BY total_dmg DESC
+                `, [weekStart]);
+            }
 
             // First, process achievements for ALL players who dealt damage
-            for (const r of rows) {
-                await checkAndAwardWeeklyDamageAchievements(db, Number(r.char_id), Number(r.total_dmg));
+            if (rows.length) {
+                for (const r of rows) {
+                    await checkAndAwardWeeklyDamageAchievements(db, Number(r.char_id), Number(r.total_dmg));
+                }
             }
             dmgAllRows = rows;
 
@@ -18325,32 +18356,61 @@ async function computeWeeklyLeaderboard(db) {
                 dmgTop10.push(entry);
                 if (!dmgWinner) dmgWinner = entry;
             }
+            // Past week already had a recorded damage winner: keep it and its snapshot data.
+            if (keepExistingDmg) {
+                if (existing.winner_name) {
+                    dmgWinner = { char_id: Number(existing.winner_char_id), name: existing.winner_name, class: existing.winner_class, total_dmg: Number(existing.winner_dmg || 0), total_battles: Number(existing.winner_battles || 0) };
+                }
+                if (existing.top10_data) {
+                    try { const prev = JSON.parse(existing.top10_data); if (Array.isArray(prev)) dmgTop10 = prev.slice(0, 10); } catch {}
+                }
+            }
         }
 
         // ── Top 10 by wins ──
         let winTop10 = [], winWinner = null, winAllRows = [];
         {
-            const rows = await dbAll(db, `
-                SELECT char_id, SUM(is_win) AS total_wins, SUM(bats) AS total_battles
-                FROM (
-                         SELECT attacker_id AS char_id,
-                                CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
-                                1 AS bats
-                         FROM battles WHERE fought_at >= ? AND fought_at < ?
-                         UNION ALL
-                         SELECT defender_id AS char_id,
-                                CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
-                                1 AS bats
-                         FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                         UNION ALL
-                         SELECT receiver_id AS char_id,
-                                CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
-                                1 AS bats
-                         FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                                         AND json_extract(substr(body, 15), '$.type') = 'mission'
-                                         AND sent_at >= ? AND sent_at < ?
-                     ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
-            `, params);
+            let rows = [];
+            if (!keepExistingWin) {
+                rows = await dbAll(db, `
+                    SELECT char_id, SUM(is_win) AS total_wins, SUM(bats) AS total_battles
+                    FROM (
+                             SELECT attacker_id AS char_id,
+                                    CASE WHEN COALESCE(winner_id, 0) = attacker_id THEN 1 ELSE 0 END AS is_win,
+                                    1 AS bats
+                             FROM battles WHERE fought_at >= ? AND fought_at < ?
+                             UNION ALL
+                             SELECT defender_id AS char_id,
+                                    CASE WHEN COALESCE(winner_id, 0) = defender_id THEN 1 ELSE 0 END AS is_win,
+                                    1 AS bats
+                             FROM battles WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                             UNION ALL
+                             SELECT receiver_id AS char_id,
+                                    CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END AS is_win,
+                                    1 AS bats
+                             FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                                             AND json_extract(substr(body, 15), '$.type') = 'mission'
+                                             AND sent_at >= ? AND sent_at < ?
+                         ) GROUP BY char_id HAVING total_wins > 0 ORDER BY total_wins DESC
+                `, params);
+                // Fall back to the permanent character_weekly_performance snapshot if the past
+                // week's mission logs have already been purged.
+                if (!isPrevWeek && rows.length === 0) {
+                    rows = await dbAll(db, `
+                        SELECT char_id, SUM(wins) AS total_wins, SUM(battles_fought) AS total_battles
+                        FROM character_weekly_performance
+                        WHERE week_start = ? AND wins > 0
+                        GROUP BY char_id ORDER BY total_wins DESC
+                    `, [weekStart]);
+                }
+            } else if (!existing.win_top10_data) {
+                rows = await dbAll(db, `
+                    SELECT char_id, SUM(wins) AS total_wins, SUM(battles_fought) AS total_battles
+                    FROM character_weekly_performance
+                    WHERE week_start = ? AND wins > 0
+                    GROUP BY char_id ORDER BY total_wins DESC
+                `, [weekStart]);
+            }
             const winTop10Rows = rows.slice(0, 10);
             for (const r of winTop10Rows) {
                 const ch = await dbGet(db, 'SELECT id, name, class FROM characters WHERE id=?', [Number(r.char_id)]);
@@ -18363,31 +18423,73 @@ async function computeWeeklyLeaderboard(db) {
                 if (!winWinner) winWinner = entry;
             }
             winAllRows = rows;
+            // Past week already had a recorded wins winner: keep it and its snapshot data.
+            if (keepExistingWin) {
+                if (existing.win_winner_name) {
+                    winWinner = { char_id: Number(existing.win_winner_char_id), name: existing.win_winner_name, class: existing.win_winner_class, total_wins: Number(existing.win_winner_wins || 0), total_battles: Number(existing.win_winner_battles || 0) };
+                }
+                if (existing.win_top10_data) {
+                    try { const prev = JSON.parse(existing.win_top10_data); if (Array.isArray(prev)) winTop10 = prev.slice(0, 10); } catch {}
+                }
+            }
         }
 
         // ── Squad top: stats from each squad's best 10 members this week ──
-        const squadWeekly = await computeSquadWeeklyWinners(db, dmgAllRows, winAllRows);
+        let squadWeekly = await computeSquadWeeklyWinners(db, dmgAllRows, winAllRows);
+        // A fully-kept past week has no recomputed rows, so reuse the squad snapshot the
+        // DB already froze (computeSquadWeeklyWinners shape: {dmgWinner, dmgTop10, winWinner, winTop10}).
+        if (!isPrevWeek && existing) {
+            if (keepExistingDmg && keepExistingWin) {
+                try {
+                    const dTop = JSON.parse(existing.squad_dmg_top10_data || '[]');
+                    const wTop = JSON.parse(existing.squad_win_top10_data || '[]');
+                    squadWeekly = {
+                        dmgWinner: keepExistingDmg && existing.squad_winner_id > 0 ? {
+                            squad_id: Number(existing.squad_winner_id), name: existing.squad_winner_name || '',
+                            tag: existing.squad_winner_tag || '', logo: existing.squad_winner_logo || '',
+                            member_count: Number(existing.squad_winner_members || 0), total_dmg: Number(existing.squad_winner_dmg || 0),
+                        } : null,
+                        dmgTop10: Array.isArray(dTop) ? dTop : [],
+                        winWinner: keepExistingWin && existing.squad_win_winner_id > 0 ? {
+                            squad_id: Number(existing.squad_win_winner_id), name: existing.squad_win_winner_name || '',
+                            tag: existing.squad_win_winner_tag || '', logo: existing.squad_win_winner_logo || '',
+                            member_count: Number(existing.squad_win_winner_members || 0), total_wins: Number(existing.squad_win_wins || 0),
+                        } : null,
+                        winTop10: Array.isArray(wTop) ? wTop : [],
+                    };
+                } catch {}
+            }
+        }
 
         // ── Top 10 by net honor (characters only) ──
         let honorTop10 = [], honorWinner = null;
         {
-            const rows = await dbAll(db, `
-                SELECT char_id, SUM(delta) AS net_honor, COUNT(*) AS total_claims
-                FROM honor_changes
-                WHERE created_at >= ? AND created_at < ?
-                GROUP BY char_id
-                HAVING SUM(delta) != 0
-                ORDER BY net_honor DESC LIMIT 10
-            `, [weekStart, weekEnd]);
-            for (const r of rows) {
-                const ch = await dbGet(db, 'SELECT id, name, class, level FROM characters WHERE id=?', [Number(r.char_id)]);
-                if (!ch) continue;
-                const entry = {
-                    char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
-                    net_honor: Number(r.net_honor || 0), total_claims: Number(r.total_claims || 0),
-                };
-                honorTop10.push(entry);
-                if (!honorWinner) honorWinner = entry;
+            if (!keepExistingHonor) {
+                const rows = await dbAll(db, `
+                    SELECT char_id, SUM(delta) AS net_honor, COUNT(*) AS total_claims
+                    FROM honor_changes
+                    WHERE created_at >= ? AND created_at < ?
+                    GROUP BY char_id
+                    HAVING SUM(delta) != 0
+                    ORDER BY net_honor DESC LIMIT 10
+                `, [weekStart, weekEnd]);
+                for (const r of rows) {
+                    const ch = await dbGet(db, 'SELECT id, name, class, level FROM characters WHERE id=?', [Number(r.char_id)]);
+                    if (!ch) continue;
+                    const entry = {
+                        char_id: Number(ch.id), name: ch.name, class: ch.class, level: Number(ch.level),
+                        net_honor: Number(r.net_honor || 0), total_claims: Number(r.total_claims || 0),
+                    };
+                    honorTop10.push(entry);
+                    if (!honorWinner) honorWinner = entry;
+                }
+            } else {
+                if (existing.honor_winner_name) {
+                    honorWinner = { char_id: Number(existing.honor_winner_char_id), name: existing.honor_winner_name, class: existing.honor_winner_class, level: 0, net_honor: Number(existing.honor_winner_net || 0), total_claims: 0 };
+                }
+                if (existing.honor_top10_data) {
+                    try { const prev = JSON.parse(existing.honor_top10_data); if (Array.isArray(prev)) honorTop10 = prev.slice(0, 10); } catch {}
+                }
             }
         }
 
