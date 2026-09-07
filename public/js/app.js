@@ -5100,7 +5100,7 @@ function badgeTierFor(def) {
 // achievements fall back to their emoji.
 function badgeIconImg(id, def) {
     const map = getAchievementItemMap();
-    const d = def || map.get(String(id));
+    const d = (map && String(id) ? map.get(String(id)) : null) || def || null;
     const type = d ? badgeTypeFor(d) : null;
     if (!type) return d?.icon || '🏅';
     const tier = badgeTierFor(d);
