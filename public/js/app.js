@@ -2665,6 +2665,8 @@ function createClassStep(dir) {
     renderCreateClassPage();
 }
 
+let __createSwipeBusy = false;
+
 function enableCreateSwipe() {
     const stage = document.getElementById('create-class-stage');
     if (!stage || stage.dataset.swipeHooked === 'true') return;
@@ -2672,28 +2674,91 @@ function enableCreateSwipe() {
     let startX = null;
     let startY = null;
     let startT = 0;
+    let dragging = false;
     stage.addEventListener('pointerdown', (e) => {
+        if (__createSwipeBusy) return;
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
         startX = e.clientX;
         startY = e.clientY;
         startT = Date.now();
+        dragging = false;
+    });
+    stage.addEventListener('pointermove', (e) => {
+        if (startX === null) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (!dragging) {
+            if (Math.abs(dx) < 10 && Math.abs(dy) < 10) return;
+            if (Math.abs(dy) > Math.abs(dx) + 10) { startX = null; return; }
+            dragging = true;
+        }
+        const card = currentCreateCard();
+        if (!card) return;
+        if (dragging) {
+            card.classList.add('dragging');
+            card.style.transition = 'none';
+        }
+        card.style.transform = `translateX(${dx}px)`;
     });
     stage.addEventListener('pointerup', (e) => {
         if (startX === null) return;
         const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
         const dt = Date.now() - startT;
+        const wasDragging = dragging;
         startX = null;
-        if (dt > 600) return;
-        if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
-        if (dx < 0) createClassNext();
-        else createClassPrev();
+        dragging = false;
+        if (wasDragging) releaseCreateSwipe(dx, dt);
     });
-    stage.addEventListener('pointercancel', () => { startX = null; });
+    stage.addEventListener('pointercancel', () => {
+        startX = null;
+        dragging = false;
+        const card = currentCreateCard();
+        if (card) {
+            card.classList.remove('dragging');
+            card.style.transition = '';
+            card.style.transform = 'translateX(0)';
+        }
+    });
 }
 
-function createClassPrev() { createClassStep(-1); }
-function createClassNext() { createClassStep(1); }
+function currentCreateCard() {
+    return document.querySelector('#create-class-stage .class-card');
+}
+
+function releaseCreateSwipe(dx, dt) {
+    const card = currentCreateCard();
+    if (!card) return;
+    const width = card.offsetWidth || 300;
+    const willSwap = Math.abs(dx) >= width * 0.25 || (dt < 250 && Math.abs(dx) > 60);
+    const dir = dx < 0 ? 1 : -1;
+    card.classList.remove('dragging');
+    card.style.transition = '';
+    if (!willSwap) {
+        card.style.transform = 'translateX(0)';
+        return;
+    }
+    __createSwipeBusy = true;
+    const exitX = dir === 1 ? -width : width;
+    card.style.transform = `translateX(${exitX}px)`;
+    setTimeout(() => {
+        if (createStep !== 'classes') { __createSwipeBusy = false; return; }
+        createClassStep(dir);
+        const ncard = currentCreateCard();
+        if (!ncard) { __createSwipeBusy = false; return; }
+        const entryX = dir === 1 ? width : -width;
+        ncard.style.transition = 'none';
+        ncard.style.transform = `translateX(${entryX}px)`;
+        void ncard.offsetWidth;
+        ncard.style.transition = '';
+        ncard.style.transform = 'translateX(0)';
+        setTimeout(() => { __createSwipeBusy = false; }, 240);
+    }, 190);
+}
+
+function createClassPrev() { if (__createSwipeBusy) return; createClassStep(-1); }
+function createClassNext() { if (__createSwipeBusy) return; createClassStep(1); }
 function createClassJump(i) {
+    if (__createSwipeBusy) return;
     const idx = Number(i);
     if (isNaN(idx) || idx < 0 || idx >= CREATE_CLASSES.length) return;
     if (createUsedClassSet().has(CREATE_CLASSES[idx].id)) return;
