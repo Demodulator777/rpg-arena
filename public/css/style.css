@@ -1323,6 +1323,7 @@ textarea.auth-input { resize: vertical; min-height: 80px; }
     flex: 0 1 auto;
     width: 100%;
     max-width: 340px;
+    touch-action: pan-y;
 }
 .create-class-stage .class-card {
     cursor: default;
