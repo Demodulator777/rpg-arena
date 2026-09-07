@@ -2637,6 +2637,7 @@ function renderCreateClassPage() {
     ensureCreateClassArt();
     syncCreateClassAvailability();
     renderCreateClassDots();
+    enableCreateSwipe();
 }
 
 function renderCreateClassDots() {
@@ -2662,6 +2663,32 @@ function createClassStep(dir) {
     }
     createClassIndex = idx;
     renderCreateClassPage();
+}
+
+function enableCreateSwipe() {
+    const stage = document.getElementById('create-class-stage');
+    if (!stage || stage.dataset.swipeHooked === 'true') return;
+    stage.dataset.swipeHooked = 'true';
+    let startX = null;
+    let startY = null;
+    let startT = 0;
+    stage.addEventListener('pointerdown', (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
+        startT = Date.now();
+    });
+    stage.addEventListener('pointerup', (e) => {
+        if (startX === null) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        const dt = Date.now() - startT;
+        startX = null;
+        if (dt > 600) return;
+        if (Math.abs(dx) < 40 || Math.abs(dx) < Math.abs(dy)) return;
+        if (dx < 0) createClassNext();
+        else createClassPrev();
+    });
+    stage.addEventListener('pointercancel', () => { startX = null; });
 }
 
 function createClassPrev() { createClassStep(-1); }
