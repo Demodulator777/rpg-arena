@@ -3769,7 +3769,7 @@ const eqSlots=[
             <span id="achievements-summary-inline" class="achievement-launch-meta">${isPT ? 'Carregando...' : 'Loading...'}</span>
           </button>
           <div class="profile-badges-inline">
-            ${(Array.isArray(c.profile_badges) ? c.profile_badges : []).slice(0,3).map(id => `<span class="profile-badge-chip" data-badge-id="${escHtml(id)}">🏅</span>`).join('')}
+            ${(Array.isArray(c.profile_badges) ? c.profile_badges : []).slice(0,3).map(id => `<span class="profile-badge-chip" data-badge-id="${escHtml(id)}">${badgeIconImg(id)}</span>`).join('')}
             ${((Array.isArray(c.profile_badges) ? c.profile_badges : []).length ? '' : `<span class="profile-badges-empty">${isPT ? 'Nenhum distintivo de perfil definido' : 'No profile badges set'}</span>`)}
           </div>
           <button class="achievement-launch-btn" ${actionAttrs('openBadgePickerModal')}>
@@ -5035,12 +5035,86 @@ function getAchievementItemMap() {
     return map;
 }
 
+// Achievements are grouped into badge types (1 icon per type); higher tiers of the
+// same type are differentiated through CSS (glow/border color via .badge-tier-N).
+const BADGE_TYPES = {
+    wins:       { key: 'wins',        glyph: '🏆', label: 'Victory' },
+    battles:    { key: 'battles',     glyph: '⚔️', label: 'Battles' },
+    tournaments:{ key: 'tournaments', glyph: '🎖️', label: 'Tournament' },
+    missions:   { key: 'missions',    glyph: '📜', label: 'Missions' },
+    dungeon:    { key: 'dungeon',     glyph: '🏰', label: 'Dungeon' },
+    floors:     { key: 'floors',      glyph: '🏯', label: 'Floors' },
+    damage:     { key: 'damage',      glyph: '💥', label: 'Damage' },
+    defense:    { key: 'defense',     glyph: '🛡️', label: 'Defense' },
+    stats:      { key: 'stats',       glyph: '📈', label: 'Stats' },
+    level:      { key: 'level',       glyph: '⭐', label: 'Level' },
+    mana:       { key: 'mana',        glyph: '🌌', label: 'Mana' },
+    wealth:     { key: 'wealth',      glyph: '💰', label: 'Gold' },
+    gems:       { key: 'gems',        glyph: '💎', label: 'Gems' },
+    raids:      { key: 'raids',       glyph: '🐉', label: 'Raids' },
+    community:  { key: 'community',   glyph: '🤝', label: 'Community' },
+    travel:     { key: 'travel',      glyph: '🗺️', label: 'Travel' },
+    challenges: { key: 'challenges',  glyph: '🔥', label: 'Challenge' },
+};
+
+function badgeTypeFor(def) {
+    if (!def) return null;
+    const m = String(def.metric || '');
+    if (m === 'wins') return BADGE_TYPES.wins;
+    if (m === 'battles' || m === 'physical_only_wins') return BADGE_TYPES.battles;
+    if (m === 'tournament_wins') return BADGE_TYPES.tournaments;
+    if (m === 'level') return BADGE_TYPES.level;
+    if (m === 'gold_earned' || m === 'mission_gems_earned') return BADGE_TYPES.wealth;
+    if (m === 'gems_earned') return BADGE_TYPES.gems;
+    if (m === 'mp_spent') return BADGE_TYPES.mana;
+    if (m === 'dungeon_floor') return BADGE_TYPES.floors;
+    if (m === 'stat_strength' || m === 'stat_defense' || m === 'stat_agility' || m === 'stat_magic' || m === 'stat_vitality' ||
+        m === 'stat_hit_chance' || m === 'stat_crit_chance' || m === 'weapon_elem_dmg_max') return BADGE_TYPES.stats;
+    if (m === 'damage_negated' || m === 'damage_negated_phys' || m === 'damage_negated_elem' || m === 'elem_resist_max') return BADGE_TYPES.defense;
+    if (m === 'total_dmg_dealt' || m === 'damage_dealt' || m === 'war_damage' || m === 'top_damage_dealt') return BADGE_TYPES.damage;
+    if (m.startsWith('wins_without_')) return BADGE_TYPES.challenges;
+    if (m === 'raids_participated' || m === 'raids_won') return BADGE_TYPES.raids;
+    if (m === 'referrals_registered' || m === 'referrals_level5') return BADGE_TYPES.community;
+    if (m.startsWith('gatekeeper_defeated')) return BADGE_TYPES.travel;
+    if (m === 'mission_wins_total' || m === 'total_missions_completed' || m === 'nightmare_missions_completed' ||
+        m === 'hard_missions_completed' || m === 'mission_fights_total' || m === 'mission_spots_discovered' || m.startsWith('mission_')) return BADGE_TYPES.missions;
+    if (m === 'monster_kills_total' || m === 'monster_kills' || m === 'monster_types_total' || m === 'elemental_kills' ||
+        m.startsWith('crawler_')) return BADGE_TYPES.dungeon;
+    return null;
+}
+
+function badgeTierFor(def) {
+    const items = window._achievementsData?.items;
+    if (!def || !Array.isArray(items) || !items.length) return 3;
+    const group = items.filter(a => a && String(a.id) !== '' &&
+        String(a.metric || '') === String(def.metric || '') &&
+        String(a.metric_key || '') === String(def.metric_key || ''));
+    if (group.length <= 1) return 3;
+    const sorted = group.slice().sort((a, b) => (Number(a.target) || 0) - (Number(b.target) || 0));
+    const idx = sorted.findIndex(a => a.id === def.id);
+    if (idx < 0) return 3;
+    return Math.min(6, Math.floor(idx / sorted.length * 6) + 1);
+}
+
+// Return the <img> tag for a badge (type icon SVG + tier CSS class). Old/unknown
+// achievements fall back to their emoji.
+function badgeIconImg(id, def) {
+    const map = getAchievementItemMap();
+    const d = def || map.get(String(id));
+    const type = d ? badgeTypeFor(d) : null;
+    if (!type) return d?.icon || '🏅';
+    const tier = badgeTierFor(d);
+    const name = getAchievementPt(id)?.name || d?.name || id || 'Badge';
+    return `<img src="/images/assets/badges/${type.key}.svg" alt="${escHtml(name)}" title="${escHtml(name)}" class="badge-icon badge-tier-${tier}" loading="lazy">`;
+}
+window.badgeIconImg = badgeIconImg;
+
 function refreshInlineBadgeChips() {
     const map = getAchievementItemMap();
     document.querySelectorAll('.profile-badge-chip').forEach(el => {
         const id = String(el.dataset.badgeId || '');
         const def = map.get(id);
-        el.textContent = def?.icon || '??';
+        el.innerHTML = badgeIconImg(id, def);
         el.title = getAchievementPt(id)?.name || def?.name || id || 'Badge';
     });
 }
@@ -5080,7 +5154,7 @@ function renderBadgePicker(data) {
             <span class="lang-option-check"></span>
         </button>` + items.map(a => `
         <button type="button" class="lang-dropdown-option" data-badge-id="${escHtml(a.id)}" role="option" aria-selected="false">
-            <span class="badge-dd-icon">${a.icon || '🏅'}</span>
+            <span class="badge-dd-icon">${badgeIconImg(a.id, a)}</span>
             <span class="lang-option-name">${escHtml(getAchievementPt(a.id)?.name || a.name)}</span>
             <span class="lang-option-check"></span>
         </button>`).join('');
@@ -5091,16 +5165,15 @@ function renderBadgePicker(data) {
                || ((data?.items || []).find(a => a.id === current[idx])?.name)
                || current[idx])
             : '';
-        const curIcon = current[idx]
-            ? ((data?.items || []).find(a => a.id === current[idx])?.icon || '🏅')
-            : '';
-        const btnLabel = current[idx] ? `${curIcon} ${curName}` : noneLabel;
+        const btnLabel = current[idx]
+            ? `${badgeIconImg(current[idx], (data?.items || []).find(a => a.id === current[idx]))} ${escHtml(curName)}`
+            : escHtml(noneLabel);
         return `
         <div style="display:flex;flex-direction:column;gap:6px">
             <div style="font-size:0.7rem;color:var(--text-dim);font-weight:700;letter-spacing:0.06em;text-transform:uppercase">${isPT ? 'Insignia' : 'Badge'} ${idx + 1}</div>
             <div class="lang-dropdown badge-dropdown" id="badge-dd-${idx}">
                 <button type="button" class="lang-dropdown-btn" data-badge-dd-toggle aria-haspopup="listbox" aria-expanded="false">
-                    <span class="badge-dd-current" id="badge-dd-current-${idx}">${escHtml(btnLabel)}</span>
+                    <span class="badge-dd-current" id="badge-dd-current-${idx}">${btnLabel}</span>
                     <span class="lang-dropdown-caret">▾</span>
                 </button>
                 <div class="lang-dropdown-list hidden" role="listbox">${buildOptions()}</div>
@@ -5204,9 +5277,10 @@ function wireBadgeDropdowns() {
                 e.stopPropagation();
                 const id = opt.getAttribute('data-badge-id') || '';
                 if (hidden) hidden.value = id;
-                const icon = (opt.querySelector('.badge-dd-icon') || {}).textContent || '';
                 const name = (opt.querySelector('.lang-option-name') || {}).textContent || '';
-                if (currentEl) currentEl.textContent = id ? `${icon} ${name}` : name;
+                if (currentEl) currentEl.innerHTML = id
+                    ? `${badgeIconImg(id, (window._achievementsData?.items || []).find(a => a.id === id))} ${escHtml(name)}`
+                    : escHtml(name);
                 list.querySelectorAll('.lang-dropdown-option').forEach(o => {
                     const sel = o === opt;
                     o.classList.toggle('selected', sel);
@@ -12389,7 +12463,7 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const lbPos = avatarPos(p.profile_pic_offset);
     const badges = Array.isArray(p.profile_badges) ? p.profile_badges : [];
     const badgeHtml = badges.length
-        ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${escHtml(b.icon || '🏅')}</span>`).join('')}</div>`
+        ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${badgeIconImg(b.id, b)}</span>`).join('')}</div>`
         : '';
     const squadHtml = p.squad_id
         ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:none">` : `<span style="font-size:1rem">🛡️</span>`}<span style="font-size:0.8rem;color:var(--gold)">${p.squad_tag ? `[${escHtml(p.squad_tag)}]` : escHtml(p.squad_name||'')}</span></span>`
