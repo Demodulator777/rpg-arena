@@ -3805,28 +3805,43 @@ function captureElementToCanvas(el) {
     const h = Math.ceil(rect.height);
     if (w <= 0 || h <= 0) return null;
     const styled = inlineStyles(el);
-    const html = styled.outerHTML
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
-        <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden">${html}</div>
-        </foreignObject>
-    </svg>`;
-    const img = new Image();
-    return new Promise(resolve => {
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            resolve(canvas);
-        };
-        img.onerror = () => resolve(null);
-        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    // Inline same-origin <img> as data URLs — external resources are blocked inside
+    // an SVG-as-image foreignObject, so we embed them so the portrait shows in the shatter.
+    const imgJobs = Array.from(styled.querySelectorAll('img')).map(img => {
+        const src = img.getAttribute('src');
+        if (!src || src.startsWith('data:') || /^https?:\/\//i.test(src)) return Promise.resolve();
+        return fetch(src, { credentials: 'same-origin' })
+            .then(r => (r.ok ? r.blob() : Promise.reject(new Error('img fetch failed'))))
+            .then(blob => new Promise(resolve => {
+                const fr = new FileReader();
+                fr.onload = () => { img.setAttribute('src', fr.result); resolve(); };
+                fr.onerror = () => resolve();
+                fr.readAsDataURL(blob);
+            }))
+            .catch(() => {});
+    });
+    return Promise.all(imgJobs).then(() => {
+        // Serialize the computed-style clone as well-formed XHTML (never manual string
+        // escaping — malformed markup was leaking raw `<div ...>` text into the shatter).
+        const xml = new XMLSerializer().serializeToString(styled);
+        const svgText = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}">
+            <foreignObject width="100%" height="100%">
+                <div xmlns="http://www.w3.org/1999/xhtml" style="width:${w}px;height:${h}px;overflow:hidden">${xml}</div>
+            </foreignObject>
+        </svg>`;
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                resolve(canvas);
+            };
+            img.onerror = () => resolve(null);
+            img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgText);
+        });
     });
 }
 
