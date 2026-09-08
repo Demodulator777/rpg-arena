@@ -19547,6 +19547,11 @@ router.get('/dungeon/data', auth, async (req, res) => {
         const tokens = char.dungeon_tokens || 0;
         const floor = char.dungeon_floor || 1;
         const highestFloor = char.dungeon_highest_floor || 1;
+        // A floor's boss, once defeated, never respawns. Surfacing this lets the client
+        // show the unlocked stairs (instead of a challenge button) even after a fresh load.
+        const bossKey = `floor_${Math.max(1, Number(floor) || 1)}_boss`;
+        const bossRec = await dbGet(db, `SELECT kills FROM character_monster_stats WHERE char_id = ? AND source = 'dungeon_boss' AND monster_key = ?`, [char.id, bossKey]);
+        const bossDefeated = !!bossRec && Number(bossRec.kills || 0) >= 1;
         let progress = null;
 
         if (char.dungeon_progress) {
@@ -19560,6 +19565,7 @@ router.get('/dungeon/data', auth, async (req, res) => {
             tokens,
             floor,
             highestFloor,
+            bossDefeated,
             progress
         });
     } catch (e) {
@@ -20002,7 +20008,8 @@ router.post('/dungeon/progress', auth, async (req, res) => {
             rooms: progress?.rooms || [],
             playerPos: progress?.playerPos || 0,
             exploredRooms: progress?.exploredRooms || [],
-            combat: combat || null
+            combat: combat || null,
+            bossDefeated: !!progress?.bossDefeated
         };
 
         await dbRun(db, `UPDATE characters SET
@@ -20938,6 +20945,17 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
 
         let monsters = [];
         if (kind === 'boss') {
+            // A floor's boss is a one-time fight: it can only be challenged while the player
+            // is currently on that floor, and never again once defeated (no respawn farming).
+            const currentFloor = Math.max(1, Number(char.dungeon_floor || 1));
+            if (floor !== currentFloor) {
+                return res.status(400).json({ error: 'This floor\'s boss has already been cleared. Note: bosses never respawn. Descend to the next floor to continue.' });
+            }
+            const bossKey = `floor_${currentFloor}_boss`;
+            const bossRec = await dbGet(db, `SELECT kills FROM character_monster_stats WHERE char_id = ? AND source = 'dungeon_boss' AND monster_key = ?`, [char.id, bossKey]);
+            if (bossRec && Number(bossRec.kills || 0) >= 1) {
+                return res.status(400).json({ error: 'You already defeated this floor\'s boss — it never respawns. Use the stairs to descend to the next floor.' });
+            }
             const boss = buildDungeonBossStatsForFloor(floor);
             monsters = [{
                 id: `boss_floor_${floor}`,
@@ -21277,11 +21295,10 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
                     await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', [JSON.stringify(activePrem), char.id]);
                 }
 
-                // Advance floor server-side.
+                // The floor does NOT auto-advance on kill anymore: defeating the boss opens
+                // the stairs (POST /dungeon/descend). The floor's boss stays permanently dead.
                 const currentFloor = Math.max(1, Number(state.floor || char.dungeon_floor || 1));
                 newFloor = currentFloor + 1;
-                highestFloor = Math.max(Number(char.dungeon_highest_floor || 1), newFloor);
-                await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?', [newFloor, highestFloor, char.id]);
 
                 // Boss kill stat
                 await recordMonsterDefeat(db, {
@@ -21369,6 +21386,36 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             log,
         });
     } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/dungeon/descend', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_floor, dungeon_highest_floor, dungeon_tokens');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        const currentFloor = Math.max(1, Number(char.dungeon_floor || 1));
+        const sentFloor = Math.max(1, Number(req.body?.floor || 0));
+        if (sentFloor && sentFloor !== currentFloor) {
+            return res.status(400).json({ error: 'Floor mismatch — the current floor has already changed.' });
+        }
+
+        // Stairs only open once the floor boss has been defeated — and defeat never resets.
+        const bossKey = `floor_${currentFloor}_boss`;
+        const bossRec = await dbGet(db, `SELECT kills FROM character_monster_stats WHERE char_id = ? AND source = 'dungeon_boss' AND monster_key = ?`, [char.id, bossKey]);
+        if (!bossRec || Number(bossRec.kills || 0) < 1) {
+            return res.status(400).json({ error: 'The stairs are sealed. Defeat this floor\'s boss to open them.' });
+        }
+
+        const newFloor = currentFloor + 1;
+        const highestFloor = Math.max(Number(char.dungeon_highest_floor || 1), newFloor);
+        await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?', [newFloor, highestFloor, char.id]);
+
+        res.json({ success: true, newFloor, highestFloor, tokens: Number(char.dungeon_tokens || 0) });
+    } catch (e) {
+        console.error(e);
         res.status(500).json({ error: e.message });
     }
 });
