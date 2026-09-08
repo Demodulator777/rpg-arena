@@ -3495,6 +3495,9 @@ function renderRoomInfo(room) {
                     room.type === 'treasure' ? (room.looted ? _pt('💰 Tesouro já coletado.', '💰 Treasure already collected.') : _pt('✨ Câmara tranquila. Tesouro coletado!', '✨ Peaceful chamber. Treasure collected!')) :
                     _pt('🏚️ Corredor vazio. Tudo limpo.', '🏚️ Empty corridor. All clear.')}
             </div>
+            ${room.isStart && D.floor > 1 ? `
+                <button class="dungeon-btn dungeon-btn-fight party-ascend-btn" style="margin-top:12px" ${actionAttrs('ascendDungeonFloor')}>⬆️ ${_pt(`Subir de volta ao Andar ${D.floor - 1}`, `Climb back up to Floor ${D.floor - 1}`)}</button>
+            ` : ''}
         </div>
     `;
 }
@@ -4214,6 +4217,46 @@ function renderLog() {
       }
     } finally {
       D._descending = false;
+    }
+  }
+
+  async function ascendFloor() {
+    if (!D.activeDungeon) return;
+    if (D._ascending) return;
+    if (D.floor <= 1) return;
+    D._ascending = true;
+    try {
+      // Server re-validates (current floor + not the first floor) before moving up.
+      const res = await apiFetch('POST', '/game/dungeon/ascend', { floor: D.floor });
+      if (!res || !res.success) throw new Error(res?.error || _pt('Falha ao subir.', 'Failed to climb back up.'));
+      const m = document.getElementById('dungeon-boss-modal');
+      if (m) m.classList.add('hidden');
+      D.floor = res.newFloor;
+      D.bossDefeated = !!res.bossDefeated;
+      if (typeof res.highestFloor === 'number') D.highestFloor = res.highestFloor;
+      delete D.savedProgress['tower'];
+      D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
+      D.playerPos = D.rooms.findIndex(r => r.isStart);
+      D.exploredRooms = new Set([D.playerPos]);
+      D.crawler = spawnCrawlerForCurrentFloor();
+      D.floorRunId = createFloorRunId();
+      D.combat = null;
+      D._combatPrefetch = null;
+      saveState();
+      saveProgressToDB();
+      refreshCharacter();
+      log(`${_pt('⬆️ Subindo para o Andar superior...', '⬆️ Climbing back up a floor...')}`, 'log-enter');
+      renderDungeonView();
+    } catch (e) {
+      console.error('Ascend failed:', e);
+      const msg = (e && (e.message || e)) || _pt('Falha ao subir.', 'Failed to climb back up.');
+      if (typeof openGameDialog === 'function') {
+        await openGameDialog({ title: _pt('Subida Bloqueada', 'Climb Blocked'), message: String(msg), confirmLabel: 'OK', showCancel: false });
+      } else {
+        alert(msg);
+      }
+    } finally {
+      D._ascending = false;
     }
   }
 
@@ -5120,6 +5163,7 @@ global.claimGuildBounty = claimGuildBounty;
   global.dungeonFightBoss    = fightBoss;
   global.dungeonExit         = dungeonExit;
   global.descendDungeonFloor = descendFloor;
+  global.ascendDungeonFloor  = ascendFloor;
   global.closeDungeonVictory = closeDungeonVictory;
   global.toggleMonsterLore   = toggleMonsterLore;
   global.deckNav             = deckNav;
