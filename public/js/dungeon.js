@@ -2203,7 +2203,7 @@ function onPlayerDeath() {
     
     // Play player card dissolve before cleanup
     const pCard = document.querySelector('.combat-fighters > .fighter-card:first-child');
-    if (pCard) pixelDissolveCard(pCard);
+    if (pCard) pixelDissolveCard(pCard, true);
 
     setTimeout(() => {
         // Release room entry and lock
@@ -3845,111 +3845,196 @@ function captureElementToCanvas(el) {
     });
 }
 
-function pixelDissolveCard(card) {
+function pixelDissolveCard(card, quick) {
     const rect = card.getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
+    const useWAA = typeof Element !== 'undefined' && !!Element.prototype.animate;
 
-    captureElementToCanvas(card).then(canvas => {
-        if (!canvas) {
-            spawnFallbackParticles(cx, cy, 20 + Math.floor(Math.random() * 16));
-            return;
-        }
-        const dataUrl = canvas.toDataURL();
+    // Intro: shake slowly → bulge → blow up (flash + cracks) → shatter shards.
+    const introMs = quick ? 1 : 700 + Math.random() * 300;
+    const popAt = Math.floor(introMs * 0.80);
 
-        // Random style CHAIN — each shatter morphs dynamically through 2-3 styles mid-flight,
-        // so pieces change direction and spin while they're still flying.
-        const STYLE_POOL = ['grid', 'rows', 'cols', 'directional'];
-        const chain = [];
-        const phaseCount = 2 + Math.floor(Math.random() * 2);
-        for (let i = 0; i < phaseCount; i++) chain.push(STYLE_POOL[Math.floor(Math.random() * STYLE_POOL.length)]);
-        const globals = chain.map(() => ({ biasAngle: Math.random() * 2 * Math.PI, distScale: 0.8 + Math.random() * 0.8 }));
-        const phaseAngle = (style, g, px, py) => {
-            if (style === 'grid') return Math.atan2(py, px) + (Math.random() - 0.5) * 0.7;
-            if (style === 'rows') return (Math.random() < 0.5 ? -1 : 1) * Math.PI / 2;
-            if (style === 'cols') return Math.random() < 0.5 ? Math.PI : 0;
-            return g.biasAngle + (Math.random() - 0.5) * Math.PI * 1.4;
-        };
-        const durPer = 260 + Math.random() * 180;
-        const useWAA = typeof Element !== 'undefined' && !!Element.prototype.animate;
+    // Capture at rest BEFORE the shake starts, so shard tile sizes stay true.
+    const capPromise = captureElementToCanvas(card);
 
-        // Cell density follows the FIRST style so the initial break shape matches the opening burst.
-        const gridCols = chain[0] === 'rows' ? 1 : 5 + Math.floor(Math.random() * 9);
-        const gridRows = chain[0] === 'cols' ? 1 : 5 + Math.floor(Math.random() * 11);
-        const cellW = canvas.width / gridCols;
-        const cellH = canvas.height / gridRows;
-
+    if (quick) {
         card.style.opacity = '0';
+    } else if (useWAA) {
+        const anim = card.animate(buildShatterIntroFrames(), {
+            duration: introMs,
+            easing: 'ease-in-out',
+            fill: 'forwards'
+        });
+        anim.onfinish = () => { card.style.opacity = '0'; };
+    } else {
+        card.style.transition = 'transform 0.2s ease-in, filter 0.2s ease-in';
+        setTimeout(() => { card.style.transform = 'scale(1.08)'; card.style.filter = 'brightness(1.2)'; }, 0);
+        setTimeout(() => {
+            card.style.transform = 'scale(1.13)';
+            card.style.filter = 'brightness(1.5)';
+        }, Math.floor(introMs * 0.5));
+        setTimeout(() => {
+            card.style.transform = 'scale(1.32)';
+            card.style.filter = 'brightness(2.2)';
+            card.style.opacity = '0';
+        }, popAt);
+    }
 
-        for (let r = 0; r < gridRows; r++) {
-            for (let c = 0; c < gridCols; c++) {
-                const px = (c + 0.5) / gridCols - 0.5;
-                const py = (r + 0.5) / gridRows - 0.5;
+    capPromise.then(canvas => {
+        const fire = () => {
+            if (!quick) spawnBlowout(cx, cy);
+            if (canvas) spawnShatterShards(canvas, rect, cx, cy);
+            else spawnFallbackParticles(cx, cy, 20 + Math.floor(Math.random() * 16));
+        };
+        if (quick) fire();
+        else setTimeout(fire, popAt);
+    });
+}
 
-                const p = document.createElement('div');
-                p.style.position = 'fixed';
-                p.style.width = cellW + 'px';
-                p.style.height = cellH + 'px';
-                p.style.left = (rect.left + c * cellW) + 'px';
-                p.style.top = (rect.top + r * cellH) + 'px';
-                p.style.backgroundImage = `url(${dataUrl})`;
-                p.style.backgroundSize = `${canvas.width}px ${canvas.height}px`;
-                p.style.backgroundPosition = `-${c * cellW}px -${r * cellH}px`;
-                p.style.pointerEvents = 'none';
-                p.style.zIndex = '500000';
-                p.style.borderRadius = Math.random() < 0.3 ? '50%' : Math.random() < 0.5 ? '2px' : '1px';
-                document.body.appendChild(p);
+function buildShatterIntroFrames() {
+    // Slow shake grows in amplitude as the card bulges, then a hard blow-out flash.
+    const pts = [
+        { o: 0.00, shake: 0.0, scale: 1.00, br: 1.00 },
+        { o: 0.12, shake: 2.0, scale: 1.00, br: 1.00 },
+        { o: 0.26, shake: 3.2, scale: 1.01, br: 1.04 },
+        { o: 0.40, shake: 4.5, scale: 1.03, br: 1.08 },
+        { o: 0.54, shake: 5.5, scale: 1.06, br: 1.14 },
+        { o: 0.67, shake: 6.0, scale: 1.12, br: 1.25 },
+        { o: 0.80, shake: 0.0, scale: 1.32, br: 2.20 },
+        { o: 1.00, shake: 0.0, scale: 1.22, br: 1.40 }
+    ];
+    return pts.map(pt => {
+        const dx = (Math.random() - 0.5) * 2 * pt.shake;
+        const dy = (Math.random() - 0.5) * 2 * pt.shake;
+        return {
+            transform: `translate(${dx}px,${dy}px) scale(${pt.scale})`,
+            filter: `brightness(${pt.br})`,
+            offset: pt.o
+        };
+    });
+}
 
-                if (useWAA) {
-                    // Multi-phase keyframes: each piece follows one style's vector, then swerves
-                    // into the next style's vector mid-animation, with rotation flipping too.
-                    const frames = [{
-                        transform: 'translate(0px,0px) rotate(0deg)',
-                        opacity: '1',
-                        offset: 0
-                    }];
-                    for (let i = 0; i < chain.length; i++) {
-                        const g = globals[i];
-                        const a = phaseAngle(chain[i], g, px, py);
-                        const dist = (20 + Math.random() * 140) * g.distScale * (0.6 + Math.random() * 1.2);
-                        const tx = Math.cos(a) * dist;
-                        const ty = Math.sin(a) * dist - 10 - Math.random() * 30;
-                        const rot = (Math.random() - 0.5) * 1080;
-                        frames.push({
-                            transform: `translate(${tx}px,${ty}px) rotate(${rot}deg)`,
-                            opacity: i === chain.length - 1 ? '0' : '0.9',
-                            offset: (i + 1) / chain.length
-                        });
-                    }
-                    const total = chain.length * durPer;
-                    const anim = p.animate(frames, {
-                        duration: total,
-                        delay: Math.random() * 120,
-                        easing: 'cubic-bezier(0.22,0.61,0.36,1)',
-                        fill: 'forwards'
-                    });
-                    anim.onfinish = () => { if (p.parentNode) p.remove(); };
-                    setTimeout(() => { if (p.parentNode) p.remove(); }, total + 500);
-                } else {
-                    // Fallback (no WAAPI): single-phase fly-out using the first style.
-                    const a = phaseAngle(chain[0], globals[0], px, py);
-                    const dist = (20 + Math.random() * 140) * globals[0].distScale * (0.6 + Math.random() * 1.2);
+function spawnBlowout(cx, cy) {
+    // Center flash that pops out and fades — sells the "blow up" moment.
+    const flash = document.createElement('div');
+    flash.style.cssText = `position:fixed;left:${cx}px;top:${cy}px;width:150px;height:150px;margin-left:-75px;margin-top:-75px;border-radius:50%;pointer-events:none;z-index:499999;background:radial-gradient(circle, rgba(255,255,255,0.95) 0%, rgba(255,210,110,0.55) 45%, transparent 72%);transform:scale(0.1);opacity:0.95`;
+    document.body.appendChild(flash);
+    flash.style.transition = 'transform 0.22s ease-out, opacity 0.3s ease-out';
+    requestAnimationFrame(() => { flash.style.transform = 'scale(1.35)'; flash.style.opacity = '0'; });
+    setTimeout(() => flash.remove(), 400);
+
+    // Radial crack streaks shooting outward from the pop point.
+    const cracks = 12 + Math.floor(Math.random() * 7);
+    for (let i = 0; i < cracks; i++) {
+        const a = Math.random() * 2 * Math.PI;
+        const len = 22 + Math.random() * 60;
+        const dist = 12 + Math.random() * 50;
+        const s = document.createElement('div');
+        s.style.cssText = `position:fixed;left:${cx - len / 2}px;top:${cy - 1}px;width:${len}px;height:2px;pointer-events:none;z-index:500000;background:linear-gradient(90deg, rgba(255,225,140,0.95), rgba(255,120,50,0));opacity:1;transform-origin:center;transform:rotate(${a}rad) translateX(0)`;
+        document.body.appendChild(s);
+        requestAnimationFrame(() => {
+            s.style.transition = 'transform 0.3s ease-out, opacity 0.3s ease-out';
+            s.style.transform = `rotate(${a}rad) translateX(${dist}px)`;
+            s.style.opacity = '0';
+        });
+        setTimeout(() => s.remove(), 360);
+    }
+}
+
+function spawnShatterShards(canvas, rect, cx, cy) {
+    const dataUrl = canvas.toDataURL();
+
+    // Random style CHAIN — each shatter morphs dynamically through 2-3 styles mid-flight,
+    // so pieces change direction and spin while they're still flying.
+    const STYLE_POOL = ['grid', 'rows', 'cols', 'directional'];
+    const chain = [];
+    const phaseCount = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < phaseCount; i++) chain.push(STYLE_POOL[Math.floor(Math.random() * STYLE_POOL.length)]);
+    const globals = chain.map(() => ({ biasAngle: Math.random() * 2 * Math.PI, distScale: 0.8 + Math.random() * 0.8 }));
+    const phaseAngle = (style, g, px, py) => {
+        if (style === 'grid') return Math.atan2(py, px) + (Math.random() - 0.5) * 0.7;
+        if (style === 'rows') return (Math.random() < 0.5 ? -1 : 1) * Math.PI / 2;
+        if (style === 'cols') return Math.random() < 0.5 ? Math.PI : 0;
+        return g.biasAngle + (Math.random() - 0.5) * Math.PI * 1.4;
+    };
+    const durPer = 260 + Math.random() * 180;
+    const useWAA = typeof Element !== 'undefined' && !!Element.prototype.animate;
+
+    // Cell density follows the FIRST style so the initial break shape matches the opening burst.
+    const gridCols = chain[0] === 'rows' ? 1 : 5 + Math.floor(Math.random() * 9);
+    const gridRows = chain[0] === 'cols' ? 1 : 5 + Math.floor(Math.random() * 11);
+    const cellW = canvas.width / gridCols;
+    const cellH = canvas.height / gridRows;
+
+    for (let r = 0; r < gridRows; r++) {
+        for (let c = 0; c < gridCols; c++) {
+            const px = (c + 0.5) / gridCols - 0.5;
+            const py = (r + 0.5) / gridRows - 0.5;
+
+            const p = document.createElement('div');
+            p.style.position = 'fixed';
+            p.style.width = cellW + 'px';
+            p.style.height = cellH + 'px';
+            p.style.left = (rect.left + c * cellW) + 'px';
+            p.style.top = (rect.top + r * cellH) + 'px';
+            p.style.backgroundImage = `url(${dataUrl})`;
+            p.style.backgroundSize = `${canvas.width}px ${canvas.height}px`;
+            p.style.backgroundPosition = `-${c * cellW}px -${r * cellH}px`;
+            p.style.pointerEvents = 'none';
+            p.style.zIndex = '500000';
+            p.style.borderRadius = Math.random() < 0.3 ? '50%' : Math.random() < 0.5 ? '2px' : '1px';
+            document.body.appendChild(p);
+
+            if (useWAA) {
+                // Multi-phase keyframes: each piece follows one style's vector, then swerves
+                // into the next style's vector mid-animation, with rotation flipping too.
+                const frames = [{
+                    transform: 'translate(0px,0px) rotate(0deg)',
+                    opacity: '1',
+                    offset: 0
+                }];
+                for (let i = 0; i < chain.length; i++) {
+                    const g = globals[i];
+                    const a = phaseAngle(chain[i], g, px, py);
+                    const dist = (20 + Math.random() * 140) * g.distScale * (0.6 + Math.random() * 1.2);
                     const tx = Math.cos(a) * dist;
                     const ty = Math.sin(a) * dist - 10 - Math.random() * 30;
                     const rot = (Math.random() - 0.5) * 1080;
-                    p.style.transition = `transform ${durPer * chain.length}ms cubic-bezier(0.22,0.61,0.36,1), opacity ${durPer * chain.length}ms ease`;
-                    p.style.transform = 'translate(0,0) rotate(0deg)';
-                    requestAnimationFrame(() => {
-                        p.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
-                        p.style.opacity = '0';
+                    frames.push({
+                        transform: `translate(${tx}px,${ty}px) rotate(${rot}deg)`,
+                        opacity: i === chain.length - 1 ? '0' : '0.9',
+                        offset: (i + 1) / chain.length
                     });
-                    setTimeout(() => p.remove(), chain.length * durPer + 150);
                 }
+                const total = chain.length * durPer;
+                const anim = p.animate(frames, {
+                    duration: total,
+                    delay: Math.random() * 120,
+                    easing: 'cubic-bezier(0.22,0.61,0.36,1)',
+                    fill: 'forwards'
+                });
+                anim.onfinish = () => { if (p.parentNode) p.remove(); };
+                setTimeout(() => { if (p.parentNode) p.remove(); }, total + 500);
+            } else {
+                // Fallback (no WAAPI): single-phase fly-out using the first style.
+                const a = phaseAngle(chain[0], globals[0], px, py);
+                const dist = (20 + Math.random() * 140) * globals[0].distScale * (0.6 + Math.random() * 1.2);
+                const tx = Math.cos(a) * dist;
+                const ty = Math.sin(a) * dist - 10 - Math.random() * 30;
+                const rot = (Math.random() - 0.5) * 1080;
+                p.style.transition = `transform ${durPer * chain.length}ms cubic-bezier(0.22,0.61,0.36,1), opacity ${durPer * chain.length}ms ease`;
+                p.style.transform = 'translate(0,0) rotate(0deg)';
+                requestAnimationFrame(() => {
+                    p.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
+                    p.style.opacity = '0';
+                });
+                setTimeout(() => p.remove(), chain.length * durPer + 150);
             }
         }
-        // trailing embers
-        spawnFallbackParticles(cx, cy, 10 + Math.floor(Math.random() * 10));
-    });
+    }
+    // trailing embers
+    spawnFallbackParticles(cx, cy, 10 + Math.floor(Math.random() * 10));
 }
 
 function spawnFallbackParticles(x, y, count) {
