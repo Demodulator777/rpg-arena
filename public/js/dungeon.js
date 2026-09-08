@@ -3495,6 +3495,9 @@ function renderRoomInfo(room) {
                     room.type === 'treasure' ? (room.looted ? _pt('💰 Tesouro já coletado.', '💰 Treasure already collected.') : _pt('✨ Câmara tranquila. Tesouro coletado!', '✨ Peaceful chamber. Treasure collected!')) :
                     _pt('🏚️ Corredor vazio. Tudo limpo.', '🏚️ Empty corridor. All clear.')}
             </div>
+            ${room.isStart && D.floor > 1 ? `
+                <button class="dungeon-btn dungeon-btn-fight party-ascend-btn" style="margin-top:12px" ${actionAttrs('ascendDungeonFloor')}>⬆️ ${_pt(`Subir de volta ao Andar ${D.floor - 1}`, `Climb back up to Floor ${D.floor - 1}`)}</button>
+            ` : ''}
         </div>
     `;
 }
@@ -4217,6 +4220,46 @@ function renderLog() {
     }
   }
 
+  async function ascendFloor() {
+    if (!D.activeDungeon) return;
+    if (D._ascending) return;
+    if (D.floor <= 1) return;
+    D._ascending = true;
+    try {
+      // Server re-validates (current floor + not the first floor) before moving up.
+      const res = await apiFetch('POST', '/game/dungeon/ascend', { floor: D.floor });
+      if (!res || !res.success) throw new Error(res?.error || _pt('Falha ao subir.', 'Failed to climb back up.'));
+      const m = document.getElementById('dungeon-boss-modal');
+      if (m) m.classList.add('hidden');
+      D.floor = res.newFloor;
+      D.bossDefeated = !!res.bossDefeated;
+      if (typeof res.highestFloor === 'number') D.highestFloor = res.highestFloor;
+      delete D.savedProgress['tower'];
+      D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
+      D.playerPos = D.rooms.findIndex(r => r.isStart);
+      D.exploredRooms = new Set([D.playerPos]);
+      D.crawler = spawnCrawlerForCurrentFloor();
+      D.floorRunId = createFloorRunId();
+      D.combat = null;
+      D._combatPrefetch = null;
+      saveState();
+      saveProgressToDB();
+      refreshCharacter();
+      log(`${_pt('⬆️ Subindo para o Andar superior...', '⬆️ Climbing back up a floor...')}`, 'log-enter');
+      renderDungeonView();
+    } catch (e) {
+      console.error('Ascend failed:', e);
+      const msg = (e && (e.message || e)) || _pt('Falha ao subir.', 'Failed to climb back up.');
+      if (typeof openGameDialog === 'function') {
+        await openGameDialog({ title: _pt('Subida Bloqueada', 'Climb Blocked'), message: String(msg), confirmLabel: 'OK', showCancel: false });
+      } else {
+        alert(msg);
+      }
+    } finally {
+      D._ascending = false;
+    }
+  }
+
 function toggleMonsterLore(idx) {
   const cards = document.querySelectorAll('.monster-combat-card');
   const card = cards[idx];
@@ -4304,6 +4347,24 @@ function showSkillCheck(attackType, callback) {
   let animId = null;
   let done = false;
 
+  // Randomized unpredictability while the marker sweeps:
+  // - `pause` counts down in rAF ticks while ~stopped (fast edgy pause feels like a mind-game).
+  // - `reverse` flips direction mid-sweep a set number of ticks later (a brief, unexpected jab
+  //   the other way) so the dot isn't a trivially predictable left-to-right pendulum.
+  let pause = 0;
+  let reverseWithTicks = 0;
+  let reverseLeft = 0;
+  let originalDir = 1;
+  const skillPauseTicks = 10; // ~166ms at 60fps
+
+  function scheduleReverse() {
+    // Mendacious jab: flip for a few ticks, then restore; never during a pause or near an edge.
+    if (pause > 0 || done || pos < 6 || pos > 94) return;
+    reverseWithTicks = 12 + Math.floor(Math.random() * 20);
+    reverseLeft = 7 + Math.floor(Math.random() * 12); // 7-18 ticks of counter-movement
+    originalDir = dir;
+  }
+
   function getMult(p) {
     if (p >= 40 && p <= 60) return 1.0; // perfect
     if ((p >= 25 && p < 40) || (p > 60 && p <= 75)) return 0.75; // good
@@ -4320,9 +4381,52 @@ function showSkillCheck(attackType, callback) {
 
   function animate() {
     if (done) return;
-    pos += dir * speed;
-    if (pos >= 100) { pos = 100; dir = -1; bounces++; updateCycle(); }
-    else if (pos <= 0) { pos = 0; dir = 1; bounces++; updateCycle(); }
+
+    let doPause = false;
+
+    // An unexpected counter-jab: briefly move opposite to the current direction.
+    if (reverseLeft > 0) {
+      pos += (-originalDir) * speed;
+      reverseLeft--;
+      if (reverseLeft === 0) {
+        dir = originalDir;
+        reverseWithTicks = 0;
+      }
+    } else if (reverseWithTicks > 0) {
+      reverseWithTicks--;
+      if (reverseWithTicks === 0) {
+        // Roll the reverse only on low-to-mid bounces so a panic doesn't drag on forever.
+        if (Math.random() < 0.9 && bounces < 10) {
+          reverseLeft = 7 + Math.floor(Math.random() * 12);
+          originalDir = dir;
+          pos += (-dir) * speed;
+          reverseLeft--;
+          if (reverseLeft === 0) { dir = originalDir; reverseWithTicks = 0; }
+        } else {
+          reverseWithTicks = 0;
+        }
+      }
+    }
+
+    // A fast, edgy pause (the dot lingers, baiting an early tap).
+    if (reverseWithTicks === 0 && reverseLeft === 0 && Math.random() < 0.010) {
+      doPause = true;
+      pause = skillPauseTicks;
+    }
+
+    if (pause > 0) {
+      pause--;
+      doPause = true; // priority: the resume below must not move the marker during a pause
+    }
+
+    if (!doPause) {
+      pos += dir * speed;
+    }
+
+    // Bounce off the edges.
+    if (pos >= 100 && !doPause && pause === 0) { pos = 100; dir = -1; bounces++; updateCycle(); }
+    else if (pos <= 0 && !doPause && pause === 0) { pos = 0; dir = 1; bounces++; updateCycle(); }
+
     marker.style.left = pos + '%';
     if (bounces >= maxBounces) { resolve(); return; }
     // Vary speed each bounce
@@ -4331,6 +4435,11 @@ function showSkillCheck(attackType, callback) {
         ? (1.5 + Math.random() * 4.5)
         : (1.0 + Math.random() * 2.0);
     }
+    // Roll whether a direction jab happens on the next sweep.
+    if (bounces < 10 && reverseWithTicks === 0 && Math.random() < 0.18) {
+      scheduleReverse();
+    }
+
     animId = requestAnimationFrame(animate);
   }
 
@@ -5120,6 +5229,7 @@ global.claimGuildBounty = claimGuildBounty;
   global.dungeonFightBoss    = fightBoss;
   global.dungeonExit         = dungeonExit;
   global.descendDungeonFloor = descendFloor;
+  global.ascendDungeonFloor  = ascendFloor;
   global.closeDungeonVictory = closeDungeonVictory;
   global.toggleMonsterLore   = toggleMonsterLore;
   global.deckNav             = deckNav;
