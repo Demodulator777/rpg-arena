@@ -3852,18 +3852,48 @@ function pixelDissolveCard(card) {
 
     captureElementToCanvas(card).then(canvas => {
         if (!canvas) {
-            spawnFallbackParticles(cx, cy, 24);
+            spawnFallbackParticles(cx, cy, 20 + Math.floor(Math.random() * 16));
             return;
         }
         const dataUrl = canvas.toDataURL();
-        const gridCols = 8;
-        const gridRows = 10;
+
+        // Randomized shatter style so every kill looks different.
+        const styles = ['grid', 'rows', 'cols', 'directional'];
+        const style = styles[Math.floor(Math.random() * styles.length)];
+        const gridCols = style === 'rows' ? 1 : 5 + Math.floor(Math.random() * 9);
+        const gridRows = style === 'cols' ? 1 : 5 + Math.floor(Math.random() * 11);
         const cellW = canvas.width / gridCols;
         const cellH = canvas.height / gridRows;
+
+        // 'directional' bursts everything along one random axis; dist/delay scale adds global variety.
+        const biasAngle = Math.random() * 2 * Math.PI;
+        const distScale = 0.8 + Math.random() * 0.8;
+        const delayScale = 0.12 + Math.random() * 0.4;
+
         card.style.opacity = '0';
 
         for (let r = 0; r < gridRows; r++) {
             for (let c = 0; c < gridCols; c++) {
+                const px = (c + 0.5) / gridCols - 0.5;
+                const py = (r + 0.5) / gridRows - 0.5;
+
+                let baseAngle;
+                if (style === 'grid') {
+                    baseAngle = Math.atan2(py, px) + (Math.random() - 0.5) * 0.7;
+                } else if (style === 'rows') {
+                    baseAngle = (Math.random() < 0.5 ? -1 : 1) * Math.PI / 2;
+                } else if (style === 'cols') {
+                    baseAngle = Math.random() < 0.5 ? Math.PI : 0;
+                } else {
+                    baseAngle = biasAngle + (Math.random() - 0.5) * Math.PI * 1.4;
+                }
+
+                const dist = (20 + Math.random() * 140) * distScale * (0.6 + Math.random() * 1.2);
+                const tx = Math.cos(baseAngle) * dist;
+                const ty = Math.sin(baseAngle) * dist - 20 - Math.random() * 40;
+                const rot = (Math.random() - 0.5) * 1080;
+                const delay = Math.random() * delayScale;
+
                 const p = document.createElement('div');
                 p.style.position = 'fixed';
                 p.style.width = cellW + 'px';
@@ -3875,26 +3905,19 @@ function pixelDissolveCard(card) {
                 p.style.backgroundPosition = `-${c * cellW}px -${r * cellH}px`;
                 p.style.pointerEvents = 'none';
                 p.style.zIndex = '500000';
-                p.style.borderRadius = '1px';
-
-                const angle = Math.random() * 2 * Math.PI;
-                const dist = 30 + Math.random() * 120;
-                const tx = Math.cos(angle) * dist;
-                const ty = Math.sin(angle) * dist - 40;
-                const rot = (Math.random() - 0.5) * 720;
-                const delay = Math.random() * 0.3;
-                p.style.transition = `transform 0.7s cubic-bezier(0.25,0.46,0.45,0.94) ${delay}s, opacity 0.7s ease ${delay}s`;
+                p.style.borderRadius = Math.random() < 0.3 ? '50%' : Math.random() < 0.5 ? '2px' : '1px';
+                p.style.transition = `transform ${0.55 + Math.random() * 0.45}s cubic-bezier(0.22,0.61,0.36,1) ${delay}s, opacity ${0.6 + Math.random() * 0.3}s ease ${delay}s`;
                 p.style.transform = 'translate(0,0) rotate(0deg)';
                 document.body.appendChild(p);
                 requestAnimationFrame(() => {
                     p.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
                     p.style.opacity = '0';
                 });
-                setTimeout(() => p.remove(), 1500);
+                setTimeout(() => p.remove(), 1700);
             }
         }
-        // extra sparkle particles
-        spawnFallbackParticles(cx, cy, 12);
+        // trailing embers
+        spawnFallbackParticles(cx, cy, 10 + Math.floor(Math.random() * 10));
     });
 }
 
