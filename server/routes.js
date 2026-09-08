@@ -21411,47 +21411,9 @@ router.post('/dungeon/descend', auth, async (req, res) => {
 
         const newFloor = currentFloor + 1;
         const highestFloor = Math.max(Number(char.dungeon_highest_floor || 1), newFloor);
-        // The client regenerates the new floor immediately; drop any stale saved rooms
-        // so a resume can never mix floor layouts.
-        await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ?, dungeon_progress = NULL WHERE id = ?', [newFloor, highestFloor, char.id]);
+        await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_highest_floor = ? WHERE id = ?', [newFloor, highestFloor, char.id]);
 
         res.json({ success: true, newFloor, highestFloor, tokens: Number(char.dungeon_tokens || 0) });
-    } catch (e) {
-        console.error(e);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-router.post('/dungeon/ascend', auth, async (req, res) => {
-    try {
-        const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_floor, dungeon_highest_floor');
-        if (!char) return res.status(404).json({ error: 'Character not found' });
-
-        const currentFloor = Math.max(1, Number(char.dungeon_floor || 1));
-        const sentFloor = Math.max(1, Number(req.body?.floor || 0));
-        if (sentFloor && sentFloor !== currentFloor) {
-            return res.status(400).json({ error: 'Floor mismatch — the current floor has already changed.' });
-        }
-        if (currentFloor <= 1) {
-            return res.status(400).json({ error: 'There is nothing above the first floor.' });
-        }
-
-        const newFloor = currentFloor - 1;
-
-        // Leaving the floor: end any active combat session so consumables aren't locked,
-        // and drop stale saved rooms so a resume can never mix floor layouts.
-        const now = Math.floor(Date.now() / 1000);
-        await dbRun(db, `UPDATE dungeon_combat_sessions SET status = 'ended', updated_at = ? WHERE char_id = ? AND status = 'active'`, [now, char.id]);
-        await dbRun(db, 'UPDATE characters SET dungeon_floor = ?, dungeon_progress = NULL WHERE id = ?', [newFloor, char.id]);
-
-        // The higher floor's boss stays permanently dead (if it was ever beaten) — surface
-        // that so the client renders the correct room (stairs vs. challenge button).
-        const targetKey = `floor_${newFloor}_boss`;
-        const tRec = await dbGet(db, `SELECT kills FROM character_monster_stats WHERE char_id = ? AND source = 'dungeon_boss' AND monster_key = ?`, [char.id, targetKey]);
-        const bossDefeated = !!tRec && Number(tRec.kills || 0) >= 1;
-
-        res.json({ success: true, newFloor, highestFloor: Number(char.dungeon_highest_floor || 1), bossDefeated });
     } catch (e) {
         console.error(e);
         res.status(500).json({ error: e.message });
