@@ -3247,18 +3247,18 @@ img.badge-icon { display: inline-block; object-fit: contain; vertical-align: mid
     flex-wrap: wrap;
 }
 .lb-badge {
-    width: 20px;
-    height: 20px;
+    width: 29px;
+    height: 29px;
     border-radius: 6px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.10);
+    /*border: 1px solid rgba(255,255,255,0.10);*/
     font-size: 0.86rem;
     line-height: 1;
 }
-.lb-badge img.badge-icon { width: 18px; height: 18px; border-radius: 5px; }
+.lb-badge img.badge-icon { width: 32px; height: 32px; border-radius: 0px; }
 
 /* Squads */
 .squads-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
