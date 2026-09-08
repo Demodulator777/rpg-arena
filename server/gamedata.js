@@ -1102,7 +1102,7 @@ const CRAFTING_SETS = {
     nyxaroth: {
         name:'Nyxaroth Devourer Set', emoji:'🌪️',
         bonus3:{ agility:30, crit_chance:30, dmg_min:8, dmg_max:16, desc:'2/5: +30 AGI · +30 Crit · +8-16 Dmg' },
-        bonus4:{ agility:70, crit_chance:75, dmg_min:18, dmg_max:36, hit_chance:70, wind_dmg:18, wind_resist:20, desc:'4/5: +70 AGI · +75 Crit · +18-36 Dmg · +70 Hit · +18 Wind Dmg · +20 Wind Resist' },
+        bonus4:{ agility:70, crit_chance:75, dmg_min:18, dmg_max:36, hit_chance:70, strength:50, pyro_resist:50, desc:'4/5: +70 AGI · +75 Crit · +18-36 Dmg · +70 Hit · +50 STR · +50 Pyro Resist' },
     },
     vizorax: {
         name:'Vizorax Unholy Set', emoji:'👹',
