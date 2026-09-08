@@ -3893,22 +3893,26 @@ function pixelDissolveCard(card, quick) {
 }
 
 function buildShatterIntroFrames() {
-    // Slow shake grows in amplitude as the card bulges, then a hard blow-out flash.
+    // Slow shake grows and becomes VIOLENT right before the blow-out: escalating
+    // translate + rotational jitter, then a hard pop at ~0.80.
     const pts = [
-        { o: 0.00, shake: 0.0, scale: 1.00, br: 1.00 },
-        { o: 0.12, shake: 2.0, scale: 1.00, br: 1.00 },
-        { o: 0.26, shake: 3.2, scale: 1.01, br: 1.04 },
-        { o: 0.40, shake: 4.5, scale: 1.03, br: 1.08 },
-        { o: 0.54, shake: 5.5, scale: 1.06, br: 1.14 },
-        { o: 0.67, shake: 6.0, scale: 1.12, br: 1.25 },
-        { o: 0.80, shake: 0.0, scale: 1.32, br: 2.20 },
-        { o: 1.00, shake: 0.0, scale: 1.22, br: 1.40 }
+        { o: 0.00, shake: 0.0, scale: 1.000, br: 1.00 },
+        { o: 0.10, shake: 2.5, scale: 1.000, br: 1.00 },
+        { o: 0.20, shake: 4.5, scale: 1.005, br: 1.03 },
+        { o: 0.32, shake: 7.5, scale: 1.015, br: 1.06 },
+        { o: 0.44, shake: 11,  scale: 1.030, br: 1.10 },
+        { o: 0.56, shake: 16,  scale: 1.050, br: 1.15 },
+        { o: 0.68, shake: 23,  scale: 1.080, br: 1.22 },
+        { o: 0.78, shake: 30,  scale: 1.120, br: 1.35 },
+        { o: 0.82, shake: 0,   scale: 1.340, br: 2.20 },
+        { o: 1.00, shake: 0,   scale: 1.220, br: 1.40 }
     ];
     return pts.map(pt => {
         const dx = (Math.random() - 0.5) * 2 * pt.shake;
         const dy = (Math.random() - 0.5) * 2 * pt.shake;
+        const rot = (Math.random() - 0.5) * pt.shake * 0.16;
         return {
-            transform: `translate(${dx}px,${dy}px) scale(${pt.scale})`,
+            transform: `translate(${dx}px,${dy}px) rotate(${rot}deg) scale(${pt.scale})`,
             filter: `brightness(${pt.br})`,
             offset: pt.o
         };
