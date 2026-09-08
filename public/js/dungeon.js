@@ -3857,18 +3857,27 @@ function pixelDissolveCard(card) {
         }
         const dataUrl = canvas.toDataURL();
 
-        // Randomized shatter style so every kill looks different.
-        const styles = ['grid', 'rows', 'cols', 'directional'];
-        const style = styles[Math.floor(Math.random() * styles.length)];
-        const gridCols = style === 'rows' ? 1 : 5 + Math.floor(Math.random() * 9);
-        const gridRows = style === 'cols' ? 1 : 5 + Math.floor(Math.random() * 11);
+        // Random style CHAIN — each shatter morphs dynamically through 2-3 styles mid-flight,
+        // so pieces change direction and spin while they're still flying.
+        const STYLE_POOL = ['grid', 'rows', 'cols', 'directional'];
+        const chain = [];
+        const phaseCount = 2 + Math.floor(Math.random() * 2);
+        for (let i = 0; i < phaseCount; i++) chain.push(STYLE_POOL[Math.floor(Math.random() * STYLE_POOL.length)]);
+        const globals = chain.map(() => ({ biasAngle: Math.random() * 2 * Math.PI, distScale: 0.8 + Math.random() * 0.8 }));
+        const phaseAngle = (style, g, px, py) => {
+            if (style === 'grid') return Math.atan2(py, px) + (Math.random() - 0.5) * 0.7;
+            if (style === 'rows') return (Math.random() < 0.5 ? -1 : 1) * Math.PI / 2;
+            if (style === 'cols') return Math.random() < 0.5 ? Math.PI : 0;
+            return g.biasAngle + (Math.random() - 0.5) * Math.PI * 1.4;
+        };
+        const durPer = 260 + Math.random() * 180;
+        const useWAA = typeof Element !== 'undefined' && !!Element.prototype.animate;
+
+        // Cell density follows the FIRST style so the initial break shape matches the opening burst.
+        const gridCols = chain[0] === 'rows' ? 1 : 5 + Math.floor(Math.random() * 9);
+        const gridRows = chain[0] === 'cols' ? 1 : 5 + Math.floor(Math.random() * 11);
         const cellW = canvas.width / gridCols;
         const cellH = canvas.height / gridRows;
-
-        // 'directional' bursts everything along one random axis; dist/delay scale adds global variety.
-        const biasAngle = Math.random() * 2 * Math.PI;
-        const distScale = 0.8 + Math.random() * 0.8;
-        const delayScale = 0.12 + Math.random() * 0.4;
 
         card.style.opacity = '0';
 
@@ -3876,23 +3885,6 @@ function pixelDissolveCard(card) {
             for (let c = 0; c < gridCols; c++) {
                 const px = (c + 0.5) / gridCols - 0.5;
                 const py = (r + 0.5) / gridRows - 0.5;
-
-                let baseAngle;
-                if (style === 'grid') {
-                    baseAngle = Math.atan2(py, px) + (Math.random() - 0.5) * 0.7;
-                } else if (style === 'rows') {
-                    baseAngle = (Math.random() < 0.5 ? -1 : 1) * Math.PI / 2;
-                } else if (style === 'cols') {
-                    baseAngle = Math.random() < 0.5 ? Math.PI : 0;
-                } else {
-                    baseAngle = biasAngle + (Math.random() - 0.5) * Math.PI * 1.4;
-                }
-
-                const dist = (20 + Math.random() * 140) * distScale * (0.6 + Math.random() * 1.2);
-                const tx = Math.cos(baseAngle) * dist;
-                const ty = Math.sin(baseAngle) * dist - 20 - Math.random() * 40;
-                const rot = (Math.random() - 0.5) * 1080;
-                const delay = Math.random() * delayScale;
 
                 const p = document.createElement('div');
                 p.style.position = 'fixed';
@@ -3906,14 +3898,53 @@ function pixelDissolveCard(card) {
                 p.style.pointerEvents = 'none';
                 p.style.zIndex = '500000';
                 p.style.borderRadius = Math.random() < 0.3 ? '50%' : Math.random() < 0.5 ? '2px' : '1px';
-                p.style.transition = `transform ${0.55 + Math.random() * 0.45}s cubic-bezier(0.22,0.61,0.36,1) ${delay}s, opacity ${0.6 + Math.random() * 0.3}s ease ${delay}s`;
-                p.style.transform = 'translate(0,0) rotate(0deg)';
                 document.body.appendChild(p);
-                requestAnimationFrame(() => {
-                    p.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
-                    p.style.opacity = '0';
-                });
-                setTimeout(() => p.remove(), 1700);
+
+                if (useWAA) {
+                    // Multi-phase keyframes: each piece follows one style's vector, then swerves
+                    // into the next style's vector mid-animation, with rotation flipping too.
+                    const frames = [{
+                        transform: 'translate(0px,0px) rotate(0deg)',
+                        opacity: '1',
+                        offset: 0
+                    }];
+                    for (let i = 0; i < chain.length; i++) {
+                        const g = globals[i];
+                        const a = phaseAngle(chain[i], g, px, py);
+                        const dist = (20 + Math.random() * 140) * g.distScale * (0.6 + Math.random() * 1.2);
+                        const tx = Math.cos(a) * dist;
+                        const ty = Math.sin(a) * dist - 10 - Math.random() * 30;
+                        const rot = (Math.random() - 0.5) * 1080;
+                        frames.push({
+                            transform: `translate(${tx}px,${ty}px) rotate(${rot}deg)`,
+                            opacity: i === chain.length - 1 ? '0' : '0.9',
+                            offset: (i + 1) / chain.length
+                        });
+                    }
+                    const total = chain.length * durPer;
+                    const anim = p.animate(frames, {
+                        duration: total,
+                        delay: Math.random() * 120,
+                        easing: 'cubic-bezier(0.22,0.61,0.36,1)',
+                        fill: 'forwards'
+                    });
+                    anim.onfinish = () => { if (p.parentNode) p.remove(); };
+                    setTimeout(() => { if (p.parentNode) p.remove(); }, total + 500);
+                } else {
+                    // Fallback (no WAAPI): single-phase fly-out using the first style.
+                    const a = phaseAngle(chain[0], globals[0], px, py);
+                    const dist = (20 + Math.random() * 140) * globals[0].distScale * (0.6 + Math.random() * 1.2);
+                    const tx = Math.cos(a) * dist;
+                    const ty = Math.sin(a) * dist - 10 - Math.random() * 30;
+                    const rot = (Math.random() - 0.5) * 1080;
+                    p.style.transition = `transform ${durPer * chain.length}ms cubic-bezier(0.22,0.61,0.36,1), opacity ${durPer * chain.length}ms ease`;
+                    p.style.transform = 'translate(0,0) rotate(0deg)';
+                    requestAnimationFrame(() => {
+                        p.style.transform = `translate(${tx}px,${ty}px) rotate(${rot}deg)`;
+                        p.style.opacity = '0';
+                    });
+                    setTimeout(() => p.remove(), chain.length * durPer + 150);
+                }
             }
         }
         // trailing embers
