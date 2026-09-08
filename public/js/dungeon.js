@@ -492,6 +492,7 @@ let D = {
   floorRunId: null,
   crawler: null,
   combat: null,
+  bossDefeated: false,
   travelTimer: null,
   isTraveling: false,
   dungeonLog: [],
@@ -593,6 +594,7 @@ async function refreshCharacter() {
       D.tokens = response.tokens || 0;
       D.floor = response.floor || 1;
       D.highestFloor = response.highestFloor || 1;
+      D.bossDefeated = !!response.bossDefeated;
       
       if (response.progress) {
         // Edge case: if activeDungeon is null (death/exit path), we still want resume to work.
@@ -610,7 +612,8 @@ async function refreshCharacter() {
             explored: response.progress.exploredRooms,
             combat: response.progress.combat,
             crawler: response.progress.crawler || null,
-            floorRunId: response.progress.floorRunId || null
+            floorRunId: response.progress.floorRunId || null,
+            bossDefeated: !!response.progress.bossDefeated
           };
         }
       }
@@ -654,7 +657,8 @@ async function refreshCharacter() {
           playerPos: D.playerPos || 0,
           exploredRooms: [...(D.exploredRooms || [])],
           crawler: D.crawler || null,
-          floorRunId: D.floorRunId || null
+          floorRunId: D.floorRunId || null,
+          bossDefeated: !!D.bossDefeated
         },
         activeDungeon: D.activeDungeon,
         combat: D.combat
@@ -1319,6 +1323,7 @@ function proceedStartDungeon(dungeonId) {
         D.exploredRooms = new Set(s.explored);
         D.crawler = s.crawler || null;
         D.floorRunId = s.floorRunId || createFloorRunId();
+        D.bossDefeated = !!s.bossDefeated;
 
         // Defensive: if saved rooms were generated with a different floor (or older rules),
         // the floor number and the monster counts can desync (e.g. 2 enemies on floor 3).
@@ -1834,32 +1839,53 @@ function fightRound() {
                 if (res.ended && res.outcome === 'boss_defeated') {
                     const loot = res.bossLoot;
                     const boss = D.combat.monsters?.[0] || { name: 'Boss', icon: '⚠️' };
+                    const nextFloor = D.floor + 1;
                     if (loot) {
                         log(`${_pt(`🏆 ANDAR ${D.floor} LIMPO! ${boss.name} derrotado!`, `🏆 FLOOR ${D.floor} CLEARED! ${boss.name} vanquished!`)}`, 'log-boss');
                         log(`${_pt(`💰 Saque: ${loot.gold} ouro | 💎 ${loot.gems} gemas | ✨ ${loot.premium?.name || 'Premium'}`, `💰 Loot: ${loot.gold} gold | 💎 ${loot.gems} gems | ✨ ${loot.premium?.name || 'Premium'}`)}`, 'log-success');
+                        log(`${_pt('⬇️ As escadas para o próximo andar se abriram.', '⬇️ Stairs to the next floor have opened.')}`, 'log-success');
                     }
                     if (typeof res.tokens === 'number') {
                         D.tokens = res.tokens;
                         updateTokenDisplay();
                     }
-                    if (typeof res.newFloor === 'number') {
-                        D.floor = res.newFloor;
-                        if (typeof res.highestFloor === 'number') D.highestFloor = res.highestFloor;
-                    }
 
-                    // Regenerate next floor locally (map gen is still client-side).
-                    delete D.savedProgress['tower'];
-                    D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
-                    D.playerPos = D.rooms.findIndex(r => r.isStart);
-                    D.exploredRooms = new Set([D.playerPos]);
-                    D.crawler = spawnCrawlerForCurrentFloor();
-                    D.floorRunId = createFloorRunId();
-                    D.combat = null;
-                    saveState();
-                    saveProgressToDB();
-                    refreshCharacter();
-                    if (loot) showBossVictoryModal(boss, loot);
-                    else renderDungeonView();
+                    // The floor does NOT advance on kill. The boss is permanently defeated and
+                    // the floor descends only when the player takes the stairs (descendFloor).
+                    D.bossDefeated = true;
+                    D.combat.resolving = false;
+                    saveTargetRectForAnim();
+                    // Ensure at least one monster has HP > 0 so the card renders for the death animation
+                    if (D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
+                        const anyAlive = D.combat.monsters.some(m => m.currentHp > 0);
+                        if (!anyAlive) D.combat.monsters[D.combat.monsters.length - 1].currentHp = 1;
+                    }
+                    renderCombatPanel();
+                    // Set D.combat.monsters HP to 0 AFTER rendering (so monster card shows)
+                    // but BEFORE triggerCombatAnimations (so dead monsters aren't counter-attackers)
+                    if (D.combat && Array.isArray(D.combat.monsters)) {
+                        D.combat.monsters.forEach(m => { m.currentHp = 0; });
+                    }
+                    triggerCombatAnimations();
+                    // Dissolve the defeated boss card after the hit
+                    setTimeout(() => {
+                        const card = document.querySelector('.monster-combat-card');
+                        if (card) {
+                            pixelDissolveCard(card);
+                        } else if (D.combat && D.combat._prevMonsterRect) {
+                            const r = D.combat._prevMonsterRect;
+                            spawnFallbackParticles(r.left + r.width / 2, r.top + r.height / 2, 24);
+                        }
+                    }, 600);
+                    // Show the victory modal only AFTER the death animation has cleared.
+                    setTimeout(() => {
+                        D.combat = null;
+                        saveState();
+                        saveProgressToDB();
+                        refreshCharacter();
+                        if (loot) showBossVictoryModal(boss, loot, nextFloor);
+                        else renderDungeonView();
+                    }, 2500);
                     return;
                 }
 
@@ -2220,6 +2246,7 @@ function onPlayerDeath() {
           explored: [...D.exploredRooms],
           crawler: D.crawler,
           floorRunId: D.floorRunId,
+          bossDefeated: !!D.bossDefeated,
         };
         D.combat = null;
         D._combatPrefetch = null;
@@ -2234,6 +2261,12 @@ function onPlayerDeath() {
 async function fightBoss(roomIdx) {
     const room = D.rooms[roomIdx];
     if (!room || !room.isBoss) return;
+    
+    // The floor's boss is a one-time fight — it never respawns once defeated.
+    if (D.bossDefeated) {
+        log(`${_pt('⚠️ O chefe deste andar já foi derrotado. Use as escadas para descer.', '⚠️ This floor\'s boss was already defeated. Use the stairs to descend.')}`, 'log-warning');
+        return;
+    }
     
     // Check tokens before attempting boss fight
     const tokensNeeded = 50;
@@ -3346,6 +3379,18 @@ function renderRoomInfo(room) {
     if (room.isBoss) {
         const def = getDungeonDef(D.activeDungeon);
         const boss = def.boss;
+        // Once beaten, a floor's boss never respawns — the room shows the stairs instead.
+        if (D.bossDefeated) {
+            const nf = D.floor + 1;
+            return `
+                <div class="dungeon-boss-room">
+                    <div class="boss-name-big" style="margin-top:0">${boss.name}</div>
+                    <div class="boss-drop-preview" style="margin-bottom:8px">✅ ${_pt('Chefe derrotado — nunca mais reaparecerá.', 'Boss defeated — it will never respawn.')}</div>
+                    <div class="stairs-hint" style="font-size:0.85rem;color:var(--dungeon-gold,#e8c66a);margin-bottom:8px">⬇️ ${_pt(`As escadas para o Andar ${nf} estão abertas.`, `Stairs to Floor ${nf} are open.`)}</div>
+                    <button class="dungeon-btn dungeon-btn-fight boss-fight-btn" ${actionAttrs('descendDungeonFloor')}>⬇️ ${_pt(`Descer ao Andar ${nf}`, `Descend to Floor ${nf}`)}</button>
+                </div>
+            `;
+        }
         return `
             <div class="dungeon-boss-room">
                 <div style="width:82px;height:110px;margin:0 auto 6px;border-radius:10px;overflow:hidden;border:2px solid var(--dungeon-gold)">
@@ -4099,7 +4144,7 @@ function renderLog() {
     }
   }
 
-  function showBossVictoryModal(boss, loot) {
+  function showBossVictoryModal(boss, loot, nextFloor) {
   let modal = document.getElementById('dungeon-boss-modal');
   if (!modal) {
     modal = document.createElement('div');
@@ -4107,6 +4152,7 @@ function renderLog() {
     modal.className = 'modal-overlay';
     document.body.appendChild(modal);
   }
+  const nf = Number(nextFloor) || D.floor + 1;
   modal.classList.remove('hidden');
   modal.innerHTML = `
     <div class="modal-box dungeon-victory-box">
@@ -4121,11 +4167,55 @@ function renderLog() {
           <div class="premium-desc">${loot.premium.desc}</div>
         </div>
       </div>
-      <div class="victory-next">${_pt(`Avançando para o Andar ${D.floor}...`, `Advancing to Floor ${D.floor}...`)}</div>
-      <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('closeDungeonVictory')}>${_pt('Continuar Explorando', 'Continue Delving')}</button>
+      <div class="victory-next">${_pt(`⬇️ As escadas para o Andar ${nf} se abriram.`, `⬇️ Stairs to Floor ${nf} have opened.`)}</div>
+      <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('descendDungeonFloor')}>${_pt(`⬇️ Descer ao Andar ${nf}`, `⬇️ Descend to Floor ${nf}`)}</button>
+      <button class="btn-secondary" style="margin-top:8px;width:100%" ${actionAttrs('closeDungeonVictory')}>${_pt('Explorar Antes', 'Explore First')}</button>
     </div>
   `;
 }
+
+  async function descendFloor() {
+    if (!D.activeDungeon) return;
+    if (D._descending) return;
+    if (!D.bossDefeated) {
+      log(`${_pt('⚠️ As escadas ainda estão seladas.', '⚠️ The stairs are still sealed.')}`, 'log-warning');
+      return;
+    }
+    D._descending = true;
+    try {
+      // Server re-validates (floor's boss defeated + still on that floor) before advancing.
+      const res = await apiFetch('POST', '/game/dungeon/descend', { floor: D.floor });
+      if (!res || !res.success) throw new Error(res?.error || _pt('Falha ao descer.', 'Failed to descend.'));
+      const m = document.getElementById('dungeon-boss-modal');
+      if (m) m.classList.add('hidden');
+      D.floor = res.newFloor;
+      if (typeof res.highestFloor === 'number') D.highestFloor = res.highestFloor;
+      D.bossDefeated = false;
+      delete D.savedProgress['tower'];
+      D.rooms = normalizeMiniBossRooms(generateFloor(D.activeDungeon, D.floor), D.floor);
+      D.playerPos = D.rooms.findIndex(r => r.isStart);
+      D.exploredRooms = new Set([D.playerPos]);
+      D.crawler = spawnCrawlerForCurrentFloor();
+      D.floorRunId = createFloorRunId();
+      D.combat = null;
+      D._combatPrefetch = null;
+      saveState();
+      saveProgressToDB();
+      refreshCharacter();
+      log(`${_pt(`⬇️ Descendo para o Andar ${D.floor}...`, `⬇️ Descending to Floor ${D.floor}...`)}`, 'log-enter');
+      renderDungeonView();
+    } catch (e) {
+      console.error('Descend failed:', e);
+      const msg = (e && (e.message || e)) || _pt('Falha ao descer.', 'Failed to descend.');
+      if (typeof openGameDialog === 'function') {
+        await openGameDialog({ title: _pt('Descida Bloqueada', 'Descent Blocked'), message: String(msg), confirmLabel: 'OK', showCancel: false });
+      } else {
+        alert(msg);
+      }
+    } finally {
+      D._descending = false;
+    }
+  }
 
 function toggleMonsterLore(idx) {
   const cards = document.querySelectorAll('.monster-combat-card');
@@ -4284,6 +4374,7 @@ function dungeonExit() {
             explored: [...D.exploredRooms],
             crawler: D.crawler,
             floorRunId: D.floorRunId,
+            bossDefeated: !!D.bossDefeated,
         };
     }
 
@@ -5028,6 +5119,7 @@ global.claimGuildBounty = claimGuildBounty;
   global.dungeonEscapeCancel  = () => { cancelEscape(); };
   global.dungeonFightBoss    = fightBoss;
   global.dungeonExit         = dungeonExit;
+  global.descendDungeonFloor = descendFloor;
   global.closeDungeonVictory = closeDungeonVictory;
   global.toggleMonsterLore   = toggleMonsterLore;
   global.deckNav             = deckNav;
