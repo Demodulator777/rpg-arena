@@ -1883,10 +1883,10 @@ function renderCharacterSwitcher() {
     content.innerHTML = `
         <div class="character-switch-header">
             <div>
-                <div class="character-switch-title">Seus Personagens</div>
-                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} vagas usadas</div>
+                <div class="character-switch-title">Your characters</div>
+                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} slots used</div>
             </div>
-            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ Novo Personagem</button>` : ''}
+            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ New character</button>` : ''}
         </div>
         <div class="character-switch-grid">
             ${accountCharacters.map(c => {
@@ -1897,13 +1897,13 @@ function renderCharacterSwitcher() {
                         <div class="character-switch-name">${escHtml(c.name)}</div>
                         <div class="character-switch-meta">Lv.${c.level} ${c.evolvedClassName || capitalize(c.class)}</div>
                     </div>
-                    <div class="character-switch-state">${isActive ? 'Ativo' : 'Jogar'}</div>
+                    <div class="character-switch-state">${isActive ? 'Active' : 'Play'}</div>
                 </button>`;
     }).join('')}
             ${Array.from({ length: remaining }, (_, i) => `
                 <button class="character-switch-card empty" ${actionAttrs('openCharacterCreation')}>
-                    <div class="character-switch-empty">Vaga Vazia ${accountCharacters.length + i + 1}</div>
-                    <div class="character-switch-meta">Crie outra classe</div>
+                    <div class="character-switch-empty">Empty Slot ${accountCharacters.length + i + 1}</div>
+                    <div class="character-switch-meta">Create another class</div>
                 </button>
             `).join('')}
         </div>`;
