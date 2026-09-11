@@ -5803,7 +5803,7 @@ async function saveLoadout() {
         await api('POST','/game/loadout',{attackZones,blockZones});
         character.attack_zones=JSON.stringify(attackZones);
         character.block_zones=JSON.stringify(blockZones);
-        showMsg('loadout-msg','Loadout salvo!');
+        showMsg('loadout-msg','Loadout saved!');
     } catch(e) { showMsg('loadout-msg',e.message,true); }
 }
 
