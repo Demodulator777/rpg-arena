@@ -973,6 +973,11 @@ async function api(method, path, body=null) {
         path.indexOf('/dungeon/lock-refresh') === -1 &&
         path.indexOf('/dungeon/mp-spent') === -1 &&
         path.indexOf('/dungeon/progress') === -1 &&
+        path.indexOf('/dungeon/release-room') === -1 &&
+        path.indexOf('/dungeon/room-exit') === -1 &&
+        path.indexOf('/dungeon/crawler') === -1 &&
+        path.indexOf('/dungeon/tokens') === -1 &&
+        path.indexOf('/event/finish') === -1 &&
         path.indexOf('/squads/logo') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
