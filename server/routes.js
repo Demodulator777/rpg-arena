@@ -18031,6 +18031,11 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
         // File uploads are picked via the OS file dialog, so the API call reliably
         // lands >3s after the last trusted event — never a scripting signal.
         if (d.includes('/squads/logo')) return res.json({ success: true, ignored: true });
+        // Dungeon combat resolves automatically on the server; the follow-up
+        // bookkeeping POSTs legitimately land >3s after the player's last click.
+        if (d.includes('/dungeon/release-room') || d.includes('/dungeon/room-exit') ||
+            d.includes('/dungeon/crawler') || d.includes('/dungeon/tokens') ||
+            d.includes('/event/finish')) return res.json({ success: true, ignored: true });
         await ensureFlaggedTable(db);
         const reasonType = 'untrusted_api';
         const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
