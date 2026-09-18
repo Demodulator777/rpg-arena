@@ -62,7 +62,7 @@ function renderLayout() {
         { id: 'bans', label: 'Bans' },
         { id: 'profile-pic-review', label: 'Profile Pic Review' },
     ];
-    if (!isModOnly) {
+if (!isModOnly) {
         tabs.push(
             { id: 'banners', label: 'Banners' },
             { id: 'rewards', label: 'Rewards' },
@@ -74,7 +74,8 @@ function renderLayout() {
             { id: 'settings', label: 'Settings' },
             { id: 'android', label: 'Android Testers' },
             { id: 'console', label: 'Console' },
-            { id: 'moderators', label: 'Moderators' }
+            { id: 'moderators', label: 'Moderators' },
+            { id: 'ringforge', label: 'Ring Forge' }
         );
     }
     document.getElementById('app').innerHTML =
@@ -117,8 +118,9 @@ function loadTab(name) {
     else if (name === 'weekly') loadWeekly();
     else if (name === 'bans') loadBans();
     else if (name === 'profile-pic-review') renderProfilePicReview();
-    else if (name === 'settings') loadSettings();
+else if (name === 'settings') loadSettings();
     else if (name === 'android') loadAndroid();
+    else if (name === 'ringforge') loadRingForge();
 }
 
 function loadAndroid() {
@@ -339,6 +341,7 @@ function queryTable(table, page, filterOverride) {
             return; }
         
         var totalPages = Math.ceil(res.total / res.limit);
+        var pk = res.pk || 'id';
         var cols = Object.keys(data[0]);
         var html = '<div class="db-scroll"><table>' +
             '<thead><tr>' + cols.map(function(c) { return '<th>' + esc(c) + '</th>'; }).join('') + '<th>Actions</th></tr></thead>' +
@@ -346,20 +349,21 @@ function queryTable(table, page, filterOverride) {
         
         data.forEach(function(row, rowIdx) {
             var rid = 'db-r' + page + '-' + rowIdx;
+            var keyVal = row[pk] ?? '';
             html += '<tr id="' + rid + '">';
             cols.forEach(function(c) {
                 var val = String(row[c] ?? '');
                 html += '<td title="' + esc(val) + '">' +
                     '<span class="dsp">' + esc(val) + '</span>' +
                     '<input type="text" value="' + esc(val) + '" class="ed" ' +
-                    'data-table="' + table + '" data-field="' + c + '" data-id="' + row.id + '">' +
+                    'data-table="' + table + '" data-field="' + c + '" data-key="' + pk + '" data-id="' + keyVal + '">' +
                     '</td>';
             });
             html += '<td class="td-actions">' +
                 '<button class="db-btn db-btn-edit ed-btn" data-rid="' + rid + '">Edit</button>' +
                 '<button class="db-btn db-btn-apply ap-btn" data-rid="' + rid + '" style="display:none">Apply</button>' +
                 '<button class="db-btn db-btn-cancel ca-btn" data-rid="' + rid + '" style="display:none">Cancel</button>' +
-                '<button class="db-btn db-btn-del del-btn" data-table="' + table + '" data-id="' + row.id + '" data-page="' + page + '">Delete</button>' +
+                '<button class="db-btn db-btn-del del-btn" data-table="' + table + '" data-key="' + pk + '" data-id="' + keyVal + '" data-page="' + page + '">Delete</button>' +
                 '</td>';
             html += '</tr>';
         });
@@ -438,7 +442,7 @@ function queryTable(table, page, filterOverride) {
         // Delete buttons
         el.querySelectorAll('.del-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
-                if (confirm('Delete this record?')) deleteRecord(table, btn.dataset.id, page);
+                if (confirm('Delete this record?')) deleteRecord(table, btn.dataset.id, page, btn.dataset.key);
             });
         });
 
@@ -463,11 +467,11 @@ function switchRowView(row) {
     row.querySelector('.del-btn').style.display = 'inline-block';
 }
 
-function deleteRecord(table, id, page) {
+function deleteRecord(table, id, page, key) {
     fetch('/api/db/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
-        body: JSON.stringify({ table: table, id: id })
+        body: JSON.stringify({ table: table, id: id, key: key })
     }).then(function(r) { return r.json(); }).then(function(res) {
         if (!res.success) alert('Failed to delete: ' + res.error);
         else queryTable(table, page);
@@ -478,7 +482,7 @@ function saveCell(input) {
     return fetch('/api/db/update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
-        body: JSON.stringify({ table: input.dataset.table, field: input.dataset.field, value: input.value, id: input.dataset.id })
+        body: JSON.stringify({ table: input.dataset.table, field: input.dataset.field, value: input.value, id: input.dataset.id, key: input.dataset.key })
     }).then(function(r) { return r.json(); }).then(function(res) {
         if (!res.success) { alert('Failed to update: ' + res.error); throw new Error(res.error); }
     });
@@ -1203,6 +1207,7 @@ function loadConsole() {
         '<span style="flex:1"></span>' +
         '<span id="sw-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">SW: <span id="sw-status-text">...</span> <button class="db-btn" id="sw-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
         '<span id="bot-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">Bot Detection: <span id="bot-status-text">...</span> <button class="db-btn" id="bot-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
+        '<span id="story-boost-toggle-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">Story Boost: <span id="story-boost-status-text">...</span> <button class="db-btn" id="story-boost-toggle-btn" style="font-size:11px;padding:2px 10px">Toggle</button></span>' +
         '<span id="s1-launch-wrap" style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#8a8a90">S1 Launch: <input type="datetime-local" id="s1-launch-input" style="font-size:11px;background:#14141a;color:#e6e6ee;border:1px solid #333"> <button class="db-btn" id="s1-launch-save" style="font-size:11px;padding:2px 10px">Set</button></span>' +
         '</div>' +
         '<div id="console-output" style="background:#0a0a0f;color:#c8d6e5;font-family:monospace;font-size:12px;padding:12px;border-radius:6px;max-height:70vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">Waiting for logs...</div>';
@@ -1230,19 +1235,24 @@ function loadConsole() {
     // SW status toggle
     var swText = document.getElementById('sw-status-text');
     var swBtn = document.getElementById('sw-toggle-btn');
-    var botText = document.getElementById('bot-status-text');
+var botText = document.getElementById('bot-status-text');
     var botBtn = document.getElementById('bot-toggle-btn');
+    var storyBoostText = document.getElementById('story-boost-status-text');
+    var storyBoostBtn = document.getElementById('story-boost-toggle-btn');
     var tok = function() { return localStorage.getItem('rpg_token'); };
 
     function refreshSettings() {
         fetch('/api/game/admin/settings', { headers: { 'Authorization': 'Bearer ' + tok() } }).then(function(r) { return r.json(); }).then(function(s) {
             var swOn = s.sw_enabled === true || s.sw_enabled === 'true' || s.sw_enabled === '1';
             var botOn = s.bot_detection_enabled === true || s.bot_detection_enabled === 'true';
+            var storyBoostOn = s.story_boost_enabled === true || s.story_boost_enabled === 'true' || s.story_boost_enabled === undefined;
             swText.textContent = swOn ? '✅ ON' : '❌ OFF';
             swText.style.color = swOn ? '#50c878' : '#e06060';
             botText.textContent = botOn ? '✅ ON' : '❌ OFF';
             botText.style.color = botOn ? '#50c878' : '#e06060';
-        }).catch(function() { swText.textContent = '?'; botText.textContent = '?'; });
+            storyBoostText.textContent = storyBoostOn ? '✅ ON' : '❌ OFF';
+            storyBoostText.style.color = storyBoostOn ? '#50c878' : '#e06060';
+        }).catch(function() { swText.textContent = '?'; botText.textContent = '?'; storyBoostText.textContent = '?'; });
     }
     refreshSettings();
 
@@ -1251,9 +1261,14 @@ function loadConsole() {
         fetch('/api/game/admin/sw-toggle', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function() { refreshSettings(); });
     });
     
-    botBtn.addEventListener('click', function() {
+botBtn.addEventListener('click', function() {
         var currentlyOn = botText.textContent.indexOf('ON') !== -1;
         fetch('/api/game/admin/settings/bot-detection', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function() { refreshSettings(); });
+    });
+
+    storyBoostBtn.addEventListener('click', function() {
+        var currentlyOn = storyBoostText.textContent.indexOf('ON') !== -1;
+        fetch('/api/game/admin/settings/story-boost', { method:'POST', headers: { 'Content-Type':'application/json', 'Authorization':'Bearer ' + tok() }, body: JSON.stringify({ enabled: !currentlyOn }) }).then(function() { refreshSettings(); });
     });
 
     var s1Input = document.getElementById('s1-launch-input');
@@ -1984,7 +1999,633 @@ function loadVouchers() {
                 post('/admin/vouchers/delete', { id: Number(btn.dataset.voucherDelete) }, 'Deleted.');
             });
         });
-    }).catch(function(e) {
+}).catch(function(e) {
         el.innerHTML = '<div class="loading">' + escHtml(e.message || 'Error loading vouchers') + '</div>';
     });
+}
+
+// ── Ring Forge (build spinning ring assets from layered transparent images) ──
+function loadRingForge() {
+    var el = document.getElementById('tab-ringforge');
+    el.innerHTML = '<div class="loading">Loading ring forge...</div>';
+    el.innerHTML =
+        '<div class="rf-layout">' +
+            '<div class="rf-rail">' +
+                '<div class="rf-card">' +
+                    '<h3>Elements</h3>' +
+                    '<button class="rf-add-btn" id="rf-add-btn">+ Add Image Layer (PNG)</button>' +
+                    '<input type="file" id="rf-file" accept="image/png" multiple style="display:none">' +
+                '</div>' +
+                '<div class="rf-card"><h3>Layers</h3><div class="rf-layers" id="rf-layers"></div></div>' +
+                '<div class="rf-card"><h3>Selected Layer</h3><div id="rf-inspector"></div></div>' +
+                '<div class="rf-card"><h3>Ring Library</h3><div id="rf-lib"></div></div>' +
+            '</div>' +
+            '<div class="rf-stage">' +
+                '<div class="rf-stage-block">' +
+                    '<div class="rf-stage-label">Assembly &mdash; drag layers, align to center</div>' +
+                    '<div class="rf-checker"><canvas id="rf-edit" width="480" height="480"></canvas></div>' +
+                    '<div class="rf-stage-hint">Gold crosshair and rings mark true center &mdash; keep the design symmetric around it so the spin reads cleanly.</div>' +
+                '</div>' +
+                '<div class="rf-stage-block">' +
+                    '<div class="rf-stage-label">Live Preview &mdash; clockwise spin</div>' +
+                    '<div class="rf-preview-frame rf-checker"><canvas id="rf-preview" width="480" height="480" style="width:210px;height:210px;"></canvas></div>' +
+                '</div>' +
+                '<div class="rf-stage-block">' +
+                    '<div class="rf-stage-label">Ring Text Marker &mdash; mark the arc band</div>' +
+                    '<div class="rf-checker"><canvas id="rf-textmark" width="480" height="300"></canvas></div>' +
+                    '<div class="rf-stage-hint">Adjust the sliders until the yellow band hugs the lettering. Drag the center crosshair to reposition.</div>' +
+                    '<div class="rf-textmark-row">' +
+                        '<select id="rf-textmark-ring"></select>' +
+                        '<button class="rf-export-btn" id="rf-textmark-load">Load Ring</button>' +
+                    '</div>' +
+                    '<div class="rf-textmark-controls">' +
+                        '<label>cx <input type="number" id="rf-textmark-cx" step="0.01" min="0" max="1" value="0.500" style="width:64px"></label>' +
+                        '<label>cy <input type="number" id="rf-textmark-cy" step="0.01" min="0" max="1" value="0.500" style="width:64px"></label>' +
+                        '<label>r <input type="range" id="rf-textmark-r" min="0.05" max="0.70" step="0.01" value="0.42" style="width:100px;accent-color:#8b6bff"></label>' +
+                        '<label>thick <input type="range" id="rf-textmark-thick" min="0.02" max="0.20" step="0.01" value="0.07" style="width:90px;accent-color:#8b6bff"></label>' +
+                        '<label>a0 <input type="number" id="rf-textmark-a0" step="5" min="-180" max="180" value="-150" style="width:60px">deg</label>' +
+                        '<label>a1 <input type="number" id="rf-textmark-a1" step="5" min="-180" max="180" value="-30" style="width:60px">deg</label>' +
+                    '</div>' +
+                    '<div class="rf-textmark-row">' +
+                        '<button class="rf-save-btn" id="rf-textmark-save">Save Band</button>' +
+                        '<button class="rf-del-btn" id="rf-textmark-clear">Clear</button>' +
+                    '</div>' +
+                    '<div class="rf-textmark-coords" id="rf-textmark-coords">Adjust the sliders to define the arc band.</div>' +
+                '</div>' +
+                '<div class="rf-save-bar">' +
+                    '<input class="rf-ring-id-input" id="rf-id" placeholder="award-ring-2">' +
+                    '<button class="rf-export-btn" id="rf-export">Export PNG</button>' +
+                    '<button class="rf-save-btn" id="rf-save">Save to Server</button>' +
+                '</div>' +
+                '<div class="rf-status" id="rf-status"></div>' +
+            '</div>' +
+        '</div>';
+
+    var STAGE = 480;
+    var editCanvas = document.getElementById('rf-edit');
+    var previewCanvas = document.getElementById('rf-preview');
+    var ectx = editCanvas.getContext('2d');
+    var pctx = previewCanvas.getContext('2d');
+    var compCanvas = document.createElement('canvas');
+    compCanvas.width = STAGE; compCanvas.height = STAGE;
+    var cctx = compCanvas.getContext('2d');
+    var center = STAGE / 2;
+
+    var layers = [];
+    var selectedId = null;
+    var dragging = false;
+    var dragOffset = { x: 0, y: 0 };
+    var nextId = 1;
+
+    var layersEl = document.getElementById('rf-layers');
+    var inspectorEl = document.getElementById('rf-inspector');
+    var statusEl = document.getElementById('rf-status');
+    var idInput = document.getElementById('rf-id');
+
+    function radiusOf(l) { return Math.max(l.w, l.h) * l.scale / 2; }
+    function rfStatus(msg, ok) {
+        statusEl.textContent = msg;
+        statusEl.style.color = ok ? '#2ecc71' : '#e06060';
+    }
+
+    function drawLayerInto(ctx, l) {
+        ctx.save();
+        ctx.globalAlpha = l.opacity;
+        ctx.translate(center + l.x, center + l.y);
+        ctx.rotate(l.rotation * Math.PI / 180);
+        ctx.scale(l.scale, l.scale);
+        ctx.drawImage(l.img, -l.w / 2, -l.h / 2, l.w, l.h);
+        ctx.restore();
+    }
+    function drawGuides(ctx) {
+        ctx.save();
+        ctx.strokeStyle = 'rgba(201,163,78,0.35)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(center, 0); ctx.lineTo(center, STAGE);
+        ctx.moveTo(0, center); ctx.lineTo(STAGE, center);
+        ctx.stroke();
+        ctx.setLineDash([4, 5]);
+        ctx.strokeStyle = 'rgba(201,163,78,0.22)';
+        [0.25, 0.5, 0.75, 1].forEach(function (f) {
+            ctx.beginPath();
+            ctx.arc(center, center, (STAGE / 2) * f, 0, Math.PI * 2);
+            ctx.stroke();
+        });
+        ctx.setLineDash([]);
+        ctx.restore();
+    }
+    function drawSelection(ctx, l) {
+        ctx.save();
+        ctx.strokeStyle = '#8b6bff';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath();
+        ctx.arc(center + l.x, center + l.y, radiusOf(l) * 1.06, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.restore();
+    }
+    function render() {
+        ectx.clearRect(0, 0, STAGE, STAGE);
+        drawGuides(ectx);
+        layers.forEach(function (l) { drawLayerInto(ectx, l); });
+        var sel = layers.length && layers.filter(function (l) { return l.id === selectedId; })[0];
+        if (sel) drawSelection(ectx, sel);
+
+        cctx.clearRect(0, 0, STAGE, STAGE);
+        layers.forEach(function (l) { drawLayerInto(cctx, l); });
+        pctx.clearRect(0, 0, STAGE, STAGE);
+        pctx.drawImage(compCanvas, 0, 0);
+
+        renderLayerList();
+        renderInspector();
+    }
+    function renderLayerList() {
+        layersEl.innerHTML = '';
+        if (!layers.length) {
+            layersEl.innerHTML = '<div class="rf-empty">No layers yet.<br>Add PNGs with transparent backgrounds or pull one from the library.</div>';
+            return;
+        }
+        for (var i = layers.length - 1; i >= 0; i--) {
+            (function (l) {
+                var row = document.createElement('div');
+                row.className = 'rf-layer' + (l.id === selectedId ? ' selected' : '');
+                var thumb = document.createElement('div');
+                thumb.className = 'rf-thumb';
+                var img = document.createElement('img');
+                img.src = l.img.src;
+                thumb.appendChild(img);
+                var name = document.createElement('div');
+                name.className = 'rf-layer-name';
+                name.textContent = l.name;
+                name.title = l.name;
+                row.appendChild(thumb);
+                row.appendChild(name);
+                var up = document.createElement('button');
+                up.className = 'rf-icon-btn'; up.innerHTML = '&#9650;'; up.title = 'Bring forward';
+                var down = document.createElement('button');
+                down.className = 'rf-icon-btn'; down.innerHTML = '&#9660;'; down.title = 'Send backward';
+                var del = document.createElement('button');
+                del.className = 'rf-icon-btn del'; del.innerHTML = '&times;'; del.title = 'Delete layer';
+                var btns = document.createElement('div');
+                btns.style.cssText = 'display:flex;gap:2px;';
+                btns.appendChild(up); btns.appendChild(down); btns.appendChild(del);
+                row.appendChild(btns);
+                row.addEventListener('click', function (e) {
+                    if (e.target.closest('.rf-icon-btn')) return;
+                    selectedId = l.id; render();
+                });
+                up.addEventListener('click', function () { moveLayer(l.id, 1); });
+                down.addEventListener('click', function () { moveLayer(l.id, -1); });
+                del.addEventListener('click', function () { deleteLayer(l.id); });
+                layersEl.appendChild(row);
+            })(layers[i]);
+        }
+    }
+    function moveLayer(id, dir) {
+        var i = layers.findIndex(function (l) { return l.id === id; });
+        var j = i + dir;
+        if (j < 0 || j >= layers.length) return;
+        var tmp = layers[i]; layers[i] = layers[j]; layers[j] = tmp;
+        render();
+    }
+    function deleteLayer(id) {
+        layers = layers.filter(function (l) { return l.id !== id; });
+        if (selectedId === id) selectedId = null;
+        render();
+    }
+    function renderInspector() {
+        var l = layers.filter(function (x) { return x.id === selectedId; })[0];
+        if (!l) {
+            inspectorEl.innerHTML = '<div class="rf-no-sel">No layer selected &mdash; click a layer to edit scale, rotation, opacity and position.</div>';
+            return;
+        }
+        function numVal(v, d) { return Math.round((v || d) * 100) / 100; }
+        inspectorEl.innerHTML =
+            '<div class="rf-field"><div class="rf-field-label">Scale <b id="rf-sv">' + l.scale.toFixed(2) + 'x</b></div>' +
+                '<input type="range" id="rf-ss" min="0.05" max="3" step="0.01" value="' + l.scale + '"></div>' +
+            '<div class="rf-field"><div class="rf-field-label">Rotation <b id="rf-rv">' + Math.round(l.rotation) + '&deg;</b></div>' +
+                '<input type="range" id="rf-rs" min="0" max="360" step="1" value="' + l.rotation + '"></div>' +
+            '<div class="rf-field"><div class="rf-field-label">Opacity <b id="rf-ov">' + Math.round(l.opacity * 100) + '%</b></div>' +
+                '<input type="range" id="rf-os" min="0" max="1" step="0.01" value="' + l.opacity + '"></div>' +
+            '<button class="rf-center-btn" id="rf-center">Center on ring axis</button>';
+        inspectorEl.querySelector('#rf-ss').addEventListener('input', function (e) {
+            l.scale = numVal(parseFloat(e.target.value), 1);
+            document.getElementById('rf-sv').textContent = l.scale.toFixed(2) + 'x';
+            quickRender();
+        });
+        inspectorEl.querySelector('#rf-rs').addEventListener('input', function (e) {
+            l.rotation = numVal(parseFloat(e.target.value), 0);
+            document.getElementById('rf-rv').innerHTML = Math.round(l.rotation) + '&deg;';
+            quickRender();
+        });
+        inspectorEl.querySelector('#rf-os').addEventListener('input', function (e) {
+            l.opacity = numVal(parseFloat(e.target.value), 1);
+            document.getElementById('rf-ov').textContent = Math.round(l.opacity * 100) + '%';
+            quickRender();
+        });
+        inspectorEl.querySelector('#rf-center').addEventListener('click', function () {
+            l.x = 0; l.y = 0; render();
+        });
+    }
+    function quickRender() {
+        ectx.clearRect(0, 0, STAGE, STAGE);
+        drawGuides(ectx);
+        layers.forEach(function (l) { drawLayerInto(ectx, l); });
+        var sel = layers.filter(function (l) { return l.id === selectedId; })[0];
+        if (sel) drawSelection(ectx, sel);
+        cctx.clearRect(0, 0, STAGE, STAGE);
+        layers.forEach(function (l) { drawLayerInto(cctx, l); });
+        pctx.clearRect(0, 0, STAGE, STAGE);
+        pctx.drawImage(compCanvas, 0, 0);
+    }
+
+    function addImage(img, label) {
+        var maxDim = STAGE * 0.6;
+        var w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+        var scaleFit = Math.min(1, maxDim / Math.max(w, h));
+        layers.push({
+            id: nextId++, name: label || ('layer-' + nextId),
+            img: img, x: 0, y: 0,
+            scale: scaleFit, rotation: 0, opacity: 1,
+            w: w, h: h
+        });
+        selectedId = layers[layers.length - 1].id;
+        render();
+    }
+
+    // Add element images
+    document.getElementById('rf-add-btn').addEventListener('click', function () {
+        document.getElementById('rf-file').click();
+    });
+    document.getElementById('rf-file').addEventListener('change', function (e) {
+        Array.prototype.forEach.call(e.target.files, function (file) {
+            var reader = new FileReader();
+            reader.onload = function () {
+                var img = new Image();
+                img.onload = function () { addImage(img, file.name.replace(/\.[^.]+$/, '')); };
+                img.src = reader.result;
+            };
+            reader.readAsDataURL(file);
+        });
+        e.target.value = '';
+    });
+
+    // Drag on edit canvas
+    function rfCanvasPos(e) {
+        var rect = editCanvas.getBoundingClientRect();
+        var sx = STAGE / rect.width, sy = STAGE / rect.height;
+        return { x: (e.clientX - rect.left) * sx, y: (e.clientY - rect.top) * sy };
+    }
+    editCanvas.addEventListener('mousedown', function (e) {
+        var p = rfCanvasPos(e);
+        for (var i = layers.length - 1; i >= 0; i--) {
+            var l = layers[i];
+            var dx = p.x - (center + l.x), dy = p.y - (center + l.y);
+            if (Math.sqrt(dx * dx + dy * dy) <= Math.max(radiusOf(l), 12)) {
+                selectedId = l.id;
+                dragging = true;
+                dragOffset = { x: dx, y: dy };
+                editCanvas.classList.add('dragging');
+                render();
+                return;
+            }
+        }
+    });
+    window.addEventListener('mousemove', function (e) {
+        if (!dragging) return;
+        var l = layers.filter(function (x) { return x.id === selectedId; })[0];
+        if (!l) return;
+        var p = rfCanvasPos(e);
+        l.x = p.x - dragOffset.x - center;
+        l.y = p.y - dragOffset.y - center;
+        quickRender();
+    });
+    window.addEventListener('mouseup', function () {
+        if (dragging) { dragging = false; editCanvas.classList.remove('dragging'); render(); }
+    });
+
+    function renderComposited() {
+        cctx.clearRect(0, 0, STAGE, STAGE);
+        layers.forEach(function (l) { drawLayerInto(cctx, l); });
+    }
+
+    // Export PNG (download)
+    document.getElementById('rf-export').addEventListener('click', function () {
+        renderComposited();
+        var url = compCanvas.toDataURL('image/png');
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = (idInput.value.trim() || 'ring') + '.png';
+        a.click();
+        rfStatus('Exported PNG with alpha.', true);
+        render();
+    });
+
+    // Save to server (overwrites the canonical file for the given ring id)
+    document.getElementById('rf-save').addEventListener('click', function () {
+        var ringId = idInput.value.trim();
+        if (!ringId) { rfStatus('Enter a ring id first (e.g. award-ring-2).', false); return; }
+        renderComposited();
+        compCanvas.toBlob(function (bl) {
+            if (!bl) { rfStatus('PNG encoding failed.', false); return; }
+            var fd = new FormData();
+            fd.append('ring', bl, ringId + '.png');
+            fd.append('ringId', ringId);
+            rfStatus('Saving ' + ringId + '...', true);
+            fetch('/api/game/admin/rings/save', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+                body: fd
+            }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+              .then(function (res) {
+                  if (!res.ok) { rfStatus((res.d && res.d.error) || 'Save failed.', false); return; }
+                  rfStatus('Saved -> ' + (res.d.url || ringId + '.png'), true);
+                  loadRingLibrary();
+              })
+              .catch(function (err) { rfStatus('Save error: ' + err.message, false); });
+        }, 'image/png');
+    });
+
+    // Library: existing ring assets
+    function renderLibrary(rings) {
+        var lib = document.getElementById('rf-lib');
+        if (!rings.length) {
+            lib.innerHTML = '<div class="rf-empty">No rings on disk yet.<br>Save your first composition to create one.</div>';
+            return;
+        }
+        lib.innerHTML = '';
+        rings.forEach(function (r) {
+            var item = document.createElement('div');
+            item.className = 'rf-ring-item';
+            var img = document.createElement('img');
+            img.src = r.url;
+            img.onerror = function () { img.style.opacity = '0.25'; };
+            var name = document.createElement('div');
+            name.className = 'rf-ring-name';
+            name.textContent = r.id;
+            name.title = r.id;
+            var use = document.createElement('button');
+            use.className = 'db-btn db-btn-apply'; use.textContent = 'Base';
+            use.title = 'Load as centered base layer';
+            use.addEventListener('click', function () { loadRingInto(r); });
+            var del = document.createElement('button');
+            del.className = 'db-btn db-btn-del'; del.textContent = 'X';
+            del.title = 'Delete this ring asset';
+            del.addEventListener('click', function () { deleteRing(r.id); });
+            item.appendChild(img);
+            item.appendChild(name);
+            item.appendChild(use);
+            item.appendChild(del);
+            lib.appendChild(item);
+        });
+    }
+    function loadRingInto(r) {
+        var img = new Image();
+        img.onload = function () { addImage(img, r.id); };
+        img.onerror = function () { rfStatus('Could not load ' + r.id, false); };
+        img.src = r.url;
+    }
+    function deleteRing(ringId) {
+        if (!confirm('Delete ring asset ' + ringId + '.png?')) return;
+        fetch('/api/game/admin/rings/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') },
+            body: JSON.stringify({ ringId: ringId })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.error) { rfStatus(d.error, false); return; }
+            rfStatus('Deleted ' + ringId, true);
+            loadRingLibrary();
+        }).catch(function (err) { rfStatus('Delete error: ' + err.message, false); });
+    }
+    function loadRingLibrary() {
+        fetch('/api/game/admin/rings', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') } })
+            .then(function (r) { return r.json(); })
+            .then(function (d) { renderLibrary((d && d.rings) || []); })
+            .catch(function () { document.getElementById('rf-lib').innerHTML = '<div class="rf-empty">Failed to load library.</div>'; });
+    }
+    loadRingLibrary();
+    render();
+    textMarkerInit();
+}
+
+// ── Ring Text Marker (arc band: visible & adjustable via sliders) ──
+function textMarkerInit() {
+    var mk = document.getElementById('rf-textmark');
+    if (!mk) return;
+    var mctx = mk.getContext('2d');
+    var MW = mk.width, MH = mk.height;
+    var select = document.getElementById('rf-textmark-ring');
+    var thickSlider = document.getElementById('rf-textmark-thick');
+    var rSlider = document.getElementById('rf-textmark-r');
+    var a0Slider = document.getElementById('rf-textmark-a0');
+    var a1Slider = document.getElementById('rf-textmark-a1');
+    var coordInputs = {
+        cx: document.getElementById('rf-textmark-cx'),
+        cy: document.getElementById('rf-textmark-cy')
+    };
+    var coordsEl = document.getElementById('rf-textmark-coords');
+    var img = null;
+    var natW = 0, natH = 0;
+    var sc = 1, offX = 0, offY = 0;
+    var curRingId = null;
+
+    // band: cx,cy fractions; r,thickness fractions of min dim; startAngle,endAngle radians
+    var band = { cx: 0.5, cy: 0.5, r: 0.42, thickness: 0.07, startAngle: -2.6, endAngle: -0.5 };
+    var centerDrag = null;
+
+    function auth() { return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('rpg_token') }; }
+
+    function status(msg, ok) {
+        coordsEl.textContent = msg;
+        coordsEl.style.color = ok ? '#80d080' : '#e0b080';
+        if (ok) setTimeout(function () { render(); }, 800);
+    }
+
+    function readSliders() {
+        band.cx = parseFloat(coordInputs.cx.value) || 0.5;
+        band.cy = parseFloat(coordInputs.cy.value) || 0.5;
+        band.r = parseFloat(rSlider.value) || 0.42;
+        band.thickness = parseFloat(thickSlider.value) || 0.07;
+        band.startAngle = (parseFloat(a0Slider.value) || 0) * Math.PI / 180;
+        band.endAngle = (parseFloat(a1Slider.value) || 0) * Math.PI / 180;
+    }
+
+    function writeSliders() {
+        coordInputs.cx.value = band.cx.toFixed(3);
+        coordInputs.cy.value = band.cy.toFixed(3);
+        rSlider.value = band.r;
+        thickSlider.value = band.thickness;
+        a0Slider.value = (band.startAngle * 180 / Math.PI).toFixed(1);
+        a1Slider.value = (band.endAngle * 180 / Math.PI).toFixed(1);
+    }
+
+    function natPoint(px, py) { return { x: (px - offX) / sc, y: (py - offY) / sc }; }
+
+    function render() {
+        mctx.clearRect(0, 0, MW, MH);
+        if (!img) {
+            mctx.fillStyle = '#1a1a28'; mctx.fillRect(0, 0, MW, MH);
+            mctx.fillStyle = '#6a6a70'; mctx.font = '12px monospace';
+            mctx.fillText('Pick a ring above and click "Load Ring".', 20, MH / 2);
+            return;
+        }
+        mctx.fillStyle = '#171220'; mctx.fillRect(0, 0, MW, MH);
+        var drawW = Math.min(MW - 40, (natW / natH) * (MH - 40));
+        var drawH = Math.min(MH - 40, (natH / natW) * (MW - 40));
+        sc = drawW / natW; offX = (MW - drawW) / 2; offY = (MH - drawH) / 2;
+        mctx.drawImage(img, offX, offY, drawW, drawH);
+
+        var ccx = offX + band.cx * sc, ccy = offY + band.cy * sc;
+        // center crosshair (draggable)
+        mctx.strokeStyle = '#ffd166'; mctx.lineWidth = 1.5;
+        mctx.beginPath(); mctx.moveTo(ccx - 8, ccy); mctx.lineTo(ccx + 8, ccy); mctx.stroke();
+        mctx.beginPath(); mctx.moveTo(ccx, ccy - 8); mctx.lineTo(ccx, ccy + 8); mctx.stroke();
+
+        // arc band preview
+        if (band.r > 0 && (band.endAngle - band.startAngle) > 0.005) {
+            var ir = Math.max(1, (band.r - band.thickness / 2) * sc);
+            var or2 = Math.max(2, (band.r + band.thickness / 2) * sc);
+            mctx.fillStyle = 'rgba(255,209,102,0.22)';
+            mctx.beginPath();
+            mctx.arc(ccx, ccy, or2, band.startAngle, band.endAngle);
+            mctx.arc(ccx, ccy, ir, band.endAngle, band.startAngle, true);
+            mctx.closePath();
+            mctx.fill();
+            mctx.strokeStyle = 'rgba(255,209,102,0.5)'; mctx.lineWidth = 1;
+            mctx.stroke();
+            // endpoint dots
+            mctx.fillStyle = '#ff8080';
+            mctx.beginPath(); mctx.arc(ccx + Math.cos(band.startAngle) * band.r * sc, ccy + Math.sin(band.startAngle) * band.r * sc, 4, 0, Math.PI * 2); mctx.fill();
+            mctx.fillStyle = '#80ff80';
+            mctx.beginPath(); mctx.arc(ccx + Math.cos(band.endAngle) * band.r * sc, ccy + Math.sin(band.endAngle) * band.r * sc, 4, 0, Math.PI * 2); mctx.fill();
+        }
+    }
+
+    function bandToNorm() {
+        if (!img || band.r <= 0) return null;
+        return {
+            cx: +band.cx.toFixed(4), cy: +band.cy.toFixed(4),
+            r: +band.r.toFixed(4), thickness: +band.thickness.toFixed(4),
+            startAngle: +band.startAngle.toFixed(4), endAngle: +band.endAngle.toFixed(4)
+        };
+    }
+
+    function showCoords() {
+        var n = bandToNorm();
+        coordsEl.style.color = '#c8a86e';
+        if (!n || n.r <= 0) { coordsEl.textContent = 'Adjust the sliders below to define the arc band.'; return; }
+        coordsEl.textContent = 'cx=' + n.cx + ' cy=' + n.cy + ' r=' + n.r + ' thick=' + n.thickness + ' a0=' + (n.startAngle*180/Math.PI).toFixed(1) + '\u00b0 a1=' + (n.endAngle*180/Math.PI).toFixed(1) + '\u00b0';
+    }
+
+    function loadRings() {
+        fetch('/api/game/admin/rings', { headers: auth() })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                var list = (d && d.rings) || [];
+                select.innerHTML = '';
+                list.forEach(function (ring) {
+                    var o = document.createElement('option');
+                    o.value = ring.id; o.textContent = ring.id;
+                    select.appendChild(o);
+                });
+                fetch('/api/game/admin/ring-text', { headers: auth() })
+                    .then(function (r) { return r.json(); })
+                    .then(function (d) { window.__rfTextMap = (d && d.map) || {}; })
+                    .catch(function () { window.__rfTextMap = {}; });
+            })
+            .catch(function () { select.innerHTML = '<option value="">No rings</option>'; });
+    }
+
+    function loadCurrentRing() {
+        var id = select.value;
+        if (!id) { status('Pick a ring id first.', false); return; }
+        curRingId = id;
+        var url = '/images/assets/awards/' + id + '.png';
+        var im = new Image();
+        im.crossOrigin = 'anonymous';
+        im.onload = function () {
+            img = im; natW = im.naturalWidth || im.width; natH = im.naturalHeight || im.height;
+            var m = (window.__rfTextMap || {})[curRingId];
+            if (m) {
+                band.cx = m.cx; band.cy = m.cy;
+                band.r = m.r; band.thickness = m.thickness || 0.07;
+                band.startAngle = m.startAngle; band.endAngle = m.endAngle;
+            } else {
+                band.cx = 0.5; band.cy = 0.5;
+                band.r = 0.42; band.thickness = 0.07;
+                band.startAngle = -2.6; band.endAngle = -0.5;
+            }
+            centerDrag = null;
+            writeSliders();
+            render(); showCoords();
+        };
+        im.onerror = function () { status('Could not load ' + id, false); };
+        im.src = url;
+    }
+
+    document.getElementById('rf-textmark-load').addEventListener('click', loadCurrentRing);
+
+    function clickPos(e) {
+        var r = mk.getBoundingClientRect();
+        return { x: (e.clientX - r.left) * (MW / r.width), y: (e.clientY - r.top) * (MH / r.height) };
+    }
+
+    mk.addEventListener('mousedown', function (e) {
+        if (!img) return;
+        var p = clickPos(e);
+        var dcx = p.x - (offX + band.cx * sc), dcy = p.y - (offY + band.cy * sc);
+        if (Math.sqrt(dcx * dcx + dcy * dcy) < 24) {
+            centerDrag = { dx: dcx, dy: dcy };
+        }
+    });
+    window.addEventListener('mousemove', function (e) {
+        if (!centerDrag || !img) return;
+        var p = clickPos(e);
+        band.cx = (p.x - centerDrag.dx - offX) / sc / natW;
+        band.cy = (p.y - centerDrag.dy - offY) / sc / natH;
+        render();
+    });
+    window.addEventListener('mouseup', function () {
+        if (centerDrag) {
+            centerDrag = null;
+            writeSliders(); showCoords();
+        }
+    });
+
+    // sliders update live
+    [coordInputs.cx, coordInputs.cy, rSlider, thickSlider, a0Slider, a1Slider].forEach(function (el) {
+        if (el) el.addEventListener('input', function () { render(); showCoords(); });
+    });
+
+    document.getElementById('rf-textmark-save').addEventListener('click', function () {
+        if (!curRingId) { status('Load a ring first.', false); return; }
+        var n = bandToNorm();
+        if (!n || n.r <= 0) { status('Set the arc band via sliders first.', false); return; }
+        fetch('/api/game/admin/ring-text', {
+            method: 'POST', headers: auth(),
+            body: JSON.stringify({ ringId: curRingId, cx: n.cx, cy: n.cy, r: n.r, thickness: n.thickness, startAngle: n.startAngle, endAngle: n.endAngle })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.error) { status(d.error, false); return; }
+            status('Saved band for ' + curRingId + ' (r=' + n.r + ' thick=' + n.thickness + ' a0=' + (n.startAngle*180/Math.PI).toFixed(1) + '\u00b0 a1=' + (n.endAngle*180/Math.PI).toFixed(1) + '\u00b0)', true);
+            (window.__rfTextMap = window.__rfTextMap || {})[curRingId] = n;
+        }).catch(function (err) { status('Save error: ' + err.message, false); });
+    });
+
+    document.getElementById('rf-textmark-clear').addEventListener('click', function () {
+        if (!curRingId) { status('Load a ring first.', false); return; }
+        fetch('/api/game/admin/ring-text/delete', {
+            method: 'POST', headers: auth(),
+            body: JSON.stringify({ ringId: curRingId })
+        }).then(function (r) { return r.json(); }).then(function (d) {
+            if (d.error) { status(d.error, false); return; }
+            band = { cx: 0.5, cy: 0.5, r: 0, thickness: 0.07, startAngle: 0, endAngle: 0 };
+            centerDrag = null; writeSliders(); render(); showCoords();
+            if (window.__rfTextMap) delete window.__rfTextMap[curRingId];
+            status('Cleared band for ' + curRingId, true);
+        }).catch(function (err) { status('Clear error: ' + err.message, false); });
+    });
+
+    loadRings();
+    render();
 }
