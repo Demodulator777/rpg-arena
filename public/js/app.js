@@ -1348,6 +1348,8 @@ const I18N = {
         'menu.weeklyTasks': 'Tarefas Semanais',
         'menu.weeklyMeta': 'Ganhe gemas, ouro, materiais e loot boxes',
         'menu.convertMp': 'Converter MP',
+        'menu.news': 'Notícias',
+        'menu.newsMeta': 'Novidades, eventos e atualizações da história',
         'menu.reportProblem': 'Reportar um Problema',
         'menu.logout': 'Sair',
         'menu.invitePlayers': 'Convidar Jogadores',
@@ -1584,6 +1586,12 @@ function startDomI18n() {
 // provided directly (hardcoded) per-component instead.
 // startDomI18n();
 
+function openNews() {
+    closeTopbarMenu();
+    showTab('news');
+}
+window.openNews = openNews;
+
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
@@ -1631,6 +1639,10 @@ function renderTopbarMenu() {
         <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.quickActions', 'Quick Actions')}</div>
             <div class="topbar-menu-grid">
+                <button class="topbar-menu-action" ${actionAttrs('openNews')}>
+                    📰 ${t('menu.news', 'News')}
+                    <span class="topbar-menu-meta">${t('menu.newsMeta', 'Latest upgrades, events and story updates')}</span>
+                </button>
                 <button class="topbar-menu-action" ${actionAttrs('openCharacterSwitcher')}>
                     🧭 ${switcherLabel}
                 </button>
@@ -2872,7 +2884,7 @@ function showScreen(name) {
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
 const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
 const INVENTORY_SUB_TABS = ['inventory','forge','shop','elementals'];
-const MISSIONS_SUB_TABS = ['missions','dungeon','raids','tournament'];
+const MISSIONS_SUB_TABS = ['missions','dungeon','raids','tournament','news'];
 
 function dungeonCombatIsActive() {
     try {
@@ -3010,6 +3022,7 @@ function showTab(name) {
     if (name === 'raids')       window.renderRaidsTab?.();
     if (name === 'tournament')  { if (typeof loadTournamentTab === 'function') loadTournamentTab(); }
     if (name === 'event')       loadBannerEvent();
+    if (name === 'news')        loadNews();
 }
 
 // CSS root zoom (PC scale-up) makes getBoundingClientRect() return VISUAL px,
@@ -14353,6 +14366,128 @@ function showHistoryLog(logJson,a,d,isDraw) {
     });
 }
 
+// ── NEWS FEED ────────────────────────────────────────────────────────────
+const NEWS_FEED = [
+    {
+        id: 'news-story-mode',
+        type: 'story', // upgrade, event, story, announcement
+        date: '2026-09-19',
+        title: { en: "New Story Mode - The Ancient's Story!", pt: 'Novo Modo História - A História dos Antigos!'},
+        short: { en: 'Embark on an epic journey with Maren to uncover ancient secrets and earn powerful rewards.', pt: 'Embarque numa jornada épica com Maren para desvendar segredos antigos e ganhar recompensas poderosas.'},
+        body: { en: 'The realm is in peril, and a mysterious force stirs from forgotten ruins. Join Maren, the Sage of Eldoria, as you navigate treacherous lands, battle fearsome foes, and piece together the fragments of a prophecy. Complete stages, unlock lore, and claim unique rewards on your path to the Final Seal!', pt: 'O reino está em perigo, e uma força misteriosa se agita em ruínas esquecidas. Junte-se a Maren, o Sábio de Eldoria, enquanto navega por terras traiçoeiras, enfrenta inimigos temíveis e junta os fragmentos de uma profecia. Complete etapas, desbloqueie lendas e reivindique recompensas únicas em seu caminho para o Selo Final!'},
+        cta: 'story' // special action
+    },
+    {
+        id: 'news-elemental-companions',
+        type: 'upgrade',
+        date: '2026-08-22',
+        title: { en: 'Elemental Companions are Here!', pt: 'Companheiros Elementais Chegaram!'},
+        short: { en: 'Discover powerful spirit beasts, level them up, assign stats, and dominate in battle with your elemental ally!', pt: 'Descubra poderosas feras espirituais, suba de nível, atribua atributos e domine na batalha com seu aliado elemental!'},
+        body: { en: 'Elemental companions are unique spirit beasts that fight alongside you. Each elemental has its own stats, levels, and elemental affinity. Feed them materials to gain XP, assign stat points to customize their growth, and even change their element type. They participate in all battles (PvP, missions, tournaments, guardian fights) and offer split damage, making them a crucial part of your combat strategy.', pt: 'Companheiros elementais são feras espirituais únicas que lutam ao seu lado. Cada elemental tem seus próprios atributos, níveis e afinidade elemental. Alimente-os com materiais para ganhar XP, atribua pontos de atributo para personalizar seu crescimento e até mesmo mude seu tipo elemental. Eles participam de todas as batalhas (PvP, missões, torneios, lutas de guardiões) e oferecem dano dividido, tornando-os uma parte crucial de sua estratégia de combate.'}
+    },
+    {
+        id: 'news-trial-of-arcane',
+        type: 'event',
+        date: '2026-09-19',
+        title: { en: 'Trial of the Arcane - Prove Your Might!', pt: 'Julgamento do Arcano - Prove Seu Poder!'},
+        short: { en: 'Enter the Trial of the Arcane, a new challenge featuring champion abilities, energy bursts, and a final skill check!', pt: 'Entre no Julgamento do Arcano, um novo desafio com habilidades de campeão, explosões de energia e um teste de habilidade final!'},
+        body: { en: 'The Trial of the Arcane is a dynamic combat challenge where you must strategically use your champion abilities. Generate energy with normal attacks and bursts to unleash powerful ultimate abilities. Master the unique combat flow and prove your might by conquering the final skill check. Great rewards await the worthy!', pt: 'O Julgamento do Arcano é um desafio de combate dinâmico onde você deve usar estrategicamente as habilidades do seu campeão. Gere energia com ataques normais e rajadas para liberar habilidades supremas poderosas. Domine o fluxo de combate único e prove seu poder conquistando o teste de habilidade final. Grandes recompensas aguardam os dignos!'}
+    },
+    {
+        id: 'news-pvp-tournaments',
+        type: 'event',
+        date: '2026-08-22',
+        title: { en: 'PvP Tournaments & Deathmatches!', pt: 'Torneios PvP e Batalhas Mortais!'},
+        short: { en: 'Compete in thrilling PvP tournaments, earn unique rewards, and prove yourself as the ultimate champion.', pt: 'Compita em emocionantes torneios PvP, ganhe recompensas exclusivas e prove ser o campeão supremo.'},
+        body: { en: 'Step into the arena and face off against other players in intense PvP tournaments. Climb the ranks, earn glory, and claim exclusive rewards only available to the champions. Deathmatches offer a fast-paced, high-stakes combat experience where only the strongest survive.', pt: 'Entre na arena e enfrente outros jogadores em intensos torneios PvP. Suba nas classificações, ganhe glória e reivindique recompensas exclusivas disponíveis apenas para os campeões. As Batalhas Mortais oferecem uma experiência de combate rápida e de alto risco, onde apenas os mais fortes sobrevivem.'}
+    }
+];
+
+async function newsStoryCta() {
+    if (!character?.story) {
+        await loadStoryPanel(); // Ensure story data is loaded
+    }
+    if (character?.story?.activeQuest || character?.story?.done) {
+        openStoryDialogue();
+    } else {
+        showTab('missions');
+        storyToast(_pt('Abra a aba de Missões e clique no selo da História.', 'Open the Missions tab and click the Story seal.'));
+    }
+}
+window.newsStoryCta = newsStoryCta;
+
+function toggleNewsItem(id) {
+    const item = document.getElementById(`news-item-${id}`);
+    if (item) {
+        item.classList.toggle('open');
+    }
+}
+window.toggleNewsItem = toggleNewsItem;
+
+function newsBadgeLabel(type) {
+    const labels = {
+        story:        _pt('História', 'Story'),
+        upgrade:      _pt('Melhoria', 'Upgrade'),
+        event:        _pt('Evento', 'Event'),
+        announcement: _pt('Anúncio', 'Announcement')
+    };
+    return labels[type] || capitalize(type);
+}
+
+async function loadNews() {
+    const newsListEl = document.getElementById('news-list');
+    const newsFeaturedEl = document.getElementById('news-featured');
+    if (!newsListEl || !newsFeaturedEl) return;
+
+    newsFeaturedEl.innerHTML = '';
+    newsListEl.innerHTML = '';
+
+    const formatDate = (dateString) => {
+        const options = { year: 'numeric', month: 'long', day: 'numeric' };
+        return new Date(dateString).toLocaleDateString(CURRENT_LANG, options);
+    };
+
+    // Featured news (the story mode one)
+    const featuredItem = NEWS_FEED.find(item => item.cta === 'story');
+    if (featuredItem) {
+        newsFeaturedEl.innerHTML = `
+            <div class="news-item news-item--featured" id="news-item-${featuredItem.id}" ${actionAttrs('toggleNewsItem', featuredItem.id)}>
+                <div class="news-item-header">
+                    <span class="news-item-badge news-item-badge--${featuredItem.type}">${newsBadgeLabel(featuredItem.type)}</span>
+                    <span class="news-item-date">${formatDate(featuredItem.date)}</span>
+                </div>
+                <h3 class="news-item-title">${_pt(featuredItem.title.pt, featuredItem.title.en)}</h3>
+                <p class="news-item-short">${_pt(featuredItem.short.pt, featuredItem.short.en)}</p>
+                <div class="news-item-body"><p>${_pt(featuredItem.body.pt, featuredItem.body.en)}</p></div>
+                ${featuredItem.cta === 'story' ? `<button class="news-item-cta-btn" ${actionAttrs('newsStoryCta')}>${_pt('Abrir Modo História', 'Open Story Mode')}</button>` : ''}
+            </div>
+        `;
+    }
+
+    // Regular news list (excluding featured), newest first
+    const regularNews = NEWS_FEED
+        .filter(item => item.cta !== 'story')
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (regularNews.length) {
+        newsListEl.innerHTML = regularNews.map(item => `
+            <div class="news-item" id="news-item-${item.id}" ${actionAttrs('toggleNewsItem', item.id)}>
+                <div class="news-item-header">
+                    <span class="news-item-badge news-item-badge--${item.type}">${newsBadgeLabel(item.type)}</span>
+                    <span class="news-item-date">${formatDate(item.date)}</span>
+                </div>
+                <h3 class="news-item-title">${_pt(item.title.pt, item.title.en)}</h3>
+                <p class="news-item-short">${_pt(item.short.pt, item.short.en)}</p>
+                <div class="news-item-body"><p>${_pt(item.body.pt, item.body.en)}</p></div>
+            </div>
+        `).join('');
+    }
+
+    if (!featuredItem && !regularNews.length) {
+        newsListEl.innerHTML = `<p class="loading">${_pt('Nenhuma notícia disponível ainda.', 'No news available yet.')}</p>`;
+    }
+}
+window.loadNews = loadNews;
+
 // ── Inbox ─────────────────────────────────────────────────────────────────
 window._reportCache = {};
 async function loadInbox() {
@@ -16415,7 +16550,7 @@ function parseLegacyHandler(raw, attrName, el) {
     const match = expression.match(/^([A-Za-z_$][\w$]*)\((.*)\)$/);
     if (!match) return null;
     const [, actionName, argList] = match;
-    const allowed = ['showTabAndCloseMenu', 'skipTutorial', 'sortTable', 'toggleMonsterLore'];
+    const allowed = ['showTabAndCloseMenu', 'skipTutorial', 'sortTable', 'toggleMonsterLore', 'openNews', 'toggleNewsItem'];
     if (!allowed.includes(actionName)) return null;
     const rawArgs = argList.trim() ? splitLegacyArgs(argList) : [];
     return { type: attrName.slice(2), actionName, rawArgs, stopPropagation, el };
