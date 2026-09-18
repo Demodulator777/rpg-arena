@@ -1038,7 +1038,8 @@ async function api(method, path, body=null) {
         if (!res.ok) {
             console.error('[API ERROR]', res.status, text.substring(0, 300));
             let errMsg;
-            try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; }
+            let errData = null;
+            try { const ed = JSON.parse(text); errMsg = ed.error || `HTTP ${res.status}`; errData = ed; }
             catch { errMsg = text.trim() || `Request failed (${res.status})`; }
 
             // Handle single-device login enforcement without spamming alerts:
@@ -1058,7 +1059,12 @@ async function api(method, path, body=null) {
                 throw new Error(errMsg);
             }
 
-            throw new Error(errMsg);
+            // Attach the parsed response body to the error so callers can recover
+            // (e.g., the trial re-syncs its turn nonce from a 409 payload).
+            const apiErr = new Error(errMsg);
+            apiErr.status = res.status;
+            if (errData && typeof errData === 'object') apiErr.data = errData;
+            throw apiErr;
         }
         if (!text.trim()) return {};
         try { const data = JSON.parse(text); return data; }
@@ -1310,7 +1316,12 @@ function showTabAndCloseMenu(tabName) {
 }
 
 window.showTabAndCloseMenu = showTabAndCloseMenu;
-
+window.openStoryDialogue = openStoryDialogue;
+window.closeStoryDialogue = closeStoryDialogue;
+window.storyDialogueNext = storyDialogueNext;
+window.storyDialoguePrev = storyDialoguePrev;
+window.storyDialogueReveal = storyDialogueReveal;
+window.closeStoryCompletion = closeStoryCompletion;
 // ── i18n ──────────────────────────────────────────────────────────────────
 // t(key, englishFallback): returns the translation for the selected language,
 // falling back to the English inline text. Add new languages to I18N.
@@ -1319,11 +1330,19 @@ const I18N = {
         'menu.language': 'Idioma',
         'menu.voucher': 'Código de Voucher',
         'menu.redeem': 'Resgatar',
+        'menu.enter_code': 'DIGITE O CÓDIGO',
         'menu.liveStatus': 'Status ao Vivo',
         'menu.activeEvent': 'Evento Ativo',
         'menu.noEvent': 'Nenhum evento ativo no momento',
         'menu.quickActions': 'Ações Rápidas',
         'menu.switchCharacter': 'Trocar Personagem',
+        'switch.title': 'Seus Personagens',
+        'switch.slotsUsed': 'vagas usadas',
+        'switch.newCharacter': 'Novo Personagem',
+        'switch.active': 'Ativo',
+        'switch.play': 'Jogar',
+        'switch.emptySlot': 'Vaga Vazia',
+        'switch.emptyHint': 'Crie outra classe',
         'menu.openGameGuide': 'Abrir Guia do Jogo',
         'menu.guideMeta': 'Como funcionam progressão, classes e builds',
         'menu.weeklyTasks': 'Tarefas Semanais',
@@ -1370,6 +1389,13 @@ function t(key, enFallback) {
     const dict = I18N[CURRENT_LANG];
     return (dict && dict[key]) || enFallback;
 }
+// _pt(ptText, enText): inline bilingual helper mirroring dungeon.js — returns the
+// Portuguese text when PT is active, otherwise the English text. Used for
+// dynamically rendered tab content that has no I18N key.
+function _pt(ptText, enText) {
+    return CURRENT_LANG === 'pt' ? ptText : enText;
+}
+window._pt = _pt;
 async function changeLanguage(args, event, trigger) {
     const lang = (trigger && trigger.value) || (Array.isArray(args) && args[0]) || '';
     if (!lang || lang === CURRENT_LANG) return;
@@ -1561,7 +1587,7 @@ function startDomI18n() {
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
-    const eventName = character?.active_event?.name || t('menu.noEvent', 'No active event right now');
+    const eventName = character?.active_event ? (eventNamePT(character.active_event) || t('menu.noEvent', 'No active event right now')) : t('menu.noEvent', 'No active event right now');
     const referralCode = character?.referral_code || username || '';
     const referralLink = referralCode ? getReferralLink(referralCode) : '';
     const switcherLabel = `${t('menu.switchCharacter', 'Switch Character')} (${accountCharacters.length}/${maxCharacterSlots})`;
@@ -1590,7 +1616,7 @@ function renderTopbarMenu() {
         <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.voucher', 'Voucher Code')}</div>
             <div style="display:flex;gap:8px">
-                <input id="voucher-code-input" class="input-field" style="flex:1;margin:0" placeholder="ENTER CODE" maxlength="32" autocomplete="off">
+                <input id="voucher-code-input" class="input-field" style="flex:1;margin:0" placeholder="${t('menu.enter_code', 'ENTER CODE')}" maxlength="32" autocomplete="off">
                 <button class="topbar-menu-inline-btn" style="flex-shrink:0" id="voucher-redeem-btn">${t('menu.redeem', 'Redeem')}</button>
             </div>
             <div id="voucher-msg" class="topbar-menu-flash hidden"></div>
@@ -1742,7 +1768,7 @@ function renderTopbarMenu() {
         };
         const redeemVoucher = async () => {
             const code = voucherInput.value.trim();
-            if (!code) { showVoucherMsg('Enter a voucher code.', true); return; }
+            if (!code) { showVoucherMsg(_pt('Digite um código de voucher.', 'Enter a voucher code.'), true); return; }
             voucherBtn.disabled = true;
             try {
                 const d = await api('POST', '/game/voucher/redeem', { code });
@@ -1770,6 +1796,19 @@ function renderTopbarMenu() {
         voucherInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); redeemVoucher(); } });
     }
 }
+
+document.addEventListener('click', (e) => {
+    const bannerEl = e.target.closest('[data-banner-action]');
+    if (bannerEl) {
+        e.stopPropagation();
+        if (typeof closeTopbarMenu === 'function') closeTopbarMenu();
+        if (typeof window.enterEvent === 'function') {
+            window.enterEvent();
+        } else {
+            alert('Event not loaded yet — try refreshing the page.');
+        }
+    }
+});
 
 function syncClientPreferencesFromCharacter() {
     if (!character) return;
@@ -1888,10 +1927,10 @@ function renderCharacterSwitcher() {
     content.innerHTML = `
         <div class="character-switch-header">
             <div>
-                <div class="character-switch-title">Your characters</div>
-                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} slots used</div>
+                <div class="character-switch-title">${t('switch.title', 'Your Characters')}</div>
+                <div class="character-switch-sub">${accountCharacters.length}/${maxCharacterSlots} ${t('switch.slotsUsed', 'slots used')}</div>
             </div>
-            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ New character</button>` : ''}
+            ${remaining > 0 ? `<button class="btn-primary character-switch-create" ${actionAttrs('openCharacterCreation')}>+ ${t('switch.newCharacter', 'New Character')}</button>` : ''}
         </div>
         <div class="character-switch-grid">
             ${accountCharacters.map(c => {
@@ -1900,15 +1939,15 @@ function renderCharacterSwitcher() {
                     <img src="/images/class/${c.class}.png" alt="${c.class}" class="character-switch-avatar" data-error-hide="true">
                     <div class="character-switch-info">
                         <div class="character-switch-name">${escHtml(c.name)}</div>
-                        <div class="character-switch-meta">Lv.${c.level} ${c.evolvedClassName || capitalize(c.class)}</div>
+                        <div class="character-switch-meta">Lv.${c.level} ${c.evolvedClassName || classLabelPT(c.class)}</div>
                     </div>
-                    <div class="character-switch-state">${isActive ? 'Active' : 'Play'}</div>
+                    <div class="character-switch-state">${isActive ? t('switch.active', 'Active') : t('switch.play', 'Play')}</div>
                 </button>`;
     }).join('')}
             ${Array.from({ length: remaining }, (_, i) => `
                 <button class="character-switch-card empty" ${actionAttrs('openCharacterCreation')}>
-                    <div class="character-switch-empty">Empty Slot ${accountCharacters.length + i + 1}</div>
-                    <div class="character-switch-meta">Create another class</div>
+                    <div class="character-switch-empty">${t('switch.emptySlot', 'Empty Slot')} ${accountCharacters.length + i + 1}</div>
+                    <div class="character-switch-meta">${t('switch.emptyHint', 'Create another class')}</div>
                 </button>
             `).join('')}
         </div>`;
@@ -2833,7 +2872,7 @@ function showScreen(name) {
 const TAB_ORDER=['character','missions','upgrade','loadout','skills','train','forge','inventory','shop','leaderboard','inbox','dungeon','premium'];
 const CHARACTER_SUB_TABS = ['upgrade','loadout','skills','train','premium'];
 const INVENTORY_SUB_TABS = ['inventory','forge','shop','elementals'];
-const MISSIONS_SUB_TABS = ['missions','dungeon','tournament'];
+const MISSIONS_SUB_TABS = ['missions','dungeon','raids','tournament'];
 
 function dungeonCombatIsActive() {
     try {
@@ -2967,7 +3006,8 @@ function showTab(name) {
     if (name === 'squads')      loadSquads();
     if (name === 'shop')        loadShop();
     if (name === 'inbox')       loadInbox();
-    if (name === 'dungeon')     renderDungeonTab();
+    if (name === 'dungeon')     window.renderDungeonTab?.();
+    if (name === 'raids')       window.renderRaidsTab?.();
     if (name === 'tournament')  { if (typeof loadTournamentTab === 'function') loadTournamentTab(); }
     if (name === 'event')       loadBannerEvent();
 }
@@ -3323,14 +3363,14 @@ function renderTopBar() {
             bannerEl.innerHTML = `
                 <div class="tutorial-banner">
                     <div class="tutorial-copy">
-                        <span class="tutorial-tag">Tutorial Mode</span>
-                        <div class="tutorial-title">Arena onboarding active</div>
-                        <div class="tutorial-msg">Win 4 battles to unlock the full arena. Fast 10s missions and HP protection are active.</div>
+                        <span class="tutorial-tag">${_pt('Modo Tutorial', 'Tutorial Mode')}</span>
+                        <div class="tutorial-title">${_pt('Integração à arena ativa', 'Arena onboarding active')}</div>
+                        <div class="tutorial-msg">${_pt('Vença 4 batalhas para desbloquear a arena completa. Missões rápidas de 10s e proteção de HP ativas.', 'Win 4 battles to unlock the full arena. Fast 10s missions and HP protection are active.')}</div>
                     </div>
                     <div class="tutorial-progress">${Math.min(4, c.wins || 0)} / 4</div>
                     <div class="tutorial-actions">
-                        <button class="goto-missions-btn" onclick="showTabAndCloseMenu('missions')">Go to Missions</button>
-                        <button class="skip-tutorial-btn" onclick="skipTutorial()">Skip Tutorial</button>
+                        <button class="goto-missions-btn" onclick="showTabAndCloseMenu('missions')">${_pt('Ir para Missões', 'Go to Missions')}</button>
+                        <button class="skip-tutorial-btn" onclick="skipTutorial()">${_pt('Pular Tutorial', 'Skip Tutorial')}</button>
                     </div>
                 </div>
             `;
@@ -3412,7 +3452,7 @@ function renderTopBar() {
     const evEl=document.getElementById('topbar-event');
     if (evEl) {
         const ev=c.active_event;
-        if (ev) { evEl.textContent=ev.name||''; evEl.classList.remove('hidden'); }
+        if (ev) { evEl.textContent=eventNamePT(ev); evEl.classList.remove('hidden'); }
         else evEl.classList.add('hidden');
     }
     renderTopbarMenu();
@@ -3518,6 +3558,41 @@ async function loadTabHelp(tabName) {
         // Silently fail - tab help is optional
     }
 }
+
+// ── Award Rings ──────────────────────────────────────────────────────────
+function renderRingManagement() {
+    if (!character || !character.unlocked_rings) return '';
+    const unlocked = character.unlocked_rings;
+    const active = character.active_ring;
+    const isPT = CURRENT_LANG === 'pt';
+
+    let html = `<div style="margin-top:15px;padding:10px;border-top:1px solid rgba(255,255,255,0.1)">
+        <div style="font-size:0.8rem;color:var(--text-dim);margin-bottom:8px">${isPT ? 'Anéis de Recompensa' : 'Award Rings'}</div>
+        <div style="display:flex;align-items:center;gap:10px">
+            <select id="ring-select" class="input-field" style="width:auto;padding:5px 26px 5px 10px">
+                <option value="" ${!active ? 'selected' : ''}>${isPT ? 'Nenhum' : 'None'}</option>
+                ${unlocked.map(r => `<option value="${r}" ${active === r ? 'selected' : ''}>${r.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}</option>`).join('')}
+            </select>
+        </div>
+    </div>`;
+    return html;
+}
+
+window.selectRing = async (ringId) => {
+    if (typeof ringId !== 'string') return;
+    try {
+        await api('POST', '/game/character/ring/select', { ringId });
+        await syncActiveCharacterState();
+        renderCharacter();
+    } catch (e) {
+        console.error('Failed to select ring:', e);
+    }
+};
+document.addEventListener('change', (e) => {
+    if (e.target.id === 'ring-select') {
+        window.selectRing(e.target.value);
+    }
+});
 
 // ── Equipment slot helpers ────────────────────────────────────────────────
 
@@ -3700,6 +3775,7 @@ const eqSlots=[
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
+            ${(character.active_ring && character.unlocked_rings?.includes(character.active_ring)) ? `<canvas class="eq-award-ring" data-ring-src="/images/assets/awards/${character.active_ring}.png" width="1000" height="1000"></canvas>` : ''}
             ${avatarImgHtml(profilePicSrc(c.profile_pic || c.class + '.png'), c.char_pic_offset || c.profile_pic_offset)}
             <button class="btn-secondary eq-avatar-edit-btn" data-action="openCharacterAvatarEditor" title="Edit character-preview position & zoom">✏️</button>
             ${c.elemental ? (() => {
@@ -3817,6 +3893,7 @@ const eqSlots=[
             ${c.wins+c.losses>0?`<div style="margin-top:8px;background:rgba(255,255,255,0.03);border-radius:8px;padding:6px 12px;font-size:0.72rem;color:var(--text-dim)">${isPT?'Taxa de vitória':'Win rate'} <strong style="color:var(--green);float:right">${Math.round(c.wins/(c.wins+c.losses)*100)}%</strong></div>`:''}
             ${c.trainingActive?`<div style="margin-top:10px;font-size:0.75rem;color:var(--gold)">⏳ ${isPT?'Treinando':'Training'} ${c.training_stat}... ${c.trainingSecondsLeft}s</div>`:''}
             ${c.trainingDone?`<div style="margin-top:10px;font-size:0.75rem;color:var(--green)">✅ ${isPT?'Treino concluído! Resgate-o.':'Training done! Collect it.'}</div>`:''}
+            ${renderRingManagement()}
           </div>
         </div>
         ${c.elemental ? (() => {
@@ -3882,7 +3959,7 @@ const eqSlots=[
             ` : ''}
             <div id="elem-feed-section-${el.id}">
               <div style="font-size:0.75rem;margin:10px 0 6px;color:var(--text-dim);border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">🍽️ ${isPT ? 'Alimentar Materiais' : 'Feed Materials'}</div>
-              <div class="elem-feed-loading" style="font-size:0.7rem;color:var(--text-dim)">Loading...</div>
+              <div class="elem-feed-loading" style="font-size:0.7rem;color:var(--text-dim)">${_pt('Carregando...', 'Loading...')}</div>
             </div>
           </div>`;
     })() : ''}
@@ -5808,7 +5885,7 @@ async function saveLoadout() {
         await api('POST','/game/loadout',{attackZones,blockZones});
         character.attack_zones=JSON.stringify(attackZones);
         character.block_zones=JSON.stringify(blockZones);
-        showMsg('loadout-msg','Loadout saved!');
+        showMsg('loadout-msg','Loadout salvo!');
     } catch(e) { showMsg('loadout-msg',e.message,true); }
 }
 
@@ -5824,22 +5901,22 @@ function renderUpgrade() {
 
     document.getElementById('upgrade-gold').innerHTML = `
         <div class="upgrade-wallet">
-            <span class="upgrade-wallet-label">War Chest</span>
+            <span class="upgrade-wallet-label">${_pt('Cofre de Guerra', 'War Chest')}</span>
             <span class="upgrade-wallet-value">💰 ${c.gold.toLocaleString()}</span>
         </div>`;
 
-    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>Stat Sale active!</strong> All upgrades 30% off!</div>` : '';
-    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>Apprentice Premium:</strong> Additional 20% off all upgrades!</div>` : '';
-    const squadBanner = c.squad_discount_pct > 0 ? `<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#2ecc71">🏰 <strong>Squad Base:</strong> ${c.squad_discount_pct}% off all upgrades!</div>` : '';
+    const evBanner = hasStatDiscount ? `<div style="background:rgba(241,196,15,0.12);border:1px solid rgba(241,196,15,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#f1c40f">📉 <strong>${_pt('Saldo de Atributos ativo!', 'Stat Sale active!')}</strong> ${_pt('Todas as melhorias com 30% de desconto!', 'All upgrades 30% off!')}</div>` : '';
+    const apprenticeBanner = hasApprentice ? `<div style="background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#9b59b6">📚 <strong>${_pt('Premium Aprendiz:', 'Apprentice Premium:')}</strong> ${_pt('20% de desconto adicional em todas as melhorias!', 'Additional 20% off all upgrades!')}</div>` : '';
+    const squadBanner = c.squad_discount_pct > 0 ? `<div style="background:rgba(46,204,113,0.1);border:1px solid rgba(46,204,113,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:0.82rem;color:#2ecc71">🏰 <strong>${_pt('Base do Esquadrão:', 'Squad Base:')}</strong> ${c.squad_discount_pct}% ${_pt('de desconto em todas as melhorias!', 'off all upgrades!')}</div>` : '';
 
     const stats = [
-        { key: 'strength', asset: 'strength', icon: '💪', label: 'Strength' },
-        { key: 'defense', asset: 'defense', icon: '🛡️', label: 'Defense' },
-        { key: 'agility', asset: 'agility', icon: '⚡', label: 'Agility', hint: 'Dodge incoming hits' },
-        { key: 'magic', asset: 'magic', icon: '✨', label: 'Magic' },
-        { key: 'vitality', asset: 'vitality', icon: '❤️', label: 'Vitality', hint: 'Also boosts current HP' },
-        { key: 'hit_chance', asset: 'accuracy', icon: '🎯', label: 'Hit Chance', hint: 'Accuracy vs agility' },
-        { key: 'crit_chance', asset: 'critical', icon: '💥', label: 'Crit Chance', hint: 'Chance to hit max dmg' },
+        { key: 'strength', asset: 'strength', icon: '💪', label: _pt('Força', 'Strength') },
+        { key: 'defense', asset: 'defense', icon: '🛡️', label: _pt('Defesa', 'Defense') },
+        { key: 'agility', asset: 'agility', icon: '⚡', label: _pt('Agilidade', 'Agility'), hint: _pt('Esquiva de golpes', 'Dodge incoming hits') },
+        { key: 'magic', asset: 'magic', icon: '✨', label: _pt('Magia', 'Magic') },
+        { key: 'vitality', asset: 'vitality', icon: '❤️', label: _pt('Vitalidade', 'Vitality'), hint: _pt('Também aumenta o HP atual', 'Also boosts current HP') },
+        { key: 'hit_chance', asset: 'accuracy', icon: '🎯', label: _pt('Precisão', 'Hit Chance'), hint: _pt('Precisão vs agilidade', 'Accuracy vs agility') },
+        { key: 'crit_chance', asset: 'critical', icon: '💥', label: _pt('Chance Crítica', 'Crit Chance'), hint: _pt('Chance de acertar o dano máximo', 'Chance to hit max dmg') },
     ];
 
     document.getElementById('upgrade-grid').innerHTML = evBanner + apprenticeBanner + squadBanner + stats.map(s => {
@@ -5851,7 +5928,7 @@ function renderUpgrade() {
         const displayName = s.label || capitalize(s.key);
         const currentValue = c[s.key] || 0;
         const projectedValue = typeof cost === 'number' ? currentValue + 1 : currentValue;
-        const statusText = can ? 'Ready to ascend' : `${Math.max(0, cost - c.gold).toLocaleString()} gold short`;
+        const statusText = can ? _pt('Pronto para ascender', 'Ready to ascend') : _pt(`Faltam ${Math.max(0, cost - c.gold).toLocaleString()} de ouro`, `${Math.max(0, cost - c.gold).toLocaleString()} gold short`);
 
         return `<div class="upgrade-card">
             <div class="upgrade-card-aura"></div>
@@ -5867,20 +5944,20 @@ function renderUpgrade() {
             </div>
             ${s.hint ? `<div class="upgrade-card-hint">${s.hint}</div>` : ''}
             <div class="upgrade-discount-row">
-                ${hasStatDiscount ? `<div class="upgrade-discount sale">📉 30% event discount</div>` : ''}
-                ${hasApprentice ? `<div class="upgrade-discount premium">📚 20% apprentice discount</div>` : ''}
+                ${hasStatDiscount ? `<div class="upgrade-discount sale">📉 ${_pt('30% de desconto de evento', '30% event discount')}</div>` : ''}
+                ${hasApprentice ? `<div class="upgrade-discount premium">📚 ${_pt('20% de desconto de aprendiz', '20% apprentice discount')}</div>` : ''}
             </div>
             <div class="upgrade-stat-track">
                 <div class="upgrade-stat-fill" style="width:${Math.min(100, Math.round((currentValue / Math.max(currentValue + 25, 25)) * 100))}%"></div>
             </div>
             <div class="upgrade-card-footer">
                 <div class="upgrade-cost-block">
-                    <span class="upgrade-cost-label">Next Rank</span>
+                    <span class="upgrade-cost-label">${_pt('Próximo Nível', 'Next Rank')}</span>
                     <span class="upgrade-cost-value">${currentValue} → ${projectedValue}</span>
                     <span class="upgrade-cost-price">💰 ${typeof cost === 'number' ? cost.toLocaleString() : cost}</span>
                 </div>
                 <button class="btn-upgrade" ${actionAttrs('upgradestat', s.key)} ${can ? '' : 'disabled'}>
-                    ${can ? 'Ascend +1' : 'Insufficient Gold'}
+                    ${can ? _pt('Ascender +1', 'Ascend +1') : _pt('Ouro Insuficiente', 'Insufficient Gold')}
                 </button>
             </div>
         </div>`;
@@ -5888,12 +5965,13 @@ function renderUpgrade() {
 }
 
 function _ttPos(tooltip, r, tw, th) {
-    const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const zf = uiZoomFactor();
     const rl=r.left/zf, rt=r.top/zf, rw=r.width/zf, rh=r.height/zf;
+    const vw=window.innerWidth/zf, vh=window.innerHeight/zf; // root-local viewport under PC root zoom
     let left = rl+rw/2-tw/2 + 150, top = rt+rh-th;
     if (top < 8) top = 8;
-    if (top+th>window.innerHeight-8) top = Math.max(8, window.innerHeight-th-8);
-    if (left+tw>window.innerWidth-8) left = window.innerWidth-tw-8;
+    if (top+th>vh-8) top = Math.max(8, vh-th-8);
+    if (left+tw>vw-8) left = vw-tw-8;
     tooltip.style.left = Math.round(Math.max(8,left))+'px';
     tooltip.style.top  = Math.round(top)+'px';
 }
@@ -5922,26 +6000,27 @@ function showStatUpgradeInfo(btn, noAutoHide) {
     tt.style.width = '220px'; // Restore from CSS
     tt.style.maxHeight = 'calc(var(--vph) - 16px)';
 
-    const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const zf = uiZoomFactor();
     const r = btn.getBoundingClientRect();
+    const vw = window.innerWidth / zf, vh = window.innerHeight / zf; // root-local viewport under PC root zoom
 
     // Try below first
     let left = (r.right / zf) + 12;
     let top = (r.bottom / zf) + 8;
 
     // If doesn't fit below, show above
-    if (top + th > window.innerHeight - 8) {
+    if (top + th > vh - 8) {
         top = (r.top / zf) - th - 8;
     }
 
     // Horizontal adjustment
-    if (left + tw > window.innerWidth - 8) {
+    if (left + tw > vw - 8) {
         left = (r.left / zf) - tw - 12;
     }
 
     // Ensure within viewport
-    top = Math.max(8, Math.min(top, (window.innerHeight - th - 8) / zf));
-    left = Math.max(8, Math.min(left, (window.innerWidth - tw - 8) / zf));
+    top = Math.max(8, Math.min(top, vh - th - 8));
+    left = Math.max(8, Math.min(left, vw - tw - 8));
 
     tt.style.left = left + 'px';
     tt.style.top = top + 'px';
@@ -5975,7 +6054,30 @@ async function upgradestat(stat) {
     }
 }
 
-// ── Event Banner Helper ───────────────────────────────────────────────────
+// ── Event Banner Helper ───────────────────────────────────────
+// Event/banner names live in the DB in English — translate known titles at
+// display time (banner rows are admin-created, so they can't be prebaked server-side).
+const EVENT_NAME_PT = {
+    'Trial of the Arcane': 'Provação do Arcano',
+    'Spiteforged Banner': 'Banner Forjado em Desprezo',
+    '🎉 Grand Festival': '🎉 Grande Festival'
+};
+function eventNamePT(ev) {
+    if (!ev) return '';
+    const n = String(ev.name || '');
+    if (CURRENT_LANG !== 'pt') return n;
+    if (EVENT_NAME_PT[n]) return EVENT_NAME_PT[n];
+    const m = n.match(/^Banner event: (.+)$/);
+    if (m) return 'Evento Banner: ' + (EVENT_NAME_PT[m[1]] || m[1]);
+    return n;
+}
+function eventDescPT(ev) {
+    if (!ev || !ev.desc) return '';
+    if (CURRENT_LANG !== 'pt') return ev.desc;
+    const m = String(ev.desc).match(/^Banner event: (.+)$/);
+    if (m) return 'Evento Banner: ' + (EVENT_NAME_PT[m[1]] || m[1]);
+    return ev.desc;
+}
 function renderEventBanner(containerId) {
     const el=document.getElementById(containerId); if(!el) return;
     const ev=character?.active_event;
@@ -5987,8 +6089,8 @@ function renderEventBanner(containerId) {
     el.classList.remove('hidden');
     el.style.display='flex';
     el.innerHTML=`<span style="font-size:1.4rem">${ev.name?.split(' ')[0]||'🎉'}</span>
-    <div><div style="font-weight:700;color:var(--gold)">${ev.name||'Event Active'}</div>
-    <div style="font-size:0.8rem;color:var(--text-dim)">${ev.desc||''} · Ends in ${timeStr}</div></div>`;
+    <div><div style="font-weight:700;color:var(--gold)">${eventNamePT(ev)||'Event Active'}</div>
+    <div style="font-size:0.8rem;color:var(--text-dim)">${eventDescPT(ev)} · ${_pt('Termina em', 'Ends in')} ${timeStr}</div></div>`;
 }
 
 // ── Skills Tab ────────────────────────────────────────────────────────────
@@ -6162,6 +6264,10 @@ async function loadMissions() {
         } else {
             renderWorldMap();
         }
+
+        // Story panel appears over the missions map.
+        if (character?.story) renderStoryPanel();
+        else loadStoryPanel().catch(() => {});
 
         await checkTrainingStatus();
     } catch(e) {
@@ -7111,6 +7217,11 @@ async function collectMission() {
             });
         }
 
+        // Story quest completed during this mission → show its overlay after the battle report.
+        _storyPending = d.storyResult || null;
+        // Refresh the dev/char story state so the panel reflects the new quest.
+        if (character) { delete character._storyRendered; }
+
         if (d.battleLog) showBattleReportModal(d.battleLog, d.won, msg, d.totalDmgDealt, d.totalDmgTaken, {
             enemyName: d.npcName || (CURRENT_LANG === 'pt' ? 'Inimigo' : 'Enemy'),
             enemyLevel: d.npcLevel ?? null,
@@ -7125,6 +7236,385 @@ async function collectMission() {
 }
 
 // ── Mission Overlay ───────────────────────────────────────────────────────
+
+// Story Mode — persistent NPC panel + quest completion overlay.
+let _storyPending = null; // { result } set when a story quest completes during a battle report
+
+// Typewriter/dialogue state
+let _storyDlg = {
+    lines: [], idx: 0, typed: 0, words: [], timer: null, box: null, scenes: [],
+};
+
+function clearStoryTypewriter() {
+    if (_storyDlg.timer) { clearInterval(_storyDlg.timer); _storyDlg.timer = null; }
+}
+
+// Resolves a story stage's zone+spot ids to human-readable location labels the
+// player actually sees on the missions map (e.g. "Hunting Camp · Whispering Forest").
+function storyStageLocation(stage) {
+    if (!stage || !stage.zone) return '';
+    const zone = ZONES[stage.zone];
+    const spot = zone && Array.isArray(zone.spots) ? zone.spots.find(s => s.id === stage.spot) : null;
+    const zoneName = (zone && zone.name) || stage.zone;
+    const spotName = (spot && spot.name) || stage.spot;
+    return `${spotName} · ${zoneName}`;
+}
+
+// Renders a small quest icon onto the missions map. Clicking it opens the dialogue modal.
+function renderStoryPanel() {
+    const host = document.getElementById('mission-story-panel');
+    if (!host) return;
+    const st = character?.story;
+    if (!st) { host.classList.add('hidden'); host.innerHTML = ''; return; }
+
+    const pt = CURRENT_LANG === 'pt';
+    let icon, label, tip;
+    if (st.done) {
+        icon = '🏆';
+        label = pt ? 'História concluída' : 'Story complete';
+    } else if (st.activeQuest) {
+        icon = st.activeQuest.icon || '📜';
+        label = `${st.npc?.name || 'Sage'} — ${pt ? 'História' : 'Story'}`;
+        const as = st.activeStage;
+        const stageTotal = Array.isArray(st.activeQuest.stages) ? st.activeQuest.stages.length : 0;
+        tip = as
+            ? `${label} · ${pt ? 'Etapa' : 'Stage'} ${(as.stageIdx || 0) + 1}/${stageTotal} · 📍 ${storyStageLocation(as)}: ${as.objective || ''}${as.hint ? ' — ' + as.hint : ''}`
+            : label;
+    } else {
+        icon = '📜';
+        label = pt ? 'História' : 'Story';
+    }
+
+    host.classList.remove('hidden');
+    host.innerHTML = `
+        <div class="story-fab" title="${escHtml(tip || label)}" ${actionAttrs('openStoryDialogue')}>
+            <span class="story-fab-icon">${icon}</span>
+            <span class="story-fab-label">${pt ? 'História' : 'Story'}</span>
+            ${st.activeQuest && !st.done ? `<span class="story-fab-pulse"></span>` : ''}
+        </div>`;
+}
+
+async function loadStoryPanel() {
+    try {
+        const st = await api('GET', '/game/story').catch(() => null);
+        if (st && st.success && character) {
+            character.story = st;
+        }
+    } catch (e) { /* silent */ }
+    renderStoryPanel();
+}
+
+// Transient bottom-center toast used for story feedback.
+function storyToast(msg) {
+    let t = document.getElementById('story-toast');
+    if (!t) {
+        t = document.createElement('div');
+        t.id = 'story-toast';
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:2100;background:rgba(18,15,28,.96);color:#e8dfc4;padding:12px 20px;border:1px solid rgba(255,215,0,.45);border-radius:10px;font-size:14px;box-shadow:0 6px 24px rgba(0,0,0,.55);text-align:center;max-width:80vw;';
+        document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.style.display = 'block';
+    clearTimeout(t._t);
+    t._t = setTimeout(() => { t.style.display = 'none'; }, 5000);
+}
+
+async function acceptStoryStage() {
+    const res = await api('POST', '/game/story/accept');
+    if (res.success) {
+        closeStoryDialogue();
+        await loadStoryPanel();
+        const as = character?.story?.activeStage;
+        const loc = as ? storyStageLocation(as) : '';
+        storyToast((CURRENT_LANG === 'pt' ? 'Etapa aceita! Vença uma missão em ' : 'Stage accepted! Win a mission at ') + (loc || ''));
+    } else {
+        alert('Failed to accept: ' + (res.error || 'Unknown error'));
+    }
+}
+window.acceptStoryStage = acceptStoryStage;
+
+// Opens the story dialogue as a full-screen cutscene that pages through
+// scene images, one per dialogue line.
+function openStoryDialogue() {
+    const st = character?.story;
+    clearStoryTypewriter();
+    if (!st) return;
+
+    const pt = CURRENT_LANG === 'pt';
+    let modal = document.getElementById('story-dialogue-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'story-dialogue-modal';
+        modal.className = 'modal-overlay story-cutscene';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+
+    if (st.done) {
+        modal.innerHTML = `
+            <div class="story-cutscene-scene story-cutscene-final" style="background:radial-gradient(ellipse at 50% 30%, #2d1b4e, #0a0812)">
+                <div class="story-cutscene-title">${pt ? 'A história se completa…' : 'The story completes…'}</div>
+                <div class="story-cutscene-text">${pt ? 'Você recuperou todos os artefatos e desvendou a verdade sobre a Dark City. A estrada que começa onde o velho mundo terminou agora espera por você.' : 'You recovered every artifact and uncovered the truth about the Dark City. The road that begins where the old world ended now awaits you.'}</div>
+                <button class="btn-primary" ${actionAttrs('closeStoryDialogue')}>${pt ? 'Continuar' : 'Continue'}</button>
+            </div>`;
+        return;
+    }
+
+    const stg = st.activeStage;
+    if (!stg) { closeStoryDialogue(); return; }
+
+    // cutscene: optional array of scene data. If not provided, synthesize one
+    // scene per dialogue line with a fallback background gradient.
+    let scenes = Array.isArray(stg.cutscene) && stg.cutscene.length
+        ? stg.cutscene.slice()
+        : stg.dialogue.map((d, i) => ({ bg: null, line: d }));
+
+    // Normalize: each scene may be { bg, line } or a plain string.
+    scenes = scenes.map((s, i) => {
+        const obj = (typeof s === 'string') ? { line: s } : { line: s.line, bg: s.bg };
+        const rawLine = (typeof obj.line === 'string') ? obj.line : stg.dialogue[i];
+        return {
+            bg: obj.bg || null,
+            line: rawLine,
+        };
+    });
+
+    _storyDlg.scenes = scenes;
+    _storyDlg.lines = scenes.map(s => s.line);
+    _storyDlg.idx = 0;
+
+    modal.innerHTML = `
+        <div class="story-cutscene-stage" id="story-cutscene-stage">
+            <div class="story-cutscene-bg" id="story-cutscene-bg"></div>
+            <div class="story-cutscene-vignette"></div>
+            <div class="story-cutscene-dlg">
+                <div class="story-cutscene-text" id="story-cutscene-text" ${actionAttrs('storyDialogueReveal')}></div>
+            </div>
+            <div class="story-cutscene-progress" id="story-cutscene-progress"></div>
+            <div class="story-cutscene-nav">
+                <button class="btn-secondary story-dlg-prev" ${actionAttrs('storyDialoguePrev')}>${pt ? '◀ Anterior' : '◀ Prev'}</button>
+                <button class="btn-primary story-dlg-next" ${actionAttrs('storyDialogueNext')}>${pt ? 'Próximo ▶' : 'Next ▶'}</button>
+                <div class="story-dlg-accept" id="story-dlg-accept"></div>
+            </div>
+            <button class="story-dlg-close" ${actionAttrs('closeStoryDialogue')}>✕</button>
+        </div>
+    `;
+
+    _storyDlg.box = document.getElementById('story-cutscene-text');
+    renderStoryLine();
+    updateStoryNavButtons();
+}
+
+// Applies the current scene: background image.
+function applyStoryScene() {
+    const modal = document.getElementById('story-dialogue-modal');
+    if (!modal) return;
+    const scene = _storyDlg.scenes[_storyDlg.idx];
+
+    const bgEl = document.getElementById('story-cutscene-bg');
+    const fallback = () => {
+        if (bgEl) {
+            // No usable image (or failed to load) → fallback gradient.
+            bgEl.style.backgroundImage = 'radial-gradient(ellipse at 50% 40%, #2b1a3a, #0a0812)';
+            bgEl.style.backgroundSize = 'auto';
+        }
+    };
+    if (bgEl) {
+        if (scene && scene.bg) {
+            const probe = new Image();
+            probe.onload = () => {
+                bgEl.style.backgroundImage = `url('${scene.bg}')`;
+                bgEl.style.backgroundSize = 'cover';
+                bgEl.style.backgroundPosition = 'center';
+            };
+            probe.onerror = fallback;
+            probe.src = scene.bg;
+        } else {
+            fallback();
+        }
+    }
+
+    const prog = document.getElementById('story-cutscene-progress');
+    if (prog) prog.textContent = scenesProgressLabel();
+}
+
+function scenesProgressLabel() {
+    const st = character?.story;
+    const pt = CURRENT_LANG === 'pt';
+    const q = st?.activeQuest;
+    let s;
+    let as = st?.activeStage;
+    if (st?.done) {
+        s = pt ? `História concluída` : `Story complete`;
+    } else {
+        s = pt
+            ? `Missão ${(st.currentQuest || 0) + 1} de ${st.totalQuests || 0}`
+            : `Quest ${(st.currentQuest || 0) + 1} of ${st.totalQuests || 0}`;
+        const stageTotal = st?.totalStages || (Array.isArray(q?.stages) ? q.stages.length : 0);
+        if (as && stageTotal) {
+            s += pt
+                ? ` · Etapa ${(as.stageIdx || 0) + 1}/${stageTotal}`
+                : ` · Stage ${(as.stageIdx || 0) + 1}/${stageTotal}`;
+        }
+    }
+    if (as) s += ` · ${as.icon || ''} ${as.name}`;
+    return s.trim();
+}
+
+function renderStoryLine() {
+    clearStoryTypewriter();
+    applyStoryScene();
+    const box = _storyDlg.box;
+    if (!box) return;
+    const line = _storyDlg.lines[_storyDlg.idx];
+    _storyDlg.words = typeof line === 'string' ? line.split(/\s+/) : [];
+    _storyDlg.typed = 0;
+    box.textContent = '';
+    _storyDlg.timer = setInterval(() => {
+        if (_storyDlg.typed < _storyDlg.words.length) {
+            _storyDlg.typed++;
+            box.textContent = _storyDlg.words.slice(0, _storyDlg.typed).join(' ');
+        } else {
+            clearStoryTypewriter();
+            box.textContent = _storyDlg.words.join(' ');
+        }
+    }, 140);
+}
+
+// Clicking the text while typing reveals the full line immediately.
+function storyDialogueReveal() {
+    if (!_storyDlg.box || !_storyDlg.words.length) return;
+    if (_storyDlg.typed < _storyDlg.words.length) {
+        clearStoryTypewriter();
+        _storyDlg.typed = _storyDlg.words.length;
+        _storyDlg.box.textContent = _storyDlg.words.join(' ');
+    }
+}
+
+function storyDialogueNext() {
+    const max = _storyDlg.lines.length - 1;
+    if (_storyDlg.idx >= max) { closeStoryDialogue(); return; }
+    if (_storyDlg.typed < _storyDlg.words.length) { storyDialogueReveal(); return; }
+    _storyDlg.idx++;
+    renderStoryLine();
+    updateStoryNavButtons();
+}
+
+function storyDialoguePrev() {
+    if (_storyDlg.idx <= 0) return;
+    clearStoryTypewriter();
+    _storyDlg.idx--;
+    renderStoryLine();
+    updateStoryNavButtons();
+}
+
+function updateStoryNavButtons() {
+    const modal = document.getElementById('story-dialogue-modal');
+    if (!modal) return;
+    const st = character?.story;
+    const prev = modal.querySelector('.story-dlg-prev');
+    const next = modal.querySelector('.story-dlg-next');
+    const acc = modal.querySelector('#story-dlg-accept');
+    const pt = CURRENT_LANG === 'pt';
+    const last = _storyDlg.idx >= _storyDlg.lines.length - 1;
+    // Not accepted yet → offer Accept/Later on the final scene; otherwise the
+    // stage is already live so the last scene just closes the cutscene.
+    const needsAccept = !!st && !st.done && !!st.activeStage && st.acceptedStage !== st.currentStage;
+    if (prev) prev.style.visibility = _storyDlg.idx <= 0 ? 'hidden' : 'visible';
+    if (next) {
+        next.style.display = (last && needsAccept) ? 'none' : '';
+        next.innerHTML = last ? '✕' : (pt ? 'Próximo ▶' : 'Next ▶');
+        next.dataset.action = last ? 'closeStoryDialogue' : 'storyDialogueNext';
+    }
+    if (acc) {
+        if (last && needsAccept) {
+            const as = st.activeStage;
+            const loc = storyStageLocation(as);
+            acc.style.display = '';
+            acc.innerHTML = `
+                <button class="btn-primary" title="📍 ${escHtml(loc)}" ${actionAttrs('acceptStoryStage')}>${pt ? 'Aceitar Etapa' : 'Accept Stage'}</button>
+                <button class="btn-secondary" ${actionAttrs('closeStoryDialogue')}>${pt ? 'Mais tarde' : 'Later'}</button>`;
+        } else {
+            acc.style.display = 'none';
+            acc.innerHTML = '';
+        }
+    }
+}
+
+function closeStoryDialogue() {
+    clearStoryTypewriter();
+    const modal = document.getElementById('story-dialogue-modal');
+    if (modal) modal.classList.add('hidden');
+}
+
+// Shows a full-screen story completion overlay after a story stage is won.
+// Stage completions get a lighter header + next goal; quest completions show
+// the lore unlock + full rewards (the final stage of a quest grants gems).
+function showStoryCompletionModal(result) {
+    if (!result) return;
+    const pt = CURRENT_LANG === 'pt';
+    const r = result.rewards || {};
+    const rewardRows = [];
+    if (r.gold) rewardRows.push(`<div class="story-reward-row">💰 <strong>+${r.gold.toLocaleString()}</strong> ${pt ? 'Ouro' : 'Gold'}</div>`);
+    if (r.gems) rewardRows.push(`<div class="story-reward-row">💎 <strong>+${r.gems}</strong> ${pt ? 'Gemas' : 'Gems'}</div>`);
+    if (r.premium) rewardRows.push(`<div class="story-reward-row">✨ <strong>+${r.premium.days}</strong> ${pt ? 'dias de Premium' : 'days Premium'}</div>`);
+    if (r.lootbox) rewardRows.push(`<div class="story-reward-row">📦 <strong>+${r.lootbox.qty} Loot Box</strong></div>`);
+    const boost = result.boosted
+        ? `<div class="story-boost">${pt ? '⚡ Recompensas extragrandes de lançamento (30 dias)!' : '⚡ EXTRA launch rewards (30 days)!'}</div>`
+        : '';
+
+    const questComplete = !!result.questComplete;
+    const onlyStage = !!result.stageComplete && !questComplete;
+    const stageTotal = result.stageTotal || (Array.isArray(character?.story?.activeQuest?.stages) ? character.story.activeQuest.stages.length : 3);
+
+    const header = onlyStage
+        ? (pt ? 'ETAPA CONCLUÍDA!' : 'STAGE COMPLETE!')
+        : (pt ? 'MISSÃO DA HISTÓRIA CONCLUÍDA!' : 'STORY QUEST COMPLETE!');
+
+    const nameLine = onlyStage
+        ? `<div class="story-completion-name">${result.icon || '📜'} ${result.questName} · ${pt ? 'Etapa' : 'Stage'} ${(result.stageIdx || 0) + 1}/${stageTotal}</div>`
+        : `<div class="story-completion-name">${result.icon || '🗿'} ${result.questName}</div>`;
+
+    const loreBox = (!onlyStage && result.loreUnlock)
+        ? `<div class="story-lore-box">${escHtml(result.loreUnlock)}</div>`
+        : '';
+
+    const nextLine = result.nextObjective
+        ? `<div class="story-next-line">${pt ? 'Próximo:' : 'Next:'} ${escHtml(result.nextObjective)}</div>`
+        : '';
+
+    const finalMsg = result.done || result.storyComplete
+        ? `<div class="story-final-msg">${pt ? '🏆 Você completou a História! Todas as recompensas finais foram concedidas.' : '🏆 You completed the Story! All final rewards granted.'}</div>`
+        : '';
+
+    let modal = document.getElementById('story-completion-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'story-completion-modal';
+        modal.className = 'modal-overlay';
+        document.body.appendChild(modal);
+    }
+    modal.classList.remove('hidden');
+    modal.innerHTML = `
+        <div class="modal-box story-completion-box">
+            <div class="story-npc-big">${character?.story?.npc?.icon || '🧙'}</div>
+            <div class="story-completion-title">${header}</div>
+            ${boost}
+            ${nameLine}
+            ${nextLine}
+            ${loreBox}
+            <div class="story-rewards">${rewardRows.join('') || (pt ? 'Sem recompensas' : 'No rewards')}</div>
+            ${finalMsg}
+            <button class="btn-primary" style="margin-top:16px;width:100%" ${actionAttrs('closeStoryCompletion')}>${pt ? 'Continuar' : 'Continue'}</button>
+        </div>
+    `;
+}
+
+function closeStoryCompletion() {
+    const modal = document.getElementById('story-completion-modal');
+    if (modal) modal.classList.add('hidden');
+    loadStoryPanel();
+}
 
 async function checkAndShowMissionOverlay() {
     try {
@@ -7719,7 +8209,8 @@ function _ptDialogLabel(label) {
         'Awesome!': 'Incrível!',
         'Yes, stop now': 'Sim, parar agora',
         'Cancel Training': 'Cancelar Treinamento',
-        'Delete All': 'Excluir Tudo'
+        'Delete All': 'Excluir Tudo',
+        'Keep Item': 'Manter Item'
     };
     return map[label] || label;
 }
@@ -7774,7 +8265,7 @@ function openGameNoticeDialog(options = {}) {
 
 // ── Forge ─────────────────────────────────────────────────────────────────
 async function loadForge() {
-    document.getElementById('forge-content').innerHTML='<p class="loading">Loading forge...</p>';
+    document.getElementById('forge-content').innerHTML=`<p class="loading">${_pt('Carregando forja...', 'Loading forge...')}</p>`;
     try { forgeData=await api('GET','/game/forge/recipes'); renderForge(); }
     catch(e) { document.getElementById('forge-content').innerHTML=`<p class="loading">${e.message}</p>`; }
 }
@@ -7802,15 +8293,16 @@ function renderForge() {
             const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{
                 const have=(forgeData.mats[mat]?.qty||0);
                 const matData = forgeData.mats[mat] || {};
-                const matName = matData.name || mat.replace(/_/g,' ');
-                return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
+                const matName = translateItemNameExactPT(matData.name || mat.replace(/_/g,' '));
+                return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (${_pt('tem', 'have')} ${have})</span>`;
             }).join(' ');
             const bgImg = getAssetImagePath(c.name);
+            const compName = translateItemNameExactPT(c.name);
             return `<div class="forge-card" data-eid="${c.id}" style="display:flex;flex-direction:column;min-height:240px;${bgImg?'--card-bg:url('+bgImg+')':''}">
-                <div class="forge-card-header">${matIcon(c.name, c.emoji, '1.3rem')}<span class="forge-card-name">${c.name}</span></div>
-                <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${c.desc||''}</div>
-                <div class="forge-recipe">Requires: ${recipeStr}</div>
-                <div class="forge-cost">+ ${c.goldCost.toLocaleString()} gold each</div>
+                <div class="forge-card-header">${matIcon(c.name, c.emoji, '1.3rem')}<span class="forge-card-name">${compName}</span></div>
+                <div style="font-size:0.75rem;color:var(--text-dim);margin:4px 0 6px">${translateItemDescExactPT(c.desc)||''}</div>
+                <div class="forge-recipe">${_pt('Requer:', 'Requires:')} ${recipeStr}</div>
+                <div class="forge-cost">+ ${c.goldCost.toLocaleString()} ${_pt('ouro cada', 'gold each')}</div>
                 <div style="margin-top:auto;display:flex;flex-direction:column;gap:8px">
                     <div style="display:flex; align-items:center; gap:4px;">
                         <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, -1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">−</button>
@@ -7819,7 +8311,7 @@ function renderForge() {
                         <button class="btn-sm" ${actionAttrs('forgeQtyStep', c.id, 1)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 26px; padding:2px 0; font-weight:700;">+</button>
                         <button class="btn-sm" ${actionAttrs('forgeQtySetMax', c.id)} ${maxQty < 1 ? 'disabled' : ''} style="flex:0 0 40px; padding:2px 0;">MAX</button>
                     </div>
-                    <button class="btn-forge" ${actionAttrs('refineInput', c.id)} ${maxQty < 1 ? 'disabled' : ''}>${maxQty >= 1 ? 'Refine' : 'Cannot Refine'}</button>
+                    <button class="btn-forge" ${actionAttrs('refineInput', c.id)} ${maxQty < 1 ? 'disabled' : ''}>${maxQty >= 1 ? _pt('Refinar', 'Refine') : _pt('Não refina', 'Cannot Refine')}</button>
                 </div>
             </div>`;
         }).join('')}</div>`;
@@ -7843,8 +8335,8 @@ const sets = forgeData.sets || {};
         const gearSetDefs = forgeData.raidGear || {};
         el.innerHTML = `
             <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px;padding:10px 14px;background:rgba(255,255,255,0.04);border-radius:8px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                <span>💎 Raid Tokens: <strong style="color:var(--gold)">${tokens.toLocaleString()}</strong></span>
-                <span style="font-size:0.72rem">Each piece costs <strong>${cost} tokens</strong> · earned by completing guild raids (10 + 2 per floor)</span>
+                <span>💎 ${_pt('Fichas de Invasão:', 'Raid Tokens:')} <strong style="color:var(--gold)">${tokens.toLocaleString()}</strong></span>
+                <span style="font-size:0.72rem">${_pt('Cada peça custa', 'Each piece costs')} <strong>${cost} ${_pt('fichas', 'tokens')}</strong> · ${_pt('ganhas ao completar invasões de guilda (10 + 2 por andar)', 'earned by completing guild raids (10 + 2 per floor)')}</span>
             </div>
             ${Object.entries(gearSetDefs).map(([setId, gs])=>{
                 const setDef = sets[setId] || { name: gs.bossName, emoji:'🎖️', bonus3:{desc:''}, bonus4:{desc:''} };
@@ -7856,6 +8348,7 @@ const sets = forgeData.sets || {};
                     </div>`;
                 const cardHtml = pieces.map(({slot, piece})=>{
                     const canBuy = tokens >= cost;
+                    const pieceNamePT = translateItemNameExactPT(piece.name);
                     const forgeDecl = escHtml(JSON.stringify({ setId, slot, name: piece.name }));
                     const raidBg = getAssetImagePath(piece.name);
                     return `<div class="forge-card" style="display:flex;flex-direction:column;min-height:250px;border-color:rgba(241,196,15,0.15);${raidBg?'--card-bg:url('+raidBg+')':''}">
@@ -7863,22 +8356,22 @@ const sets = forgeData.sets || {};
                             <span style="display:flex;align-items:center;justify-content:center;min-width:34px"><img src="${getAssetImagePath(piece.name)}" data-error-hide="true" data-error-next-display="inline" style="display:inline;width:34px;height:34px;object-fit:contain"><span style="font-size:1.3rem;display:none">${piece.emoji||slotIcon[slot]||'🎖️'}</span></span>
                             <div>
                                 <div style="display:flex;align-items:center;gap:6px">
-                                    <span class="forge-card-name">${escHtml(piece.name)}</span>
+                                    <span class="forge-card-name">${escHtml(pieceNamePT)}</span>
                                 </div>
-                                <div style="font-size:0.68rem;color:var(--text-dim)">${capitalize(slot||'piece')} · legendary · Lv.${character?.level||1}</div>
+                                <div style="font-size:0.68rem;color:var(--text-dim)">${slotLabelPT(slot||'piece')} · <span style="color:#f1c40f">${_pt('lendário', 'legendary')}</span> · Lv.${character?.level||1}</div>
                             </div>
                         </div>
-                        <div style="font-size:0.72rem;color:var(--text-dim);margin:4px 0">Parte do conjunto <strong style="color:var(--gold)">${escHtml(gs.bossName)}</strong></div>
-                        <div class="forge-cost" style="color:${canBuy?'var(--gold)':'var(--red-light)'}">${cost} 💎 Raid Tokens</div>
-                        <button class="btn-forge" style="margin-top:auto" ${actionAttrs('buyRaidGear', setId, slot)} ${canBuy?'':'disabled'}>${tokens<cost?`Need ${(cost-tokens).toLocaleString()} more tokens`:`Exchange ${cost} tokens`}</button>
+                        <div style="font-size:0.72rem;color:var(--text-dim);margin:4px 0">${_pt('Parte do conjunto', 'Part of set')} <strong style="color:var(--gold)">${escHtml(translateItemNameExactPT(gs.bossName))}</strong></div>
+                        <div class="forge-cost" style="color:${canBuy?'var(--gold)':'var(--red-light)'}">${cost} 💎 ${_pt('Fichas de Invasão', 'Raid Tokens')}</div>
+                        <button class="btn-forge" style="margin-top:auto" ${actionAttrs('buyRaidGear', setId, slot)} ${canBuy?'':'disabled'}>${tokens<cost?_pt(`Faltam ${(cost-tokens).toLocaleString()} fichas`, `Need ${(cost-tokens).toLocaleString()} more tokens`):_pt(`Trocar ${cost} fichas`, `Exchange ${cost} tokens`)}</button>
                     </div>`;
                 }).join('');
                 return `<div style="margin-bottom:32px">
                     <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
                         <span style="font-size:1.4rem">${setDef.emoji||'🎖️'}</span>
                         <div>
-                            <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${escHtml(gs.bossName)} — ${translateSetNamePT(setDef.name||setId)}</div>
-                            <div style="font-size:0.72rem;color:var(--text-dim)">Exchange raid tokens to collect all 5 pieces and unlock the set bonus</div>
+                            <div style="font-family:'Cinzel',serif;font-size:1rem;font-weight:700;color:var(--text-bright)">${escHtml(translateItemNameExactPT(gs.bossName))} — ${translateSetNamePT(setDef.name||setId)}</div>
+                            <div style="font-size:0.72rem;color:var(--text-dim)">${_pt('Troque fichas de invasão para coletar todas as 5 peças e desbloquear o bônus de conjunto', 'Exchange raid tokens to collect all 5 pieces and unlock the set bonus')}</div>
                         </div>
                     </div>
                     ${bonusHtml}
@@ -7897,18 +8390,18 @@ const sets = forgeData.sets || {};
                 <div style="display:flex;align-items:center;gap:8px">
                     <span class="forge-card-name">${escHtml(weap.name)}</span>
                     <span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:rgba(241,196,15,0.13);color:#f1c40f;border:1px solid rgba(241,196,15,0.27);font-weight:700">Lv.${weap.wp_level}/5</span>
-                    ${weap.maxed?'<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:rgba(46,204,113,0.13);color:#2ecc71;border:1px solid rgba(46,204,113,0.27)">MAXED</span>':''}
+                    ${weap.maxed?`<span style="font-size:0.65rem;padding:1px 6px;border-radius:8px;background:rgba(46,204,113,0.13);color:#2ecc71;border:1px solid rgba(46,204,113,0.27)">${_pt('MÁXIMO', 'MAXED')}</span>`:''}
                 </div>
                 <div style="display:flex;gap:12px;margin-top:4px;font-size:0.7rem;color:var(--text-dim)">
                     <span>XP ${weap.wp_xp}/${weap.wp_xp_target}</span>
-                    <span>Feed ${weap.wp_feed}/${weap.wp_feed_target}</span>
+                    <span>${_pt('Alimentar', 'Feed')} ${weap.wp_feed}/${weap.wp_feed_target}</span>
                     ${weap.wp_stat_points>0?`<span style="color:var(--gold)">✨ ${weap.wp_stat_points}pts</span>`:''}
                 </div>
             </div>
-            <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weap.maxed?'MAXED':'Upgrade →'}</span>
+            <span style="font-size:0.75rem;color:var(--gold);flex-shrink:0">${weap.maxed?_pt('MÁXIMO','MAXED'):_pt('Melhorar →', 'Upgrade →')}</span>
         </button>` : '';
 
-    el.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">💡 Tip: Hover the item header to preview stats</div>` + weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
+    el.innerHTML = `<div style="font-size:0.75rem;color:var(--text-dim);margin-bottom:16px;padding:8px 12px;background:rgba(255,255,255,0.04);border-radius:8px">💡 ${_pt('Dica: Passe o mouse no cabeçalho do item para ver os atributos', 'Tip: Hover the item header to preview stats')}</div>` + weaponHtml + Object.entries(bySet).map(([setId, pieces]) => {
         const setDef = sets[setId] || { name: setId, emoji:'⚒️', bonus3:{desc:''}, bonus4:{desc:''} };
         const equippedCount = pieces.filter(p => p.equipped).length;
         const equippedPct = Math.round(equippedCount / pieces.length * 100);
@@ -7938,8 +8431,8 @@ const sets = forgeData.sets || {};
             const compStr = Object.entries(r.components).map(([comp,qty]) => {
                 const have = (forgeData.mats[comp]?.qty||0);
                 const matData = forgeData.mats[comp] || {};
-                const matName = matData.name || comp.replace(/_/g,' ');
-                return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (have ${have})</span>`;
+                const matName = translateItemNameExactPT(matData.name || comp.replace(/_/g,' '));
+                return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (${_pt('tem', 'have')} ${have})</span>`;
             }).join(' ');
 
             const craftBg = r.img || getAssetImagePath(r.name);
@@ -7948,17 +8441,17 @@ const sets = forgeData.sets || {};
                     <span style="font-size:1.3rem;display:flex;align-items:center;justify-content:center;min-width:34px">${itemIcon(r,'1.8rem')}</span>
                     <div>
                         <div style="display:flex;align-items:center;gap:6px">
-                            <span class="forge-card-name">${r.name}</span>
+                            <span class="forge-card-name">${translateItemNameExactPT(r.name)}</span>
                         </div>
                     </div>
                 </div>
                 ${locked
-                ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 Complete a mission in ${(r.requiredZone||'').replace('_',' ')} first</div>`
-                : `<div class="forge-recipe" style="margin:4px 0">Components: ${compStr}</div>`}
-                ${r.craftClass ? `<div style="font-size:0.7rem;color:var(--text-dim);margin:2px 0">📋 Classes: ${r.craftClass}</div>` : ''}
-                <div class="forge-cost">+ ${r.goldCost.toLocaleString()} gold</div>
+                ? `<div style="font-size:0.75rem;color:var(--red-light);margin:4px 0">🔒 ${_pt('Complete uma missão em', 'Complete a mission in')} ${(r.requiredZone||'').replace('_',' ')} ${_pt('primeiro', 'first')}</div>`
+                : `<div class="forge-recipe" style="margin:4px 0">${_pt('Componentes:', 'Components:')} ${compStr}</div>`}
+                ${r.craftClass ? `<div style="font-size:0.7rem;color:var(--text-dim);margin:2px 0">📋 ${_pt('Classes', 'Classes')}: ${r.craftClass === 'rogue' ? _pt('Ladino', 'rogue') : r.craftClass}</div>` : ''}
+                <div class="forge-cost">+ ${r.goldCost.toLocaleString()} ${_pt('ouro', 'gold')}</div>
                 <button class="btn-forge" style="margin-top:auto" ${actionAttrs('craftItem', r.id)} ${r.canCraft?'':'disabled'}>
-                    ${locked?'🔒 Locked':r.canCraft?`⚒️ Craft ${r.name}`:'Missing materials'}
+                    ${locked?`🔒 ${_pt('Bloqueado', 'Locked')}`:r.canCraft?`⚒️ ${_pt('Forjar', 'Craft')} ${translateItemNameExactPT(r.name)}`:_pt('Faltam materiais', 'Missing materials')}
                 </button>
             </div>`;
         }).join('');
@@ -8136,17 +8629,17 @@ async function openWeaponFeedDialog(dialog, weap) {
                 <button class="btn-secondary" style="font-size:0.75rem;padding:3px 8px" id="feed-back-btn">← Back</button>
             </div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;font-size:0.65rem;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:6px;justify-content:center">
-                <span style="color:var(--text-dim)">Common +1</span>
-                <span style="color:#2ecc71">Uncommon +3</span>
-                <span style="color:#3498db">Rare +8</span>
-                <span style="color:#9b59b6">Epic +20</span>
-                <span style="color:#f1c40f">Legendary +50</span>
+                <span style="color:var(--text-dim)">${_pt('Comum', 'Common')} +1</span>
+                <span style="color:#2ecc71">${_pt('Incomum', 'Uncommon')} +3</span>
+                <span style="color:#3498db">${_pt('Raro', 'Rare')} +8</span>
+                <span style="color:#9b59b6">${_pt('Épico', 'Epic')} +20</span>
+                <span style="color:#f1c40f">${_pt('Lendário', 'Legendary')} +50</span>
             </div>
             <div style="flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px">
                 ${entries.map(([id, mat]) =>
         `<div class="feed-row" data-invid="${mat.invId || id}" data-max="${mat.qty}" style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;font-size:0.85rem">
                         ${matIcon(mat.name || id, mat.emoji, '1.1rem')}
-                        <span style="flex:1;min-width:0">${mat.name||id}</span>
+                        <span style="flex:1;min-width:0">${translateItemNameExactPT(mat.name)||id}</span>
                         <span style="color:var(--text-dim);font-size:0.7rem;flex-shrink:0">×${mat.qty}</span>
                         <span style="font-size:0.6rem;padding:1px 4px;border-radius:4px;flex-shrink:0;background:${({common:'rgba(255,255,255,0.06)',uncommon:'rgba(46,204,113,0.2)',rare:'rgba(52,152,219,0.2)',epic:'rgba(155,89,182,0.2)',legendary:'rgba(241,196,15,0.2)'})[mat.rarity]||'rgba(255,255,255,0.06)'};color:${({common:'var(--text-dim)',uncommon:'#2ecc71',rare:'#3498db',epic:'#9b59b6',legendary:'#f1c40f'})[mat.rarity]||'var(--text-dim)'}">${mat.rarity||'common'}</span>
                         <div style="display:flex;align-items:center;gap:2px;flex-shrink:0">
@@ -8255,12 +8748,15 @@ async function doApplyWeaponStats(dialog, weap) {
 async function refine(componentId, quantity = 1) {
     try {
         const qty = Math.max(1, Math.floor(Number(quantity) || 1));
+        const comps = (forgeData && forgeData.components) || [];
+        const compName = (comps.find(c => c.id === componentId) || {}).name || '';
         const d = await api('POST','/game/forge/refine',{componentId, quantity: qty});
         character = await api('GET','/game/character');
         renderTopBar();
         renderCharacter();
         await loadForge();
-        showTabAlert(d.message);
+        const baseName = compName || String(d.message || '').replace(/^Refined:\s*/, '');
+        showTabAlert(CURRENT_LANG === 'pt' ? `Refinado: ${qty}× ${translateItemNameExactPT(baseName)}`.trim() + '!' : (d.message || `Refined: ${qty}x ${baseName}!`));
     } catch(e) {
         showTabAlert(e.message);
     }
@@ -8293,8 +8789,8 @@ function forgeQtyStep(id, step) {
     if (isNaN(v)) v = 0;
     const next = Math.max(0, Math.min(v + step, max));
     if (next === v) {
-        if (step > 0) showForgeAlert('Maximum reached — not enough gold or materials to refine more.');
-        else if (step < 0) showForgeAlert('Quantity is already at minimum.');
+        if (step > 0) showForgeAlert(_pt('Máximo atingido — ouro ou materiais insuficientes para refinar mais.', 'Maximum reached — not enough gold or materials to refine more.'));
+        else if (step < 0) showForgeAlert(_pt('A quantidade já está no mínimo.', 'Quantity is already at minimum.'));
         return;
     }
     input.value = next;
@@ -8305,7 +8801,7 @@ function forgeQtySetMax(id) {
     if (!input) return;
     const max = parseInt(input.getAttribute('max') || '0', 10);
     if (max < 1) {
-        showForgeAlert('Cannot refine — not enough gold or materials.');
+        showForgeAlert(_pt('Não refina — ouro ou materiais insuficientes.', 'Cannot refine — not enough gold or materials.'));
         return;
     }
     input.value = max;
@@ -8315,7 +8811,7 @@ async function refineInput(componentId) {
     const input = getForgeQtyInput(componentId);
     let qty = input ? parseInt(input.value || '0', 10) : 0;
     if (isNaN(qty) || qty < 1) {
-        showTabAlert('Enter a refine quantity of at least 1.');
+        showTabAlert(_pt('Digite uma quantidade de refino de pelo menos 1.', 'Enter a refine quantity of at least 1.'));
         return;
     }
     await refine(componentId, qty);
@@ -8328,7 +8824,7 @@ async function craftItem(recipeId) {
         renderCharacter();
         await loadForge();
         await loadInventory();
-        showTabAlert(d.message);
+        showTabAlert(CURRENT_LANG === 'pt' ? String(d.message || '').replace(/^⚒️ Crafted:/, '⚒️ Forjado:') : d.message);
     } catch(e) {
         showTabAlert(e.message);
     }
@@ -8341,7 +8837,7 @@ async function buyRaidGear(setId, slot) {
         renderCharacter();
         await loadForge();
         await loadInventory();
-        showTabAlert(d.message);
+        showTabAlert(CURRENT_LANG === 'pt' ? String(d.message || '').replace(/^Acquired /, 'Adquirido: ') : d.message);
     } catch(e) {
         showTabAlert(e.message);
     }
@@ -8394,11 +8890,11 @@ function showRaidGearTooltip(event, declJson) {
         <div class="tt-preview">${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${piece.emoji||'🎖️'}</span>` : `<span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span>`}</div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${escHtml(translateItemNamePT(piece.name))}</div>
-            <div class="tt-meta">${slotLabelPT(slotLabel||'piece')} · <span style="color:${qColor}">legendary</span> · Lv.${itemLevel}</div>
-            <div class="tt-desc">${piece.desc || ''}</div>
-            <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
-            ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${escHtml(equippedItem.name)}</strong></div>` : ''}
-            <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">Cost: ${cost} 💎 Raid Tokens (have ${tokens.toLocaleString()})</div>
+            <div class="tt-meta">${slotLabelPT(slotLabel||'piece')} · <span style="color:${qColor}">${_pt('lendário', 'legendary')}</span> · Lv.${itemLevel}</div>
+            <div class="tt-desc">${getCanonicalItemDesc(piece.desc, piece.name)}</div>
+            <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">' + _pt('Sem atributos', 'No stats') + '</span>'}</div>
+            ${equippedItem ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
+            <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">${_pt('Custo:', 'Cost:')} ${cost} 💎 ${_pt('Fichas de Invasão', 'Raid Tokens')} (${_pt('tem', 'have')} ${tokens.toLocaleString()})</div>
         </div>`;
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
@@ -8415,7 +8911,7 @@ let invBulkMode = false;
 let invBulkSelected = {}; // { invId: { name, price } }
 
 async function loadInventory() {
-    document.getElementById('inventory-content').innerHTML='<p class="loading">Loading...</p>';
+    document.getElementById('inventory-content').innerHTML=`<p class="loading">${_pt('Carregando...', 'Loading...')}</p>`;
     try {
         const d=await api('GET','/game/inventory');
         syncPotionBadgeFromInventory(d);
@@ -8474,7 +8970,7 @@ function renderGearGrid(el, gear, equipped) {
     const merchantPrince = hasVaultKeeper && hasApprentice;
     const premiumBadge = merchantPrince ? '<span class="premium-sell-badge" style="font-size:0.55rem; background:rgba(155,89,182,0.3); padding:2px 4px; border-radius:4px; margin-left:4px;">40%</span>' : '';
 
-    el.innerHTML += `<div class="inv-hint">Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade ${premiumBadge}</div>
+    el.innerHTML += `<div class="inv-hint">${_pt('Passe o mouse/clique para inspecionar &nbsp;·&nbsp; Use os botões para equipar/melhorar', 'Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade')} ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
         const isEquipped = equippedIds.includes(i.id);
@@ -8482,7 +8978,7 @@ function renderGearGrid(el, gear, equipped) {
         const qc = d.quality==='legendary'?'inv-legendary':d.quality==='epic'?'inv-epic':d.quality==='rare'?'inv-rare':'';
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
         const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
-        const setupBadges = (i.setups || []).map(sn => `<span class="setup-badge" title="In setup: ${escHtml(sn)}">🔧 ${escHtml(sn)}</span>`).join('');
+        const setupBadges = (i.setups || []).map(sn => `<span class="setup-badge" title="${_pt('No loadout:', 'In setup:')} ${escHtml(sn)}">🔧 ${escHtml(sn)}</span>`).join('');
         const isSelected = invBulkMode && invBulkSelected[i.id];
         const sellPrice = getInventorySellPrice(d);
 
@@ -8494,11 +8990,11 @@ function renderGearGrid(el, gear, equipped) {
                  ${!invBulkMode ? actionAttrs('openItemTooltip', i.id) : ''}>${itemIcon(d,'64px')}</div>
             ${upgradeBadge}
             ${isEquipped ? '<div class="inv-item-equipped-dot"></div>' : ''}
-            <div class="inv-item-name-label">${(d.name||'').split(' ').slice(-1)[0]}</div>
+            <div class="inv-item-name-label">${(() => { const full = translateItemNamePT(d.name || ''); return full.split(' ').slice(-1)[0]; })()}</div>
             ${setupBadges ? `<div class="inv-item-setup-badges">${setupBadges}</div>` : ''}
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
-                ${invBulkMode ? `<span style="font-size:0.7rem;color:var(--text-dim)">${sellPrice}g</span>` : `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? 'Unequip' : 'Equip'}</button>`}
-                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ Upgrade</button>` : ''}
+                ${invBulkMode ? `<span style="font-size:0.7rem;color:var(--text-dim)">${sellPrice}g</span>` : `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? _pt('Desequipar', 'Unequip') : _pt('Equipar', 'Equip')}</button>`}
+                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ ${_pt('Melhorar', 'Upgrade')}</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
@@ -8518,7 +9014,7 @@ async function upgradeItem(inventoryId) {
         const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
 
         if (currentUpgrade >= maxUpgrade) {
-            showMsg('inv-msg', `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`, true);
+            showMsg('inv-msg', _pt(`Item já está no nível máximo de melhoria (+${maxUpgrade}) para qualidade ${quality}!`, `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`), true);
             return;
         }
 
@@ -8526,7 +9022,7 @@ async function upgradeItem(inventoryId) {
         const components = invData.items.filter(i => i.item_type === 'component');
 
         if (components.length === 0) {
-            showMsg('inv-msg', 'You need components to upgrade! Craft them in the forge.', true);
+            showMsg('inv-msg', _pt('Você precisa de componentes para melhorar! Fabrique-os na forja.', 'You need components to upgrade! Craft them in the forge.'), true);
             return;
         }
 
@@ -8539,12 +9035,12 @@ async function upgradeItem(inventoryId) {
             componentOptions[idx + 1] = compData.id;
         });
 
-        const choice = prompt(`Select a component to upgrade ${itemData.name}:\n\n${componentList}\n\nEnter number (1-${components.length}):`);
+        const choice = prompt(_pt(`Selecione um componente para melhorar ${itemData.name}:\n\n${componentList}\n\nDigite o número (1-${components.length}):`, `Select a component to upgrade ${itemData.name}:\n\n${componentList}\n\nEnter number (1-${components.length}):`));
         if (!choice) return;
 
         const selectedComponentId = componentOptions[parseInt(choice)];
         if (!selectedComponentId) {
-            showMsg('inv-msg', 'Invalid selection!', true);
+            showMsg('inv-msg', _pt('Seleção inválida!', 'Invalid selection!'), true);
             return;
         }
 
@@ -8554,7 +9050,7 @@ async function upgradeItem(inventoryId) {
         if (result.success) {
             let message = result.message;
             if (result.upgradedStats && result.upgradedStats.length > 0) {
-                message += `\n\nStats improved:\n`;
+                message += `\n\n${_pt('Atributos melhorados:', 'Stats improved:')}\n`;
                 result.upgradedStats.forEach(s => {
                     const statName = s.stat.replace(/_/g, ' ');
                     message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
@@ -8578,13 +9074,13 @@ function renderInventory(data) {
     // Bulk sell mode bar
     const bulkBar = '<div data-bulk-bar style="display:flex;align-items:center;gap:10px;margin-bottom:10px;padding:6px 10px;background:rgba(201,146,42,0.06);border:1px solid rgba(201,146,42,0.15);border-radius:var(--radius-sm)">' +
         '<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.85rem;user-select:none">' +
-        `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} data-change-action="toggleInvBulkMode"> Bulk Sell</label>` +
-        (invBulkMode ? '<span style="font-size:0.75rem;color:var(--text-dim)">Click items to mark for sale</span>' : '') +
+        `<input type="checkbox" id="inv-bulk-toggle" ${invBulkMode ? 'checked' : ''} data-change-action="toggleInvBulkMode"> ${_pt('Venda em Massa', 'Bulk Sell')}</label>` +
+        (invBulkMode ? `<span style="font-size:0.75rem;color:var(--text-dim)">${_pt('Clique nos itens para marcar para venda', 'Click items to mark for sale')}</span>` : '') +
         `<span data-bulk-count style="flex:1;text-align:right;font-size:0.85rem;color:var(--gold);display:${invBulkMode && Object.keys(invBulkSelected).length > 0 ? 'inline' : 'none'}">` +
-            (Object.keys(invBulkSelected).length > 0 ? `${Object.keys(invBulkSelected).length} selected` : '') +
+            (Object.keys(invBulkSelected).length > 0 ? `${_pt('{n} selecionado(s)', 'selected').replace('{n}', Object.keys(invBulkSelected).length)}` : '') +
         `</span>` +
         `<button class="btn-sm danger" style="display:${invBulkMode && Object.keys(invBulkSelected).length > 0 ? 'inline-block' : 'none'}" data-action="sellBulkSelected">` +
-            (Object.keys(invBulkSelected).length > 0 ? `Sell (${Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0).toLocaleString()}g)` : '') +
+            (Object.keys(invBulkSelected).length > 0 ? `${_pt('Vender', 'Sell')} (${Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0).toLocaleString()}g)` : '') +
         `</button>` +
         '</div>';
 
@@ -8612,24 +9108,24 @@ function renderInventory(data) {
     };
 
     if (invTab === 'weapons') {
-        gearTab(['weapon'], 'No weapons yet.');
+        gearTab(['weapon'], _pt('Nenhuma arma ainda.', 'No weapons yet.'));
     } else if (invTab === 'armor') {
-        gearTab(['armor'], 'No armor yet.');
+        gearTab(['armor'], _pt('Nenhuma armadura ainda.', 'No armor yet.'));
     } else if (invTab === 'helmets') {
-        gearTab(['helmet'], 'No helmets yet.');
+        gearTab(['helmet'], _pt('Nenhum capacete ainda.', 'No helmets yet.'));
     } else if (invTab === 'shields') {
-        gearTab(['shield'], 'No shields yet.');
+        gearTab(['shield'], _pt('Nenhum escudo ainda.', 'No shields yet.'));
     } else if (invTab === 'boots') {
-        gearTab(['boots'], 'No boots yet.');
+        gearTab(['boots'], _pt('Nenhuma bota ainda.', 'No boots yet.'));
     } else if (invTab === 'jewelry') {
-        gearTab(['ring', 'amulet'], 'No rings or amulets yet.');
+        gearTab(['ring', 'amulet'], _pt('Nenhum anel ou amuleto ainda.', 'No rings or amulets yet.'));
     } else if (invTab === 'accessory') {
-        gearTab(['accessory'], 'No accessories yet.');
+        gearTab(['accessory'], _pt('Nenhum acessório ainda.', 'No accessories yet.'));
     } else if (invTab === 'lootboxes') {
         // LOOT BOXES TAB
         const lootBoxes = data.items.filter(i => i.item_type === 'consumable' && isLootBox(i));
         if (!lootBoxes.length) {
-            el.innerHTML = bulkBar + '<p class="empty">No loot boxes. Buy them from the shop!</p>';
+            el.innerHTML = bulkBar + `<p class="empty">${_pt('Nenhuma loot box. Compre na loja!', 'No loot boxes. Buy them from the shop!')}</p>`;
             return;
         }
         el.innerHTML = bulkBar + '<div class="inv-consumable-grid">' + lootBoxes.map(i => {
@@ -8643,26 +9139,26 @@ function renderInventory(data) {
                         <span style="font-size:2rem;display:none">${d.emoji || '🎁'}</span>
                     </div>
                     <div class="inv-consumable-copy">
-                        <div class="inv-consumable-name">${d.name}</div>
+                        <div class="inv-consumable-name">${lootBoxNamePT(d.name)}</div>
                         <div class="inv-consumable-qty">×${d.qty || 1}</div>
                     </div>
                 </div>
-                <div class="inv-consumable-desc">${d.desc}</div>
+                <div class="inv-consumable-desc">${lootBoxDescPT(d.desc)}</div>
                 <div class="inv-consumable-actions">
-                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>Open</button>
-                    <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name, sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name, sp)}>Sell ${sp}g</button>
+                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>${_pt('Abrir', 'Open')}</button>
+                    <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name, sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name, sp)}>${_pt('Vender', 'Sell')} ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
         return;
     } else if (invTab === 'elementals') {
-        el.innerHTML = bulkBar + '<div class="loading">Loading elementals...</div>';
+        el.innerHTML = bulkBar + `<div class="loading">${_pt('Carregando elementais...', 'Loading elementals...')}</div>`;
         (async () => {
             try {
                 const r = await api('GET', '/game/elementals');
                 if (r.error) throw new Error(r.error);
                 if (!r.elementals || r.elementals.length === 0) {
-                    el.innerHTML = bulkBar + '<p class="empty">No elementals. Discover one in the Elemental tab!</p>';
+                    el.innerHTML = bulkBar + `<p class="empty">${_pt('Nenhum elemental. Descubra um na aba Elemental!', 'No elementals. Discover one in the Elemental tab!')}</p>`;
                     return;
                 }
                 el.innerHTML = bulkBar + '<div class="elem-inv-grid">' + r.elementals.map(e => {
@@ -8677,13 +9173,13 @@ function renderInventory(data) {
                                 <div class="elem-inv-name">${escHtml(e.name)}</div>
                                 <div class="elem-inv-meta">${elEmoji} ${e.element} · Lv.${e.level}</div>
                             </div>
-                            ${e.equipped ? '<span class="equipped-badge">Equipped</span>' : ''}
+                            ${e.equipped ? `<span class="equipped-badge">${_pt('Equipado', 'Equipped')}</span>` : ''}
                         </div>
-                        <div class="elem-inv-stat">💪 Str ${e.str}</div>
-                        <div class="elem-inv-stat">🛡️ Def ${e.def}</div>
-                        <div class="elem-inv-stat">✨ Mag ${e.mag}</div>
-                        <div class="elem-inv-stat">❤️ Vit ${e.vit}</div>
-                        <div class="elem-inv-stat">⚔️ Dmg ${e.dmgMin}-${e.dmgMax}</div>
+                        <div class="elem-inv-stat">💪 ${_pt('For', 'Str')} ${e.str}</div>
+                        <div class="elem-inv-stat">🛡️ ${_pt('Def', 'Def')} ${e.def}</div>
+                        <div class="elem-inv-stat">✨ ${_pt('Mag', 'Mag')} ${e.mag}</div>
+                        <div class="elem-inv-stat">❤️ ${_pt('Vit', 'Vit')} ${e.vit}</div>
+                        <div class="elem-inv-stat">⚔️ ${_pt('Dano', 'Dmg')} ${e.dmgMin}-${e.dmgMax}</div>
                         <div class="elem-inv-bars">
                             <div class="elem-bar-label">HP ${e.hp_current}/${e.hpMax}</div>
                             <div class="elem-bar"><div class="elem-bar-fill hp-fill" style="width:${hpPct}%"></div></div>
@@ -8692,29 +9188,29 @@ function renderInventory(data) {
                         </div>
                         <div class="elem-inv-actions">
                             ${e.equipped
-                        ? `<button class="btn-secondary" data-action="unequipElementalInv" data-args='[${e.id}]'>Unequip</button>`
-                        : `<button class="btn-primary" data-action="equipElementalInv" data-args='[${e.id}]'>Equip</button>`
+                        ? `<button class="btn-secondary" data-action="unequipElementalInv" data-args='[${e.id}]'>${_pt('Desequipar', 'Unequip')}</button>`
+                        : `<button class="btn-primary" data-action="equipElementalInv" data-args='[${e.id}]'>${_pt('Equipar', 'Equip')}</button>`
                     }
                         </div>
                     </div>`;
                 }).join('') + '</div>';
             } catch (e) {
-                el.innerHTML = bulkBar + `<div class="error">Failed to load elementals: ${e.message}</div>`;
+                el.innerHTML = bulkBar + `<div class="error">${_pt('Falha ao carregar elementais:', 'Failed to load elementals:')} ${e.message}</div>`;
             }
         })();
         return;
     } else if (invTab === 'consumables') {
         // CONSUMABLES TAB
         const cons = data.items.filter(i => i.item_type === 'consumable' && !isLootBox(i));
-        if (!cons.length) { el.innerHTML = bulkBar + '<p class="empty">No consumables. Buy potions from the Shop!</p>'; return; }
+        if (!cons.length) { el.innerHTML = bulkBar + `<p class="empty">${_pt('Nenhum consumível. Compre poções na Loja!', 'No consumables. Buy potions from the Shop!')}</p>`; return; }
         el.innerHTML = bulkBar + '<div class="inv-consumable-grid">' + cons.map(i => {
             const d = i.item_data;
             const eff = d.effect ? (
-                d.effect.type === 'heal' ? '❤️ Restore ' + d.effect.value + ' HP' :
-                    d.effect.type === 'heal_full' ? '❤️ Full HP restore' :
+                d.effect.type === 'heal' ? '❤️ ' + _pt('Restaura', 'Restore') + ' ' + d.effect.value + ' HP' :
+                    d.effect.type === 'heal_full' ? '❤️ ' + _pt('PV total', 'Full HP restore') :
                         d.effect.type === 'xp' ? '⭐ +' + d.effect.value + ' XP' :
                             d.effect.type === 'temp_stat' ? '💪 +' + d.effect.value + ' ' + d.effect.stat :
-                                d.effect.type === 'mp' ? '🔮 Restore ' + d.effect.value + ' MP' : ''
+                                d.effect.type === 'mp' ? '🔮 ' + _pt('Restaura', 'Restore') + ' ' + d.effect.value + ' MP' : ''
             ) : '';
             const sp = getInventorySellPrice(d);
             const itemImage = d.image || (d.effect ? getPotionImagePath(d) : null) || getItemImage(d.name);
@@ -8732,9 +9228,9 @@ function renderInventory(data) {
                 <div class="inv-consumable-effect">${eff}</div>
                 <div class="inv-consumable-desc">${d.desc || ''}</div>
                 <div class="inv-consumable-actions">
-                    <button class="btn-sm inv-consumable-btn inv-consumable-use" ${actionAttrs('useItem', i.id, d.name || '')}>Use</button>
-                    ${(d.effect?.type === 'heal' || d.effect?.type === 'heal_full') && character?.elemental ? `<button class="btn-sm inv-consumable-btn" ${actionAttrs('useItemOnBeast', i.id, d.name || '')}>Use on Beast</button>` : ''}
-                    <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name || '', sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name || '', sp)}>Sell ${sp}g</button>
+                    <button class="btn-sm inv-consumable-btn inv-consumable-use" ${actionAttrs('useItem', i.id, d.name || '')}>${_pt('Usar', 'Use')}</button>
+                    ${(d.effect?.type === 'heal' || d.effect?.type === 'heal_full') && character?.elemental ? `<button class="btn-sm inv-consumable-btn" ${actionAttrs('useItemOnBeast', i.id, d.name || '')}>${_pt('Usar na Fera', 'Use on Beast')}</button>` : ''}
+                    <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name || '', sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name || '', sp)}>${_pt('Vender', 'Sell')} ${sp}g</button>
                 </div>
             </div>`;
         }).join('') + '</div>';
@@ -8742,7 +9238,7 @@ function renderInventory(data) {
         // MATERIALS TAB with exchange options
         const mats = data.items.filter(i => i.item_type === 'raw_mat' || i.item_type === 'component');
         if (!mats.length) {
-            el.innerHTML = bulkBar + '<p class="empty">No materials yet. Complete missions to gather resources!</p>';
+            el.innerHTML = bulkBar + `<p class="empty">${_pt('Nenhum material ainda. Complete missões para reunir recursos!', 'No materials yet. Complete missions to gather resources!')}</p>`;
             return;
         }
 
@@ -8787,12 +9283,12 @@ function renderInventory(data) {
             <div style="margin-bottom: 16px; padding: 12px; background: rgba(155,89,182,0.1); border-radius: 8px; display: flex; justify-content: space-between; align-items: center;">
                 <div>
                     ${matIcon('Legendary Fragment', '⭐', '1.2rem')}
-                    <strong>Legendary Fragments: ${fragmentCount}</strong>
+                    <strong>${_pt('Fragmentos Lendários:', 'Legendary Fragments:')} ${fragmentCount}</strong>
                 </div>
-                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">Exchange fragments for materials below</div>
+                <div style="font-size: 0.75rem; color: rgba(255,255,255,0.5);">${_pt('Troque fragmentos pelos materiais abaixo', 'Exchange fragments for materials below')}</div>
             </div>
             
-            <div class="section-title">📦 Your Materials</div>
+            <div class="section-title">📦 ${_pt('Seus Materiais', 'Your Materials')}</div>
             <div class="mat-grid">
                 ${ownedMaterials.map(i => {
             const d = i.item_data;
@@ -8803,13 +9299,13 @@ function renderInventory(data) {
                         <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
                         <div class="mat-name">${d.name || d.id}</div>
                         <div class="mat-qty">× ${d.qty || 1}</div>
-                        <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? 'Component' : 'Raw Material'}</div>
-                        ${invBulkMode ? `<button class="btn-sm danger" style="margin-top:6px;font-size:0.65rem;padding:2px 6px" ${actionAttrs('sellItemWithQty', i.id, d.name || d.id, getInventorySellPrice(d), d.qty || 1)}>Sell ${getInventorySellPrice(d)}g</button>` : ''}
+                        <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? _pt('Componente', 'Component') : _pt('Material Bruto', 'Raw Material')}</div>
+                        ${invBulkMode ? `<button class="btn-sm danger" style="margin-top:6px;font-size:0.65rem;padding:2px 6px" ${actionAttrs('sellItemWithQty', i.id, d.name || d.id, getInventorySellPrice(d), d.qty || 1)}>${_pt('Vender', 'Sell')} ${getInventorySellPrice(d)}g</button>` : ''}
                     </div>`;
         }).join('')}
             </div>
             
-            <div class="section-title" style="margin-top: 24px;">${matIcon('Legendary Fragment', '⭐', '1.1em')} Exchange Fragments for Materials</div>
+            <div class="section-title" style="margin-top: 24px;">${matIcon('Legendary Fragment', '⭐', '1.1em')} ${_pt('Trocar Fragmentos por Materiais', 'Exchange Fragments for Materials')}</div>
             <div class="mat-grid" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr));">
                 ${Object.entries(exchangeRates).map(([id, rate]) => {
             const maxCan = Math.floor(fragmentCount / rate.fragmentCost);
@@ -8817,17 +9313,17 @@ function renderInventory(data) {
             return `<div class="mat-card" data-eid="${id}" style="position: relative; display: flex; flex-direction: column;${rateImg?'--card-bg:url('+escHtml(rateImg)+')':''}">
                         <div style="margin-bottom: 8px; height: 2rem; display:flex; align-items:center; justify-content:center;">${matIcon(rate.name, rate.emoji, '2rem')}</div>
                         <div class="mat-name">${rate.name}</div>
-                        <div class="mat-qty" style="color: #f1c40f;">Cost: ${rate.fragmentCost} ${matIcon('Legendary Fragment', '⭐', '0.9em')} each</div>
-                        <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">You can afford: ${maxCan}</div>
+                        <div class="mat-qty" style="color: #f1c40f;">${_pt('Custo:', 'Cost:')} ${rate.fragmentCost} ${matIcon('Legendary Fragment', '⭐', '0.9em')} ${_pt('cada', 'each')}</div>
+                        <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">${_pt('Você pode pagar:', 'You can afford:')} ${maxCan}</div>
                         <div style="display:flex; align-items:center; gap:4px; margin-top:auto; padding-top:8px;">
                             <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, -1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">−</button>
                             <input type="number" class="mat-qty-input" data-eid="${id}" value="${maxCan >= 1 ? 1 : 0}" min="0" max="${maxCan}"
                                 style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
                             <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, 1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">+</button>
-                            <button class="btn-sm" ${actionAttrs('exchangeQtySetMax', id)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 38px; padding:2px 0;">MAX</button>
+                            <button class="btn-sm" ${actionAttrs('exchangeQtySetMax', id)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 38px; padding:2px 0;">${_pt('MÁX', 'MAX')}</button>
                         </div>
                         <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterialInput', id)} ${maxCan < 1 ? 'disabled' : ''}
-                            style="margin-top: 8px; width: 100%;">Exchange</button>
+                            style="margin-top: 8px; width: 100%;">${_pt('Trocar', 'Exchange')}</button>
                     </div>`;
         }).join('')}
             </div>
@@ -8903,17 +9399,17 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
-            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}</div>
             ${classWarn}
-            ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+            ${equippedItem && !isEquipped ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
         </div>
         <div class="tt-actions">
             ${isEquipped
-        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
-        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
-            <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sp)} ${isEquipped?'disabled':''}>Sell ${sp}g</button>
+        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
+        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>${_pt('Equipar', 'Equip')}</button>`}
+            <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sp)} ${isEquipped?'disabled':''}>${_pt('Vender', 'Sell')} ${sp}g</button>
         </div>`;
 
     tooltip.classList.remove('hidden');
@@ -8928,12 +9424,13 @@ function showItemTooltip(event, itemId) {
     const finalH = Math.min(Math.max(220, th), maxH);
     tooltip.style.height = finalH + 'px';
     const th2 = tooltip.offsetHeight || finalH;
-    const zf = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const zf = uiZoomFactor();
+    const vw = window.innerWidth/zf, vh = window.innerHeight/zf; // root-local viewport under PC root zoom
     let left = r.right/zf+12, top = r.top/zf;
-    if (left+tw>window.innerWidth-8) left = r.left/zf-tw-12;
-    if (top+th2>window.innerHeight-8) top = window.innerHeight-th2-8;
-    tooltip.style.left = Math.max(8,left)+'px';
-    tooltip.style.top  = Math.max(8,top)+'px';
+    if (left+tw>vw-8) left = r.left/zf-tw-12;
+    if (top+th2>vh-8) top = vh-th2-8;
+    tooltip.style.left = Math.max(8, Math.min(left, vw-tw-8))+'px';
+    tooltip.style.top  = Math.max(8, Math.min(top, vh-th2-8))+'px';
 }
 
 function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
@@ -9060,18 +9557,18 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+d.quality+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
-            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}</div>
+            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}</div>
             ${classWarn}
-            ${equippedItem && !isEquipped ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+            ${equippedItem && !isEquipped ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
         </div>
         <div class="tt-actions">
             ${isEquipped
-        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>Unequip</button>`
-        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>Equip</button>`}
+        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
+        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>${_pt('Equipar', 'Equip')}</button>`}
             <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sellPrice)} ${isEquipped?'disabled':''}>
-                Sell ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
+                ${_pt('Vender', 'Sell')} ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
             </button>
         </div>`;
 
@@ -9109,7 +9606,7 @@ function showEqTooltip(event, itemJson) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}</div>
+            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>`:''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${classWarn}
@@ -9173,13 +9670,13 @@ function showForgeItemTooltip(event, itemJson) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${translateItemNamePT(item.name || '')}</div>
-            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${item.quality}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
+            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
             ${getCanonicalItemDesc(item.desc, item.name)?`<div class="tt-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>`:''}
-            <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
+            <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">' + _pt('Sem atributos', 'No stats') + '</span>'}</div>
             ${classWarn}
-            ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
-            ${compText ? `<div class="tt-vs">Components: <strong>${compText}</strong></div>` : ''}
-            ${item.goldCost ? `<div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">Craft Cost: 💰 ${Number(item.goldCost).toLocaleString()}</div>` : ''}
+            ${equippedItem ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
+            ${compText ? `<div class="tt-vs">${_pt('Componentes:', 'Components:')} <strong>${compText}</strong></div>` : ''}
+            ${item.goldCost ? `<div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">${_pt('Custo de Forja:', 'Craft Cost:')} 💰 ${Number(item.goldCost).toLocaleString()}</div>` : ''}
         </div>`;
 
     tooltip.classList.remove('hidden');
@@ -9696,8 +10193,32 @@ function getCanonicalItemDesc(desc, name) {
         .replace(/\s*\(Crafted at level \d+\)\s*$/i, '')
         .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
         .trim();
-    const lore = cleaned ? translateItemLorePT(cleaned, name) : '';
-    return lore ? translateWeaponSkillPT(lore) : '';
+    if (!cleaned) return '';
+    // Exact gamedata descriptions (forge/raid/loot boxes) first — a full, proper
+    // PT sentence beats the word-by-word lore pass, which would only mangle it
+    // (e.g. "A blade forged..." → "Um Blade forged...").
+    const exactPT = translateItemDescExactPT(cleaned);
+    if (exactPT !== cleaned) return translateWeaponSkillPT(exactPT);
+    const lore = translateItemLorePT(cleaned, name);
+    return lore === cleaned ? cleaned : translateWeaponSkillPT(lore);
+}
+
+// Loot boxes (gamedata LOOT_BOXES): names + contents descriptions.
+const LOOTBOX_PT = {
+    'Common Loot Box': { name: 'Caixa de Recompensa Comum', desc: 'Contém 5 itens: materiais, equipamento comum ou ouro. 1% de chance de uma gema!' },
+    'Novice Loot Box': { name: 'Caixa de Recompensa de Novato', desc: 'Melhor saque! Contém 5 itens: materiais incomuns, equipamento raro ocasional. 3% de chance de uma gema!' },
+    'Rare Loot Box': { name: 'Caixa de Recompensa Rara', desc: 'Saque premium! Contém 5 itens: materiais raros, boa chance de equipamento raro/épico. 5% de chance de uma gema!' },
+    'Epic Loot Box': { name: 'Caixa de Recompensa Épica', desc: 'Saque épico! Contém 5 itens: materiais épicos, alta chance de equipamento épico/lendário. 10% de chance de uma gema!' },
+    'Legendary Loot Box': { name: 'Caixa de Recompensa Lendária', desc: 'Saque raro! Alta chance de equipamento lendário, materiais raros e gemas.' },
+    'Mythic Loot Box': { name: 'Caixa de Recompensa Mítica', desc: 'Saque mítico! Item forjado garantido, alta chance de equipamento lendário e materiais raros.' }
+};
+function lootBoxNamePT(name) {
+    if (CURRENT_LANG !== 'pt' || !name) return name;
+    return LOOTBOX_PT[name]?.name || translateItemNameExactPT(name);
+}
+function lootBoxDescPT(desc) {
+    if (CURRENT_LANG !== 'pt' || !desc) return desc;
+    return LOOTBOX_PT[desc]?.desc || GAMEDATA_DESC_PT[desc] || desc;
 }
 
 function getDisplayItemDesc(itemLike) {
@@ -9744,6 +10265,323 @@ const ITEM_NAME_PT_EXACT = {
     'Chain Mail':'Cota de Malha'
 };
 
+// ── Forge / Raid item data (server/gamedata.js) ──────────────────────────
+// Craftable equipment, raid boss gear, materials and set names live in EN
+// server-side; these exact-match tables translate them when PT is active.
+const GAMEDATA_NAME_PT = {
+    // Craftable equipment (EQUIPMENT_RECIPES)
+    'Ironclad Warhammer':'Martelo de Guerra de Ferro',
+    'Ironclad Plate':'Placa de Ferro',
+    'Ironclad Greathelm':'Grande Elmo de Ferro',
+    'Ironclad Tower Shield':'Escudo Torre de Ferro',
+    'Ironclad Sabatons':'Sabatões de Ferro',
+    'Sentinel Spear':'Lança da Sentinela',
+    'Sentinel Chainmail':'Cota de Malha da Sentinela',
+    'Sentinel Visor':'Viseira da Sentinela',
+    'Sentinel Aegis':'Égide da Sentinela',
+    'Sentinel Greaves':'Grevas da Sentinela',
+    'Voidborn Scythe':'Foice do Nascido do Vazio',
+    'Voidborn Robes':'Vestes do Nascido do Vazio',
+    'Voidborn Crown':'Coroa do Nascido do Vazio',
+    'Voidborn Bulwark':'Baluarte do Nascido do Vazio',
+    'Voidborn Striders':'Passos do Nascido do Vazio',
+    "Shadewalker's Kiss":'Beijo do Andarilho das Sombras',
+    "Shadewalker's Gambeson":'Gibão do Andarilho das Sombras',
+    "Shadewalker's Shroud":'Manto do Andarilho das Sombras',
+    "Shadewalker's Echo":'Eco do Andarilho das Sombras',
+    "Shadewalker's Grace":'Graça do Andarilho das Sombras',
+    'Abyssal Blade':'Lamina do Abismo',
+    'Abyssal Carapace':'Carapaça do Abismo',
+    'Abyssal Crown':'Coroa do Abismo',
+    'Abyssal Bulwark':'Baluarte do Abismo',
+    'Abyssal Greaves':'Grevas do Abismo',
+    'Fallen Grace':'Graça Caída',
+    'Vestments of the Black Halo':'Vestes do Halo Negro',
+    'Halo of Ruination':'Halo da Ruína',
+    'Wingguard of the Forsaken':'Guarda-alas do Abandonado',
+    'Heavenfall Sabatons':'Sabatões da Queda dos Céus',
+    'Fang of the Worldpyre':'Presa da Pira Mundial',
+    'Heartforge Carapace':'Carapaça da Forja do Coração',
+    'Crown of the Ember Wyrm':'Coroa da Brasa do Wyrm',
+    'Aegis of the Eternal Brood':'Égide da Prole Eterna',
+    'Emberstride Greaves':'Grevas do Passo em Brasa',
+    'Soulcleaver':'Talhador de Almas',
+    'Fenbound Cuirass':'Couraça do Pântano',
+    'Crown of the Marsh Reaper':'Coroa do Ceifador do Pântano',
+    'Bogwarden Aegis':'Égide do Guardião do Brejo',
+    'Mirewalker Greaves':'Grevas do Andarilho do Lodo',
+    'Blade of the First Scream':'Lamina do Primeiro Grito',
+    'Ribcage of the Sundered Titan':'Caixa Torácica do Titã Despedaçado',
+    'Crown of Drowned Stars':'Coroa das Estrelas Afogadas',
+    'Mirror of Oaths Betrayed':'Espelho dos Juramentos Traídos',
+    'Tread of Unremembered Graves':'Passo dos Túmulos Esquecidos',
+    'Silence-Carver':'Talhador do Silêncio',
+    'Deathfrost Cuirass':'Couraça da Morte Gélida',
+    'Null-Gaze':'Olhar do Nulo',
+    'The Null Bastion':'A Bastião do Nulo',
+    'Echoes of Oblivion':'Ecos do Olvido',
+    'Voidforged Scepter-Blade':'Lamina-Cetro Forjada no Vazio',
+    'Carapace of the Endless Void':'Carapaça do Vazio Sem Fim',
+    'Sovereign Winged Crest':'Cresta Alada do Soberano',
+    'Eclipse Bulwark':'Baluarte do Eclipse',
+    'Striders of the Event Horizon':'Passos do Horizonte de Eventos',
+    // Raid boss gear (RAID_BOSS_GEAR)
+    "Malachar's Reaper Blade":'Lamina Ceifadora de Malachar',
+    "Malachar's Deathplate":'Placa da Morte de Malachar',
+    "Malachar's Skullveil":'Véu de Cranios de Malachar',
+    "Malachar's Soulward":'Guarda de Almas de Malachar',
+    "Malachar's Bone Striders":'Passos Ossos de Malachar',
+    "Ignarath's Inferno Fang":'Presa do Inferno de Ignarath',
+    "Ignarath's Cinderplate":'Placa de Cinzas de Ignarath',
+    "Ignarath's Ember Crown":'Coroa de Brasas de Ignarath',
+    "Ignarath's Magma Bulwark":'Baluarte de Magma de Ignarath',
+    "Ignarath's Ash Striders":'Passos de Cinzas de Ignarath',
+    "Nyxaroth's Maw Cleaver":'Talhador da Goela de Nyxaroth',
+    "Nyxaroth's Stormhide":'Pele da Tempestade de Nyxaroth',
+    "Nyxaroth's Razor Helm":'Elmo Afiado de Nyxaroth',
+    "Nyxaroth's Windward":'Guarda do Vento de Nyxaroth',
+    "Nyxaroth's Tempest Treads":'Passos da Tempestade de Nyxaroth',
+    "Vizorax's Unholy Scepter":'Cetro Ímpio de Vizorax',
+    "Vizorax's Living Plate":'Placa Viva de Vizorax',
+    "Vizorax's Corrupt Crown":'Coroa Corrompida de Vizorax',
+    "Vizorax's Sinward":'Guarda do Pecado de Vizorax',
+    "Vizorax's Damned Treads":'Passos Condenados de Vizorax',
+    "Hollow King's Vow Blade":'Lamina do Juramento do Rei Oco',
+    "Hollow King's Regalia":'Insígnia do Rei Oco',
+    "Hollow King's Empty Crown":'Coroa Vazia do Rei Oco',
+    "Hollow King's Crown Ward":'Guarda-Coroa do Rei Oco',
+    "Hollow King's Dust Treads":'Passos de Poeira do Rei Oco',
+    "Colossus' Void Maul":'Marreta do Vazio do Colosso',
+    "Colossus' Totemic Plate":'Placa Totemica do Colosso',
+    "Colossus' Monolith Helm":'Elmo Monolitico do Colosso',
+    "Colossus' Stone Bastion":'Bastião de Pedra do Colosso',
+    "Colossus' Earth Striders":'Passos de Terra do Colosso',
+    "Empress' Eternal Blade":'Lamina Eterna da Imperatriz',
+    "Empress' Twilight Garb":'Traje do Crepusculo da Imperatriz',
+    "Empress' Crescent Diadem":'Diadema Crescente da Imperatriz',
+    "Empress' Moonlight Ward":'Guarda do Luar da Imperatriz',
+    "Empress' Shadow Slippers":'Chinelos de Sombra da Imperatriz',
+    "Sovereign's Abyss Fang":'Presa do Abismo do Soberano',
+    "Sovereign's Void Casque":'Elmo do Vazio do Soberano',
+    "Sovereign's Chthonic Crown":'Coroa Ctónica do Soberano',
+    "Sovereign's Genesis Warden":'Guardião do Gênese do Soberano',
+    "Sovereign's Abyss Treads":'Passos do Abismo do Soberano',
+    // Boss names
+    'Death Knight Malachar':'Cavaleiro da Morte Malachar',
+    'Ignarath the Eternal':'Ignarath, o Eterno',
+    'Nyxaroth the Devourer':'Nyxaroth, o Devorador',
+    'Vizorax the Unholy':'Vizorax, o Ímpio',
+    'The Hollow King':'O Rei Oco',
+    'Voidborn Colossus':'Colosso do Vazio',
+    'The Undying Empress':'A Imperatriz Imortal',
+    'Abyssal Sovereign':'Soberano do Abismo',
+    // Set names
+    'Ironclad Set':'Conjunto de Ferro',
+    'Sentinel Set':'Conjunto da Sentinela',
+    'Voidborn Set':'Conjunto do Nascido do Vazio',
+    'Spiteforged Set':'Conjunto Forjado em Desprezo',
+    'Shadewalker Set':'Conjunto do Andarilho das Sombras',
+    'Abyssal Knight Set':'Conjunto do Cavaleiro do Abismo',
+    'Eclipsed Seraph Set':'Conjunto do Serafim Eclipse',
+    'Wyrmflame Regalia':'Insígnia da Chama do Wyrm',
+    'Marsh Reaper Set':'Conjunto do Ceifador do Pântano',
+    'First Scream Set':'Conjunto do Primeiro Grito',
+    'Abyssal Void Set':'Conjunto do Vazio do Abismo',
+    'Voidforged Sovereign Set':'Conjunto do Soberano Forjado no Vazio',
+    'Malachar Death Knight Set':'Conjunto do Cavaleiro da Morte Malachar',
+    'Ignarath Eternal Set':'Conjunto de Ignarath, o Eterno',
+    'Nyxaroth Devourer Set':'Conjunto de Nyxaroth, o Devorador',
+    'Vizorax Unholy Set':'Conjunto de Vizorax, o Ímpio',
+    'Hollow King Set':'Conjunto do Rei Oco',
+    'Voidborn Colossus Set':'Conjunto do Colosso do Vazio',
+    'Undying Empress Set':'Conjunto da Imperatriz Imortal',
+    'Abyssal Sovereign Set':'Conjunto do Soberano do Abismo',
+    // Components (forge refine tab)
+    'Iron Ingot':'Barra de Ferro',
+    'Hardwood Plank':'Tábua de Madeira Dura',
+    'Mithril Ingot':'Barra de Mithril',
+    'Tanned Hide':'Couro Curtido',
+    'Poison Extract':'Extrato Venenoso',
+    'Arcane Shard':'Fragmento Arcano',
+    'Frost Core':'Núcleo Gélido',
+    'Dragon Plate Mat':'Chapa de Dragão',
+    'Void Crystal':'Cristal do Vazio',
+    'Shadow Weave':'Tecido das Sombras',
+    'Demon Alloy':'Liga Demoníaca',
+    'Abyss Weave':'Tecido do Abismo',
+    'Void Plate':'Chapa do Vazio',
+    'Crimson Alloy':'Liga Carmesim',
+    'Shadowsteel Bar':'Barra de Aço Sombrio',
+    'Eternal Essence':'Essência Eterna',
+    // Raw materials (ingredient chips + inventory)
+    'Iron Ore':'Minério de Ferro',
+    'Wood':'Madeira',
+    'Wolf Pelt':'Pele de Lobo',
+    'Herbs':'Ervas',
+    'Poison Gland':'Glândula Venenosa',
+    'Swamp Crystal':'Cristal do Pântano',
+    'Mountain Stone':'Pedra da Montanha',
+    'Mithril Ore':'Minério de Mithril',
+    'Frost Essence':'Essência Gélida',
+    'Dragon Scale Shard':'Fragmento de Escama de Dragão',
+    'Arcane Dust':'Pó Arcano',
+    'Void Shard':'Estilhaço do Vazio',
+    'Ancient Relic':'Relíquia Ancestral',
+    'Rune Fragment':'Fragmento de Runa',
+    'Demon Core':'Núcleo Demoníaco',
+    'Shadow Essence':'Essência das Sombras',
+    'Legendary Fragment':'Fragmento Lendário',
+    'Abyss Crystal':'Cristal do Abismo',
+    'Crimson Crystal':'Cristal Carmesim',
+    'Fire Essence':'Essência de Fogo',
+    'Infernal Core':'Núcleo Infernal',
+    'Null Essence':'Essência do Nulo',
+    'Abyss Fragment':'Fragmento do Abismo',
+    'Shadowsteel':'Aço Sombrio',
+    'Soul Essence':'Essência de Alma',
+    'Obsidian Shard':'Estilhaço de Obsidiana',
+    'Dark Essence':'Essência Sombria',
+    'Primordial Shard':'Estilhaço Primordial',
+    'Eternal Core':'Núcleo Eterno',
+    'Fen Cursed Bone':'Osso Maldito do Pântano',
+    'Crimson Royal Blood':'Sangue Real Carmesim',
+    'Void Null Core':'Núcleo Nulo do Vazio',
+    'Obsidian Heart':'Coração de Obsidiana',
+    'Eternal Spark':'Faísca Eterna',
+    'Pyro Cinder':'Brasa Piro',
+    'Water Droplet':'Gotícula de Água',
+    'Electro Spark':'Faísca Eletro',
+    'Wind Feather':'Pena de Vento',
+    'Pyro Ember':'Brasa de Fogo Piro',
+    'Water Crystal':'Cristal de Água',
+    'Electro Shard':'Estilhaço Eletro',
+    'Wind Whisper':'Sussurro do Vento',
+    'Pyro Core':'Núcleo Piro',
+    'Water Core':'Núcleo de Água',
+    'Electro Core':'Núcleo Eletro',
+    'Wind Core':'Núcleo de Vento',
+    'Pyro Essence':'Essência Piro',
+    'Water Essence':'Essência de Água',
+    'Electro Essence':'Essência Eletro',
+    'Wind Essence':'Essência de Vento',
+    'Pyro Primordial':'Primordial Piro',
+    'Water Primordial':'Primordial de Água',
+    'Electro Primordial':'Primordial Eletro',
+    'Wind Primordial':'Primordial de Vento'
+};
+
+// Exact item descriptions from server/gamedata.js (equipment recipes + raid gear).
+const GAMEDATA_DESC_PT = {
+    'A heavy warhammer that shatters shields and bones alike.':'Um martelo de guerra pesado que estilhaça escudos e ossos igualmente.',
+    'Heavy iron plate armour, nearly impenetrable by physical blows.':'Armadura de placas de ferro pesada, quase impenetrável a golpes físicos.',
+    'Full-face iron helm with reinforced cheekguards.':'Elmo de ferro de rosto completo com protetores faciais reforçados.',
+    'A massive iron tower shield — almost nothing gets through.':'Um enorme escudo torre de ferro — quase nada passa por ele.',
+    'Heavy iron boots that anchor you in place during battle.':'Botas de ferro pesadas que ancoram você no lugar durante a batalha.',
+    'A razor-sharp mithril spear etched with sentinel runes.':'Uma lança de mithril afiada como uma navalha, gravada com runas de sentinela.',
+    'Mithril chain links woven tight — flexible yet impenetrable.':'Elos de cota de mithril tecidos com firmeza — flexível porém impenetrável.',
+    'A sleek mithril helm with a full visor. Clarity in combat.':'Um elmo elegante de mithril com viseira completa. Clareza em combate.',
+    'Mithril shield engraved with sentinel ward runes.':'Escudo de mithril gravado com runas de proteção de sentinela.',
+    'Light mithril greaves that boost footwork without slowing you.':'Grevas leves de mithril que melhoram o jogo de pernas sem te deixar lento.',
+    'A scythe wreathed in void energy, harvesting souls with each swing.':'Uma foice envolta em energia do vazio, ceifando almas a cada golpe.',
+    'Robes threaded with void crystal fibers. Reality warps around the wearer.':'Vestes tramadas com fibras de cristal do vazio. A realidade se distorce ao redor de quem as veste.',
+    'A crown forged from void alloy. The wearer sees through all illusions.':'Uma coroa forjada de liga do vazio. Quem a veste enxerga através de todas as ilusões.',
+    'A pulsing void shield that absorbs energy attacks entirely.':'Um escudo de vazio pulsante que absorve completamente ataques de energia.',
+    'Boots that phase partially into the void, allowing impossible movement.':'Botas que se deslocam parcialmente para o vazio, permitindo movimentos impossíveis.',
+    'Three bladed vows of hatred, quenched in black surf and driven to pierce pride, plate, and prayer alike.':'Três votos afiados de ódio, temperados na maré negra e forjados para atravessar orgulho, placa e oração igualmente.',
+    'A war-shell plated with the echoes of final curses, hardening every grudge into stubborn, iron resolve.':'Uma carapaça de guerra revestida com os ecos de maldições finais, transformando cada rancor em uma resolução férrea e teimosa.',
+    'Its sleepless eye judges every challenger first, weighing them only for the manner of their humiliation.':'Seu olho sem sono julga cada desafiante primeiro, pesando-os apenas pela maneira de sua humilhação.',
+    'A spitebound wall raised by warriors who survived by refusing mercy, surrender, and clean endings.':'Uma parede vínculo-de-rancor erguida por guerreiros que sobreviveram recusando misericórdia, rendição e finais limpos.',
+    'Each step lands like a sentence passed, hounding the fleeing until regret is the only ground left beneath them.':'Cada passo cai como uma sentença proferida, perseguindo os que fogem até que o arrependimento seja o único chão sob seus pés.',
+    "A dagger that drinks the light from the air before it drinks blood. No blade is keener, no strike more silent.":'Uma adaga que bebe a luz do ar antes de beber sangue. Nenhuma lâmina é mais afiada, nenhum golpe mais silencioso.',
+    'Light quilted armor that moves like water and hides like shadow. No leather creaks, no buckle shines — only the kill reveals you were there.':'Armadura acolchoada leve que se move como água e se esconde como sombra. Nenhum couro range, nenhuma fivela brilha — só a morte revela que você esteve lá.',
+    'Woven from midnight silk and the last breath of a dying star. Those who wear it fade into the dark long before they strike.':'Tecida com seda da meia-noite e o último suspiro de uma estrela moribunda. Quem a veste desaparece nas trevas muito antes de atacar.',
+    'Twin to the Kiss, this blade waits in silence for the perfect opening. Rogues wield it in their off-hand as naturally as breathing. Non-rogues cannot grasp its balance.':'Gêmea do Beijo, esta lâmina espera em silêncio pela abertura perfeita. Ladinos a empunham na mão secundária tão naturalmente quanto respiram. Fora da classe não se consegue dominar seu equilíbrio.',
+    'Soles that never scuff, never squeak, never leave a trail. Every step is a whisper, every landing is silence.':'Solados que nunca desgastam, nunca guincham, nunca deixam rastro. Cada passo é um sussurro, cada aterrissagem é silêncio.',
+    'A blade forged in the void between worlds, hungry for essence. Consumes 50 Crit Chance each round, gaining +5 Min Damage and +5 to all Element Resistances per round.':'Uma lâmina forjada no vazio entre mundos, faminta por essência. Consome 50 de Chance de Crítico por rodada, ganhando +5 de Dano Mínimo e +5 em todas as Resistências Elementais por rodada.',
+    'Living armor woven from crystallized abyss energy.':'Armadura viva tramada de energia cristalizada do abismo.',
+    'A crown that whispers secrets from the deep dark.':'Uma coroa que sussurra segredos do breu profundo.',
+    'A barrier that drinks the light and returns only silence.':'Uma barreira que bebe a luz e devolve apenas silêncio.',
+    'Step between shadows — these greaves know no distance.':'Pise entre sombras — estas grevas não conhecem distância.',
+    'A divine relic stained by betrayal and ruin, its light twisted into a cold, judging flame.':'Uma relíquia divina manchada por traição e ruína, sua luz retorcida em uma chama fria e julgadora.',
+    'Once radiant armor now shrouded in celestial darkness, humming with stifled hymns.':'Armadura outrora radiante agora envolta em escuridão celestial, zumbindo com hinos abafados.',
+    'A broken crown of fractured light that radiates forbidden divinity and silent wrath.':'Uma coroa quebrada de luz fraturada que irradia divindade proibida e ira silenciosa.',
+    'Fashioned from the shattered wings of a fallen seraph, each feather cuts those it fails to shield.':'Confeccionado com as asas despedaçadas de um serafim caído, cada pena corta aqueles que falha em proteger.',
+    'Leave burning traces of celestial ash in their wake — the earth remembers every step.':'Deixam rastros ardentes de cinza celestial por onde passam — a terra lembra cada passo.',
+    'Its edge was quenched in dragonfire and sharpened upon the bones of kings. Consumes 50 Agility each round, gaining +5 Max Damage and +5 Fire Damage per round (max +50 each).':'Sua ponta foi temperada em fogo de dragão e afiada nos ossos de reis. Consome 50 de Agilidade por rodada, ganhando +5 de Dano Máximo e +5 de Dano de Fogo por rodada (máx. +50 cada).',
+    'Within its breast burns a flame that has never known extinction.':'Em seu peito arde uma chama que nunca conheceu extinção.',
+    'To wear the crown is to hear the whispers of sleeping dragons.':'Vestir a coroa é ouvir os sussurros de dragões adormecidos.',
+    'No fortress stood longer. No oath burned brighter.':'Nenhuma fortaleza resistiu por mais tempo. Nenhum juramento ardeu mais forte.',
+    'The earth smolders where the dragon\'s chosen walk.':'A terra fumega por onde os escolhidos do dragão caminham.',
+    'Forged from fen-cursed bone, this blade severs both flesh and spirit. Increases hit chance by 5% each round (max 25%).':'Forjada de osso amaldiçoado do pântano, esta lâmina separa carne e espírito. Aumenta a chance de acerto em 5% por rodada (máx. 25%).',
+    'Cuirass woven from bog iron and shadow essence, light yet unyielding.':'Couraça tramada de ferro do pântano e essência das sombras, leve porém inquebrável.',
+    'A crown of bone and shadow that grants dominion over the fen.':'Uma coroa de osso e sombra que concede domínio sobre o pântano.',
+    'A shield of fossilized fen wood, warded against all elements.':'Um escudo de madeira de pântano fossilizada, protegido contra todos os elementos.',
+    'Greaves that tread lightly over bog and mire, leaving no trace.':'Grevas que pisan levemente sobre brejo e lodo, sem deixar rastro.',
+    'The obsidian edge hums with the final shriek of a god whose fall carved the Abyss, drinking crimson light to fuel each swing. Increases fire damage by 5% each round (max 25%).':'A ponta de obsidiana zumba com o grito final de um deus cuja queda esculpiu o Abismo, bebendo luz carmesim para alimentar cada golpe. Aumenta o dano de fogo em 5% por rodada (máx. 25%).',
+    'Interlocking plates of petrified demon-flesh pulse with slow, atrial beats, hardening each time the wearer spills blood upon the stone.':'Placas entrelaçadas de carne demoníaca petrificada pulsam com batidas atriais lentas, endurecendo cada vez que quem as veste derrama sangue sobre a pedra.',
+    'Forged from a collapsed constellation\'s core, this helm traps the wearer\'s last breath, trading mortality for glimpses of the void\'s hungry will.':'Forjado do núcleo de uma constelação colapsada, este elmo prende o último suspiro de quem o veste, trocando mortalidade por vislumbres da vontade faminta do vazio.',
+    'Its polished surface reflects not foes, but their deepest regrets, shattering their resolve as the Abyss shatters light — one crack per broken vow.':'Sua superfície polida não reflete inimigos, mas seus arrependimentos mais profundos, quebrando sua determinação como o Abismo quebra a luz — uma rachadura por juramento traído.',
+    'Each step siphons warmth from the ground below, leaving frost-scorched prints that whisper the names of souls too forgotten to rise again.':'Cada passo suga o calor do chão abaixo, deixando pegadas queimadas de geada que sussurram os nomes de almas esquecidas demais para se erguerem de novo.',
+    'Forged from the final, unfinished word of a king consumed mid-command. Increases defense by 5% each round (max 25%).':'Forjada da palavra final e inacabada de um rei consumido em pleno comando. Aumenta a defesa em 5% por rodada (máx. 25%).',
+    'Quenched in the heart of a dead star, where even heat forgot to exist.':'Temperada no coração de uma estrela morta, onde até o calor esqueceu de existir.',
+    'Its seamless faceplate shows enemies not their reflection, but the hollow space where their courage died.':'Sua máscara contínua não mostra aos inimigos seu reflexo, mas o espaço oco onde sua coragem morreu.',
+    "Pulled fully-formed from the Void, it does not block attacks—it erases the wielder from the enemy's awareness.":'Extraída completamente formada do Vazio, ela não bloqueia ataques — apaga quem a empunha da percepção inimiga.',
+    'These boots walk not on ground, but on the fading memory of ground that no longer remembers itself.':'Estas botas não caminham sobre o chão, mas sobre a memória que se apaga de um chão que não se lembra mais de si.',
+    'Forged in the abyssal core of the Citadel, this blade channels raw dark energy to sever both physical flesh and ethereal souls. ⚔️ Skill: Voidforged Cleave — Grants +1 extra hit this battle. +5 electro damage each round, up to +25.':'Forjada no núcleo abissal da Cidadela, esta lâmina canaliza energia sombria bruta para separar tanto a carne física quanto almas etéreas. ⚔️ Habilidade: Golpe Forjado no Vazio — Concede +1 golpe extra nesta batalha. +5 de dano de eletricidade a cada rodada, até +25.',
+    'A monolithic breastplate of heavy obsidian steel, built to swallow incoming impacts into an unyielding abyss.':'Um peitoral monolítico de aço obsidiana pesado, construído para engolir impactos num abismo inabalável.',
+    'Imbued with imperial authority, this terrifying helm strikes dread into enemies while shielding the wearer\'s mind from the corruption of the void.':'Impregnado de autoridade imperial, este elmo aterrorizante infunde pavor nos inimigos enquanto protege a mente de quem o veste da corrupção do vazio.',
+    'Darkened by the shadow of the Citadel itself, this massive shield turns the force of cataclysmic strikes into harmless ripples of cosmic dust.':'Escurecido pela sombra da própria Cidadela, este enorme escudo transforma a força de golpes cataclísmicos em ondulações inofensivas de poeira cósmica.',
+    'Treads that warp the surrounding space with every stride, granting the wearer terrifying speed across any battlefield.':'Passos que distorcem o espaço ao redor a cada passada, concedendo a quem os veste velocidade aterrorizante em qualquer campo de batalha.',
+    // Raid gear — Malachar
+    'A spectral scythe that drinks the warmth from every soul it cuts.':'Uma foice espectral que bebe o calor de cada alma que corta.',
+    'Blackened plate bound with the bones of warriors Malachar has slain.':'Placa enegrecida ligada com os ossos dos guerreiros que Malachar matou.',
+    'A hollowed helm that whispers the names of the fallen to its wearer.':'Um elmo escavado que sussurra os nomes dos caídos a quem o veste.',
+    'A warden of stolen souls said to scream when blades strike it.':'Um guardião de almas roubadas, dizem que grita quando lâminas o atingem.',
+    'Treads carved from femur bones, etching runes of undeath with every step.':'Passos entalhados de ossos de fêmur, gravando runas de não-morte a cada passo.',
+    // Ignarath
+    'A living blade that weeps molten cinder and never cools between battles.':'Uma lâmina viva que chora brasas derretidas e nunca esfria entre batalhas.',
+    'Mail forged inside a volcano mouth, yet strangely cold to the touch.':'Malha forjada dentro da boca de um vulcão, mas estranhamente fria ao toque.',
+    'A crown of smoldering coals that reignites on the eve of war.':'Uma coroa de carões em brasa que se reacende na véspera da guerra.',
+    'A slab of crusted magma that hardens into obsidian under fire.':'Uma laje de magma crostado que se endurece em obsidiana sob fogo.',
+    'Greaves that leave smoldering footprints wherever the wearer walks.':'Grevas que deixam pegadas fumegantes por onde quem as veste anda.',
+    // Nyxaroth
+    'A serrated axe that hums with hungry wind and bites faster than sight.':'Um machado serrilhado que zumba com vento faminto e morde mais rápido que a vista.',
+    'Cured from the hide of a storm beast, crackling with trapped lightning.':'Curtida da pele de uma fera de tempestade, crepitando com raios aprisionados.',
+    'A sleek mask that sharpens the wearer\'s senses to a blade\'s edge.':'Uma máscara elegante que afia os sentidos de quem a veste ao fio de uma lâmina.',
+    'A gale-bound ward that deflects projectiles before they arrive.':'Um escudo ligado à ventania que desvia projéteis antes que cheguem.',
+    'Soles spun from cyclone strands, leaving no footprint behind.':'Solados fiados de fios de ciclone, sem deixar pegada alguma.',
+    // Vizorax
+    'A corrupted scepter that bends the four elements to its dark will.':'Um cetro corrompido que dobra os quatro elementos à sua vontade sombria.',
+    'Armor grown from flesh and shadow, absorbing arcane strikes into itself.':'Armadura crescida de carne e sombra, absorvendo golpes arcanos em si.',
+    'A crown forged in the depths that lets its wearer see through all spells.':'Uma coroa forjada nas profundezas que permite a quem a veste ver através de todos os feitiços.',
+    'A ward that has devoured a thousand enemy incantations.':'Um escudo que devorou mil encantamentos inimigos.',
+    'Footwear stitched from shadow, grounding the wearer in unholy power.':'Calçado costurado de sombra, aterrando quem o veste em poder ímpio.',
+    // Hollow King
+    'A blade sworn to the throne of the drowned, weeping saltwater in battle.':'Uma lâmina jurada ao trono dos afogados, chorando água salgada em batalha.',
+    'Tide-soaked robes that hold the weight of an entire forgotten ocean.':'Vestes encharcadas de maré que carregam o peso de um oceano inteiro esquecido.',
+    'A crown that is always full of rain, no matter the hour of day.':'Uma coroa que está sempre cheia de chuva, não importa a hora do dia.',
+    'A ward forged from the king\'s shattered throne, still carrying his decree.':'Um escudo forjado do trono despedaçado do rei, ainda carregando seu decreto.',
+    'Greaves from the royal armory, caked in the ashes of his court.':'Grevas do arsenal real, cobertas das cinzas de sua corte.',
+    // Voidborn Colossus
+    'A stone maul pulled from a sleeping mountain, impossibly heavy yet obedient.':'Uma marreta de pedra arrancada de uma montanha adormecida, impossivelmente pesada porém obediente.',
+    'Plate carved with totems of the earth, shrugging off the mightiest blows.':'Placa entalhada com totens da terra, ignorando os golpes mais poderosos.',
+    'A helm that weighs a ton, shielding the mind as surely as the skull.':'Um elmo que pesa uma tonelada, protegendo a mente com tanta certeza quanto o crânio.',
+    'An unbreakable bulwark that has never once been moved by force.':'Um baluarte inquebrável que jamais foi movido pela força.',
+    'Boots fused with bedrock, anchoring their wearer to the very world.':'Botas fundidas com a rocha-mãe, ancorando quem as veste ao próprio mundo.',
+    // Undying Empress
+    'A blade enchanted to never dull, gleaming with the light of the undying moon.':'Uma lâmina encantada para nunca cegar, reluzindo com a luz da lua imortal.',
+    'Silk soaked in moonlight, crackling softly with eternal static.':'Seda embebida em luar, crepitando suavemente com estática eterna.',
+    'A diadem shaped like a waning crescent, crowning its wearer with calm foresight.':'Uma tiara em forma de crescente minguante, coroando quem a veste com serena visão do futuro.',
+    'A ward of pale light that repels all that would harm the royal line.':'Um escudo de luz pálida que repele tudo o que ameaçaria a linhagem real.',
+    'Featherlight slippers that let the empress glide through her own shadow.':'Chinelos leves como penas que deixam a imperatriz deslizar pela própria sombra.',
+    // Abyssal Sovereign
+    'A blade carved from a falling star, always silent and always certain.':'Uma lâmina talhada de uma estrela cadente, sempre silenciosa e sempre certa.',
+    'Void-steel plate that swallows sound and light around its wearer.':'Placa de aço-vazio que engole o som e a luz ao redor de quem a veste.',
+    'A crown born of the deep places, granting visions of what lies beneath.':'Uma coroa nascida dos lugares profundos, concedendo visões do que jaz por baixo.',
+    'A warden etched with the first words of creation, unmoved by chaos.':'Um guardião gravado com as primeiras palavras da criação, inabalável pelo caos.',
+    'Treads made from the edge of the abyss, stepping apart from fate.':'Passos feitos da borda do abismo, pisando à parte do destino.'
+};
+
 // Material prefixes render as "{suffix} de {prefix}"; all other prefixes are
 // adjectives rendered as "{suffix} {adjective}" (e.g. Ancestral Staff → Cajado Ancestral).
 const ITEM_PREFIX_MATERIAL_PT = new Set([
@@ -9754,6 +10592,7 @@ const ITEM_PREFIX_MATERIAL_PT = new Set([
 function translateItemNamePT(baseName) {
     if (CURRENT_LANG !== 'pt' || !baseName) return baseName;
     if (ITEM_NAME_PT_EXACT[baseName]) return ITEM_NAME_PT_EXACT[baseName];
+    if (GAMEDATA_NAME_PT[baseName]) return GAMEDATA_NAME_PT[baseName];
     const words = baseName.trim().split(/\s+/);
     let changed = false;
     const translated = words.map(w => {
@@ -9777,6 +10616,17 @@ function translateItemNamePT(baseName) {
         return `${translated[1]} ${translated[0]}`;
     }
     return translated.join(' ');
+}
+
+// Exact-match translation for forge/raid item names + descriptions coming from
+// server/gamedata.js (EQUIPMENT_RECIPES, RAID_BOSS_GEAR, COMPONENTS, materials).
+function translateItemNameExactPT(name) {
+    if (CURRENT_LANG !== 'pt' || !name) return name;
+    return GAMEDATA_NAME_PT[name] || name;
+}
+function translateItemDescExactPT(desc) {
+    if (CURRENT_LANG !== 'pt' || !desc) return desc;
+    return GAMEDATA_DESC_PT[desc] || desc;
 }
 
 // Lore prefix phrases (26 prefixes x 3) keyed by exact English phrase.
@@ -10047,6 +10897,7 @@ const SET_NAME_THE_PT = new Set(['dragão','mithril','diamante','rubi','safira',
 const SET_NAME_NO_PREP_PT = new Set(['sagrado','bendito','amaldiçoado','ancestral','encantado','arcano','sombra','veloz','batalha','vazio','dourado']);
 function translateSetNamePT(name) {
     if (CURRENT_LANG !== 'pt' || !name) return name;
+    if (GAMEDATA_NAME_PT[name]) return GAMEDATA_NAME_PT[name];
     const m = String(name).trim().match(/^(.+?)\s*[Ss]et$/);
     if (!m) return name;
     const base = m[1].trim();
@@ -10103,11 +10954,17 @@ function slotLabelPT(slot) {
     return SLOT_LABEL_PT[slot] || capitalize(slot || '');
 }
 
+// PT labels for item quality names shown in tooltip meta lines
+function qualityLabelPT(q) {
+    if (CURRENT_LANG !== 'pt' || !q) return q;
+    return ({ common: 'comum', uncommon: 'incomum', rare: 'raro', epic: 'épico', legendary: 'lendário', mythic: 'mítico' })[String(q).toLowerCase()] || q;
+}
+
 // Render single item with image and popup effect
 function renderSingleLootboxItem(item) {
-    const itemName = item.name || 'Unknown Item';
+    const itemName = translateItemNamePT(item.name || 'Unknown Item');
     const qtyText = (item.qty && item.qty > 1) ? ` x${item.qty}` : '';
-    const descText = item.desc || (item.type === 'gold' ? `+${item.amount} Gold` : (item.type === 'gem' ? `+${item.amount} Gems` : '✨ Obtained!'));
+    const descText = item.desc || (item.type === 'gold' ? `+${item.amount} ${_pt('Ouro', 'Gold')}` : (item.type === 'gem' ? `+${item.amount} ${_pt('Gemas', 'Gems')}` : _pt('✨ Obtido!', '✨ Obtained!')));
     const quality = (item.quality || 'common').toLowerCase();
     const rarityClass = ['rare', 'epic', 'legendary'].includes(quality) ? ` lootbox-rarity-${quality}` : '';
 
@@ -10129,8 +10986,8 @@ function renderSingleLootboxItem(item) {
             ${bgLayer}
             ${imageHtml}
             <div class="lootbox-item-info">
-                <div class="lootbox-item-title">${escapeHtml(itemName)}${qtyText}</div>
-                <div class="lootbox-item-sub">${escapeHtml(descText)}</div>
+                <div class="lootbox-item-title">${escapeHtml(translateItemNamePT(itemName))}${qtyText}</div>
+                <div class="lootbox-item-sub">${escapeHtml(item.type === 'gold' ? `+${item.amount} ${_pt('Ouro', 'Gold')}` : item.type === 'gem' ? `+${item.amount} ${_pt('Gemas', 'Gems')}` : lootBoxDescPT(descText) || descText)}</div>
             </div>
             ${qtyText ? `<div class="lootbox-qty-pill">${qtyText}</div>` : ''}
         </div>
@@ -10145,7 +11002,7 @@ function renderLootboxSummary(result, boxName) {
     let summaryHtml = `
         <div class="lootbox-summary-panel">
             <div class="lootbox-summary-header">
-                🎉 ${escapeHtml(boxName)} - UNBOXED! 🎉
+                🎉 ${escapeHtml(lootBoxNamePT(boxName))} ${_pt('- ABERTA!', '- UNBOXED!')} 🎉
             </div>
     `;
 
@@ -10153,7 +11010,7 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <span class="lootbox-summary-img lootbox-summary-emoji">💰</span>
-                <div><strong>${goldAmount.toLocaleString()} Gold</strong></div>
+                <div><strong>${goldAmount.toLocaleString()} ${_pt('Ouro', 'Gold')}</strong></div>
             </div>
         `;
     }
@@ -10162,7 +11019,7 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <span class="lootbox-summary-img lootbox-summary-emoji">💎</span>
-                <div><strong>${gemsAmount.toLocaleString()} Gems</strong></div>
+                <div><strong>${gemsAmount.toLocaleString()} ${_pt('Gemas', 'Gems')}</strong></div>
             </div>
         `;
     }
@@ -10173,9 +11030,7 @@ function renderLootboxSummary(result, boxName) {
         summaryHtml += `
             <div class="lootbox-summary-row">
                 <img class="lootbox-summary-img" src="${imagePath}" data-error-src="/images/assets/prize.png" alt="${escapeHtml(item.name)}">
-                <div>
-                    <strong>${escapeHtml(item.name)}</strong> ${item.qty ? `x${item.qty}` : ''}
-                </div>
+                <div><strong>${escapeHtml(lootBoxNamePT(item.name))}</strong> ${item.qty ? `x${item.qty}` : ''}</div>
             </div>
         `;
     }
@@ -10200,16 +11055,16 @@ function startSequentialReveal(result, boxName, onComplete) {
     // Build queue: gold, gems, then items
     const queue = [];
     if (result.goldFound > 0) {
-        queue.push({ type: 'gold', name: `${result.goldFound} Gold`, emoji: '💰', amount: result.goldFound, desc: `Found ${result.goldFound} gold!` });
+        queue.push({ type: 'gold', name: `${result.goldFound} ${_pt('Ouro', 'Gold')}`, emoji: '💰', amount: result.goldFound, desc: _pt(`Você encontrou ${result.goldFound} de ouro!`, `Found ${result.goldFound} gold!`) });
     }
     if (result.gemsFound > 0) {
-        queue.push({ type: 'gem', name: `${result.gemsFound} Gems`, emoji: '💎', amount: result.gemsFound, desc: `Found ${result.gemsFound} gems!` });
+        queue.push({ type: 'gem', name: `${result.gemsFound} ${_pt('Gemas', 'Gems')}`, emoji: '💎', amount: result.gemsFound, desc: _pt(`Você encontrou ${result.gemsFound} gemas!`, `Found ${result.gemsFound} gems!`) });
     }
     for (const lootItem of result.loot) {
         queue.push({
             name: lootItem.name,
             qty: lootItem.qty || 1,
-            desc: lootItem.desc || `You obtained ${lootItem.name}`,
+            desc: lootItem.desc ? lootBoxDescPT(lootItem.desc) : _pt(`Você obteve ${lootItem.name}`, `You obtained ${lootItem.name}`),
             type: 'item',
             quality: lootItem.quality || 'common'
         });
@@ -10285,8 +11140,8 @@ if (document.readyState === 'loading') {
 // ── OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION ───────────────────────────────
 async function openLootBox(itemId, itemName) {
     const shouldOpen = await openGameConfirmDialog({
-        title: 'Open Loot Box',
-        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Open <strong>${escHtml(itemName)}</strong> now?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">The rewards will be revealed in the loot box animation.</div>`,
+        title: _pt('Abrir Caixa de Recompensa', 'Open Loot Box'),
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">${_pt('Abrir', 'Open')} <strong>${escHtml(lootBoxNamePT(itemName))}</strong> ${_pt('agora?', 'now?')}</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">${_pt('As recompensas serão reveladas na animação da caixa de recompensa.', 'The rewards will be revealed in the loot box animation.')}</div>`,
         confirmLabel: 'Open',
         cancelLabel: 'Cancel'
     });
@@ -10319,16 +11174,16 @@ async function openLootBox(itemId, itemName) {
             // Build queue of items
             const queue = [];
             if (result.goldFound > 0) {
-                queue.push({ type: 'gold', name: `${result.goldFound} Gold`, amount: result.goldFound, desc: `Found ${result.goldFound} gold!` });
+                queue.push({ type: 'gold', name: `${result.goldFound} ${_pt('Ouro', 'Gold')}`, amount: result.goldFound, desc: _pt(`Você encontrou ${result.goldFound} de ouro!`, `Found ${result.goldFound} gold!`) });
             }
             if (result.gemsFound > 0) {
-                queue.push({ type: 'gem', name: `${result.gemsFound} Gems`, amount: result.gemsFound, desc: `Found ${result.gemsFound} gems!` });
+                queue.push({ type: 'gem', name: `${result.gemsFound} ${_pt('Gemas', 'Gems')}`, amount: result.gemsFound, desc: _pt(`Você encontrou ${result.gemsFound} gemas!`, `Found ${result.gemsFound} gems!`) });
             }
             for (const lootItem of result.loot || []) {
                 queue.push({
                     name: lootItem.name,
                     qty: lootItem.qty || 1,
-                    desc: lootItem.desc || `You obtained ${lootItem.name}`,
+                    desc: lootItem.desc ? lootBoxDescPT(lootItem.desc) : _pt(`Você obteve ${lootItem.name}`, `You obtained ${lootItem.name}`),
                     type: 'item',
                     quality: lootItem.quality || 'common'
                 });
@@ -10478,7 +11333,7 @@ async function sellItem(invId, name, price) {
     hideItemTooltip();
     const shouldSell = await openGameConfirmDialog({
         title: 'Sell Item',
-        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">Sell <strong>${escHtml(name)}</strong> for <strong>${Number(price || 0).toLocaleString()} gold</strong>?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">This action cannot be undone.</div>`,
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">${_pt('Vender', 'Sell')} <strong>${escHtml(name)}</strong> ${_pt('por', 'for')} <strong>${Number(price || 0).toLocaleString()} ${_pt('ouro', 'gold')}</strong>?</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">${_pt('Esta ação não pode ser desfeita.', 'This action cannot be undone.')}</div>`,
         confirmLabel: 'Sell Item',
         cancelLabel: 'Keep Item',
         danger: true
@@ -10534,13 +11389,13 @@ function toggleInvBulkSelect(invId, name, price, el) {
             const selected = Object.keys(invBulkSelected);
             const hasSelection = selected.length > 0;
             if (countEl) {
-                countEl.textContent = hasSelection ? `${selected.length} selected` : '';
+                countEl.textContent = hasSelection ? `${selected.length} ${_pt('selecionado(s)', 'selected')}` : '';
                 countEl.style.display = hasSelection ? 'inline' : 'none';
             }
             if (sellBtn) {
                 if (hasSelection) {
                     const total = Object.values(invBulkSelected).reduce((s, i) => s + i.price, 0);
-                    sellBtn.textContent = `Sell (${total.toLocaleString()}g)`;
+                    sellBtn.textContent = `${_pt('Vender', 'Sell')} (${total.toLocaleString()}g)`;
                     sellBtn.style.display = 'inline-block';
                 } else {
                     sellBtn.textContent = '';
@@ -10583,8 +11438,8 @@ async function sellItemWithQty(invId, name, price, currentQty) {
     const dialog = document.createElement('div');
     dialog.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:400px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.5)';
     dialog.innerHTML = `
-        <div style="font-size:1rem;font-weight:600;margin-bottom:12px">Sell ${escHtml(name)}</div>
-        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px">You have <strong>${currentQty}</strong> — price: <strong>${price}g</strong> each</div>
+        <div style="font-size:1rem;font-weight:600;margin-bottom:12px">${_pt(`Vender ${escHtml(name)}`, `Sell ${escHtml(name)}`)}</div>
+        <div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px">${_pt(`Você tem <strong>${currentQty}</strong> — preço: <strong>${price}g</strong> cada`, `You have <strong>${currentQty}</strong> — price: <strong>${price}g</strong> each`)}</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
             <button class="filter-btn sell-qty-opt" data-qty="1">1x</button>
             <button class="filter-btn sell-qty-opt" data-qty="10">10x</button>
@@ -10592,13 +11447,13 @@ async function sellItemWithQty(invId, name, price, currentQty) {
             <button class="filter-btn sell-qty-opt" data-qty="${Math.min(currentQty, 1000)}">${Math.min(currentQty, 1000)}x</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
-            <span style="font-size:0.85rem;color:var(--text-dim)">Custom:</span>
+            <span style="font-size:0.85rem;color:var(--text-dim)">${_pt('Personalizado:', 'Custom:')}</span>
             <input type="number" id="sell-qty-input" min="1" max="${currentQty}" value="1" style="flex:1;padding:6px 10px;border-radius:6px;border:1px solid var(--border);background:var(--bg1);color:var(--text);font-size:0.9rem">
-            <span style="font-size:0.8rem;color:var(--text-dim)">max ${currentQty}</span>
+            <span style="font-size:0.8rem;color:var(--text-dim)">${_pt(`máx ${currentQty}`, `max ${currentQty}`)}</span>
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end">
-            <button class="filter-btn" id="sell-qty-cancel">Cancel</button>
-            <button class="btn-primary danger" id="sell-qty-confirm" style="padding:8px 20px">Sell</button>
+            <button class="filter-btn" id="sell-qty-cancel">${_pt('Cancelar', 'Cancel')}</button>
+            <button class="btn-primary danger" id="sell-qty-confirm" style="padding:8px 20px">${_pt('Vender', 'Sell')}</button>
         </div>
     `;
     backdrop.appendChild(dialog);
@@ -10975,7 +11830,7 @@ function renderShop() {
         return false;
     });
 
-    if (!filtered.length) { el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">No items in this category.</div>`; return; }
+    if (!filtered.length) { el.innerHTML=`<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--text-dim)">${_pt('Nenhum item nesta categoria.', 'No items in this category.')}</div>`; return; }
     el.innerHTML=filtered.map(item=>{
                 const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
                 const gemCost = item.gemCost || 0;
@@ -11003,37 +11858,37 @@ function renderShop() {
 
         const effectHtml=item.effect?(()=>{
             const e=item.effect; let label='';
-            if(e.type==='heal') label=`Heals ${e.value} HP`;
-            else if(e.type==='heal_full') label='Restores 100% HP';
+            if(e.type==='heal') label=_pt(`Cura ${e.value} HP`, `Heals ${e.value} HP`);
+            else if(e.type==='heal_full') label=_pt('Restaura 100% HP', 'Restores 100% HP');
             else if(e.type==='temp_stat') label=`+${e.value} ${capitalize(e.stat||'')}`;
-            else if(e.type==='xp_multiplier') label=`${e.value}× XP boost`;
-            else if(e.type==='gold_multiplier') label=`${e.value}× Gold boost`;
+            else if(e.type==='xp_multiplier') label=_pt(`${e.value}× bônus de XP`, `${e.value}× XP boost`);
+            else if(e.type==='gold_multiplier') label=_pt(`${e.value}× bônus de Ouro`, `${e.value}× Gold boost`);
             else if(e.type==='xp') label=`+${e.value} XP`;
             else label=`${e.type}${e.value?' '+e.value:''}`;
-            return `<div class="shop-card-stat"><span class="shop-card-stat-label">Effect</span><span class="shop-card-stat-value positive">${label}</span></div>`;
+            return `<div class="shop-card-stat"><span class="shop-card-stat-label">${_pt('Efeito', 'Effect')}</span><span class="shop-card-stat-value positive">${label}</span></div>`;
         })():'';
 
         const shopItemData = escHtml(JSON.stringify(item));
-        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?'<span class="premium-badge">💎 PREMIUM</span>':item.gemCost?'<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ GEM DEAL</span>':''}${item.quality==='legendary'?'<span class="legendary-badge">👑 LEGENDARY</span>':''}
+        return `<div class="${cardClass}">${pt==='gems'&&!item.gemCost?`<span class="premium-badge">💎 ${_pt('PREMIUM', 'PREMIUM')}</span>`:item.gemCost?`<span class="premium-badge" style="background:linear-gradient(135deg,#0d6e3a,#1abc9c)">✨ ${_pt('OFERTA DE GEMAS', 'GEM DEAL')}</span>`:''}${item.quality==='legendary'?`<span class="legendary-badge">👑 ${_pt('LENDÁRIO', 'LEGENDARY')}</span>`:''}
             <div class="shop-card-header" data-hover-action="hoverShopItemTooltip" data-leave-action="scheduleHideTooltip" data-shopitem="${shopItemData}" ${actionAttrs('openShopItemTooltip')}>
                 <span class="shop-card-icon">${itemIcon(item,'4rem')}</span>
                 <span class="shop-card-name">${translateItemNamePT(item.name)}</span>
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
             </div>
             <div class="shop-card-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>
-            <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 Required: Level ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
+            <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 ${_pt('Requer Nível', 'Required: Level')} ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer">
                 <div style="display:flex;flex-direction:column;gap:2px">
                     <span class="shop-card-price" style="color:${cc}">${ci} ${price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
                 <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough&&!item._buying?'':'disabled'}>${
-            item._buying ? 'Buying...' :
-                !isAvail ? `Level ${item.level}` :
-                    !classOk ? 'Class Locked' :
-                        !hasEnoughGold ? `Need ${price - (pt==='gems'?(character.gems||0):character.gold)} more` :
-                            !hasEnoughGems ? `Need ${gemCost-(character.gems||0)} 💎` :
-                                'Buy'
+            item._buying ? _pt('Comprando...', 'Buying...') :
+                !isAvail ? `${_pt('Nível', 'Level')} ${item.level}` :
+                    !classOk ? _pt('Classe Bloqueada', 'Class Locked') :
+                        !hasEnoughGold ? `${_pt('Faltam', 'Need')} ${price - (pt==='gems'?(character.gems||0):character.gold)} ${_pt('mais', 'more')}` :
+                            !hasEnoughGems ? `${_pt('Faltam', 'Need')} ${gemCost-(character.gems||0)} 💎` :
+                                _pt('Comprar', 'Buy')
         }</button>
             </div>
         </div>`;
@@ -11059,7 +11914,7 @@ async function buyItem(itemId) {
         const refreshedChar = await api('GET','/game/character');
         character = refreshedChar;
 
-        showTabAlert(`✅ ${item.name} purchased and added to your inventory!`);
+        showTabAlert(`✅ ${translateItemNamePT(item.name)} ${_pt('comprado e adicionado ao seu inventário!', 'purchased and added to your inventory!')}`);
         if (staysInShop) {
             item._buying=false;
         } else {
@@ -11096,7 +11951,7 @@ async function generateShopInventory(playerLevel) { try { const r=await api('GET
 async function loadPremium() {
     const el = document.getElementById('premium-content');
     if (!el) return;
-    el.innerHTML = '<p class="loading">Loading...</p>';
+    el.innerHTML = `<p class="loading">${_pt('Carregando...', 'Loading...')}</p>`;
     try {
         const data = await api('GET', '/game/premium/features');
         renderPremium(data);
@@ -11126,7 +11981,7 @@ async function renderPremium(data) {
 
         const ultimateBanner = ultimate ? `
         <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
-            <div style="font-size:1.5rem;margin-bottom:4px">🌟 ASCENDANT</div>
+            <div style="font-size:1.5rem;margin-bottom:4px">🌟 ${_pt('ASCENDENTE', 'ASCENDANT')}</div>
             <div style="font-size:0.82rem;color:var(--gold);font-weight:600">${CURRENT_LANG === 'pt' ? 'Todos os 6 recursos ativos · +50% XP de todas as fontes · +1% em todos os atributos' : 'All 6 features active · +50% XP from all sources · +1% to all stats'}</div>
         </div>` : (activeCount >= 2 ? `
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
@@ -11285,7 +12140,7 @@ function setLbSort(sort, btn) {
     loadLeaderboard();
 }
 async function loadLeaderboard() {
-    document.getElementById('leaderboard-list').innerHTML='<p class="loading">Loading...</p>';
+    document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${_pt('Carregando...', 'Loading...')}</p>`;
     try {
         const [freshCharacter, leaderboard, squadLb, weeklyLb, weeklyHist] = await Promise.all([
             api('GET','/game/character'),
@@ -11320,7 +12175,7 @@ function buildSquadLeaderboardRow(s, idx) {
         <div class="lb-rank ${rc}">${rs}</div>
         ${logoHtml}
         <div class="lb-info"><div class="lb-name">${escHtml(s.name)}${(s.squad_tag || s.tag) ? ` [${escHtml(s.squad_tag || s.tag)}]` : ''}</div>
-        <div class="lb-sub">${s.member_count} members · Avg Lv ${s.avg_level} · Avg 💰 ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
+        <div class="lb-sub">${s.member_count} ${_pt('membros', 'members')} · ${_pt('Méd Nv', 'Avg Lv')} ${s.avg_level} · ${_pt('Méd 💰', 'Avg 💰')} ${Number(s.avg_gold_earned||0).toLocaleString()}</div></div>
         <div class="lb-stats" style="grid-template-columns:1fr">
             <div class="lb-stat"><div class="lb-stat-val" style="color:var(--gold)">💰 ${Number(s.total_gold_earned||0).toLocaleString()}</div></div>
         </div>
@@ -11385,7 +12240,7 @@ function renderSquads() {
     const roleLabels = {
         leader: CURRENT_LANG === 'pt' ? '👑 Líder' : '👑 Leader',
         co_leader: CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader',
-        officer: '⚔️ Officer',
+        officer: CURRENT_LANG === 'pt' ? '⚔️ Oficial' : '⚔️ Officer',
         member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
     };
     const canAssignRoles = isLeader || isCoLeader;
@@ -11440,7 +12295,7 @@ function renderSquads() {
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
-                ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 Logo</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
+                ${canChangeLogo ? `<button class="btn-secondary btn-sm" ${actionAttrs('uploadSquadLogo')}>📷 ${_pt('Logo', 'Logo')}</button>${squad.logo ? `<button class="btn-secondary btn-sm" ${actionAttrs('removeSquadLogo')}>🗑️</button>` : ''}` : ''}
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>${CURRENT_LANG === 'pt' ? 'Sair' : 'Leave'}</button>
             </div>
         </div>
@@ -11542,7 +12397,7 @@ function renderSquads() {
                    </span>
                     <span style="display:flex;align-items:center;gap:4px">
                         ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader')) ? `
-                            <select class="input-field squad-role-select" data-role-select="${m.id}" style="width:auto;padding:2px 6px;font-size:0.75rem">
+                            <select class="input-field squad-role-select" data-role-select="${m.id}" style="width:auto;padding:2px 24px 2px 6px;font-size:0.75rem">
                                 ${roleOptions(m.role, isLeader)}
                             </select>
                         ` : ''}
@@ -11731,7 +12586,7 @@ function renderBaseMapContent() {
                     <div class="clan-base-wrap${isOwned ? ' owned' : ''}">
                         <img class="clan-base-icon icon-${b.tier}" src="/images/assets/base${b.tier}.png" style="height:auto;margin:0 auto;display:block">
                         ${isOccupied ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#e74c3c;font-weight:700">[${escHtml(b.owner_tag || '??')}]</div>` : ''}
-                        ${b.owner_at_war ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#ff6b35;font-weight:700">⚔️ WAR</div>` : ''}
+                        ${b.owner_at_war ? `<div style="font-size:0.55rem;margin-top:2px;white-space:nowrap;color:#ff6b35;font-weight:700">⚔️ ${_pt('GUERRA', 'WAR')}</div>` : ''}
                     </div>
                 </div>`;
     }).join('')}
@@ -12231,7 +13086,7 @@ async function showSquadDetail(squadId) {
         const roleLabels = {
             leader: CURRENT_LANG === 'pt' ? '👑 Líder' : '👑 Leader',
             co_leader: CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader',
-            officer: '⚔️ Officer',
+            officer: CURRENT_LANG === 'pt' ? '⚔️ Oficial' : '⚔️ Officer',
             member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
         };
         const membersHtml = members.map(m => {
@@ -12475,8 +13330,8 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
-            ${framedAvatar(lbImg, 36, { imgClass: 'lb-class-img', errorHide: false, alt: p.class, data: `data-class="${p.class}" data-profile-pic="${profilePic || ''}"`, imgStyle: `object-fit:cover;${lbPos}` })}
-            <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">(you)</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${capitalize(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} achievements · ⚜️ ${(p.honor||0)} Honor</div></div>
+            ${framedAvatar(lbImg, 36, { imgClass: 'lb-class-img', errorHide: false, alt: p.class, data: `data-class="${p.class}" data-profile-pic="${profilePic || ''}"`, imgStyle: `object-fit:cover;${lbPos}`, ring: p.active_ring ? `/images/assets/awards/${p.active_ring}.png` : null })}
+            <div class="lb-info"><div style="display:flex;align-items:center"><div class="lb-name" style="flex-shrink:1;min-width:0">${p.name}${p.id===character?.id?' <span style="color:var(--gold);font-size:0.7rem">'+_pt('(você)','(you)')+'</span>':''}</div>${squadHtml}</div>${badgeHtml}<div class="lb-sub">Lv.${p.level} ${classLabelPT(p.class)} · 🏆 ${(p.achievements_completed||0).toLocaleString()} ${_pt('conquistas','achievements')} · ⚜️ ${(p.honor||0)} ${_pt('Honra','Honor')}</div></div>
             <div class="lb-stats">
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--green)">${p.wins}</div></div>
                 <div class="lb-stat"><div class="lb-stat-val" style="color:var(--red-light)">${p.losses}</div></div>
@@ -12513,15 +13368,15 @@ function renderLeaderboard() {
 
         // Players / Squads toggle
         html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-            `<button class="filter-btn ${isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'players')}>👤 Players</button>` +
-            `<button class="filter-btn ${!isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'squads')}>🛡️ Squads</button>` +
+            `<button class="filter-btn ${isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'players')}>👤 ${_pt('Jogadores', 'Players')}</button>` +
+            `<button class="filter-btn ${!isPlayers ? 'active' : ''}" ${actionAttrs('setWeeklyLbMode', 'squads')}>🛡️ ${_pt('Esquadrões', 'Squads')}</button>` +
             '</div>';
 
         // Sub-tab toggle (Damage / Wins / Honor)
         html += '<div style="display:flex;gap:8px;margin-bottom:10px">' +
-            `<button class="filter-btn ${isDmg ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'damage')}>⚔️ Damage</button>` +
-            `<button class="filter-btn ${!isDmg && !isHonor ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'wins')}>🏆 Wins</button>` +
-            `<button class="filter-btn ${isHonor ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'honor')}>⚜️ Honor</button>` +
+            `<button class="filter-btn ${isDmg ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'damage')}>⚔️ ${_pt('Dano', 'Damage')}</button>` +
+            `<button class="filter-btn ${!isDmg && !isHonor ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'wins')}>🏆 ${_pt('Vitórias', 'Wins')}</button>` +
+            `<button class="filter-btn ${isHonor ? 'active' : ''}" ${actionAttrs('setWeeklyLbSub', 'honor')}>⚜️ ${_pt('Honra', 'Honor')}</button>` +
             '</div>';
 
         if (isPlayers) {
@@ -12531,16 +13386,16 @@ function renderLeaderboard() {
 
             // Hall of Fame
             if (history.length > 0) {
-                html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ Hall of Fame — Past Champions</div>' +
+                html += `<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ ${_pt('Hall da Fama — Campeões Passados', 'Hall of Fame — Past Champions')}</div>` +
                     '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
                 history.forEach(h => {
                     const lbImg = profilePicSrc(h.profile_pic || `${h.class}.png`);
                     const hPos = avatarPos(h.profile_pic_offset);
                     const wn = getWeekNumber(h.week_start);
                     const y = new Date(h.week_start * 1000).getUTCFullYear();
-                    const val = isHonor ? (h.net_honor > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + ' honor' : (isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins');
+                    const val = isHonor ? (h.net_honor > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + _pt(' honra', ' honor') : (isDmg ? Number(h.total_dmg).toLocaleString() + _pt(' dano', ' dmg') : Number(h.total_wins).toLocaleString() + _pt(' vitórias', ' wins'));
                     html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('openProfile', h.char_id)}>
-                        <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">Week ${wn} (${y})</div>
+                        <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">${_pt('Semana', 'Week')} ${wn} (${y})</div>
                         <img src="${lbImg}" alt="${h.class}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;${hPos};border:2px solid var(--gold);margin-bottom:4px">
                         <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}</div>
                         <div style="font-size:10px;color:#8a8a90">${val}</div>
@@ -12550,20 +13405,20 @@ function renderLeaderboard() {
             }
             // Previous week winner
             if (prev) {
-                const label = isHonor ? 'Last Week\'s Most Honorable' : (isDmg ? 'Last Week\'s Damage King' : 'Last Week\'s Win Champion');
-                const stat = isHonor ? `${prev.net_honor > 0 ? '+' : ''}${Number(prev.net_honor).toLocaleString()} honor` : (isDmg ? `${Number(prev.total_dmg).toLocaleString()} damage` : `${Number(prev.total_wins).toLocaleString()} wins`);
+                const label = isHonor ? _pt('Mais Honorável da Semana Passada', "Last Week's Most Honorable") : (isDmg ? _pt('Rei do Dano da Semana Passada', "Last Week's Damage King") : _pt('Campeão de Vitórias da Semana Passada', "Last Week's Win Champion"));
+                const stat = isHonor ? `${prev.net_honor > 0 ? '+' : ''}${Number(prev.net_honor).toLocaleString()} ${_pt('honra', 'honor')}` : (isDmg ? `${Number(prev.total_dmg).toLocaleString()} ${_pt('dano', 'damage')}` : `${Number(prev.total_wins).toLocaleString()} ${_pt('vitórias', 'wins')}`);
                 html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
                     <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 ${label}</div>
                     <div style="font-size:15px;margin-top:4px">${escHtml(prev.name)} · ${stat}</div>
-                    <div style="font-size:11px;color:#6a6a70">Awarded ${prev.reward_gems}💎</div>
+                    <div style="font-size:11px;color:#6a6a70">${_pt('Premiado com', 'Awarded')} ${prev.reward_gems}💎</div>
                 </div>`;
             }
             if (cur.length === 0) {
-                html += '<p class="empty">No data recorded yet this week.</p>';
+                html += `<p class="empty">${_pt('Nenhum dado registrado nesta semana ainda.', 'No data recorded yet this week.')}</p>`;
             } else {
-                const col1 = isHonor ? '⚜️ NET HONOR' : (isDmg ? '⚔️ DAMAGE' : '🏆 WINS');
-                const col2 = isHonor ? 'CLAIMS' : 'BATTLES';
-                html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 Current Week</div>' +
+                const col1 = isHonor ? '⚜️ ' + _pt('HONRA LÍQUIDA', 'NET HONOR') : (isDmg ? '⚔️ ' + _pt('DANO', 'DAMAGE') : '🏆 ' + _pt('VITÓRIAS', 'WINS'));
+                const col2 = isHonor ? _pt('COLETAS', 'CLAIMS') : _pt('BATALHAS', 'BATTLES');
+                html += `<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 ${_pt('Semana Atual', 'Current Week')}</div>` +
                     '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">' + col1 + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">' + col2 + '</div></div></div></div>';
                 cur.forEach((r, i) => {
                     const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
@@ -12591,17 +13446,17 @@ function renderLeaderboard() {
 
             // Squad Hall of Fame — Past Champions
             if (squadHistory.length > 0) {
-                html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ Hall of Fame — Past Squad Champions</div>' +
+                html += `<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--gold)">🏛️ ${_pt('Hall da Fama — Campeões de Esquadrões Passados', 'Hall of Fame — Past Squad Champions')}</div>` +
                     '<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">';
                 squadHistory.forEach(h => {
                     const wn = getWeekNumber(h.week_start);
                     const y = new Date(h.week_start * 1000).getUTCFullYear();
-                    const val = isHonor ? (Number(h.net_honor) > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + ' honor' : (isDmg ? Number(h.total_dmg).toLocaleString() + ' dmg' : Number(h.total_wins).toLocaleString() + ' wins');
+                    const val = isHonor ? (Number(h.net_honor) > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + _pt(' honra', ' honor') : (isDmg ? Number(h.total_dmg).toLocaleString() + _pt(' dano', ' dmg') : Number(h.total_wins).toLocaleString() + _pt(' vitórias', ' wins'));
                     const logoHtml = h.logo
                         ? `<img src="${escHtml(h.logo)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">`
                         : `<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);margin-bottom:4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>`;
                     html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('showSquadDetail', h.squad_id)}>
-                        <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">Week ${wn} (${y})</div>
+                        <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">${_pt('Semana', 'Week')} ${wn} (${y})</div>
                         ${logoHtml}
                         <div style="font-size:12px;font-weight:600;color:var(--gold)">${escHtml(h.name)}${h.tag ? ` [${escHtml(h.tag)}]` : ''}</div>
                         <div style="font-size:10px;color:#8a8a90">${val}</div>
@@ -12611,20 +13466,20 @@ function renderLeaderboard() {
             }
             // Previous week squad winner
             if (squadPrev) {
-                const label = isHonor ? 'Last Week\'s Most Honorable Squad' : (isDmg ? 'Last Week\'s Squad Damage King' : 'Last Week\'s Squad Win Champion');
-                const stat = isHonor ? `${Number(squadPrev.net_honor) > 0 ? '+' : ''}${Number(squadPrev.net_honor).toLocaleString()} honor` : (isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} damage` : `${Number(squadPrev.total_wins).toLocaleString()} wins`);
+                const label = isHonor ? _pt('Esquadrão Mais Honorável da Semana Passada', "Last Week's Most Honorable Squad") : (isDmg ? _pt('Esquadrão Rei do Dano da Semana Passada', "Last Week's Squad Damage King") : _pt('Esquadrão Campeão de Vitórias da Semana Passada', "Last Week's Squad Win Champion"));
+                const stat = isHonor ? `${Number(squadPrev.net_honor) > 0 ? '+' : ''}${Number(squadPrev.net_honor).toLocaleString()} ${_pt('honra', 'honor')}` : (isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} ${_pt('dano', 'damage')}` : `${Number(squadPrev.total_wins).toLocaleString()} ${_pt('vitórias', 'wins')}`);
                 html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
                     <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 ${label}</div>
                     <div style="font-size:15px;margin-top:4px">${escHtml(squadPrev.name)}${squadPrev.tag ? ` [${escHtml(squadPrev.tag)}]` : ''} · ${stat}</div>
-                    <div style="font-size:11px;color:#6a6a70">Awarded ${squadPrev.reward_gems}💎</div>
+                    <div style="font-size:11px;color:#6a6a70">${_pt('Premiado com', 'Awarded')} ${squadPrev.reward_gems}💎</div>
                 </div>`;
             }
             if (squads.length === 0) {
-                html += '<p class="empty">No squad data recorded yet this week.</p>';
+                html += `<p class="empty">${_pt('Nenhum dado de esquadrão registrado nesta semana ainda.', 'No squad data recorded yet this week.')}</p>`;
             } else {
-                const col1 = isHonor ? '⚜️ NET HONOR' : (isDmg ? '⚔️ DAMAGE' : '🏆 WINS');
-                const col2 = isHonor ? 'COUNTED' : 'BATTLES';
-                html += '<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 Current Week — Top Squads</div>' +
+                const col1 = isHonor ? '⚜️ ' + _pt('HONRA LÍQUIDA', 'NET HONOR') : (isDmg ? '⚔️ ' + _pt('DANO', 'DAMAGE') : '🏆 ' + _pt('VITÓRIAS', 'WINS'));
+                const col2 = isHonor ? _pt('CONTADOS', 'COUNTED') : _pt('BATALHAS', 'BATTLES');
+                html += `<div style="font-size:12px;font-weight:600;margin:10px 0 6px;color:var(--gold)">📅 ${_pt('Semana Atual — Top Esquadrões', 'Current Week — Top Squads')}</div>` +
                     '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr 1fr"><div class="lb-stat"><div class="lb-stat-lbl">' + col1 + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">' + col2 + '</div></div></div></div>';
                 squads.forEach((s, i) => {
                     const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
@@ -12638,7 +13493,7 @@ function renderLeaderboard() {
                         <div class="lb-rank ${rc}">${rs}</div>
                         ${logoHtml}
                         <div class="lb-info"><div class="lb-name">${escHtml(s.name)}${s.squad_tag ? ` [${escHtml(s.squad_tag)}]` : ''}</div>
-                        <div class="lb-sub">${s.member_count} members · best ${s.counted_members} counted this week</div></div>
+                        <div class="lb-sub">${s.member_count} ${_pt('membros', 'members')} · ${_pt('melhor', 'best')} ${s.counted_members} ${_pt('contados nesta semana', 'counted this week')}</div></div>
                         <div class="lb-stats" style="grid-template-columns:1fr 1fr">
                             <div class="lb-stat"><div class="lb-stat-val">${val}</div></div>
                             <div class="lb-stat"><div class="lb-stat-val">${secondVal}</div></div>
@@ -12652,15 +13507,15 @@ function renderLeaderboard() {
     }
 
     const modeToggle = `<div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="filter-btn lb-mode-btn ${lbMode === 'players' ? 'active' : ''}" ${actionAttrs('setLbMode', 'players')}>👤 Players</button>
-        <button class="filter-btn lb-mode-btn ${lbMode === 'squads' ? 'active' : ''}" ${actionAttrs('setLbMode', 'squads')}>🛡️ Squads</button>
+        <button class="filter-btn lb-mode-btn ${lbMode === 'players' ? 'active' : ''}" ${actionAttrs('setLbMode', 'players')}>👤 ${_pt('Jogadores', 'Players')}</button>
+        <button class="filter-btn lb-mode-btn ${lbMode === 'squads' ? 'active' : ''}" ${actionAttrs('setLbMode', 'squads')}>🛡️ ${_pt('Esquadrões', 'Squads')}</button>
     </div>`;
     if (lbMode === 'squads') {
         const filtered = lbSquadData || [];
         document.getElementById('leaderboard-list').innerHTML = modeToggle + (
             filtered.length === 0
-                ? '<p class="empty">No squads found.</p>'
-                : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 TOTAL EARNED</div></div></div></div>' +
+                ? `<p class="empty">${_pt('Nenhum esquadrão encontrado.', 'No squads found.')}</p>`
+                : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 ' + _pt('TOTAL GANHO', 'TOTAL EARNED') + '</div></div></div></div>' +
                 filtered.map((s, i) => buildSquadLeaderboardRow(s, i)).join('')
         );
         return;
@@ -12672,10 +13527,10 @@ function renderLeaderboard() {
     if (mmBox) {
         mmBox.innerHTML = myRow
             ? buildLeaderboardRow(myRow, myRow.rank || 1, 'lb-self-row')
-            : '<p class="empty" style="padding:10px">Your character is not ranked yet.</p>';
+            : `<p class="empty" style="padding:10px">${_pt('Seu personagem ainda não está classificado.', 'Your character is not ranked yet.')}</p>`;
     }
     if (!filtered.length){
-        document.getElementById('leaderboard-list').innerHTML = modeToggle + '<p class="empty">No players found.</p>';
+        document.getElementById('leaderboard-list').innerHTML = modeToggle + `<p class="empty">${_pt('Nenhum jogador encontrado.', 'No players found.')}</p>`;
         return;
     }
     const totalPages = Math.ceil(filtered.length / LB_PAGE_SIZE);
@@ -12691,7 +13546,7 @@ function renderLeaderboard() {
         : '';
     document.getElementById('leaderboard-list').innerHTML = modeToggle +
         (isMobile ? topNavHtml : '') +
-        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none' + (isMobile ? ';justify-content:center' : '') + '"><div style="display:flex;align-items:center;gap:12px' + (isMobile ? ';display:none' : '') + '"><div></div><div></div><div></div></div><div class="lb-stats" style="' + (isMobile ? 'margin-left:0;width:100%;grid-template-columns:1fr 1fr 1fr' : 'margin-left:auto') + '"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ WON</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 LOST</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 EARNED</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
+        '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none' + (isMobile ? ';justify-content:center' : '') + '"><div style="display:flex;align-items:center;gap:12px' + (isMobile ? ';display:none' : '') + '"><div></div><div></div><div></div></div><div class="lb-stats" style="' + (isMobile ? 'margin-left:0;width:100%;grid-template-columns:1fr 1fr 1fr' : 'margin-left:auto') + '"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ ' + _pt('VITÓRIAS', 'WON') + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 ' + _pt('DERROTAS', 'LOST') + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 ' + _pt('GANHOS', 'EARNED') + '</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
         pageNav;
 }
@@ -12699,7 +13554,7 @@ function renderLeaderboard() {
 function buildLbPageNav(currentPage, totalPages, compact) {
     let html = '<div style="display:flex;justify-content:center;align-items:center;gap:6px;' + (compact ? 'padding:0' : 'padding:8px 0') + ';flex-wrap:wrap">';
     const prevPage = Math.max(0, currentPage - 1);
-    html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', prevPage)} ${currentPage === 0 ? 'disabled' : ''}>◀ Prev</button>`;
+    html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', prevPage)} ${currentPage === 0 ? 'disabled' : ''}>◀ ${_pt('Anterior', 'Prev')}</button>`;
     const start = Math.max(0, currentPage - 3);
     const end = Math.min(totalPages - 1, currentPage + 3);
     if (start > 0) html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', 0)}>1</button><span style="color:var(--text-dim)">...</span>`;
@@ -12708,7 +13563,7 @@ function buildLbPageNav(currentPage, totalPages, compact) {
     }
     if (end < totalPages - 1) html += `<span style="color:var(--text-dim)">...</span><button class="filter-btn" ${actionAttrs('lbGoToPage', totalPages - 1)}>${totalPages}</button>`;
     const nextPage = Math.min(totalPages - 1, currentPage + 1);
-    html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', nextPage)} ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next ▶</button>`;
+    html += `<button class="filter-btn" ${actionAttrs('lbGoToPage', nextPage)} ${currentPage >= totalPages - 1 ? 'disabled' : ''}>${_pt('Próxima', 'Next')} ▶</button>`;
     html += '</div>';
     return html;
 }
@@ -12724,7 +13579,7 @@ async function openProfile(id) {
     hideItemTooltip();
     // Move to end of body so it stacks above any open game dialog
     document.body.appendChild(modal);
-    content.innerHTML='<p class="loading">Loading profile...</p>'; modal.classList.remove('hidden');
+    content.innerHTML=`<p class="loading">${_pt('Carregando perfil...', 'Loading profile...')}</p>`; modal.classList.remove('hidden');
     try {
         character = await api('GET','/game/character');
         const p=await api('GET',`/game/player/${id}`);
@@ -12784,7 +13639,8 @@ async function openProfile(id) {
         ];
         const profileEqHtml = profileSlots.map(({slot,icon}, idx) => {
             const avatarDiv = idx === 3 ? `
-                <div class="eq-avatar-center profile-eq-avatar">
+<div class="eq-avatar-center profile-eq-avatar">
+                    ${p.active_ring ? `<canvas class="eq-award-ring" data-ring-src="/images/assets/awards/${p.active_ring}.png" width="1000" height="1000"></canvas>` : ''}
                     ${avatarImgHtml(profilePicSrc(p.profile_pic || p.class + '.png'), p.char_pic_offset || p.profile_pic_offset)}
                     ${p.elemental ? (() => {
                 const el = p.elemental;
@@ -12814,7 +13670,7 @@ async function openProfile(id) {
                 data-item="${itemData}"
                 data-hover-action="hoverEqTooltip" data-leave-action="scheduleHideTooltip">
                 ${itemIcon(item,'1.2rem')}
-                <span style="color:${qc};font-size:0.7rem">${item.name}</span>
+                <span style="color:${qc};font-size:0.7rem">${translateItemNamePT(item.name)}</span>
                 <span style="color:rgba(255,255,255,0.25);font-size:0.65rem">· ${label}</span>
             </div>`;
         }).join('');
@@ -12827,13 +13683,13 @@ async function openProfile(id) {
           <div class="profile-header">
               <div style="min-width:0;display:flex;align-items:center;gap:12px">
                 ${framedAvatar(profilePicSrc(p.profile_pic || p.class + '.png'), 52, { alt: 'avatar', imgStyle: 'object-fit:cover;' + avatarPos(p.profile_pic_offset) })}
-                <div><div class="profile-name">${classIconHtml} <span class="profile-name-text">${name}</span></div><div class="profile-class">Lv.${level} ${capitalize(p.class||'')}</div></div>
+                <div><div class="profile-name">${classIconHtml} <span class="profile-name-text">${name}</span></div><div class="profile-class">Lv.${level} ${classLabelPT(p.class||'')}</div></div>
               </div>
             <button class="btn-secondary" ${actionAttrs('closeProfile')}>✕</button>
           </div>
           <div class="profile-grid">
             <div class="profile-card profile-combat-card">
-              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Combat Stats</div>
+              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">${_pt('Atributos de Combate','Combat Stats')}</div>
               ${miniStat(renderStatIcon('strength','💪','Strength', p.class, true),'STR',str,maxStat,'str')}
               ${miniStat(renderStatIcon('defense','🛡️','Defense', p.class, true),'DEF',def,maxStat,'def')}
               ${miniStat(renderStatIcon('agility','⚡','Agility', p.class, true),'AGI',agi,maxStat,'agi')}
@@ -12843,25 +13699,25 @@ async function openProfile(id) {
               ${cc>0?miniStat(renderStatIcon('critical','💥','Crit Chance', p.class, true),'CRIT',cc,maxStat,'crit'):''}
             </div>
             <div class="profile-card">
-              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">Record</div>
+              <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:8px;letter-spacing:0.08em;text-transform:uppercase">${_pt('Histórico','Record')}</div>
               <div style="display:flex;flex-direction:column;gap:7px">
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Wins</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Losses</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Draws</span><span style="color:var(--gold);font-weight:600">${draws}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Honor</span><span style="color:${(p.honor||0) < 0 ? 'var(--red-light)' : '#e6c39a'};font-weight:700">⚜️ ${(p.honor||0)}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Win rate</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Dungeon Floor</span><span style="color:#8fd3ff;font-weight:600">🕯️ ${dungeonHighestFloor}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Tournament Wins</span><span style="color:#e040ff;font-weight:600">🏟️ ${(p.tournament_wins||0).toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Achievements</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Total Earned</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
-                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">Total Lost</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
-                ${p.squad_name ? `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">Squad</span><span style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--gold)">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover">` : ''}${escHtml(p.squad_name)}</span></div>` : ''}
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Vitórias','Wins')}</span><span style="color:var(--green);font-weight:600">${wins}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Derrotas','Losses')}</span><span style="color:var(--red-light);font-weight:600">${losses}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Empates','Draws')}</span><span style="color:var(--gold);font-weight:600">${draws}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Honra','Honor')}</span><span style="color:${(p.honor||0) < 0 ? 'var(--red-light)' : '#e6c39a'};font-weight:700">⚜️ ${(p.honor||0)}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Taxa de Vitória','Win rate')}</span><span style="color:var(--text-bright);font-weight:600">${wr}%</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Andar da Masmorra','Dungeon Floor')}</span><span style="color:#8fd3ff;font-weight:600">🕯️ ${dungeonHighestFloor}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Vitórias em Torneios','Tournament Wins')}</span><span style="color:#e040ff;font-weight:600">🏟️ ${(p.tournament_wins||0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Conquistas','Achievements')}</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Total Ganho','Total Earned')}</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
+                <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Total Perdido','Total Lost')}</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
+                ${p.squad_name ? `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Esquadrão','Squad')}</span><span style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--gold)">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover">` : ''}${escHtml(p.squad_name)}</span></div>` : ''}
               </div>
             </div>
           </div>
           ${Object.keys(eq).length?`
           <div class="profile-card profile-equipment-card">
-            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">Equipment</div>
+            <div style="font-size:0.7rem;color:var(--text-dim);margin-bottom:10px;letter-spacing:0.08em;text-transform:uppercase">${_pt('Equipamento','Equipment')}</div>
             <div class="eq-stage profile-eq-stage">
               <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
               <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}</div>
@@ -12883,28 +13739,28 @@ async function openProfile(id) {
             const atkBtn=!blocked
                 ?`<button class="btn-attack" ${actionAttrs('attackFromProfile', id, name, p.class)}>⚔️ Attack</button>`
                 :(canSkip
-                    ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${reason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6" ${actionAttrs('skipCooldownAndAttack', id, name, p.class)}>⚡ Skip cooldown for 1 💎</button></div>`
+                    ? `<div style="display:flex;flex-direction:column;gap:6px"><button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed">🛡️ ${reason}</button><button class="btn-attack" style="border-color:#9b59b6;color:#9b59b6" ${actionAttrs('skipCooldownAndAttack', id, name, p.class)}>⚡ ${_pt('Pular recarga por 1 💎','Skip cooldown for 1 💎')}</button></div>`
                     :`<button class="btn-attack" disabled style="opacity:0.4;cursor:not-allowed" title="${reason}">🛡️ ${reason}</button>`);
-            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ Message</button></div>`;
+            return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ ${_pt('Mensagem','Message')}</button></div>`;
         })() : ''}
           <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:16px 0 0">
-            ${renderDetailSlot('DMG', 'Damage', `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
-            ${renderDetailSlot('ARM', 'Armor', profileArmor, '#5dade2')}
+            ${renderDetailSlot('DMG', _pt('Dano','Damage'), `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
+            ${renderDetailSlot('ARM', _pt('Armadura','Armor'), profileArmor, '#5dade2')}
             ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
-              ${renderDetailSlot('🔥', 'Pyro Dmg', `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
-              ${renderDetailSlot('🌊', 'Water Dmg', `+${p.elem_dmg.water||0}`, '#f1c40f')}
-              ${renderDetailSlot('🌪️', 'Wind Dmg', `+${p.elem_dmg.wind||0}`, '#f1c40f')}
-              ${renderDetailSlot('⚡', 'Electro Dmg', `+${p.elem_dmg.electro||0}`, '#f1c40f')}
+              ${renderDetailSlot('🔥', _pt('Dano Pírico','Pyro Dmg'), `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
+              ${renderDetailSlot('🌊', _pt('Dano Hídrico','Water Dmg'), `+${p.elem_dmg.water||0}`, '#f1c40f')}
+              ${renderDetailSlot('🌪️', _pt('Dano Eólico','Wind Dmg'), `+${p.elem_dmg.wind||0}`, '#f1c40f')}
+              ${renderDetailSlot('⚡', _pt('Dano Eletro','Electro Dmg'), `+${p.elem_dmg.electro||0}`, '#f1c40f')}
             ` : ''}
             ${p.elem_resist && (p.elem_resist.pyro||p.elem_resist.water||p.elem_resist.wind||p.elem_resist.electro) ? `
-              ${renderDetailSlot('🔥', 'Pyro Res', `+${p.elem_resist.pyro||0}`, '#5dade2')}
-              ${renderDetailSlot('🌊', 'Water Res', `+${p.elem_resist.water||0}`, '#5dade2')}
-              ${renderDetailSlot('🌪️', 'Wind Res', `+${p.elem_resist.wind||0}`, '#5dade2')}
-              ${renderDetailSlot('⚡', 'Electro Res', `+${p.elem_resist.electro||0}`, '#5dade2')}
+              ${renderDetailSlot('🔥', _pt('Res Pírica','Pyro Res'), `+${p.elem_resist.pyro||0}`, '#5dade2')}
+              ${renderDetailSlot('🌊', _pt('Res Hídrica','Water Res'), `+${p.elem_resist.water||0}`, '#5dade2')}
+              ${renderDetailSlot('🌪️', _pt('Res Eólica','Wind Res'), `+${p.elem_resist.wind||0}`, '#5dade2')}
+              ${renderDetailSlot('⚡', _pt('Res Eletro','Electro Res'), `+${p.elem_resist.electro||0}`, '#5dade2')}
             ` : ''}
           </div>
       </div>`;
-    } catch(e) { content.innerHTML=`<p class="error">Failed to load profile: ${e.message||'Unknown error'}</p>`; }
+    } catch(e) { content.innerHTML=`<p class="error">${_pt('Falha ao carregar perfil','Failed to load profile')}: ${e.message||'Unknown error'}</p>`; }
 }
 function miniStat(icon,label,val,max,cls) {
     return `<div class="stat-row" style="padding:5px 0"><span class="stat-icon" style="font-size:0.9rem">${icon}</span><span class="stat-label" style="font-size:0.78rem">${label}</span>
@@ -12988,7 +13844,7 @@ function findMissionVisualByName(missionName) {
     return searchZones(ZONES) || (abyssData ? searchZones(abyssData.zones) : null);
 }
 
-function buildBattleShowcaseCard({ name, className, level, splash = false, fallback = 'вљ”пёЏ', side = 'left', imageSrc = null, metaText = '' }) {
+function buildBattleShowcaseCard({ name, className, level, splash = false, fallback = '⚔️', side = 'left', imageSrc = null, metaText = '' }) {
     const artSrc = imageSrc || getBattleFighterArt(className, splash ? 'splash' : 'portrait');
     const fighterClassText = metaText || (className
         ? `${capitalize(className)}${level ? ` Lv.${level}` : ''}`
@@ -13461,6 +14317,12 @@ function closeBattle() {
     battlePlaybackMeta = null;
     document.getElementById('battle-result-modal').classList.add('hidden');
     renderCharacter();
+    // Show pending story completion overlay after the battle report closes.
+    if (_storyPending) {
+        showStoryCompletionModal(_storyPending);
+        _storyPending = null;
+        setTimeout(() => { renderStoryPanel(); loadStoryPanel().catch(() => {}); }, 50);
+    }
 }
 
 // ── History ───────────────────────────────────────────────────────────────
@@ -13494,7 +14356,7 @@ function showHistoryLog(logJson,a,d,isDraw) {
 // ── Inbox ─────────────────────────────────────────────────────────────────
 window._reportCache = {};
 async function loadInbox() {
-    const el=document.getElementById('inbox-content'); el.innerHTML='<p class="loading">Loading...</p>';
+    const el=document.getElementById('inbox-content'); el.innerHTML=`<p class="loading">${_pt('Carregando...', 'Loading...')}</p>`;
     try {
         const messages=await api('GET','/game/messages');
         window._reportCache = {};
@@ -13541,8 +14403,8 @@ async function loadInbox() {
         </div>
         <div class="inbox-header">
             <div style="display:flex;gap:6px;margin-left:auto">
-                <button class="btn-sm" ${actionAttrs('markAllInboxRead')} title="Mark every message as read">✓ Mark All Read</button>
-                <button class="btn-sm danger" ${actionAttrs('deleteAllMessages')} title="Delete every message in this tab">🗑 Delete All</button>
+                <button class="btn-sm" ${actionAttrs('markAllInboxRead')} title="${_pt('Marcar todas as mensagens como lidas', 'Mark every message as read')}">✓ ${_pt('Marcar Tudo como Lido', 'Mark All Read')}</button>
+                <button class="btn-sm danger" ${actionAttrs('deleteAllMessages')} title="${_pt('Excluir todas as mensagens desta aba', 'Delete every message in this tab')}">🗑 ${_pt('Excluir Tudo', 'Delete All')}</button>
             </div>
         </div>
         <div id="inbox-filtered-content"></div>`;
@@ -13600,17 +14462,17 @@ function renderInboxFilter(filter) {
                     <span class="msg-tag ${isWarMsg ? 'tag-battle' : claimableReward ? 'tag-mission' : 'tag-personal'}">${isWarMsg ? '⚔️ War' : claimableReward ? 'Reward' : 'Message'}</span>
                     <span class="msg-date">${dateStr}</span>
                 </div>
-                <div class="msg-from ${m.read?'':'unread-from'}">From: ${escHtml(m.sender_name)}</div>
+                <div class="msg-from ${m.read?'':'unread-from'}">${_pt('De:', 'From:')} ${escHtml(m.sender_name)}</div>
             </div>
             <div class="msg-subject">${escHtml(m.subject)}</div>
-            ${rewardSummary ? `<div class="msg-summary-line">${rewardSummary}${Number(m.reward_claimed || 0) ? ' · <span class="gain">Claimed</span>' : ''}</div>` : ''}
+            ${rewardSummary ? `<div class="msg-summary-line">${rewardSummary}${Number(m.reward_claimed || 0) ? ` · <span class="gain">${_pt('Resgatado', 'Claimed')}</span>` : ''}</div>` : ''}
             <div class="msg-body-full" style="display:none">${escHtml(displayBody)}</div>
             <div class="msg-actions" style="display:none">
-                ${isWarMsg ? `<button class="btn-sm" ${actionAttrs('openWarPanelFromMsg', m.id)}>⚔️ Open War Panel</button>` : ''}
-                ${!isSystem ? `<button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ Reply</button>` : ''}
-                ${claimableReward ? `<button class="btn-sm" ${actionAttrs('claimMessageReward', m.id)}>🎁 Claim Reward</button>` : ''}
-                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
-                <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 Delete</button>
+                ${isWarMsg ? `<button class="btn-sm" ${actionAttrs('openWarPanelFromMsg', m.id)}>⚔️ ${_pt('Abrir Painel de Guerra', 'Open War Panel')}</button>` : ''}
+                ${!isSystem ? `<button class="btn-sm" ${actionAttrs('openCompose', m.sender_id, m.sender_name)}>↩ ${_pt('Responder', 'Reply')}</button>` : ''}
+                ${claimableReward ? `<button class="btn-sm" ${actionAttrs('claimMessageReward', m.id)}>🎁 ${_pt('Resgatar Recompensa', 'Claim Reward')}</button>` : ''}
+                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ ${_pt('Marcar como Lido', 'Mark Read')}</button>` : ''}
+                <button class="btn-sm danger" ${actionAttrs('deleteMessage', m.id)}>🗑 ${_pt('Excluir', 'Delete')}</button>
             </div>
         </div>`;
     };
@@ -13622,7 +14484,7 @@ function renderInboxFilter(filter) {
         return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
             <div class="msg-header">
                 <div class="msg-meta">
-                    <span class="msg-tag tag-battle">Battle</span>
+                    <span class="msg-tag tag-battle">${_pt('Batalha', 'Battle')}</span>
                     <span class="msg-date">${dateStr}</span>
                 </div>
                 <div class="msg-from ${m.read?'':'unread-from'}">${icon} ${escHtml(m.subject)}</div>
@@ -13633,13 +14495,13 @@ function renderInboxFilter(filter) {
                 ${report.gemsEarned ? ` · <span class="gain">💎 +${report.gemsEarned}</span>` : ''}
                 ${report.goldLost   ? ` · <span class="loss">💸 -${report.goldLost}</span>`  : ''}
                 ${report.xpEarned ? ` · <span class="${report.xpEarned >= 0 ? 'gain' : 'loss'}">⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP</span>` : ''}
-                ${report.honorChanged ? ` · <span class="${report.honorChanged > 0 ? 'gain' : 'loss'}">⚜️ ${report.honorChanged > 0 ? '+' : ''}${report.honorChanged} Honor</span>` : ''}
-                ${report.totalDmgDealt ? ` · <span style="color:#e74c3c">⚔️ ${report.totalDmgDealt} dealt</span>` : ''}
+                ${report.honorChanged ? ` · <span class="${report.honorChanged > 0 ? 'gain' : 'loss'}">⚜️ ${report.honorChanged > 0 ? '+' : ''}${report.honorChanged} ${_pt('Honra', 'Honor')}</span>` : ''}
+                ${report.totalDmgDealt ? ` · <span style="color:#e74c3c">⚔️ ${report.totalDmgDealt} ${_pt('causado', 'dealt')}</span>` : ''}
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
-                <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
-                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
-                <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
+                <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 ${_pt('Ver Relatório', 'View Report')}</button>
+                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ ${_pt('Marcar como Lido', 'Mark Read')}</button>` : ''}
+                <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="${_pt('Excluir', 'Delete')}">🗑</button>
             </div>
         </div>`;
     };
@@ -13651,7 +14513,7 @@ function renderInboxFilter(filter) {
         return `<div class="msg-row ${m.read?'':'unread'} report-row" id="msg-${m.id}">
             <div class="msg-header">
                 <div class="msg-meta">
-                    <span class="msg-tag tag-mission">Mission</span>
+                    <span class="msg-tag tag-mission">${_pt('Missão', 'Mission')}</span>
                     <span class="msg-date">${dateStr}</span>
                 </div>
                 <div class="msg-from ${m.read?'':'unread-from'}">${icon} ${escHtml(m.subject)}</div>
@@ -13663,15 +14525,15 @@ function renderInboxFilter(filter) {
                 ${report.xpEarned ? ` · <span class="${report.xpEarned >= 0 ? 'gain' : 'loss'}">⭐ ${report.xpEarned >= 0 ? '+' : ''}${report.xpEarned} XP</span>` : ''}
             </div>` : ''}
             <div class="msg-actions" style="display:flex;">
-                <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 View Report</button>
-                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ Mark Read</button>` : ''}
-                <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="Delete">🗑</button>
+                <button class="btn-sm" ${actionAttrs('viewBattleReport', m.id)}>📜 ${_pt('Ver Relatório', 'View Report')}</button>
+                ${!m.read ? `<button class="btn-sm" ${actionAttrs('markInboxRead', m.id)}>✓ ${_pt('Marcar como Lido', 'Mark Read')}</button>` : ''}
+                <button class="btn-sm btn-icon-only danger" ${actionAttrs('deleteMessage', m.id)} title="${_pt('Excluir', 'Delete')}">🗑</button>
             </div>
         </div>`;
     };
 
     if (!list.length) {
-        container.innerHTML = '<p class="empty">No items in this category.</p>';
+        container.innerHTML = `<p class="empty">${_pt('Nenhum item nesta categoria.', 'No items in this category.')}</p>`;
         return;
     }
 
@@ -15153,7 +16015,9 @@ function matIcon(nameOrId, emoji, size='1.4rem') {
 // A duplicate "pop" layer renders the head above the frame (see .avatar-frame-pop).
 function framedAvatar(src, sizePx, opts = {}) {
     const errHide = opts.errorHide === false ? '' : ' data-error-hide="true"';
+    const ring = opts.ring ? `<img src="${opts.ring}" class="avatar-frame-ring" alt="">` : '';
     return `<span class="avatar-frame" style="width:${sizePx}px;height:${sizePx}px;${opts.wrapStyle||''}">` +
+        `${ring}` +
         `<img src="${src}" class="avatar-frame-portrait ${opts.imgClass||''}" style="${opts.imgStyle||''}" alt="${opts.alt||''}"` +
         `${errHide} ${opts.data||''}>` +
         `<img src="${src}" class="avatar-frame-pop ${opts.imgClass||''}" style="${opts.imgStyle||''}" alt=""${errHide}>` +
@@ -15248,6 +16112,10 @@ function formatDate(ts) {
     return `${d.toLocaleDateString([], { month: 'short', day: 'numeric' })}, ${time}`;
 }
 function capitalize(s){return s?s[0].toUpperCase()+s.slice(1):'';}
+function classLabelPT(cls){
+    if (CURRENT_LANG !== 'pt') return capitalize(cls);
+    return ({warrior:'Guerreiro',mage:'Mago',rogue:'Ladino',paladin:'Paladino'})[String(cls||'').toLowerCase()] || capitalize(cls);
+}
 // Convert '#rgb'/'#rrggbb' to rgba() with the given alpha — keeps inline styles
 // statically valid (no 8-digit hex, no string-concat colors).
 function hexToRgba(hex, alpha) {
@@ -15627,15 +16495,15 @@ const legacyHandlerObserver = new MutationObserver((mutations) => {
 let bugReportScreenshot = null;
 let _bugCategory = '';
 const BUG_CATEGORY_LABELS = {
-    'cheating': 'Cheating/Exploit/Botting',
-    'abuse': 'Player Abuse/Harassment',
-    'combat': 'Combat/Battle Issue',
-    'ui': 'UI/Display Issue',
-    'mission': 'Mission Problem',
-    'shop': 'Shop/Inventory Issue',
-    'dungeon': 'Dungeon Problem',
-    'performance': 'Performance/Lag',
-    'other': 'Other'
+    'cheating': CURRENT_LANG === 'pt' ? 'Trapaça/Exploração/Bot' : 'Cheating/Exploit/Botting',
+    'abuse': CURRENT_LANG === 'pt' ? 'Abuso/Assédio a Jogadores' : 'Player Abuse/Harassment',
+    'combat': CURRENT_LANG === 'pt' ? 'Problema de Combate/Batalha' : 'Combat/Battle Issue',
+    'ui': CURRENT_LANG === 'pt' ? 'Problema de Interface/Exibição' : 'UI/Display Issue',
+    'mission': CURRENT_LANG === 'pt' ? 'Problema de Missão' : 'Mission Problem',
+    'shop': CURRENT_LANG === 'pt' ? 'Problema na Loja/Inventário' : 'Shop/Inventory Issue',
+    'dungeon': CURRENT_LANG === 'pt' ? 'Problema na Masmorra' : 'Dungeon Problem',
+    'performance': CURRENT_LANG === 'pt' ? 'Desempenho/Lag' : 'Performance/Lag',
+    'other': CURRENT_LANG === 'pt' ? 'Outro' : 'Other'
 };
 const BUG_CATEGORY_ORDER = ['cheating', 'abuse', 'combat', 'ui', 'mission', 'shop', 'dungeon', 'performance', 'other'];
 
@@ -15705,7 +16573,7 @@ function openBugReport() {
         bugReportScreenshot = null;
         _bugCategory = '';
         const catValue = document.getElementById('bug-category-value');
-        if (catValue) { catValue.textContent = 'Select category'; }
+        if (catValue) { catValue.textContent = _pt('Selecione a categoria', 'Select category'); }
         const catOpts = document.getElementById('bug-category-options');
         if (catOpts) catOpts.classList.add('hidden');
         const preview = document.getElementById('screenshot-preview');
@@ -15888,7 +16756,7 @@ function showShopItemTooltip(event, itemJson) {
         if (effectText) {
             effectHtml = `
                 <div class="tt-stat">
-                    <span class="tt-stat-name">Effect</span>
+                    <span class="tt-stat-name">${_pt('Efeito', 'Effect')}</span>
                     <span class="tt-stat-val">${effectText}</span>
                 </div>
             `;
@@ -15907,23 +16775,23 @@ function showShopItemTooltip(event, itemJson) {
             <div class="tt-name" style="color:${qColor}">${translateItemNamePT(item.name || '')}</div>
             <div class="tt-meta">
                 ${slotLabelPT(itemSlot || 'item')}
-                ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${item.quality}</span>` : ''}
+                ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>` : ''}
             </div>
             ${getCanonicalItemDesc(item.desc, item.name) ? `<div class="tt-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>` : ''}
             <div class="tt-stats">
-                ${statsHtml || `<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>`}
+                ${statsHtml || `<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}
                 ${effectHtml}
             </div>
             ${classWarn}
-            ${equippedItem ? `<div class="tt-vs">vs equipped: <strong>${equippedItem.name}</strong></div>` : ''}
+            ${equippedItem ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
             <div class="tt-price" style="margin-top:8px;font-weight:700;color:var(--gold)">
-                Buy: ${priceIcon} ${buyPrice.toLocaleString()}
+                ${_pt('Comprar:', 'Buy:')} ${priceIcon} ${buyPrice.toLocaleString()}
                 ${gemCost > 0 ? ` + 💎 ${gemCost}` : ''}
             </div>
         </div>
         <div class="tt-actions">
             <button class="tt-btn tt-btn-primary" ${actionAttrs('buyItem', item.id)}>
-                Buy
+                ${_pt('Comprar', 'Buy')}
             </button>
         </div>
     `;
@@ -16045,11 +16913,11 @@ async function submitBugReport(event) {
     const reportedPlayer = document.getElementById('bug-reported-player').value.trim();
 
     if (!category || !title || !description) {
-        showBugReportStatus('Please fill in all required fields.', 'error');
+        showBugReportStatus(_pt('Preencha todos os campos obrigatórios.', 'Please fill in all required fields.'), 'error');
         return;
     }
 
-    showBugReportStatus('Submitting report...', 'info');
+    showBugReportStatus(_pt('Enviando relato...', 'Submitting report...'), 'info');
 
     const report = {
         timestamp: new Date().toISOString(),
@@ -16088,14 +16956,14 @@ async function submitBugReport(event) {
         const result = await response.json();
 
         if (result.success) {
-            showBugReportStatus('✅ Report submitted successfully! Thank you for helping improve the game.', 'success');
+            showBugReportStatus(_pt('✅ Relato enviado com sucesso! Obrigado por ajudar a melhorar o jogo.', '✅ Report submitted successfully! Thank you for helping improve the game.'), 'success');
             setTimeout(() => closeBugReport(), 2000);
         } else {
-            showBugReportStatus(`Failed to submit: ${result.error}`, 'error');
+            showBugReportStatus(_pt(`Falha ao enviar: ${result.error}`, `Failed to submit: ${result.error}`), 'error');
         }
     } catch (error) {
         console.error('Bug report error:', error);
-        showBugReportStatus('Failed to submit report. Please try again.', 'error');
+        showBugReportStatus(_pt('Falha ao enviar o relato. Tente novamente.', 'Failed to submit report. Please try again.'), 'error');
     }
 }
 
@@ -16334,7 +17202,7 @@ async function openUpgradeModal(inventoryId) {
         const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
 
         if (currentUpgrade >= maxUpgrade) {
-            showMsg('inv-msg', `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`, true);
+            showMsg('inv-msg', _pt(`Item já está no nível máximo de melhoria (+${maxUpgrade}) para qualidade ${quality}!`, `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`), true);
             return;
         }
 
@@ -16532,7 +17400,7 @@ async function confirmUpgrade() {
         if (result.success) {
             let message = result.message;
             if (result.upgradedStats && result.upgradedStats.length > 0) {
-                message += `\n\nStats improved:\n`;
+                message += `\n\n${_pt('Atributos melhorados:', 'Stats improved:')}\n`;
                 result.upgradedStats.forEach(s => {
                     const statName = s.stat.replace(/_/g, ' ');
                     message += `• ${statName}: ${s.oldValue} → ${s.newValue} (+${s.increase})\n`;
@@ -16587,7 +17455,7 @@ async function openExchangeModal() {
             </div>
         `;
 
-        const rarityNames = { 1: 'Common', 2: 'Uncommon', 3: 'Rare', 4: 'Epic', 5: 'Legendary' };
+        const rarityNames = { 1: _pt('Comum', 'Common'), 2: _pt('Incomum', 'Uncommon'), 3: _pt('Raro', 'Rare'), 4: _pt('Épico', 'Epic'), 5: _pt('Lendário', 'Legendary') };
         const rarityColors = { 1: '#95a5a6', 2: '#2ecc71', 3: '#3498db', 4: '#9b59b6', 5: '#f1c40f' };
 
         for (const [rarity, materials] of Object.entries(data.exchanges)) {
@@ -16604,9 +17472,9 @@ async function openExchangeModal() {
                     <div style="padding: 10px; background: rgba(255,255,255,0.03); border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
                             <span style="font-size: 1.3rem;">${mat.emoji}</span>
-                            <span style="font-weight: bold;">${mat.name}</span>
+                            <span style="font-weight: bold;">${translateItemNameExactPT(mat.name)}</span>
                         </div>
-                        <div style="font-size: 0.7rem; color: #f1c40f;">Cost: ${mat.fragmentCost} ⭐</div>
+                        <div style="font-size: 0.7rem; color: #f1c40f;">${_pt('Custo:', 'Cost:')} ${mat.fragmentCost} ⭐</div>
                         <div style="display: flex; gap: 4px; margin-top: 8px;">
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 1)} ${!mat.canAfford ? 'disabled' : ''}>x1</button>
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 5)} ${data.fragmentCount < mat.fragmentCost * 5 ? 'disabled' : ''}>x5</button>
