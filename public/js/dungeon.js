@@ -53,6 +53,109 @@
     m = text.match(/^💢 (.+) uses SPECIAL ATTACK for (\d+)!$/);
     if (m) return `💢 ${m[1]} usa ATAQUE ESPECIAL causando ${m[2]}!`;
 
+    // ── Trial of the Arcane battle log (server/trial-engine.js + event-routes) ──
+    const trialExact = {
+      'The Trial begins!': 'O Trial começa!',
+      '⚔️ Final Blow! Center the strike to multiply this battle\'s points!': '⚔️ Golpe Final! Acerte o centro para multiplicar os pontos desta batalha!',
+      'Invalid champion.': 'Campeão inválido.',
+      'Unknown ability.': 'Habilidade desconhecida.',
+      'Ability not implemented.': 'Habilidade não implementada.'
+    };
+    if (trialExact[text]) return trialExact[text];
+
+    // Battle Focus result lines (trial-engine resolveTrialRound)
+    m = text.match(/^(🌟|💤) Battle Focus ×([\d.]+) — damage and score (boosted|reduced) for this battle(!|\.)$/);
+    if (m) return `${m[1]} Foco de Batalha ×${m[2]} — dano e pontuação ${m[3] === 'boosted' ? 'amplificados' : 'reduzidos'} nesta batalha${m[4]}`;
+
+    m = text.match(/^🌟 Final Blow ×([\d.]+) — \+(\d+) bonus battle points!$/);
+    if (m) return `🌟 Golpe Final ×${m[1]} — +${m[2]} pontos de batalha de bônus!`;
+
+    m = text.match(/^🌟 Final Blow ×([\d.]+) — (\d+) battle points lost\.$/);
+    if (m) return `🌟 Golpe Final ×${m[1]} — ${m[2]} pontos de batalha perdidos.`;
+
+    // Elemental combo points (Vaporize! / Shatter! / Thermal Shock!)
+    const comboLabelPT = { 'Vaporize!': 'Vaporizar!', 'Shatter!': 'Estilhaçar!', 'Thermal Shock!': 'Choque Térmico!' };
+    m = text.match(/^🔀 (.+?) \+(\d+) pts(?: \((.+)\))?!$/);
+    if (m) return `🔀 ${comboLabelPT[m[1]] || m[1]} +${m[2]} pts${m[3] ? ` (${m[3]})` : ''}!`;
+
+    // Champion attacks: "🔥 Pyra Fireball → Goblin for 40 damage!" (+ status suffixes)
+    const abilityNamePT = {
+      'Fireball': 'Bola de Fogo', 'Inferno': 'Inferno', 'Arc Bolt': 'Raio Arcano',
+      'Frost Strike': 'Golpe Gélido', 'Smite': 'Castigo', 'Deep Freeze': 'Congelamento Profundo',
+      'Blizzard': 'Nevasca', 'Shield Bash': 'Golpe de Escudo'
+    };
+    const suffixPT = (s) => s
+      .replace('& BURN (2 rounds)!', 'e QUEIMADURA (2 rodadas)!')
+      .replace('& FREEZE (2 rounds)!', 'e CONGELAMENTO (2 rodadas)!')
+      .replace('& BURN!', 'e QUEIMADURA!')
+      .replace('& FREEZE (6s)!', 'e CONGELAMENTO (6s)!')
+      .replace('& FREEZE!', 'e CONGELAMENTO!');
+    m = text.match(/^(.+?) (.+?) (Fireball|Inferno|Arc Bolt|Frost Strike|Smite|Deep Freeze|Blizzard|Shield Bash) → (.+?) for (\d+) damage(!| & BURN \(2 rounds\)!| & FREEZE \(2 rounds\)!| & BURN!| & FREEZE \(6s\)!| & FREEZE!| \(\+120 shield\)!)$/);
+    if (m) {
+      const tailPT = (m[6] === ' (+120 shield)!' ? ' (+120 de escudo)!' : suffixPT(m[6]));
+      return `${m[1]} ${m[2]} ${abilityNamePT[m[3]]} → ${m[4]} causando ${m[5]} de dano${tailPT}`;
+    }
+
+    m = text.match(/^🌟 Radiant channel → (.+?) for (\d+) damage!$/);
+    if (m) return `🌟 Canal Radiante → ${m[1]} causando ${m[2]} de dano!`;
+
+    m = text.match(/^✨ (.+) revived with (\d+) HP!$/);
+    if (m) return `✨ ${m[1]} reviveu com ${m[2]} de PV!`;
+
+    m = text.match(/^✨ (.+) restored to (\d+) HP\.$/);
+    if (m) return `✨ ${m[1]} está com ${m[2]} de PV.`;
+
+    m = text.match(/^(.+) is down and cannot act\.$/);
+    if (m) return `${m[1]} está caído e não pode agir.`;
+
+    m = text.match(/^(.+) already acted this turn\.$/);
+    if (m) return `${m[1]} já agiu neste turno.`;
+
+    m = text.match(/^(.+) holds back this round\.$/);
+    if (m) return `${m[1]} aguarda esta rodada.`;
+
+    m = text.match(/^Not enough energy \(needs (\d+)\)\.$/);
+    if (m) return `Energia insuficiente (precisa de ${m[1]}).`;
+
+    m = text.match(/^(.+?)'s (.+?) is recharging \((\d+)s left\)\.$/);
+    if (m) return `O ${m[2]} de ${m[1]} está recarregando (${m[3]}s restantes).`;
+
+    m = text.match(/^(.+?)'s (.+?) is still recharging \((\d+) actions? left\)\.$/);
+    if (m) return `O ${m[2]} de ${m[1]} ainda está recarregando (${m[3]} ${m[3] > 1 ? 'ações restantes' : 'ação restante'}).`;
+
+    m = text.match(/^⛨ (.+) guards — 50% less damage for 9s\.$/);
+    if (m) return `⛨ ${m[1]} protege-se — 50% menos dano por 9s.`;
+
+    m = text.match(/^⛨ (.+) guards — 50% less damage this round\.$/);
+    if (m) return `⛨ ${m[1]} protege-se — 50% menos dano nesta rodada.`;
+
+    m = text.match(/^📯 (.+) roars — party \+35% damage for 9s!$/);
+    if (m) return `📯 ${m[1]} ruge — grupo +35% de dano por 9s!`;
+
+    m = text.match(/^📯 (.+) roars — party \+35% damage for 3 rounds!$/);
+    if (m) return `📯 ${m[1]} ruge — grupo +35% de dano por 3 rodadas!`;
+
+    m = text.match(/^🧊 (.+) thawed out!$/);
+    if (m) return `🧊 ${m[1]} descongelou!`;
+
+    m = text.match(/^☠️ (.+) is down!$/);
+    if (m) return `☠️ ${m[1]} caiu!`;
+
+    m = text.match(/^(.+?)'s ultimate needs a full energy bar\.$/);
+    if (m) return `O ultimate de ${m[1]} precisa da barra cheia.`;
+
+    m = text.match(/^🔥 (.+) burns for (\d+) damage\.$/);
+    if (m) return `🔥 ${m[1]} queima com ${m[2]} de dano.`;
+
+    m = text.match(/^🧊 (.+) is frozen and cannot strike!$/);
+    if (m) return `🧊 ${m[1]} está congelado e não pode atacar!`;
+
+    m = text.match(/^💥 (.+) strikes (.+) for (\d+) damage!$/);
+    if (m) return `💥 ${m[1]} golpeia ${m[2]} causando ${m[3]} de dano!`;
+
+    m = text.match(/^💀 (.+) was defeated!$/);
+    if (m) return `💀 ${m[1]} foi derrotado!`;
+
     return text;
   }
 
@@ -476,6 +579,20 @@ function getBossForFloor(floor) {
       }
       return DUNGEON;
     }
+    if (id === 'event') {
+      return { 
+        id: 'event', 
+        name: _pt('Provação do Arcano', 'Trial of the Arcane'),
+        icon: '🔮', 
+        theme: '#6b21a8', 
+        themeGlow: '#a855f7', 
+        themeName: 'Arcane', 
+        monsters: Array.isArray(D.rooms) ? D.rooms.flatMap(r => Array.isArray(r.monsters) ? r.monsters : []) : [],
+        boss: D.rooms && D.rooms[D.eventRoomIndex ?? -1] && D.rooms[D.eventRoomIndex].isBoss
+          ? (D.rooms[D.eventRoomIndex].monsters && D.rooms[D.eventRoomIndex].monsters[0]) || DUNGEON.boss
+          : DUNGEON.boss,
+      };
+    }
     return DUNGEON;
   }
 
@@ -502,18 +619,25 @@ let D = {
   guildReputation: 0,    // Add this
   lockRefreshInterval: null,
   _combatActive: false,
+  eventMode: false,     // Trial of the Arcane — dungeon pipeline running the event floor
+  eventRun: null,       // active event run { room_index, score, kills, bosses, total_dmg }
+  _eventStarted: false, // true once the player clicks "Begin" (timer counting)
+  _eventStartTime: 0,   // epoch ms the current event run started (from server run.start_time)
+  _eventTimerInterval: null,
+  _eventFinishing: false,
+  _eventRunCompleted: false,
 };
 
-// Release lock when leaving tab
+// Release lock when leaving tab (tower only; event mode doesn't acquire the tower lock).
 window.addEventListener('beforeunload', () => {
-  if (D.activeDungeon) {
+  if (D.activeDungeon && !D.eventMode) {
     navigator.sendBeacon('/game/dungeon/lock-release');
   }
 });
 
 // Also release on visibility change (mobile)
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'hidden' && D.activeDungeon) {
+  if (document.visibilityState === 'hidden' && D.activeDungeon && !D.eventMode) {
     navigator.sendBeacon('/game/dungeon/lock-release');
   }
 });
@@ -534,10 +658,14 @@ document.addEventListener('visibilitychange', () => {
   }
 
   function saveState() {
+    // Never persist event-mode state to localStorage — it must not clobber tower progress.
+    if (D.eventMode) return;
     try { localStorage.setItem('dungeon_state', JSON.stringify(D)); } catch(e) {}
   }
 
   function loadState() {
+    // Never let a persisted tower snapshot overwrite an active event run.
+    if (D.eventMode) return;
     try {
       const raw = localStorage.getItem('dungeon_state');
       if (raw) {
@@ -647,6 +775,8 @@ async function refreshCharacter() {
   }
 
   async function saveProgressToDB() {
+    // Never persist event-mode state — the event must stay isolated from tower progress.
+    if (D.eventMode) return;
     try {
       await apiFetch('POST', '/game/dungeon/progress', {
         floor: D.floor,
@@ -995,6 +1125,7 @@ async function refreshCharacter() {
   }
 
   function ensureCrawlerState() {
+    if (D.eventMode) { D.crawler = null; return; }
     if (!D.activeDungeon || !Array.isArray(D.rooms) || D.rooms.length === 0) return;
     if (D.crawler && typeof D.crawler.roomIdx === 'number' && D.crawler.monster) return;
     D.crawler = spawnCrawlerForCurrentFloor();
@@ -1265,7 +1396,7 @@ function enterDungeon(dungeonId) {
     D._combatPrefetch = {
       key,
       res: null,
-      promise: apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId })
+      promise: apiFetch('POST', D.eventMode ? '/event/combat/start' : '/game/dungeon/combat/start', D.eventMode ? { roomIndex: roomIdx } : { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId })
         .then(res => {
           if (D._combatPrefetch && D._combatPrefetch.key === key) D._combatPrefetch.res = res;
           return res;
@@ -1492,16 +1623,19 @@ function startCombat(roomIdx) {
     if (!room || !room.monsters || room.monsters.length === 0) return;
 
     // Prevent entering combat at 0 HP (otherwise the UI can get stuck "connecting" and server will reject anyway).
-    const c0 = getChar();
-    const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
-    if (Number.isFinite(hp0) && hp0 <= 0) {
-        const msg = _pt('Você está com 0 de HP. Saia da masmorra para se recuperar antes de lutar novamente.', 'You are at 0 HP. Leave the dungeon to recover before fighting again.');
-        if (typeof openGameDialog === 'function') {
-            openGameDialog({ title: _pt('Sem HP', 'Out of HP'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
-        } else {
-            alert(msg);
+    // The Trial of the Arcane uses a fixed trial party with its own HP — the player character's HP is irrelevant.
+    if (!D.eventMode) {
+        const c0 = getChar();
+        const hp0 = Number(c0?.hp_current ?? c0?.hp ?? c0?.hp_max ?? 0);
+        if (Number.isFinite(hp0) && hp0 <= 0) {
+            const msg = _pt('Você está com 0 de HP. Saia da masmorra para se recuperar antes de lutar novamente.', 'You are at 0 HP. Leave the dungeon to recover before fighting again.');
+            if (typeof openGameDialog === 'function') {
+                openGameDialog({ title: _pt('Sem HP', 'Out of HP'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+            } else {
+                alert(msg);
+            }
+            return;
         }
-        return;
     }
 
     // Check if already cleared (server-side protection)
@@ -1536,7 +1670,8 @@ function startCombat(roomIdx) {
         // hp_current can be 0; don't fall back to 100.
         playerHpBefore: Number(getChar()?.hp_current ?? getChar()?.hp ?? 100),
         roundLog: [],
-        serverAuth: true,
+        serverAuth: !D.eventMode,    // event/trial uses its own /event/combat/act endpoint
+        isTrial: !!D.eventMode,
         resolving: true,
         combatId: null,
         turnNonce: 0,
@@ -1544,6 +1679,12 @@ function startCombat(roomIdx) {
         manaPoints: 0,
         manaCap: 100,
         attackType: 'regular',
+        // Trial party fields (populated from /event/combat/start response)
+        party: [],
+        trialActiveChar: 0,
+        trialFocusMult: null,
+        _focusSent: false,
+        round: 1,
     };
     renderCombatPanel();
     // If the player scrolled the page before entering combat, scroll the tab content to the bottom
@@ -1571,7 +1712,7 @@ function startCombat(roomIdx) {
     const startPromise = exitGuard.then(() => {
         return (D._combatPrefetch && D._combatPrefetch.key === preKey)
             ? (D._combatPrefetch.res ? Promise.resolve(D._combatPrefetch.res) : (D._combatPrefetch.promise || Promise.resolve(null)))
-            : apiFetch('POST', '/game/dungeon/combat/start', { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId });
+            : apiFetch('POST', D.eventMode ? '/event/combat/start' : '/game/dungeon/combat/start', D.eventMode ? { roomIndex: roomIdx } : { floor: D.floor, roomIndex: roomIdx, kind: 'room', floorRunId: D.floorRunId });
     });
 
     startPromise
@@ -1589,10 +1730,25 @@ function startCombat(roomIdx) {
                 }));
                 D.combat.currentMonsterIndex = Number(res.currentMonsterIndex || 0);
             }
+            if (Array.isArray(res.party) && res.party.length) {
+                D.combat.isTrial = true;
+                D.combat.party = res.party;
+                D.combat.trialActiveChar = Math.min(0, res.party.length - 1);
+            }
             if (typeof res.manaPoints === 'number') D.combat.manaPoints = res.manaPoints;
             if (typeof res.manaCap === 'number') D.combat.manaCap = res.manaCap;
             if (Array.isArray(res.log) && res.log.length) D.combat.roundLog.push(...res.log);
             D.combat.resolving = false;
+            if (D.combat.isTrial) {
+                // Battle Focus: the battle's FIRST skill check, rolled once at combat
+                // start. Its linear score becomes the damage + score multiplier for the
+                // WHOLE battle (sent with the first action, banked server-side).
+                D.combat.trialFocusMult = null;
+                D.combat._focusSent = false;
+                setTimeout(rollTrialFocusCheck, 600);
+                // Real-time combat starts ticking the moment the session exists.
+                startTrialHeartbeat();
+            }
             saveState();
             // Best-effort: sync progress + fresh character snapshot after combat has started.
             saveProgressToDB();
@@ -1790,6 +1946,21 @@ function fightRound() {
                         room.monstersEvaded = false;
                         room.monstersCleared = Date.now();
                     }
+
+                    // Trial of the Arcane — update live run stats from the server.
+                    if (D.eventMode && res.eventStats) {
+                        const st = res.eventStats;
+                        D.eventRun = {
+                            room_index: Number(st.room_index || 0),
+                            score: Number(st.score || 0),
+                            kills: Number(st.kills || 0),
+                            bosses: Number(st.bosses || 0),
+                            total_dmg: Number(st.total_dmg || 0),
+                        };
+                        log(`${_pt(`⭐ +${st.points} pontos do evento`, `⭐ Event +${st.points} points`)}`, 'log-loot');
+                        updateEventScoreDisplay();
+                    }
+
                     if (Array.isArray(res.lootGranted) && res.lootGranted.length) {
                         for (const it of res.lootGranted) {
                             if (it.type === 'dungeon_gold') log(`${_pt(`💰 +${it.amount} ouro de masmorra`, `💰 +${it.amount} dungeon gold`)}`, 'log-loot');
@@ -1798,7 +1969,7 @@ function fightRound() {
                     } else if (res.cleared) {
                         log(`${_pt('⚠️ Sala já limpa — nenhum saque obtido.', '⚠️ Room already cleared — no loot gained.')}`, 'log-warning');
                     }
-                    if (room && room.id) {
+                    if (room && room.id && !D.eventMode) {
                         apiFetch('POST', '/game/dungeon/release-room', { roomId: room.id, cleared: true }).catch(() => {});
                     }
                     // Play final round animations then clean up
@@ -1832,6 +2003,47 @@ function fightRound() {
                         saveProgressToDB();
                         refreshCharacter();
                         renderDungeonView();
+                    }, 2200);
+                    return;
+                }
+
+                if (res.ended && res.outcome === 'event_complete') {
+                    D._eventRunCompleted = true;
+                    // Trial of the Arcane final boss defeated — free fight, no tokens spent.
+                    if (res.eventStats) {
+                        D.eventRun = {
+                            room_index: Number(res.eventStats.room_index || 100),
+                            score: Number(res.eventStats.score || 0),
+                            kills: Number(res.eventStats.kills || 0),
+                            bosses: Number(res.eventStats.bosses || 0),
+                            total_dmg: Number(res.eventStats.total_dmg || 0),
+                        };
+                        updateEventScoreDisplay();
+                    }
+                    log(`${_pt('👁️ O Soberano Arcano foi derrotado! O Trial está completo!', '👁️ The Arcane Sovereign has fallen! The Trial is complete!')}`, 'log-boss');
+                    D.combat.resolving = false;
+                    saveTargetRectForAnim();
+                    if (D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
+                        const anyAlive = D.combat.monsters.some(m => m.currentHp > 0);
+                        if (!anyAlive) D.combat.monsters[D.combat.monsters.length - 1].currentHp = 1;
+                    }
+                    renderCombatPanel();
+                    if (D.combat && Array.isArray(D.combat.monsters)) {
+                        D.combat.monsters.forEach(m => { m.currentHp = 0; });
+                    }
+                    triggerCombatAnimations();
+                    setTimeout(() => {
+                        const card = document.querySelector('.monster-combat-card');
+                        if (card) {
+                            pixelDissolveCard(card);
+                        } else if (D.combat && D.combat._prevMonsterRect) {
+                            const r = D.combat._prevMonsterRect;
+                            spawnFallbackParticles(r.left + r.width / 2, r.top + r.height / 2, 24);
+                        }
+                    }, 600);
+                    setTimeout(() => {
+                        D.combat = null;
+                        finishEventRun(true);
                     }, 2200);
                     return;
                 }
@@ -2011,6 +2223,574 @@ function fightRound() {
   }
 }
 
+// Release whichever lock a submit took: real actions park on `resolving` (the
+// next click waits for the action's own response so state can't interleave),
+// heartbeats park on `_heartbeatBusy` (the 1s clock tick must never gate a click).
+function unlockTrialSubmit(isHeartbeat) {
+    if (!D.combat) return;
+    if (isHeartbeat) D.combat._heartbeatBusy = false;
+    else D.combat.resolving = false;
+}
+
+function submitTrial(actions, endTurn, skillCheckMult, closing, isRetry) {
+    // skillCheckMult is now ONLY the closing "Final Blow" check multiplier; the
+    // battle-start Battle Focus roll rides along on the first action (see below).
+    // endTurn is accepted (and ignored) for call-site compatibility — real-time
+    // combat has no turns; the server clock ticks via the heartbeat.
+    if (!D.combat || !D.combat.isTrial) return;
+    if (!D.combat.combatId) {
+        D.combat.roundLog.push({ actor: 'monster', text: _pt('⚠️ Ainda conectando ao combate do servidor...', '⚠️ Still connecting to server combat...') });
+        renderCombatPanel();
+        return;
+    }
+    if (!Array.isArray(actions)) actions = [];
+
+    // The FIRST submit of the battle carries the Battle Focus roll (linear 1.0 at
+    // dead-center → 0 at the rim). The server banks it once — clamped to 0.5–1.5× —
+    // and applies it to all party damage and live score gains for the whole battle.
+    let focusMult;
+    if (!D.combat._focusSent) {
+        D.combat._focusSent = true;
+        focusMult = (typeof D.combat.trialFocusMult === 'number')
+            ? D.combat.trialFocusMult
+            : 0.75; // check somehow never ran → mild default, never a free 1.5×
+        D.combat._focusMultSent = focusMult; // banked for a 409 retry (stale submit never applied)
+    } else if (typeof D.combat._focusMultSent === 'number') {
+        focusMult = D.combat._focusMultSent;
+    }
+
+    // In real-time combat a pure heartbeat must NOT block the buttons: it parks
+    // on _heartbeatBusy instead of `resolving`, so the 1-second clock tick can
+    // never swallow a click that lands while it is in flight. Cooldowns — not
+    // request locks — gate how often each ability may fire.
+    const isHeartbeat = !closing && (!Array.isArray(actions) || actions.length === 0);
+    if (isHeartbeat) {
+        if (D.combat._heartbeatBusy) return;
+        D.combat._heartbeatBusy = true;
+    } else {
+        if (D.combat.resolving) return;
+        D.combat.resolving = true;
+    }
+    D.combat._lastAttackType = 'regular';
+    if (!isHeartbeat) {
+        renderCombatPanel();
+        // Snapshot the fighter cards BEFORE this action re-renders the panel. If a
+        // previous action already stashed pending deaths (killing blow → Final Blow
+        // skill check), keep THAT stash — it describes the moment before death; the
+        // panel hasn't re-rendered since, so its rects are still exact.
+        D.combat._deathPrev = D.combat._pendingDeathShatters || captureTrialCardSnapshots();
+    }
+
+    // Server-clock sync: send the client's now + the delta since the previous
+    // tick so the battle advances ONLY by real elapsed time, even across tabs.
+    const nowMs = Date.now();
+    const dtMs = D.combat._lastTickSent ? Math.max(0, nowMs - D.combat._lastTickSent) : 0;
+    D.combat._lastTickSent = nowMs;
+
+    apiFetch('POST', '/event/combat/act', {
+        combatId: D.combat.combatId,
+        turnNonce: D.combat.turnNonce,
+        actions,
+        now: nowMs,
+        dtMs,
+        ...(focusMult !== undefined ? { focusMult } : {}),
+        ...(typeof skillCheckMult === 'number' && Number.isFinite(skillCheckMult) ? { skillCheckMult } : {}),
+        ...(closing ? { closing: true } : {}),
+    })
+        .then(res => {
+            if (!D.combat || !D.combat.isTrial) return;
+            if (!res || !res.success) throw new Error(res?.error || 'Trial action failed.');
+            D.combat.turnNonce = Number(res.turnNonce || (D.combat.turnNonce + 1));
+            if (typeof res.serverNow === 'number') {
+                D.combat._serverNow = Number(res.serverNow);
+                D.combat._serverNowAtClient = Date.now();
+            }
+            if (Array.isArray(res.log) && res.log.length) {
+                D.combat.roundLog.push(...res.log);
+                if (isHeartbeat) {
+                    // Heartbeats arrive every second — refresh ONLY the log node so
+                    // the live fight updates without a full panel rebuild. The log is
+                    // NOT trimmed: animation tracking is index-based, and trimming
+                    // shifts indexes so old entries replay as wrong animations
+                    // (the "everything turns Frost after a burst" glitch).
+                    const logNode = document.querySelector('.dungeon-trial-panel .combat-log');
+                    if (logNode) {
+                        logNode.innerHTML = D.combat.roundLog.slice(-10).reverse().map(e =>
+                            `<div class="combat-log-entry ${e.actor}">${_ptCombat(e.text)}</div>`).join('');
+                    }
+                }
+            }
+            const gainedCombos = Math.max(0, Number(res.comboPoints || 0));
+            if (gainedCombos > 0) trialComboFlash(gainedCombos);
+
+            if (Array.isArray(res.monsters) && res.monsters.length) {
+                D.combat.monsters = res.monsters.map(m => ({
+                    ...m,
+                    currentHp: m.currentHp ?? m.hp ?? m.maxHp,
+                    maxHp: m.maxHp ?? m.hp ?? m.currentHp,
+                }));
+                // Keep the player's chosen target (trial parties pick the target per
+                // action — the server's echo is always 0 and must NOT overwrite it).
+                let keptSel = Math.max(0, Number(D.combat.currentMonsterIndex || 0));
+                if (keptSel >= D.combat.monsters.length) keptSel = 0;
+                D.combat.currentMonsterIndex = keptSel;
+            }
+            if (Array.isArray(res.party) && res.party.length) D.combat.party = res.party;
+
+            // The active champion NEVER changes by itself — the player stays in
+            // control of who acts next. Real-time combat has no rounds to end.
+            // Stash the pre-action snapshots — deaths shatter only AFTER the attack
+            // and retaliation animations finish. At this moment a closing skill check
+            // may still be open on top of the panel, so nothing shatters yet.
+            // Run-level kill/boss totals sync on EVERY action (server banks them live).
+            syncEventRunStats({ kills: res.runKills, bosses: res.runBosses });
+            const deathPrev = D.combat._deathPrev;
+            const hadDeath = (res.newKills || 0) > 0
+                || (Array.isArray(D.combat.party) && Array.isArray(res.party)
+                    && res.party.some((c, i) => D.combat.party[i]?.alive && !c.alive));
+            // Keep the stash through a closing call too — it snapshots the moment
+            // BEFORE the killing blow, which is exactly what must shatter later.
+            D.combat._pendingDeathShatters = (hadDeath || closing) ? deathPrev : null;
+            D.combat._deathPrev = null;
+            if (D.combat._deathShatterTimer) { clearTimeout(D.combat._deathShatterTimer); D.combat._deathShatterTimer = null; }
+
+            // Live score: the server credits kills/boss-kills/elemental combos the instant
+            // they happen (plus the room-clear damage conversion and closing flourish), so
+            // update the HUD number and float the gained points on the score pill.
+            if (typeof res.currentScore === 'number' && res.currentScore !== Number(D.eventRun?.score ?? 0)) {
+                D.eventRun = { ...(D.eventRun || {}), score: res.currentScore };
+                updateEventScoreDisplay();
+                const deductPts = Math.max(0, Math.floor(Number(res.scoreDeducted || 0)));
+                if (deductPts > 0) flashScoreGain(-deductPts, 'damage');
+                const delta = Math.max(0, Math.floor(Number(res.scoreDelta || 0)));
+                if (delta > 0) {
+                    const cat = (res.newBosses || 0) > 0 ? 'boss' : (res.newKills || 0) > 0 ? 'kill' : res.closing ? 'flourish' : (res.comboPoints || 0) > 0 ? 'combo' : 'kill';
+                    flashScoreGain(delta, cat);
+                }
+            }
+
+            // If the current target just died, auto-select the first alive monster so the
+            // big VS card + 🎯 highlight stay on a living target for the next turn.
+            const aliveNow = (D.combat.monsters || []).some(m => Number(m.currentHp || 0) > 0);
+            if (aliveNow && D.combat.monsters[D.combat.currentMonsterIndex] && Number(D.combat.monsters[D.combat.currentMonsterIndex].currentHp || 0) <= 0) {
+                const firstAlive = D.combat.monsters.findIndex(m => Number(m.currentHp || 0) > 0);
+                D.combat.currentMonsterIndex = firstAlive >= 0 ? firstAlive : 0;
+            }
+
+            if (res.ended && res.outcome === 'player_dead') {
+                stopTrialHeartbeat();
+                unlockTrialSubmit(isHeartbeat);
+                onPlayerDeath();
+                return;
+            }
+
+            if (res.ended && (res.outcome === 'room_cleared' || res.outcome === 'event_complete')) {
+                const isComplete = res.outcome === 'event_complete';
+                stopTrialHeartbeat();
+                if (isHeartbeat) D.combat._heartbeatBusy = false; // a tick may deliver the clear
+                if (res.closing) {
+                    // The Final Blow check resolved the battle — its multiplier already
+                    // paid out server-side (the full point adjustment is in eventStats).
+                    applyEventClear(res.eventStats, isComplete, { noPointLog: true });
+                    return;
+                }
+                // A second clear echo (this click + an in-flight heartbeat both
+                // delivering it, or a 409 retry landing after the first) must NOT
+                // schedule a second Final Blow check — the skill check overlay
+                // would spawn twice and the battle would double-pay.
+                if (D.combat._flourishScheduled) {
+                    // A stray click echo arriving after the real clear must not
+                    // schedule a second check — but its request still holds the
+                    // `resolving` lock, so release it or the closing Final Blow
+                    // submit (from the first flourish) is swallowed and the battle
+                    // never resolves.
+                    unlockTrialSubmit(isHeartbeat);
+                    return;
+                }
+                D.combat._flourishScheduled = true;
+                // First arrival at the clear — ability kill OR End Turn: the battle stays
+                // open. The Final Blow check is the battle's LAST act and multiplies its
+                // total points, so it can never be skipped by ending the turn. Play the
+                // killing blow first, then the check; the shatter fires via the closing
+                // submit (the stash survives it, describing the pre-death moment).
+                // Remember the clear so a failed closing act can still tear the battle down.
+                if (!D.combat._pendingClear) D.combat._pendingClear = { eventStats: res.eventStats, isComplete };
+                // The killing act must NOT leave `resolving` wedged: the Final Blow
+                // closing submit below is a NEW request and needs the lock free, or
+                // the closing act is swallowed and the battle never resolves.
+                unlockTrialSubmit(isHeartbeat);
+                renderCombatPanel();
+                triggerCombatAnimations();
+                setTimeout(() => runTrialClosingFlourish(isComplete), endTurn ? 400 : 1400);
+                return;
+            }
+
+            unlockTrialSubmit(isHeartbeat);
+            if (!isHeartbeat) {
+                saveState();
+                renderCombatPanel();
+                triggerCombatAnimations();
+            } else {
+                // Heartbeat: light-touch refresh (HP/energy numbers) + animate tick
+                // events — monster strikes and burn DoT must never be invisible
+                // just because the player didn't act this second.
+                updateTrialLiveHud();
+                triggerCombatAnimations();
+            }
+
+            // Fire the stashed death shatters once the attack/retaliation timeline has
+            // fully played out (delays mirror triggerTrialCombatAnimations exactly —
+            // ultimate projectiles run a touch longer: +160ms per player strike).
+            // Heartbeats (tick strikes only) shatter after a short fixed delay.
+            const resLog = Array.isArray(res.log) ? res.log : [];
+            const pAtk = !isHeartbeat ? resLog.filter(e => e.actor === 'player' && e.text && e.text.includes('→')).length : 0;
+            const mAtk = resLog.filter(e => e.actor === 'monster').length;
+            const hasUlt = !isHeartbeat && resLog.some(e => e.actor === 'player' && isTrialUltimateLog(e.text));
+            const playerEnd = pAtk ? 120 + (pAtk - 1) * 700 + (hasUlt ? 460 : 380) + 500 : 0;
+            const monEnd = mAtk ? (isHeartbeat ? 450 : 700 + pAtk * 700 + (mAtk - 1) * 650 + 300) + 450 : 0;
+            if (D.combat._pendingDeathShatters || D.combat._deathShatterTimer) {
+                if (D.combat._deathShatterTimer) clearTimeout(D.combat._deathShatterTimer);
+                D.combat._deathShatterTimer = setTimeout(() => {
+                    firePendingTrialDeathShatters();
+                }, Math.max(playerEnd, monEnd, isHeartbeat ? 500 : 900));
+            }
+        })
+        .catch(err => {
+            console.error('Trial action failed:', err);
+            if (!D.combat || !D.combat.isTrial) return;
+            const body = err && err.data;
+            // A 409 means OUR nonce fell behind the server's and the action was NOT
+            // applied (lost/dropped response, a heartbeat slipping past a skill check,
+            // a second tab, ...). Re-sync to the server's nonce and retry EXACTLY once:
+            // the stale request never executed, so a retry cannot duplicate effects.
+            if (!isRetry && err && err.status === 409 && body && typeof body.turnNonce === 'number') {
+                D.combat.turnNonce = Number(body.turnNonce);
+                unlockTrialSubmit(isHeartbeat);
+                submitTrial(actions, endTurn, skillCheckMult, closing, true);
+                return;
+            }
+            unlockTrialSubmit(isHeartbeat);
+            if (closing && D.combat._pendingClear) {
+                // The room was already cleared server-side (the first-clear response
+                // confirmed it) but the closing act could not be delivered. Tear the
+                // battle down with the known stats so the screen can never deadlock on
+                // a room whose monsters are all dead.
+                applyEventClear(D.combat._pendingClear.eventStats, D.combat._pendingClear.isComplete, { noPointLog: true });
+                return;
+            }
+            D.combat.roundLog.push({ actor: 'monster', text: `⚠️ ${String(err.message || err)}` });
+            renderCombatPanel();
+        });
+}
+
+// Room-clear teardown for the Trial: celebrate the win, mark monsters dead for the
+// death animation, flash the score, then leave the combat and open the next room.
+function applyEventClear(eventStats, isComplete, opts) {
+    if (!D.combat || !D.combat.isTrial) return;
+    stopTrialHeartbeat();
+    const room = D.rooms && D.rooms[D.combat.roomIdx];
+    if (room && Array.isArray(room.monsters)) {
+        room.monsters.forEach(m => { m.lastKilled = Date.now(); m.currentHp = 0; });
+        room.monstersEvaded = false;
+        room.monstersCleared = Date.now();
+    }
+    opts = opts || {};
+    if (eventStats) {
+        const st = eventStats;
+        D.eventRun = {
+            room_index: Number(st.room_index || 0),
+            score: Number(st.score || 0),
+            kills: Number(st.kills || 0),
+            bosses: Number(st.bosses || 0),
+            total_dmg: Number(st.total_dmg || 0),
+        };
+        updateEventScoreDisplay();
+        if (!opts.noPointLog) {
+            log(`${_pt(`⭐ +${st.points} pontos do evento`, `⭐ Event +${st.points} points`)}`, 'log-loot');
+        }
+    }
+    if (isComplete) {
+        D._eventRunCompleted = true;
+        log(`${_pt('👁️ O Soberano Arcano foi derrotado! O Trial está completo!', '👁️ The Arcane Sovereign has fallen! The Trial is complete!')}`, 'log-boss');
+    }
+    D.combat.resolving = false;
+    saveTargetRectForAnim();
+    if (D.combat && D.combat.monsters && D.combat.monsters.length > 0) {
+        const anyAlive = D.combat.monsters.some(m => m.currentHp > 0);
+        if (!anyAlive) D.combat.monsters[D.combat.monsters.length - 1].currentHp = 1;
+    }
+    renderCombatPanel();
+    if (D.combat && Array.isArray(D.combat.monsters)) {
+        D.combat.monsters.forEach(m => { m.currentHp = 0; });
+    }
+    triggerCombatAnimations();
+    // Clear-time shatter: fire the stashed pre-death ghosts (Final Blow path) or
+    // capture the dead row cards as they are and shatter every one of them — but
+    // only AFTER the attack/retaliation timeline has finished playing.
+    setTimeout(() => {
+        if (!D.combat) return;
+        if (D.combat._pendingDeathShatters || D.combat._deathShatterTimer) {
+            if (D.combat._deathShatterTimer) { clearTimeout(D.combat._deathShatterTimer); D.combat._deathShatterTimer = null; }
+            firePendingTrialDeathShatters();
+            return;
+        }
+        const overlay = document.getElementById('dungeon-overlay');
+        const cards = overlay ? [...overlay.querySelectorAll('.trial-mon-card')] : [];
+        cards.forEach(node => {
+            const rect = node.getBoundingClientRect();
+            if (!rect.width || !rect.height) return;
+            const ghost = document.createElement('div');
+            ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:500000;pointer-events:none;overflow:hidden;border-radius:12px`;
+            ghost.appendChild(node.cloneNode(true));
+            document.body.appendChild(ghost);
+            pixelDissolveCard(ghost);
+            setTimeout(() => { try { ghost.remove(); } catch (e) { /* noop */ } }, 3200);
+        });
+    }, 2000);
+    setTimeout(() => {
+        D.combat = null;
+        saveState();
+        saveProgressToDB();
+        if (isComplete) finishEventRun(true);
+        else renderDungeonView();
+    }, 3800);
+}
+
+// Last monster died to an ability mid-turn: run the "Final Blow" skill check and
+// send it as the closing act. The server awards a linear flourish bonus (dead-center
+// = 1.0 → edges = 0) and marks the room cleared. Then the normal clear teardown plays.
+function runTrialClosingFlourish(isComplete) {
+    if (!D.combat || !D.combat.isTrial) return;
+    // The closing check must spawn exactly once — a stray second call (retry,
+    // duplicate clear echo) would show two stacked overlays.
+    if (D.combat._closingCheckOpen) return;
+    D.combat._closingCheckOpen = true;
+    showSkillCheck('closing', function (mult) {
+        if (D.combat) D.combat._closingCheckOpen = false;
+        submitTrial([], true, mult, true);
+    });
+}
+
+// Queue one champion's action for the current round (resolves immediately,
+// no retaliation until End Turn). Champions can only act once per round.
+function trialUseAbility(abilityId) {
+    if (!D.combat || !D.combat.isTrial) return;
+    const active = D.combat.party?.[D.combat.trialActiveChar];
+    const ability = (active?.abilities || []).find(a => a.id === abilityId);
+    if (!active || !ability) return;
+    if (!active.alive) return;
+    const energy = Number(active.energy || 0);
+    const maxEnergy = Math.max(1, Number(active.maxEnergy || 120));
+    // Real-time gating mirrors the server: only the ultimate costs energy (a
+    // full bar); bursts are free (cooldown-gated only) — they're generators,
+    // like normal attacks. Wall-clock cooldown also gates every ability.
+    if (energy < Number(ability.cost || 0)) return;
+    if (ability.type === 'ultimate' && energy < maxEnergy) return;
+    if (cdMsLeft(active, ability.id) > 0) return;
+    submitTrial([{ characterIndex: D.combat.trialActiveChar, abilityId, currentMonsterIndex: D.combat.currentMonsterIndex }], false);
+}
+
+// Battle-start Battle Focus: the FIRST of only two checks per battle. Its linear
+// score (1.0 center → 0 rim) becomes the damage + score multiplier for the WHOLE
+// battle — ×1.5 at a perfect bullseye, ×0.5 at the rim. Blocking: actions wait.
+function rollTrialFocusCheck() {
+    if (!D.combat || !D.combat.isTrial) return;
+    if (D.combat.resolving) return;
+    if (D.combat._focusSent || typeof D.combat.trialFocusMult === 'number') return; // already rolled
+    showSkillCheck('defend', (mult) => {
+        if (!D.combat || !D.combat.isTrial) return;
+        D.combat.trialFocusMult = mult;
+        renderTrialCombatPanel();
+    });
+}
+
+// In real-time combat there is nothing to skip — the battle clock runs on its
+// own. The button just resets the local target lock (cosmetic) and stays
+// enabled as long as its champion is alive.
+function trialSkipAction() {
+    if (!D.combat || !D.combat.isTrial) return;
+    if (D.combat.resolving) return;
+    const party = D.combat.party || [];
+    const active = party[D.combat.trialActiveChar];
+    if (!active || !active.alive) return;
+    renderCombatPanel();
+}
+
+// Rounds no longer exist (real-time combat). Kept as a no-op for any stale
+// call site — the server ignores endTurn.
+function trialEndTurn() {}
+
+// ── Real-time heartbeat ───────────────────────────────────────────────
+// While a trial battle is open the client polls /event/combat/act once a
+// second with NO action. Each poll carries the elapsed wall-clock delta; the
+// server advances the battle (3s monster strikes, burn DoT, buff/cooldown
+// expiry) and echoes the authoritative state. A parallel rAF-driven loop
+// updates cooldown rings/seconds locally between polls so the UI feels live.
+const TRIAL_HEARTBEAT_MS = 1000;
+
+function trialHeartbeatTick() {
+    if (!D.combat || !D.combat.isTrial || !D.combat.combatId) return;
+    // A closing Final Blow check or a pending skill check blocks ticking.
+    if (document.querySelector('#skill-check-overlay')) return;
+    // The busy-flag lives INSIDE submitTrial: a heartbeat still in flight simply
+    // absorbs this tick. If the tick set the flag here too, submitTrial's own
+    // heartbeat branch would see itself busy and die instantly — no act request
+    // would ever fire, freezing bars/log between clicks (live combat was dead).
+    submitTrial([]);
+}
+
+function startTrialHeartbeat() {
+    stopTrialHeartbeat();
+    D.combat._heartbeatTimer = setInterval(trialHeartbeatTick, TRIAL_HEARTBEAT_MS);
+    D.combat._cdAnimTimer = setInterval(updateTrialCooldownUi, 120);
+}
+
+function stopTrialHeartbeat() {
+    if (D.combat && D.combat._heartbeatTimer) { clearInterval(D.combat._heartbeatTimer); D.combat._heartbeatTimer = null; }
+    if (D.combat && D.combat._cdAnimTimer) { clearInterval(D.combat._cdAnimTimer); D.combat._cdAnimTimer = null; }
+}
+
+// Live HUD: HP/energy numbers + bars for champions and monsters, without a
+// full panel rebuild (keeps animations and buttons stable between actions).
+function updateTrialLiveHud() {
+    if (!D.combat || !D.combat.isTrial) return;
+    const party = D.combat.party || [];
+    party.forEach((c, i) => {
+        const node = document.getElementById(`trial-char-${i}`);
+        if (!node) return;
+        const hpPct = Math.round((Math.max(0, c.hp) / Math.max(1, c.maxHp)) * 100);
+        const enPct = Math.round((Math.max(0, c.energy) / Math.max(1, c.maxEnergy)) * 100);
+        const bars = node.querySelectorAll('.trial-hp, .trial-en');
+        if (bars[0]) bars[0].style.width = `${c.alive ? hpPct : 0}%`;
+        if (bars[1]) bars[1].style.width = `${enPct}%`;
+        const stats = node.querySelectorAll('.trial-char-stat');
+        if (stats[0]) stats[0].textContent = `❤️ ${Math.max(0, c.hp)}/${c.maxHp}`;
+        if (stats[1]) stats[1].textContent = `🔷 ${Math.max(0, c.energy)}/${c.maxEnergy}`;
+        node.classList.toggle('down', !c.alive);
+    });
+    (D.combat.monsters || []).forEach((m, i) => {
+        const node = document.getElementById(`trial-mon-${i}`);
+        if (!node) return;
+        const hp = Math.max(0, Number(m.currentHp ?? m.hp ?? 0));
+        const maxHp = Math.max(1, Number(m.maxHp ?? m.hp ?? 1));
+        const bar = node.querySelector('.trial-hp');
+        if (bar) bar.style.width = `${hp <= 0 ? 0 : Math.round((hp / maxHp) * 100)}%`;
+        const stat = node.querySelector('.trial-char-stat');
+        if (stat) stat.textContent = `${hp}/${maxHp}`;
+        node.classList.toggle('down', hp <= 0);
+        node.classList.toggle('frozen', hp > 0 && Number(m.freezeUntil || 0) > trialServerNowMs());
+        node.classList.toggle('burning', hp > 0 && Number(m.burnTicksLeft || 0) > 0);
+    });
+    updateTrialCooldownUi();
+}
+
+// Cooldown UI: seconds pill + dark veil + disabled state on each ability
+// button, updated ~8×/s from the synced server clock. No re-render needed.
+function updateTrialCooldownUi() {
+    const active = D.combat?.party?.[D.combat.trialActiveChar];
+    if (!active) return;
+    document.querySelectorAll('.dungeon-trial-panel .trial-ability-btn[data-abil]').forEach(btn => {
+        const abilId = btn.getAttribute('data-abil');
+        const abil = (active.abilities || []).find(a => a.id === abilId);
+        if (!abil) return;
+        const left = cdMsLeft(active, abilId);
+        const total = Math.max(1000, Number(abil.cooldownMs || 5000));
+        const pill = btn.querySelector('.trial-cd-pill');
+        const veil = btn.querySelector('.trial-cd-veil');
+        if (pill) {
+            if (left > 0) { pill.style.display = ''; pill.textContent = Math.ceil(left / 1000); }
+            else pill.style.display = 'none';
+        }
+        if (veil) {
+            if (left > 0) {
+                veil.style.display = '';
+                veil.style.setProperty('--cd-frac', String(Math.min(1, left / total)));
+            } else veil.style.display = 'none';
+        }
+        const energy = Number(active.energy || 0);
+        const maxEnergy = Math.max(1, Number(active.maxEnergy || 120));
+        const energyOk = abil.type === 'ultimate' ? energy >= maxEnergy : energy >= Number(abil.cost || 0);
+        // Mirror buildTrialAbilityRowHtml's `locked` exactly: the button must not
+        // re-enable mid-resolution or for a down champion.
+        const isBusy = !!D.combat.resolving;
+        const ready = left <= 0 && energyOk && !isBusy && !!active.alive;
+        btn.classList.toggle('trial-ability-locked', !ready);
+        btn.classList.toggle('trial-ability-ready', ready);
+        // Crucial: the delegated click dispatcher (app.js) swallows clicks on any
+        // [aria-disabled="true"], but the cooldown enable path used to only clear
+        // `disabled`. Leaving the stale aria-disabled behind made the button look
+        // ready yet unclickable until a full re-render (skip / char switch).
+        if (ready) {
+            btn.removeAttribute('disabled');
+            btn.removeAttribute('aria-disabled');
+        } else {
+            btn.setAttribute('disabled', '');
+            btn.setAttribute('aria-disabled', 'true');
+        }
+        // Energy gauge mirrors the bar live — toward the FULL bar for the
+        // ultimate (attacks/bursts carry no ring at all; they're generators).
+        const ring = btn.querySelector('.trial-ring-fill');
+        if (ring) {
+            const denom = abil.type === 'ultimate' ? maxEnergy : Math.max(1, Number(abil.cost || 0));
+            const pct = Math.min(100, Math.round((energy / denom) * 100));
+            ring.setAttribute('stroke-dashoffset', String(100 - pct));
+        }
+    });
+}
+
+// Golden popup whenever the party lands an elemental combo (Vaporize/Shatter/Thermal Shock).
+function trialComboFlash(pts) {
+    if (!D.combat || !D.combat.isTrial) return;
+    const panel = document.querySelector('.dungeon-combat-panel');
+    if (!panel) return;
+    let el = panel.querySelector('.trial-combo-flash');
+    if (!el) {
+        el = document.createElement('div');
+        el.className = 'trial-combo-flash';
+        panel.appendChild(el);
+    }
+    el.textContent = `🔀 COMBO +${pts} ${_pt('pontos', 'pts')}!`;
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+    clearTimeout(trialComboFlash._t);
+    trialComboFlash._t = setTimeout(() => { try { el.remove(); } catch (e) { /* noop */ } }, 1800);
+}
+
+// Floating "+N" rises off the score pill(s) whenever points are earned live, so hits,
+// kills and combos visibly light up the counter. Big moments (boss kill, Final Blow
+// flourish, big combos) also pulse a radial flash across the whole trial overlay.
+function flashScoreGain(delta, cat) {
+    if (!D.combat || !D.combat.isTrial) return;
+    const isBig = cat === 'boss' || cat === 'flourish' || (cat === 'combo' && delta >= 150);
+    const nums = [...document.querySelectorAll('#event-cb-score, #event-score-count')];
+    nums.forEach(num => {
+        const host = num.parentElement;
+        if (!host) return;
+        const wasStatic = getComputedStyle(host).position === 'static';
+        if (wasStatic) host.style.position = 'relative';
+        let existing = host.querySelector('.score-gain-float');
+        if (existing) existing.remove();
+        const fl = document.createElement('span');
+        fl.className = 'score-gain-float ' + (cat === 'boss' ? 'boss' : cat === 'combo' ? 'combo' : cat === 'flourish' ? 'flourish' : cat === 'damage' ? 'damage' : 'kill');
+        fl.textContent = (delta > 0 ? '+' : '') + delta;
+        host.appendChild(fl);
+        const cleanup = () => {
+            try { if (fl.parentNode) fl.parentNode.removeChild(fl); } catch (e) { /* noop */ }
+            if (wasStatic) host.style.position = '';
+        };
+        setTimeout(cleanup, 1300);
+    });
+    if (isBig) {
+        const host = document.querySelector('.dungeon-overlay') || document.querySelector('.dungeon-combat-panel');
+        if (!host) return;
+        const fl2 = document.createElement('div');
+        fl2.className = 'score-flash';
+        host.appendChild(fl2);
+        setTimeout(() => { try { if (fl2.parentNode) fl2.parentNode.removeChild(fl2); } catch (e) { /* noop */ } }, 600);
+    }
+}
+
 function tryRun(roomIdx) {
     if (!D.combat) return;
     const pushCombatLog = (actor, text) => {
@@ -2021,6 +2801,18 @@ function tryRun(roomIdx) {
 
     // If we've already "successfully escaped", require an explicit decision.
     if (D.combat.escapeReady) {
+        renderCombatPanel();
+        return;
+    }
+
+    // Trial of the Arcane: fleeing is always safe (the trial party has no persistent
+    // HP outside the room and the run only advances when a room is cleared).
+    if (D.combat.isTrial) {
+        pushCombatLog('player', `${_pt('💨 Você ordena a retirada...', '💨 You order the retreat...')}`);
+        pushCombatLog('player', `${_pt('✅ O grupo escapa em segurança.', '✅ The party escapes safely.')}`);
+        D.combat.escapeReady = true;
+        const room = D.rooms && D.rooms[roomIdx];
+        if (room) room.monstersEvaded = true;
         renderCombatPanel();
         return;
     }
@@ -2195,7 +2987,8 @@ function confirmEscape(roomIdx) {
     if (!D.combat) return;
 
     // Release room entry (regular rooms only; crawler escape keeps chase logic intact).
-    if (!(D.combat && D.combat.isCrawler)) {
+    // In event mode, skip the tower room-exit call — there is no room lock to release.
+    if (!D.eventMode && !(D.combat && D.combat.isCrawler)) {
         D._exitingRoom = apiFetch('POST', '/game/dungeon/room-exit', { floor: D.floor, roomIndex: roomIdx })
             .catch(e => console.error('Failed to exit room:', e));
     }
@@ -2216,6 +3009,23 @@ function cancelEscape() {
 }
 
 function onPlayerDeath() {
+    // Trial of the Arcane: death finalizes the event run (counts as an attempt).
+    if (D.eventMode) {
+        log(`${_pt('💀 Você foi derrotado no Trial do Arcano!', '💀 You were slain in the Trial of the Arcane!')}`, 'log-danger');
+        document.body.classList.remove('modal-lock');
+        document.body.classList.remove('combat-lock');
+        // Rows-only arena: shatter the ACTIVE champion's row card (fallback kept
+        // for the regular combat panel's first-card layout).
+        const activeIdx = Number(D.combat.trialActiveChar ?? 0);
+        const pCard = document.querySelector(`#trial-char-${activeIdx}`)
+            || document.querySelector('.combat-fighters > .fighter-card:first-child');
+        if (pCard) pixelDissolveCard(pCard, true);
+        setTimeout(() => {
+            D.combat = null;
+            finishEventRun(false);
+        }, 400);
+        return;
+    }
     log(`${_pt('💀 Você foi derrotado! Progresso salvo.', '💀 You have been slain! Progress saved.')}`, 'log-danger');
     if (D.combat && (D.combat.isCrawler || D.combat.monsters?.some(m => m.isCrawler))) {
         apiFetch('POST', '/game/dungeon/crawler-event', { event: 'death' }).catch(() => {});
@@ -2352,6 +3162,69 @@ async function fightBoss(roomIdx) {
 function renderDungeonTab() {
     const container = document.getElementById('tab-dungeon');
     if (!container) return;
+
+    if (D.eventMode && Array.isArray(D.rooms) && D.rooms.length) {
+        const run = D.eventRun || {};
+        const progress = `${run.room_index ?? 1}/10`;
+        container.innerHTML = `
+            <div class="dungeon-wrapper">
+                <div class="dungeon-topbar dungeon-event-topbar" style="border-bottom:2px solid rgba(168,85,247,0.4);background:rgba(107,33,168,0.08);justify-content:center">
+                    <div class="dungeon-title-wrap" style="flex:1;min-width:0">
+                        <span class="dungeon-title-icon">🔮</span>
+                        <div>
+                            <div class="dungeon-title-text">${_pt('Provação do Arcano', 'Trial of the Arcane')}</div>
+                            <div class="dungeon-title-sub">${_pt(`Sala ${progress} · Avance destruindo todos que bloqueiam seu caminho`, `Room ${progress} · Push forward, slaying all who stand in your way`)}</div>
+                        </div>
+                    </div>
+                    <div class="dungeon-token-wrap" style="display:flex;gap:12px;">
+                        <div class="dungeon-token-pill" style="background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.3);">
+                            <span class="dungeon-token-icon">⭐</span>
+                            <span>${_pt('Pontuação:', 'Score:')}</span>
+                            <span id="event-score-count" class="dungeon-token-num">${run.score ?? 0}</span>
+                        </div>
+                        <div class="dungeon-token-pill" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);">
+                            <span class="dungeon-token-icon">⏱️</span>
+                            <span id="event-timer" class="dungeon-token-num">0:00</span>
+                        </div>
+                        <div class="dungeon-token-pill">
+                            <span class="dungeon-token-icon">🚩</span>
+                            <span>${_pt('Sala:', 'Room:')}</span>
+                            <span id="event-room-count" class="dungeon-token-num">${run.room_index ?? 1}</span>
+                        </div>
+                    </div>
+                    <div style="flex:1;display:flex;justify-content:flex-end">
+                        <button class="dungeon-btn dungeon-btn-hud" ${actionAttrs('dungeonExit')}>${_pt('Sair', 'Exit')}</button>
+                    </div>
+                </div>
+                <div id="dungeon-main-area"></div>
+            </div>
+        `;
+        if (D.combat) renderCombatPanel();
+        else if (!D._eventStarted) renderEventStartScreen();
+        else renderDungeonView();
+        renderLog();
+
+        // Event timer — tick every second showing elapsed minutes:seconds.
+        // Only starts counting once the player clicks "Begin" (server start_time mirrors this).
+        if (!D._eventStarted) {
+            if (D._eventTimerInterval) clearInterval(D._eventTimerInterval);
+            D._eventTimerInterval = null;
+            const el0 = document.getElementById('event-timer');
+            if (el0) el0.textContent = '0:00';
+            return;
+        }
+        if (D._eventTimerInterval) clearInterval(D._eventTimerInterval);
+        if (!D._eventStartTime) D._eventStartTime = Number(run.start_time) || Date.now();
+        const tickTimer = () => {
+            const secs = Math.max(0, Math.floor((Date.now() - D._eventStartTime) / 1000));
+            const text = Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+            document.querySelectorAll('#event-timer, #event-cb-timer').forEach(el => { el.textContent = text; });
+        };
+        tickTimer();
+        D._eventTimerInterval = setInterval(tickTimer, 1000);
+        return;
+    }
+
     loadState();
     
     if (character) {
@@ -2364,7 +3237,7 @@ function renderDungeonTab() {
                         <div class="dungeon-title-wrap">
                             <span class="dungeon-title-icon">⚔️</span>
                             <div>
-                                <div class="dungeon-title-text">${_pt('Invasões da Masmorra', 'Dungeon Raids')}</div>
+                                <div class="dungeon-title-text">${_pt('Masmorra', 'Dungeon')}</div>
                                 <div class="dungeon-title-sub">${_pt('Avance fundo. Vença a escuridão. Alcance a glória.', 'Delve deep. Conquer darkness. Claim glory.')}</div>
                             </div>
                         </div>
@@ -2403,7 +3276,7 @@ function renderDungeonTab() {
                     <div class="dungeon-title-wrap">
                         <span class="dungeon-title-icon">⚔️</span>
                         <div>
-                            <div class="dungeon-title-text">${_pt('Invasões da Masmorra', 'Dungeon Raids')}</div>
+                            <div class="dungeon-title-text">${_pt('Masmorra', 'Dungeon')}</div>
                             <div class="dungeon-title-sub">${_pt('Avance fundo. Vença a escuridão. Alcance a glória.', 'Delve deep. Conquer darkness. Claim glory.')}</div>
                         </div>
                     </div>
@@ -2563,12 +3436,76 @@ function renderDungeonRaidHub(guildData) {
 }
 
 function refreshRaidUi() {
-    const raidHub = document.getElementById('dungeon-raid-hub');
-    if (raidHub) {
-        renderDungeonList();
-    } else {
+    if (document.getElementById('dungeon-raid-hub')) {
+        // Raids tab is on screen — reload just the hub.
+        fetchGuildRaids();
+    } else if (typeof renderGuild === 'function') {
         renderGuild();
+    } else {
+        renderRaidsTab();
     }
+}
+
+// ── Raids tab (World hub → Raids) ──────────────────────────────────────────
+// Raids live in their own tab, split out of the Dungeon tab. The shell renders
+// immediately, then guild raid data loads async into the hub container.
+function renderRaidsTab() {
+    const container = document.getElementById('tab-raids');
+    if (!container) return;
+    container.innerHTML = `
+        <div class="dungeon-wrapper">
+            <div class="dungeon-topbar">
+                <div class="dungeon-title-wrap">
+                    <span class="dungeon-title-icon">🏰</span>
+                    <div>
+                        <div class="dungeon-title-text">${_pt('Invasões', 'Raids')}</div>
+                        <div class="dungeon-title-sub">${_pt('Forme um esquadrão de até seis e derrube chefes colossais.', 'Form a squad of up to six and bring down colossal bosses.')}</div>
+                    </div>
+                </div>
+            </div>
+            <div id="raids-main-area">
+                <div id="dungeon-raid-hub" class="dungeon-floor-history dungeon-raid-hub-shell">
+                    <div class="dungeon-raid-hub-head">
+                        <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
+                        <div class="dungeon-raid-hub-subtitle">${_pt('Carregando invasões da guilda...', 'Loading guild raids...')}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    fetchGuildRaids();
+}
+
+// Load guild raid data into whichever raid-hub container is on screen.
+function fetchGuildRaids() {
+    apiFetch('GET', '/game/dungeon/guild')
+        .then(guildData => {
+            const raidHub = document.getElementById('dungeon-raid-hub');
+            if (raidHub) raidHub.innerHTML = renderDungeonRaidHub(guildData);
+            // Attach input listeners for real-time slider value display
+            const maxSlider = document.getElementById('guild-raid-max-level');
+            const minSlider = document.getElementById('guild-raid-min-level');
+            const minDisplay = document.getElementById('guild-raid-min-level-val');
+            const maxVal = document.getElementById('guild-raid-max-level-val');
+            if (minSlider && minDisplay) {
+                minSlider.addEventListener('input', function() { minDisplay.textContent = this.value; });
+            }
+            if (maxSlider && maxVal) {
+                maxSlider.addEventListener('input', function() { maxVal.textContent = this.value; });
+            }
+        })
+        .catch(e => {
+            console.error('Failed to load raid hub:', e);
+            const raidHub = document.getElementById('dungeon-raid-hub');
+            if (raidHub) {
+                raidHub.innerHTML = `
+                    <div class="dungeon-raid-hub-head">
+                        <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
+                        <div class="dungeon-raid-hub-subtitle">${_pt('Falha ao carregar o centro de invasões do servidor.', 'Raid hub failed to load from the server.')}</div>
+                    </div>
+                `;
+            }
+        });
 }
 
 function createGuildRaid() {
@@ -2954,42 +3891,7 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">📈 ${_pt('Próximos andares', 'Upcoming floors')}</div>
         <div class="dungeon-floor-preview-row">${previewFloors}</div>
       </div>
-      <div id="dungeon-raid-hub" class="dungeon-floor-history dungeon-raid-hub-shell">
-        <div class="dungeon-raid-hub-head">
-          <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
-          <div class="dungeon-raid-hub-subtitle">${_pt('Carregando invasões da guilda...', 'Loading guild raids...')}</div>
-        </div>
-      </div>
     `;
-
-    apiFetch('GET', '/game/dungeon/guild')
-      .then(guildData => {
-        const raidHub = document.getElementById('dungeon-raid-hub');
-        if (raidHub) raidHub.innerHTML = renderDungeonRaidHub(guildData);
-        // Attach input listeners for real-time slider value display
-        const maxSlider = document.getElementById('guild-raid-max-level');
-        const minSlider = document.getElementById('guild-raid-min-level');
-        const minDisplay = document.getElementById('guild-raid-min-level-val');
-        const maxVal = document.getElementById('guild-raid-max-level-val');
-        if (minSlider && minDisplay) {
-            minSlider.addEventListener('input', function() { minDisplay.textContent = this.value; });
-        }
-        if (maxSlider && maxVal) {
-            maxSlider.addEventListener('input', function() { maxVal.textContent = this.value; });
-        }
-      })
-      .catch(e => {
-        console.error('Failed to load raid hub:', e);
-        const raidHub = document.getElementById('dungeon-raid-hub');
-        if (raidHub) {
-          raidHub.innerHTML = `
-            <div class="dungeon-raid-hub-head">
-              <div class="dungeon-raid-hub-title">${_pt('Invasões', 'Raids')}</div>
-              <div class="dungeon-raid-hub-subtitle">${_pt('Falha ao carregar o centro de invasões do servidor.', 'Raid hub failed to load from the server.')}</div>
-            </div>
-          `;
-        }
-      });
   }
 
   function renderDungeonView() {
@@ -3376,7 +4278,15 @@ function renderRoomInfo(room) {
     const monsterCount = room.monsters ? room.monsters.length : 0;
     const aliveCount = room.monsters ? room.monsters.filter(m => !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)).length : 0;
 
-    if (room.isBoss) {
+    if (D.eventMode && room.monstersCleared) {
+        return `
+            <div class="dungeon-room-clear">
+                <div style="color:var(--dungeon-muted)">✅ ${_pt('Sala do Trial limpa! Avance para o próximo desafio.', 'Trial room cleared! Push deeper into the event.')}</div>
+            </div>
+        `;
+    }
+
+    if (room.isBoss && !D.eventMode) {
         const def = getDungeonDef(D.activeDungeon);
         const boss = def.boss;
         // Once beaten, a floor's boss never respawns — the room shows the stairs instead.
@@ -3467,7 +4377,7 @@ function renderRoomInfo(room) {
                 </div>
                 ${aliveCount > 1 ? `<div class="deck-counter" style="margin-top:2px">${offset + 1}–${Math.min(offset + perPage, aliveCount)} ${_pt('de', 'of')} ${aliveCount}</div>` : ''}
                 <div class="monster-btns" style="margin-top:6px">
-                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ ${_pt('Lutar', 'Fight')}</button>
+                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonFight', room.id)}>⚔️ ${D.eventMode && room.isBoss ? _pt('Desafiar o Soberano (GRÁTIS)', 'Challenge the Sovereign (FREE)') : _pt('Lutar', 'Fight')}</button>
                 </div>
                 ${(() => { const anyStolen = room.monsters.find(m => m.stolenItems?.length); return anyStolen ? `
                     <div class="stolen-items-notice" style="margin-top:4px">
@@ -3494,9 +4404,444 @@ function renderRoomInfo(room) {
                 ${room.isStart ? _pt('🚪 Entrada da Masmorra — escolha um caminho para explorar.', '🚪 Dungeon Entrance — choose a path to explore.') :
                     room.type === 'treasure' ? (room.looted ? _pt('💰 Tesouro já coletado.', '💰 Treasure already collected.') : _pt('✨ Câmara tranquila. Tesouro coletado!', '✨ Peaceful chamber. Treasure collected!')) :
                     _pt('🏚️ Corredor vazio. Tudo limpo.', '🏚️ Empty corridor. All clear.')}
+</div>
+          </div>
+    `;
+}
+
+// ── Trial of the Arcane ── fixed 4-champion party combat panel ──
+// The player picks one champion (active) + one ability per turn; the active
+// champion takes all monster retaliation at the end of the turn.
+// Arena layout: monster row on TOP, a VS divider, then the champion row —
+// there are NO preview cards; the rows themselves are the fighters.
+
+// Always-visible row of ALL monsters in the room, with individual HP bars.
+// Click a card to set it as the single-target ability's target.
+function buildTrialMonsterRowHtml(monsters) {
+    if (!Array.isArray(monsters) || monsters.length === 0) {
+        return `<div style="padding:4px 8px;color:var(--dungeon-muted);text-align:center;font-size:0.7rem">${_pt('Carregando inimigos...', 'Loading enemies...')}</div>`;
+    }
+    return monsters.map((m, i) => {
+        const hp = Math.max(0, Number(m.currentHp ?? m.hp ?? 0));
+        const maxHp = Math.max(1, Number(m.maxHp ?? m.hp ?? 1));
+        const pct = Math.max(0, Math.min(100, Math.round((hp / maxHp) * 100)));
+        const dead = hp <= 0;
+        const isTarget = i === D.combat.currentMonsterIndex;
+        const hasImg = !!m.image;
+        // Real-time status: burn counts down in ticks, freeze is a wall-clock stamp.
+        const burns = Math.max(0, Number(m.burnTicksLeft || 0));
+        const frozen = Number(m.freezeUntil || 0) > trialServerNowMs();
+        const statusCls = dead ? '' : (frozen ? ' frozen' : (burns > 0 ? ' burning' : ''));
+        return `
+            <div id="trial-mon-${i}" class="trial-mon-card ${dead ? 'down' : ''} ${isTarget ? 'target' : ''}${statusCls} ${m.isBoss ? 'is-boss-card' : ''}" ${dead ? '' : `data-action="selectMonster" data-args='[${i}]'`} style="${dead ? '' : 'cursor:pointer'}">
+                ${hasImg ? `<img class="trial-card-bg" src="${m.image}" alt="${m.name}" data-error-hide="true">` : ''}
+                <div class="trial-card-overlay"></div>
+                <div class="trial-card-content">
+                    <div class="trial-char-name">${m.name}${dead ? ' ☠️' : ''}</div>
+                    <div class="trial-char-role">${m.isBoss ? '👑 BOSS' : `⚔️ ${m.atk || 0} · 🛡️ ${m.def || 0}`}</div>
+                    <div style="width:100%;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:3px">
+                        <div class="fighter-hp-bar trial-hp" style="width:${dead ? 0 : pct}%;height:100%;background:linear-gradient(90deg,#e74c3c,#e67e22)"></div>
+                    </div>
+                    <div class="trial-char-stat">${hp}/${maxHp}</div>
+                </div>
+                ${frozen ? '<div class="trial-mon-status trial-mon-status-frozen">🧊</div>' : ''}
+                ${burns > 0 ? '<div class="trial-mon-status trial-mon-status-burn">🔥 ' + burns + '</div>' : ''}
+                ${isTarget ? '<div class="trial-mon-target">🎯</div>' : ''}
+            </div>`;
+    }).join('');
+}
+
+function buildTrialPartyRowHtml(party) {
+    if (!Array.isArray(party) || party.length === 0) {
+        return `<div style="padding:8px 12px;color:var(--dungeon-muted);text-align:center">${_pt('Carregando campeões...', 'Loading champions...')}</div>`;
+    }
+    return party.map((c, i) => {
+        const isActive = i === D.combat.trialActiveChar;
+        const hpPct = Math.round((c.hp / Math.max(1, c.maxHp)) * 100);
+        const enPct = Math.round((c.energy / Math.max(1, c.maxEnergy)) * 100);
+        const down = !c.alive;
+        const hasImg = !!(c.image || c.className);
+        const imgSrc = c.image || (c.className ? `/images/class/${c.className}.png` : '');
+        return `
+            <div id="trial-char-${i}" class="trial-char-card ${isActive ? 'active' : ''} ${down ? 'down' : ''}" data-action="trialSelectChar" data-args='[${i}]' data-char-name="${c.name}" style="cursor:pointer">
+                ${imgSrc ? `<img class="trial-card-bg" src="${imgSrc}" alt="${c.name}" data-error-hide="true">` : ''}
+                <div class="trial-card-overlay"></div>
+                <div class="trial-card-content">
+                    <div class="trial-char-name">${c.name}${down ? ' ☠️' : ''}</div>
+                    <div class="trial-char-role">${c.role || ''}</div>
+                    <div style="width:100%;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:3px">
+                        <div class="fighter-hp-bar trial-hp" style="width:${down ? 0 : hpPct}%;height:100%;background:linear-gradient(90deg,#e74c3c,#27ae60)"></div>
+                    </div>
+                    <div class="trial-char-stat">❤️ ${Math.max(0, c.hp)}/${c.maxHp}</div>
+                    <div style="width:100%;height:3px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:2px">
+                        <div class="trial-en" style="width:${enPct}%;height:100%;background:linear-gradient(90deg,#0984e3,#00cec9)"></div>
+                    </div>
+                    <div class="trial-char-stat">🔷 ${Math.max(0, c.energy)}/${c.maxEnergy}</div>
+                </div>
+                ${down ? '<div class="trial-char-down">☠️</div>' : ''}
+            </div>`;
+    }).join('');
+}
+
+// Attack buttons as DECALS (normal / burst / ultimate — shared art per button
+// type, alpha-channel PNGs with a transparent halo). Gating rules:
+//   • normal  — always usable (generates energy)
+//   • burst   — no energy cost (generates energy too) + 15s wall-clock cooldown
+//   • ultimate — needs a FULL energy bar (drains it) + 30s cooldown
+// Only the ultimate wears an SVG gauge (fills toward the full bar); attacks and
+// bursts GENERATE energy, so they carry just the +N badge and the ready glow. A
+// countdown pill + dark veil show while an ability recharges.
+function buildTrialAbilityRowHtml(champ) {
+    if (!champ) return '';
+    const isBusy = !!D.combat.resolving;
+    const energy = Number(champ.energy || 0);
+    const maxEnergy = Math.max(1, Number(champ.maxEnergy || 120));
+    const abil = (Array.isArray(champ.abilities) ? champ.abilities : []).map(a => {
+        const type = a.type || 'attack';
+        const cost = Number(a.cost || 0);
+        const cdTotal = Math.max(1000, Number(a.cooldownMs || 5000));
+        // Real-time cooldown: wall-clock stamp on the champion's cdUntil map.
+        const cdLeftMs = cdMsLeft(champ, a.id);
+        // Ultimates need a FULL energy bar; attacks/bursts (cost 0) just need
+        // their cooldown cleared.
+        const energyOk = type === 'ultimate' ? energy >= maxEnergy : energy >= cost;
+        const ready = energyOk && cdLeftMs <= 0;
+        const locked = isBusy || !champ.alive || !ready;
+        let hint = '';
+        if (isBusy) hint = _pt('resolvendo...', 'resolving...');
+        else if (!champ.alive) hint = _pt('derrubado', 'down');
+        else if (cdLeftMs > 0) hint = _pt(`recarregando (${Math.ceil(cdLeftMs / 1000)}s)`, `recharging (${Math.ceil(cdLeftMs / 1000)}s)`);
+        else if (!energyOk) hint = _pt('precisa da barra cheia', 'needs a full bar');
+        else hint = _pt(a.name, a.name);
+        // Generator badge: how much energy this button feeds the ultimate.
+        const gen = (type === 'attack' || type === 'burst') ? Number(champ.energyGain || 0) : 0;
+        // SVG gauge only where energy is SPENT: ultimate toward the FULL bar.
+        // Attacks and bursts only generate energy — no ring, just the +N
+        // generator badge and the ready glow. (r=15.9155 → circumference ≈ 100,
+        // so dashoffset = 100 − pct.)
+        const ringDenom = maxEnergy;
+        const ringPct = Math.min(100, Math.round((energy / ringDenom) * 100));
+        const offset = 100 - ringPct;
+        const imgKey = type === 'attack' ? 'normal' : type; // art files: trial-attack-normal|burst|ultimate
+        return `
+            <button class="trial-ability-btn trial-atk-${type} ${locked ? 'trial-ability-locked' : ''} ${ready ? 'trial-ability-ready' : ''}" data-abil="${a.id}" data-cd-total="${cdTotal}" title="${a.name} — ${a.desc || ''}${hint ? ` (${hint})` : ''}" ${locked ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('trialUseAbility', a.id)}>
+                <span class="trial-decal-wrap">
+                    <img class="trial-decal-img" src="/images/decals/trial-attack-${imgKey}.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
+                    ${type === 'ultimate' ? `
+                    <svg class="trial-energy-ring" viewBox="0 0 36 36" aria-hidden="true">
+                        <circle class="trial-ring-bg" cx="18" cy="18" r="15.9155"></circle>
+                        <circle class="trial-ring-fill" cx="18" cy="18" r="15.9155" stroke-dasharray="100 100" stroke-dashoffset="${offset}"></circle>
+                    </svg>` : ''}
+                    ${gen > 0 ? `<span class="trial-gen-badge">+${gen}</span>` : ''}
+                    <span class="trial-cd-pill" ${cdLeftMs <= 0 ? 'style="display:none"' : ''}>${Math.ceil(cdLeftMs / 1000)}</span>
+                    <span class="trial-cd-veil" ${cdLeftMs <= 0 ? 'style="display:none"' : ''}></span>
+                </span>
+            </button>`;
+    }).join('');
+    return (abil + buildTrialSkipBtnHtml(champ, isBusy)) || `<div style="color:var(--dungeon-muted);font-size:0.75rem">${_pt('Nenhuma habilidade disponível.', 'No abilities available.')}</div>`;
+}
+
+// Skip decal: in real-time combat it does nothing server-side — it just resets
+// the active champion's local target-lock visual. Kept for muscle memory.
+function buildTrialSkipBtnHtml(champ, isBusy) {
+    const alive = !!champ?.alive;
+    const locked = isBusy || !alive;
+    const hint = isBusy ? _pt('resolvendo...', 'resolving...')
+        : !alive ? _pt('derrubado', 'down')
+        : _pt('reiniciar mira', 'reset target lock');
+    return `
+        <button class="trial-ability-btn trial-atk-skip ${locked ? 'trial-ability-locked' : ''}" title="${hint}" ${locked ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('trialSkipAction')}>
+            <span class="trial-decal-wrap">
+                <img class="trial-decal-img" src="/images/decals/trial-attack-skip.png" alt="" data-error-hide="true">
+            </span>
+        </button>`;
+}
+
+// Live battle clock: remaining cooldown (ms) for one ability of one champion,
+// computed against the synced server clock so UI seconds match the server's.
+function cdMsLeft(champ, abilityId) {
+    const stamps = champ?.cdUntil || {};
+    const until = Number(stamps[abilityId] || 0);
+    if (!(until > 0)) return 0;
+    return Math.max(0, until - trialServerNowMs());
+}
+function trialServerNowMs() {
+    // The server echoes its Date.now() on every act; the client keeps the offset
+    // so cooldown labels always agree with server-authoritative gating.
+    if (typeof D.combat?._serverNow !== 'number' || typeof D.combat?._serverNowAtClient !== 'number') return Date.now();
+    return Date.now() + (D.combat._serverNow - D.combat._serverNowAtClient);
+}
+
+// ── Trial of the Arcane ambience ─────────────────────────────────────────
+// The combat backdrop becomes an arcane vault scene: purple-gold vignette,
+// two counter-rotating mana swirls, drifting runic glyphs and floating motes.
+// Built once (module scope) so re-renders don't reshuffle the scene.
+const TRIAL_GLYPHS = ['☉', '☽', '✦', 'ᚠ', 'ᛗ', 'ᛟ', '⚡', '✵', '◈', 'ᚨ', '✧', 'ᛉ'];
+const TRIAL_MOTE_COUNT = 26;
+
+function trialMoteStyle(i) {
+    const rand = (seed) => {
+        // Deterministic pseudo-random per mote index (stable across re-renders).
+        const x = Math.sin(i * 127.1 + seed * 311.7) * 43758.5453;
+        return x - Math.floor(x);
+    };
+    const left = (rand(1) * 100).toFixed(1);
+    const size = (2 + rand(2) * 4).toFixed(1);
+    const dur = (9 + rand(3) * 14).toFixed(1);
+    const delay = (-rand(4) * 20).toFixed(1);
+    const drift = ((rand(5) - 0.5) * 90).toFixed(0);
+    const gold = rand(6) > 0.45;
+    return `left:${left}%;width:${size}px;height:${size}px;animation-duration:${dur}s;animation-delay:${delay}s;--mote-drift:${drift}px;${gold ? 'background:radial-gradient(circle,rgba(255,222,130,0.95),rgba(255,200,80,0) 70%);' : ''}`;
+}
+
+// In-panel battlefield effects (glyphs drift inside the combat card itself,
+// above the artwork but below all content — pure ambience, pointer-events off).
+function trialFieldGlyphStyle(i) {
+    const rand = (s) => { const x = Math.sin(i * 127.1 + s * 311.7) * 43758.5453; return x - Math.floor(x); };
+    const left = (5 + rand(1) * 88).toFixed(1);
+    const top = (6 + rand(2) * 76).toFixed(1);
+    const size = (0.75 + rand(3) * 0.85).toFixed(2);
+    const dur = (8 + rand(4) * 9).toFixed(1);
+    const delay = (-rand(5) * 12).toFixed(1);
+    const violet = rand(6) > 0.6;
+    return `left:${left}%;top:${top}%;font-size:${size}rem;animation-duration:${dur}s;animation-delay:${delay}s;${violet ? 'color:rgba(178,148,255,0.85);text-shadow:0 0 10px rgba(155,125,255,0.4);' : ''}`;
+}
+function trialFieldMoteStyle(i) {
+    const rand = (s) => { const x = Math.sin(i * 269.5 + s * 183.3) * 43758.5453; return x - Math.floor(x); };
+    const left = (rand(1) * 97).toFixed(1);
+    const top = (8 + rand(2) * 84).toFixed(1);
+    const size = (2 + rand(3) * 3.5).toFixed(1);
+    const dur = (6 + rand(4) * 8).toFixed(1);
+    const delay = (-rand(5) * 10).toFixed(1);
+    const dx = ((rand(6) - 0.5) * 36).toFixed(0);
+    return `left:${left}%;top:${top}%;width:${size}px;height:${size}px;animation-duration:${dur}s;animation-delay:${delay}s;--wisp-dx:${dx}px;`;
+}
+
+// The battle's ambience + field FX are built EXACTLY ONCE per battle, then the
+// panel body is re-rendered around them. Re-creating these subtrees on every
+// render restarts their CSS animations (motes/glyphs/beam snap back), which
+// reads as constant flashing on real devices — and right under the skill-check
+// overlay it looks broken. Deterministic per-index styles keep every rebuild
+// looks-identical if a fresh scene is ever needed.
+function trialAmbienceSceneHtml() {
+    return `
+        <div class="dungeon-overlay-backdrop trial-ambience">
+            <div class="trial-ambience-vignette"></div>
+            <div class="trial-ambience-vault"></div>
+            <div class="trial-ambience-swirl trial-swirl-a"></div>
+            <div class="trial-ambience-swirl trial-swirl-b"></div>
+            <div class="trial-ambience-glyphs">${TRIAL_GLYPHS.map(g => `<span>${g}</span>`).join('')}</div>
+            <div class="trial-ambience-motes">${Array.from({ length: TRIAL_MOTE_COUNT }, (_, i) => `<i style="${trialMoteStyle(i)}"></i>`).join('')}</div>
+        </div>`;
+}
+
+function trialFieldFxSceneHtml() {
+    return `
+        <div class="trial-field-vignette"></div>
+        <div class="trial-field-beam"></div>
+        <div class="trial-field-glyphs">${TRIAL_GLYPHS.map((g, i) => `<span style="${trialFieldGlyphStyle(i)}">${g}</span>`).join('')}</div>
+        <div class="trial-field-motes">${Array.from({ length: 14 }, (_, i) => `<i class="${i % 3 === 0 ? 'gold' : ''}" style="${trialFieldMoteStyle(i)}"></i>`).join('')}</div>`;
+}
+
+function renderTrialCombatPanel() {
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay || !D.combat) return;
+    const def = getDungeonDef('event');
+    const monsters = D.combat.monsters;
+    const currentMonster = monsters[D.combat.currentMonsterIndex] || {};
+    const party = D.combat.party || [];
+    const active = party[D.combat.trialActiveChar] || null;
+    const isLoading = !Array.isArray(monsters) || monsters.length === 0 || Array.isArray(party) && party.length === 0;
+
+    // Persistent layer, built ONCE per battle: full-screen ambience + in-card
+    // field FX. Re-renders only refresh `.trial-card-body`, so their CSS
+    // animations keep running instead of restarting on every action (which
+    // flashed constantly on phones, brightest right under the skill check).
+    let amb = overlay.querySelector(':scope > .trial-ambience');
+    if (!amb) {
+        amb = document.createElement('div');
+        amb.className = 'dungeon-overlay-backdrop trial-ambience';
+        amb.innerHTML = trialAmbienceSceneHtml();
+        overlay.appendChild(amb);
+    }
+
+    let card = overlay.querySelector(':scope > .dungeon-overlay-card.dungeon-trial-panel');
+    if (!card) {
+        card = document.createElement('div');
+        card.className = 'dungeon-overlay-card dungeon-combat-panel dungeon-trial-panel';
+        card.style.setProperty('--dtheme', def.theme);
+        card.style.setProperty('--dglow', def.themeGlow);
+        overlay.appendChild(card);
+    }
+
+    const fx = card.querySelector(':scope > .trial-field-fx');
+    if (!fx) {
+        const fxEl = document.createElement('div');
+        fxEl.className = 'trial-field-fx';
+        fxEl.setAttribute('aria-hidden', 'true');
+        fxEl.innerHTML = trialFieldFxSceneHtml();
+        card.appendChild(fxEl);
+    }
+
+    let body = card.querySelector(':scope > .trial-card-body');
+    if (!body) {
+        const bodyEl = document.createElement('div');
+        bodyEl.className = 'trial-card-body';
+        card.appendChild(bodyEl);
+        body = bodyEl;
+    }
+
+    const partyRowHtml = buildTrialPartyRowHtml(party);
+    const abilityRowHtml = buildTrialAbilityRowHtml(active);
+    const turn = Math.max(1, Number(D.combat.round ?? 1));
+
+    const roundEntries = D.combat.roundLog.slice(-10).reverse().map(e =>
+        `<div class="combat-log-entry ${e.actor}">${_ptCombat(e.text)}</div>`
+    ).join('');
+
+    const escapeReady = !!D.combat.escapeReady;
+    const isBusy = !!D.combat.resolving;
+
+    const scoreVal = Number(D.eventRun?.score ?? 0);
+    const roomIdx = Number(D.combat?.roomIdx ?? 0);
+    const timerText = (() => {
+        if (!D._eventStarted || !D._eventStartTime) return '0:00';
+        const secs = Math.max(0, Math.floor((Date.now() - D._eventStartTime) / 1000));
+        return Math.floor(secs / 60) + ':' + String(secs % 60).padStart(2, '0');
+    })();
+
+    body.innerHTML = `
+        <div class="trial-hud">
+            <div class="trial-hud-pill"><span class="trial-hud-ico">⭐</span> <span class="trial-hud-num" id="event-cb-score">${scoreVal}</span></div>
+            <div class="trial-hud-pill"><span class="trial-hud-ico">⏱️</span> <span class="trial-hud-num" id="event-cb-timer">${timerText}</span></div>
+            <div class="trial-hud-pill"><span class="trial-hud-ico">🚩</span> <span class="trial-hud-num" id="event-cb-room">${roomIdx + 1}/10</span></div>
+        </div>
+        <div class="combat-header">
+            ${currentMonster.isBoss ? `<div class="combat-boss-warning">⚠️ ${_pt('O SOBERANO ARCANO', 'THE ARCANE SOVEREIGN')}</div>` : `<div class="combat-boss-warning">👁️ ${_pt('PROVAÇÃO DO ARCANO', 'TRIAL OF THE ARCANE')}</div>`}
+            <div class="combat-title">${_pt(`Sala ${(Number(D.combat?.roomIdx ?? 1) + 1)} de 10`, `Room ${(Number(D.combat?.roomIdx ?? 1) + 1)} of 10`)}</div>
+            <div class="trial-turn-pill">🕯️ ${_pt('Tempo real', 'Real-time')}</div>
+        </div>
+
+        <div class="trial-arena">
+            <div class="trial-monster-row">${buildTrialMonsterRowHtml(monsters)}</div>
+            <div class="trial-arena-clash">VS</div>
+        </div>
+        <div class="trial-turn-block">
+            <div class="trial-turn-strip">
+                ${typeof D.combat.trialFocusMult === 'number' ? `<span style="color:${D.combat.trialFocusMult >= 0.9 ? '#ffd700' : '#9b7dff'}">🌟 ${_pt('Foco de Batalha', 'Battle Focus')}: ×${(0.5 + 0.5 * D.combat.trialFocusMult).toFixed(2)}</span>` : ''}
+                <span style="color:#ff9f43">🔥+🧊 = ${_pt('pontos de combo', 'combo pts')}</span>
+                <span class="trial-live-dot">● ${_pt('ao vivo', 'live')}</span>
             </div>
+            ${active && !active.alive ? `<div class="trial-down-hint">${_pt('Este campeão está derrubado — escolha outro. (Curas podem revivê-lo.)', 'This champion is down — pick another. (Heals can revive.)')}</div>` : ''}
+        </div>
+
+        <div class="combat-log">${roundEntries || '<div class="combat-log-entry" style="color:var(--dungeon-muted)">'+_pt('O Trial começa...', 'The Trial begins...')+'</div>'}</div>
+
+        <!-- Champion row lives at the end of the flex body; mobile 'order'
+             rules place it just above the fixed action dock for one-handed
+             champion selection. -->
+        <div class="trial-party-row">${partyRowHtml}</div>
+
+        <div class="combat-actions">
+            ${escapeReady
+                ? `<button class="dungeon-btn dungeon-btn-run" ${actionAttrs('dungeonEscapeConfirm')}>🚪 ${_pt('Sair', 'Get Out')}</button>
+                   <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ ${_pt('Continuar Lutando', 'Keep Fighting')}</button>`
+                : `<div class="trial-ability-row">${abilityRowHtml}</div>
+                   <div class="trial-flee-row">
+                       <button class="dungeon-btn dungeon-btn-run trial-flee-btn" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 ${_pt('Fugir', 'Flee')}</button>
+                   </div>`}
         </div>
     `;
+}
+
+function trialSelectChar(idx) {
+    if (!D.combat || !D.combat.isTrial) return;
+    const party = D.combat.party || [];
+    if (party[idx] && party[idx].alive) {
+        D.combat.trialActiveChar = idx;
+        renderTrialCombatPanel();
+    }
+}
+
+// Grab the live DOM nodes + rects of every trial row card BEFORE an action
+// re-renders the panel. Node clones (including the full-bleed portrait) become the
+// shatter ghosts, so the animation shows the real card art even after re-render.
+// Row cards carry their fighter's HP so we can tell which ones just died.
+function captureTrialCardSnapshots() {
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay) return {};
+    const snap = {};
+    snap.monsterRects = [...overlay.querySelectorAll('.trial-mon-card')].map((node, i) => ({
+        node: node.cloneNode(true),
+        rect: node.getBoundingClientRect(),
+        hp: Math.max(0, Number(D.combat?.monsters?.[i]?.currentHp ?? 0)),
+    }));
+    snap.champRects = [...overlay.querySelectorAll('.trial-char-card')].map((node, i) => ({
+        node: node.cloneNode(true),
+        rect: node.getBoundingClientRect(),
+        alive: !!D.combat?.party?.[i]?.alive,
+    }));
+    return snap;
+}
+
+// Fire the stashed death shatters: every fighter that died since the pending
+// snapshot was taken shatters fully at its captured grid-slot position. Called
+// only AFTER the skill check has completed and the attack/retaliation timeline
+// has played out — never while a skill-check overlay is on screen.
+function firePendingTrialDeathShatters() {
+    if (!D.combat || !D.combat.isTrial) return;
+    const stash = D.combat._pendingDeathShatters;
+    D.combat._pendingDeathShatters = null;
+    if (D.combat._deathShatterTimer) { clearTimeout(D.combat._deathShatterTimer); D.combat._deathShatterTimer = null; }
+    // Hand the panel back its authoritative down-rendered nodes — the shatter
+    // ghosts carry the death visuals now.
+    const restorable = D.combat._restorableDeadNodes;
+    if (Array.isArray(restorable)) {
+        const overlay = document.getElementById('dungeon-overlay');
+        restorable.forEach(({ selector, idx, deadNode }) => {
+            if (!overlay || !deadNode) return;
+            const aliveNode = overlay.querySelector(`${selector}-${idx}`);
+            if (aliveNode && aliveNode.parentNode) aliveNode.replaceWith(deadNode);
+        });
+    }
+    D.combat._restorableDeadNodes = null;
+    if (!stash) return;
+    queueTrialDeathShatters(stash, null);
+}
+
+// Full shatter (shake → blow-out → shards) for any trial fighter that just died —
+// the same treatment the big monster card always got. The panel usually re-renders
+// before the animation plays, so we shatter a fixed-position ghost clone captured
+// at the dying card's exact rect, in its own grid slot.
+function queueTrialDeathShatters(prev, next) {
+    if (!D.combat || !D.combat.isTrial) return;
+    prev = prev || {};
+    next = next || {};
+
+    const shatterGhost = (node, rect) => {
+        if (!node || !rect || !rect.width || !rect.height) return;
+        const ghost = document.createElement('div');
+        ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:500000;pointer-events:none;overflow:hidden;border-radius:12px`;
+        ghost.appendChild(node);
+        document.body.appendChild(ghost);
+        pixelDissolveCard(ghost);
+        // The ghost lives on <body> (outside the re-rendered panel) — clean it up
+        // once the intro + shard rain has fully played out.
+        setTimeout(() => { try { ghost.remove(); } catch (e) { /* noop */ } }, 3200);
+    };
+
+    // Monster deaths — only row cards whose monster just transitioned alive → dead,
+    // each shattered at its own grid slot position.
+    (prev.monsterRects || []).forEach((r, i) => {
+        const nowHp = Math.max(0, Number(D.combat?.monsters?.[i]?.currentHp ?? 0));
+        if (r.hp > 0 && nowHp <= 0) shatterGhost(r.node, r.rect);
+    });
+
+    // Champion deaths — row cards whose champion just transitioned alive → down.
+    (prev.champRects || []).forEach((r, i) => {
+        const nowAlive = !!D.combat?.party?.[i]?.alive;
+        if (r.alive && !nowAlive) shatterGhost(r.node, r.rect);
+    });
 }
   function renderCombatPanel() {
     const overlay = document.getElementById('dungeon-overlay');
@@ -3505,6 +4850,12 @@ function renderRoomInfo(room) {
     // Combat should fully take over the screen: prevent background scrolling.
     document.body.classList.add('modal-lock');
     document.body.classList.add('combat-lock');
+
+    // Trial of the Arcane — fixed 4-champion party combat has its own panel.
+    if (D.combat.isTrial) {
+      return renderTrialCombatPanel();
+    }
+
     const def = getDungeonDef(D.activeDungeon);
     const monsters = D.combat.monsters;
 
@@ -3663,6 +5014,12 @@ function triggerCombatAnimations() {
     const newEntries = lastAnimatedIdx < 0 ? [...roundLog] : roundLog.slice(lastAnimatedIdx + 1);
     if (newEntries.length === 0) return;
     D.combat._lastAnimatedLogIdx = roundLog.length - 1;
+
+    // Trial arena: rows only (no preview cards) — animate the row cards themselves.
+    if (D.combat.isTrial) {
+        triggerTrialCombatAnimations(newEntries);
+        return;
+    }
 
     const playerCard = overlay.querySelector('.combat-fighters > .fighter-card:first-child');
     const monsterSide = overlay.querySelector('.monster-side');
@@ -3826,6 +5183,245 @@ function triggerCombatAnimations() {
             setTimeout(() => playerCard.classList.remove('combat-anim-monster-hit'), 400);
         }, shakeDelay);
     }
+}
+
+// ── Trial rows-only combat animations ──
+// The active champion's row card LASHES OUT at the monster named in the log:
+// lunge toward it, a projectile streak, an impact shake + damage float, then the
+// elemental effect aura (burn/freeze). Monster retaliation shakes champion cards.
+// Victims are ALWAYS resolved from the log text — never from currentMonsterIndex,
+// which is auto-advanced to the next alive monster before animations run (that
+// mismatch made attacks fly at the wrong, still-living card). A fighter that just
+// died is temporarily swapped back to its pre-death look so the blow lands on the
+// card that falls — the down state comes back when the shatter fires.
+// Ultimate casts (full-bar abilities) get the big treatment: gold panel flash,
+// fat projectile, huge impact aura — and a longer animation timeline.
+function isTrialUltimateLog(text) {
+    const t = text || '';
+    return t.includes('Inferno') || t.includes('Blizzard') || t.includes('War Cry') || t.includes('Renewal');
+}
+
+function triggerTrialCombatAnimations(newEntries) {
+    const overlay = document.getElementById('dungeon-overlay');
+    if (!overlay || !D.combat) return;
+
+    const panel = overlay.querySelector('.dungeon-trial-panel');
+    // Lunge the champion who ACTUALLY performed each strike (the log names its
+    // caster: "🔥 Pyra Fireball → …"). CRITICAL: cards must be resolved LAZILY
+    // inside each animation callback — resolving them eagerly here captures
+    // nodes that any re-render (or the just-died swap below) has since DETACHED,
+    // making animations play on invisible elements with zero-size rects
+    // (damage floats then land at the top-left corner of the screen).
+    const champCardFor = (text) => {
+        const party = D.combat.party || [];
+        // Match the caster ONLY in the clause before the '→' arrow. Champion
+        // "Frost" shares a fragment with monster "Frost Wyrmling" — scanning the
+        // whole line made Vorn's/Aria's strikes lunge from FROST's card.
+        const lower = String(text || '').split('→')[0].toLowerCase();
+        const idx = party.findIndex(c => c && lower.includes(String(c.name || '').toLowerCase()));
+        return idx >= 0 ? overlay.querySelector(`#trial-char-${idx}`) : null; // unknown caster → no lunge (never guess)
+    };
+
+    const parseDmg = (text) => {
+        const m = text.match(/(\d+)\s*damage/i) || text.match(/for\s+(\d+)/i) || text.match(/(\d+)!/);
+        return m ? parseInt(m[1]) : null;
+    };
+
+    const floatDmg = (card, dmg, opts) => {
+        if (!card || dmg == null) return;
+        const r = card.getBoundingClientRect();
+        // A detached/hidden card has a zero rect — never float from (0,0).
+        if (r.width === 0 && r.height === 0) return;
+        const el = document.createElement('div');
+        el.className = 'combat-damage-float' + (opts && opts.isHeal ? ' heal' : '') + (opts && opts.isEnergy ? ' energy' : '');
+        el.textContent = opts && opts.isHeal ? `+${dmg}` : opts && opts.isEnergy ? `+${dmg} 🔷` : `-${dmg}`;
+        el.style.cssText = `position:fixed;left:${r.left + r.width / 2 - 30}px;top:${r.top + 18}px;z-index:500000`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 900);
+    };
+
+    // Arc Bolt/Fireball/Inferno → fire · Frost Strike/Deep Freeze/Blizzard → frost ·
+    // Smite/Shield Bash → holy (gold) · buffs/heals carry no projectile.
+    const effectOf = (text) => {
+        const t = text || '';
+        if (t.includes('Fireball') || t.includes('Inferno') || t.includes('Arc Bolt')) return 'fire';
+        if (t.includes('Frost Strike') || t.includes('Deep Freeze') || t.includes('Blizzard')) return 'frost';
+        if (t.includes('Smite') || t.includes('Shield Bash')) return 'holy';
+        return null;
+    };
+
+    // Ultimate casts wash the whole panel in a golden flash.
+    const isUltimateCast = isTrialUltimateLog;
+
+    // ── Restore just-died fighters to their pre-death look for the animations ──
+    // The stash clones show the alive card; swap them in over the down-rendered
+    // nodes and keep the down nodes to restore when the shatter fires.
+    const stash = D.combat._pendingDeathShatters || {};
+    const restorable = [];
+    const swapInAliveClone = (selector, snapList, check) => {
+        (snapList || []).forEach((snap, i) => {
+            if (!check(i, snap)) return;
+            const node = overlay.querySelector(`${selector}-${i}`);
+            if (!node || !snap.node) return;
+            const aliveClone = snap.node.cloneNode(true);
+            aliveClone.id = node.id;
+            node.replaceWith(aliveClone);
+            restorable.push({ selector, idx: i, deadNode: node });
+        });
+    };
+    swapInAliveClone('#trial-mon', stash.monsterRects, (i, s) => s.hp > 0 && Number(D.combat.monsters?.[i]?.currentHp ?? 0) <= 0);
+    swapInAliveClone('#trial-char', stash.champRects, (i, s) => s.alive && !D.combat.party?.[i]?.alive);
+    D.combat._restorableDeadNodes = restorable;
+
+    const playerEntries = newEntries.filter(e => e.actor === 'player');
+    // Only actual strike lines animate ("X strikes Y for N damage!") — "is down!"
+    // and freeze notices have no attacker/victim pair to visualize.
+    const monsterEntries = newEntries.filter(e => e.actor === 'monster' && (e.text || '').includes(' strikes '));
+
+    // Resolve the victim monster of a champion strike from the LOG TEXT
+    // ("... → <MonsterName> for N damage!"). Falls back to a name scan, then to
+    // the selected target index.
+    const resolveMonsterVictim = (text) => {
+        const t = String(text || '');
+        let name = '';
+        const arrow = t.match(/→\s*(.+?)(?:\s+for\s+\d+|!|$)/);
+        if (arrow) name = arrow[1].trim().toLowerCase();
+        let idx = -1;
+        if (name) {
+            idx = (D.combat.monsters || []).findIndex(m => String(m.name || '').toLowerCase() === name);
+            if (idx < 0) idx = (D.combat.monsters || []).findIndex(m => String(m.name || '').toLowerCase().includes(name) || name.includes(String(m.name || '').toLowerCase()));
+        }
+        if (idx < 0) {
+            const lower = t.toLowerCase();
+            idx = (D.combat.monsters || []).findIndex(m => lower.includes(String(m.name || '').toLowerCase()));
+        }
+        if (idx < 0) idx = Math.max(0, Number(D.combat.currentMonsterIndex ?? 0));
+        return overlay.querySelector(`#trial-mon-${idx}`);
+    };
+
+    // 1) Champion attacks: lunge up toward the victim's row, projectile, impact.
+    //    Only targeted strikes animate — heals/buffs (no '→' arrow) are skipped.
+    playerEntries.filter(e => e.text && e.text.includes('→')).forEach((entry, k) => {
+        const dmg = parseDmg(entry.text);
+        const effect = effectOf(entry.text);
+        const isUlt = isUltimateCast(entry.text);
+        const delay = 120 + k * 700;
+        if (isUlt) setTimeout(() => spawnTrialUltimateFlash(), delay);
+        setTimeout(() => {
+            // Resolve cards NOW — the panel may have re-rendered since scheduling.
+            const casterCard = champCardFor(entry.text);
+            const victimCard = resolveMonsterVictim(entry.text);
+            if (casterCard) {
+                casterCard.classList.add('combat-anim-player-lunge');
+                setTimeout(() => casterCard.classList.remove('combat-anim-player-lunge'), 600);
+            }
+            if (casterCard && victimCard) {
+                const cr = casterCard.getBoundingClientRect();
+                const tr = victimCard.getBoundingClientRect();
+                const from = { x: cr.left + cr.width / 2, y: cr.top + cr.height * 0.25 };
+                const to = { x: tr.left + tr.width / 2, y: tr.top + tr.height * 0.75 };
+                if (effect) spawnTrialProjectile(from, to, effect, isUlt);
+            }
+            setTimeout(() => {
+                if (victimCard) {
+                    victimCard.classList.add('combat-anim-monster-hit');
+                    setTimeout(() => victimCard.classList.remove('combat-anim-monster-hit'), 500);
+                    if (effect) spawnTrialEffectAura(victimCard, effect, isUlt);
+                }
+                floatDmg(victimCard, dmg);
+                // Normal attacks AND bursts GENERATE energy — show the gain rising
+                // off the caster. Pre-arrow clause only (see champCardFor: the
+                // 'Frost' fragment trap). Only the ultimate SPENDS — no generator
+                // ever flashes a spent-cost float (a big part of the energy confusion).
+                const casterClause = String(entry.text || '').split('→')[0].toLowerCase();
+                const casterIdx = (D.combat.party || []).findIndex(c => casterClause.includes(String(c?.name || '').toLowerCase()));
+                const casterChamp = casterIdx >= 0 ? D.combat.party[casterIdx] : null;
+                const castAbil = casterChamp
+                    ? (casterChamp.abilities || []).find(a => casterClause.includes(String(a.name || '').toLowerCase()))
+                    : null;
+                const gain = castAbil && (castAbil.type === 'attack' || castAbil.type === 'burst') ? Number(casterChamp.energyGain || 0) : 0;
+                if (gain > 0 && !isUlt) floatDmg(casterCard, gain, { isEnergy: true });
+            }, 380);
+        }, delay);
+    });
+
+    // 2) Monster retaliation: each attacker's card strikes down, champion card shakes.
+    const findCharIdxByName = (text) => {
+        const party = D.combat.party || [];
+        // The VICTIM stands after the 'strikes' keyword — before it sits the
+        // attacker's name ("Frost Wyrmling strikes Frost…"), whose 'Frost'
+        // fragment would otherwise shadow the actual champion victim.
+        const lower = (String(text || '').toLowerCase().split(/\bstrikes\b/)[1] || '');
+        for (let i = 0; i < party.length; i++) {
+            if (party[i] && lower.includes(String(party[i].name || '').toLowerCase())) return i;
+        }
+        return Number(D.combat.trialActiveChar ?? 0);
+    };
+    monsterEntries.forEach((entry, k) => {
+        const dmg = parseDmg(entry.text);
+        const lower = String(entry.text || '').toLowerCase();
+        const monIdx = (D.combat.monsters || []).findIndex(m => lower.includes(String(m.name || '').toLowerCase()));
+        const victimIdx = findCharIdxByName(entry.text);
+        // Tick-only strikes (no player attack in this batch) land fast instead of
+        // waiting out the player-attack timeline slot.
+        const delay = (playerEntries.length ? 700 : 150) + playerEntries.length * 700 + k * 650;
+        setTimeout(() => {
+            // Resolve attacker + victim NOW (lazy) — eager lookups go stale after
+            // re-renders and the animations vanish off-screen.
+            const attacker = monIdx >= 0 ? overlay.querySelector(`#trial-mon-${monIdx}`) : null;
+            const victim = overlay.querySelector(`#trial-char-${victimIdx}`);
+            if (attacker) {
+                attacker.classList.add('combat-anim-monster-strike');
+                setTimeout(() => attacker.classList.remove('combat-anim-monster-strike'), 450);
+            }
+            setTimeout(() => {
+                if (victim) {
+                    victim.classList.add('combat-anim-monster-hit');
+                    setTimeout(() => victim.classList.remove('combat-anim-monster-hit'), 450);
+                }
+                floatDmg(victim, dmg);
+            }, 300);
+        }, delay);
+    });
+}
+
+// Projectile streak from a champion card to its target (fire/frost variants).
+function spawnTrialProjectile(from, to, effect, isUltimate) {
+    const el = document.createElement('div');
+    const dx = to.x - from.x, dy = to.y - from.y;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const ang = Math.atan2(dy, dx);
+    el.className = `trial-projectile trial-projectile-${effect}${isUltimate ? ' trial-projectile-ult' : ''}`;
+    el.style.cssText = `position:fixed;left:${from.x}px;top:${from.y}px;width:${dist}px;z-index:499999;transform-origin:0 50%;transform:rotate(${ang}rad)`;
+    document.body.appendChild(el);
+    const ult = isUltimate ? 'scaleX(1.45) scaleY(2.2)' : 'scaleX(1.02)';
+    el.animate([
+        { opacity: 0, transform: `rotate(${ang}rad) scaleX(0.05)` },
+        { opacity: 1, transform: `rotate(${ang}rad) scaleX(0.6)`, offset: 0.3 },
+        { opacity: 1, transform: `rotate(${ang}rad) scaleX(1)`, offset: 0.85 },
+        { opacity: 0, transform: `rotate(${ang}rad) ${ult}` },
+    ], { duration: isUltimate ? 460 : 380, easing: 'ease-out' }).onfinish = () => { try { el.remove(); } catch (e) { /* noop */ } };
+}
+
+// Elemental impact aura on the hit card (burn = fire ring, freeze = frost ring).
+function spawnTrialEffectAura(card, effect, isUltimate) {
+    if (!card) return;
+    const r = card.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = `trial-effect-aura trial-effect-${effect}${isUltimate ? ' trial-effect-ult' : ''}`;
+    el.style.cssText = `position:fixed;left:${r.left + r.width / 2}px;top:${r.top + r.height / 2}px;${isUltimate ? 'width:220px;height:220px;' : ''}z-index:499998;pointer-events:none`;
+    document.body.appendChild(el);
+    setTimeout(() => { try { el.remove(); } catch (e) { /* noop */ } }, isUltimate ? 950 : 700);
+}
+
+// Full-panel golden wash when a champion unleashes an ultimate.
+function spawnTrialUltimateFlash() {
+    const panel = document.querySelector('.dungeon-trial-panel');
+    if (!panel) return;
+    const el = document.createElement('div');
+    el.className = 'trial-ult-flash';
+    panel.appendChild(el);
+    setTimeout(() => { try { el.remove(); } catch (e) { /* noop */ } }, 1100);
 }
 
 function inlineStyles(src) {
@@ -4259,154 +5855,173 @@ function selectAttack(type) {
   renderCombatPanel();
 }
 
-// Skill check mini-game for Burst/Ultimate
-// Shows an oscillating dot on a bar with zones; player taps to stop it.
+// Skill check mini-game — dual presentation:
+//   ring (Trial defend/closing): a needle sweeps a circular gauge around a gold
+//   bullseye; score fades linearly from 1.0 at dead-center to 0 at the rim.
+//   bar (dungeon burst/ultimate): a marker sweeps a zoned bar (1.0/0.75/0.5).
+// Motion is SMOOTH (no jittery pauses/reversals): the marker always accelerates while
+// crossing the center of the bar and slows near the edges — so landing dead-center is a
+// real timing challenge. Dungeon burst/ultimate keep zoned multipliers (1.0/0.75/0.5);
+// the Trial's event checks (defend/closing) use a LINEAR multiplier: 1.0 at the very
+// center, fading gradually to 0 at the edges.
 function showSkillCheck(attackType, callback) {
-  const isUlt = attackType === 'ultimate';
-  // Create overlay
+  if (document.getElementById('skill-check-overlay')) return; // never double-spawn
+  const cfg = SKILL_CHECK_CFG[attackType] || SKILL_CHECK_CFG.burst;
+  const isLinear = !!cfg.linear;
+  const mode = isLinear ? 'ring' : 'bar';
+  const accent = cfg.color;
+  // Create overlay — ABOVE the combat overlay (z 400000), below shatter ghosts.
   const overlay = document.createElement('div');
   overlay.id = 'skill-check-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.85)';
-  overlay.innerHTML = `
-<div style="background:#1a1a2e;border:2px solid ${isUlt ? '#e74c3c' : '#3498db'};border-radius:12px;padding:24px 32px;text-align:center;max-width:450px;width:90%;user-select:none">
-  <div style="font-size:1.1rem;font-weight:bold;color:${isUlt ? '#e74c3c' : '#3498db'};margin-bottom:16px">
-    ${isUlt ? `${_pt('⚡ Supremo', '⚡ Ultimate')}` : `${_pt('💥 Rajada', '💥 Burst')}`} — ${_pt('toque para parar!', 'Tap to stop!')}
+  overlay.style.zIndex = '400500';
+
+  const title = `${_pt(cfg.titlePT, cfg.titleEN)} <span class="skc-tap">· ${_pt('toque para parar!', 'tap to stop!')}</span>`;
+
+  overlay.innerHTML = mode === 'ring' ? `
+<div class="skc-panel skc-ring-mode" style="--skc-accent:${accent}">
+  <div class="skc-title">${title}</div>
+  <div class="skc-ring-wrap">
+    <svg class="skc-ring" viewBox="0 0 120 120" aria-hidden="true">
+      <circle class="skc-ring-track" cx="60" cy="60" r="54"></circle>
+      <circle class="skc-ring-ticks" cx="60" cy="60" r="47"></circle>
+      <circle class="skc-ring-glow" cx="60" cy="60" r="54"></circle>
+      <g class="skc-needle"><line x1="60" y1="60" x2="60" y2="14"></line></g>
+      <circle class="skc-bullseye" cx="60" cy="60" r="7"></circle>
+      <circle class="skc-bullseye-core" cx="60" cy="60" r="3"></circle>
+    </svg>
+    <div class="skc-ring-readout"><span id="skc-result">50%</span></div>
   </div>
-  <div style="position:relative;height:36px;margin:8px 0;border-radius:6px;overflow:hidden;background:#2c2c3e" id="skill-check-track">
-    <div style="position:absolute;inset:0;display:flex">
-      <div style="flex:0 0 25%;background:rgba(231,76,60,0.25)"></div>
-      <div style="flex:0 0 15%;background:rgba(241,196,15,0.25)"></div>
-      <div style="flex:0 0 20%;background:rgba(46,204,113,0.35)"></div>
-      <div style="flex:0 0 15%;background:rgba(241,196,15,0.25)"></div>
-      <div style="flex:0 0 25%;background:rgba(231,76,60,0.25)"></div>
-    </div>
-    <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:4px;height:36px;background:rgba(255,255,255,0.15);z-index:1"></div>
-    <div id="skill-check-marker" style="position:absolute;top:2px;left:50%;transform:translateX(-50%);width:10px;height:32px;background:${isUlt ? '#e74c3c' : '#3498db'};border-radius:3px;z-index:2;transition:none"></div>
+  <div class="skc-hint">${attackType === 'defend'
+    ? _pt('Acerte o centro — dano e pontos ×1.5 nesta batalha', 'Center it — damage & points ×1.5 this battle')
+    : _pt('Multiplica os pontos de toda a batalha', 'Multiplies this entire battle\'s points')}</div>
+</div>` : `
+<div class="skc-panel skc-bar-mode" style="--skc-accent:${accent}">
+  <div class="skc-title">${title}</div>
+  <div class="skc-bar-track">
+    <div class="skc-zone skc-zone-miss" style="flex:0 0 25%"></div>
+    <div class="skc-zone skc-zone-good" style="flex:0 0 15%"></div>
+    <div class="skc-zone skc-zone-perfect" style="flex:0 0 20%"></div>
+    <div class="skc-zone skc-zone-good" style="flex:0 0 15%"></div>
+    <div class="skc-zone skc-zone-miss" style="flex:0 0 25%"></div>
+    <div class="skc-centerline"></div>
+    <div class="skc-bar-marker" id="skc-marker"></div>
   </div>
-  <div style="display:flex;justify-content:space-between;font-size:0.6rem;color:rgba(255,255,255,0.4);margin-top:2px;padding:0 4px">
-    <span>${_pt('ERROU', 'MISS')}</span>
-    <span>${_pt('BOM', 'GOOD')}</span>
-    <span>${_pt('PERFEITO', 'PERFECT')}</span>
-    <span>${_pt('BOM', 'GOOD')}</span>
-    <span>${_pt('ERROU', 'MISS')}</span>
+  <div class="skc-bar-labels">
+    <span style="flex:0 0 25%">${_pt('ERROU', 'MISS')}</span><span style="flex:0 0 15%">${_pt('BOM', 'GOOD')}</span><span style="flex:0 0 20%">${_pt('PERFEITO', 'PERFECT')}</span><span style="flex:0 0 15%">${_pt('BOM', 'GOOD')}</span><span style="flex:0 0 25%">${_pt('ERROU', 'MISS')}</span>
   </div>
-  <div id="skill-check-cycle" style="font-size:0.8rem;color:rgba(255,255,255,0.5);margin-top:12px">${_pt('Ciclo 1/10', 'Cycle 1/10')}</div>
+  <div class="skc-result" id="skc-result">${_pt('Ciclo 1/10', 'Cycle 1/10')}</div>
 </div>`;
   document.body.appendChild(overlay);
 
-  const marker = overlay.querySelector('#skill-check-marker');
-  const cycleEl = overlay.querySelector('#skill-check-cycle');
-  let pos = 50; // 0-100, percentage position on the bar
+  const panel = overlay.querySelector('.skc-panel');
+  const resultEl = overlay.querySelector('#skc-result');
+  const marker = overlay.querySelector('#skc-marker');
+  const needle = overlay.querySelector('.skc-needle');
+
+  let pos = 50; // 0-100, percentage position on the bar / around the ring
   let dir = 1; // 1 = right, -1 = left
   let bounces = 0; // count edge hits (0 or 100)
-  const maxBounces = 20; // 10 full left-right cycles
-  let speed = isUlt ? (2.5 + Math.random() * 2.5) : (1.2 + Math.random() * 1.2);
+  const maxBounces = cfg.maxBounces || 20; // 10 full left-right cycles by default
   let animId = null;
   let done = false;
-
-  // Randomized unpredictability while the marker sweeps:
-  // - `pause` counts down in rAF ticks while ~stopped (fast edgy pause feels like a mind-game).
-  // - `reverse` flips direction mid-sweep a set number of ticks later (a brief, unexpected jab
-  //   the other way) so the dot isn't a trivially predictable left-to-right pendulum.
-  let pause = 0;
-  let reverseWithTicks = 0;
-  let reverseLeft = 0;
-  let originalDir = 1;
-  const skillPauseTicks = 10; // ~166ms at 60fps
-
-  function scheduleReverse() {
-    // Mendacious jab: flip for a few ticks, then restore; never during a pause or near an edge.
-    if (pause > 0 || done || pos < 6 || pos > 94) return;
-    reverseWithTicks = 12 + Math.floor(Math.random() * 20);
-    reverseLeft = 7 + Math.floor(Math.random() * 12); // 7-18 ticks of counter-movement
-    originalDir = dir;
+  // Anti-stray-tap gate: the overlay resolves on ANY tap, but at the end of a
+  // battle a player still tapping their attack button can land a click on the
+  // just-spawned Final Blow check — resolving it "before it even shows up".
+  // Clicks within the first resolveGraceMs after spawn are swallowed so the
+  // check can only be resolved by a deliberate second tap on a VISIBLE check.
+  const spawnMs = Date.now();
+  const resolveGraceMs = 450;
+  function tapResolve() {
+    if (done) return;
+    if (Date.now() - spawnMs < resolveGraceMs) return; // ignore the spawn-window tap
+    resolve();
   }
 
-  function getMult(p) {
+  // Instantaneous sweep speed at position p: slow at the edges, ramping HARD up toward
+  // the center (the marker visibly whips through the middle, "evading" your tap). A tiny
+  // wobble keeps it organic without masking the acceleration or causing jitter.
+  function speedAt(p, base, boost) {
+    const center = 1 - Math.abs(p - 50) / 50; // 0 at edges, 1 at dead-center
+    let s = base * (1 + (boost - 1) * center);
+    s *= 0.94 + Math.random() * 0.12;
+    return s;
+  }
+
+  function getZoneMult(p) {
     if (p >= 40 && p <= 60) return 1.0; // perfect
     if ((p >= 25 && p < 40) || (p > 60 && p <= 75)) return 0.75; // good
     return 0.5; // miss
+  }
+
+  function getLinearMult(p) {
+    // Vertical distance from dead-center: exact center = 1.0, each unit of distance
+    // subtracts the same amount, so it falls off smoothly all the way to 0 at the edges.
+    return Math.max(0, 1 - Math.abs(p - 50) / 50);
+  }
+
+  // Keep the readout/needle in sync with the sweep (both modes).
+  function paint() {
+    if (mode === 'ring') {
+      if (needle) needle.setAttribute('transform', `rotate(${((pos - 50) / 100) * 360} 60 60)`);
+      const live = getLinearMult(pos);
+      resultEl.textContent = Math.round(live * 100) + '%';
+      resultEl.style.color = live >= 0.9 ? '#ffd700' : live >= 0.6 ? accent : 'rgba(255,255,255,0.65)';
+    } else if (marker) {
+      marker.style.left = pos + '%';
+    }
   }
 
   function resolve() {
     if (done) return;
     done = true;
     if (animId) cancelAnimationFrame(animId);
-    overlay.remove();
-    callback(getMult(pos));
+    const mult = isLinear ? getLinearMult(pos) : getZoneMult(pos);
+    const tier = mult >= 0.9 ? 'perfect' : mult >= 0.6 ? 'good' : 'miss';
+    panel.classList.add('skc-res-' + tier);
+    if (mode === 'ring' && needle) {
+      needle.classList.add('skc-needle-' + tier);
+    }
+    if (isLinear) {
+      resultEl.textContent = _pt('Pontuação: ', 'Score: ') + Math.round(mult * 100) + '%';
+    } else {
+      resultEl.textContent = mult >= 0.9 ? _pt('✨ Perfeito!', '✨ Perfect!') : (mult >= 0.75 ? _pt('👍 Bom!', '👍 Good!') : _pt('💔 Errou!', '💔 Miss!'));
+    }
+    setTimeout(() => {
+      overlay.remove();
+      callback(mult);
+    }, 620);
   }
 
   function animate() {
     if (done) return;
-
-    let doPause = false;
-
-    // An unexpected counter-jab: briefly move opposite to the current direction.
-    if (reverseLeft > 0) {
-      pos += (-originalDir) * speed;
-      reverseLeft--;
-      if (reverseLeft === 0) {
-        dir = originalDir;
-        reverseWithTicks = 0;
-      }
-    } else if (reverseWithTicks > 0) {
-      reverseWithTicks--;
-      if (reverseWithTicks === 0) {
-        // Roll the reverse only on low-to-mid bounces so a panic doesn't drag on forever.
-        if (Math.random() < 0.9 && bounces < 10) {
-          reverseLeft = 7 + Math.floor(Math.random() * 12);
-          originalDir = dir;
-          pos += (-dir) * speed;
-          reverseLeft--;
-          if (reverseLeft === 0) { dir = originalDir; reverseWithTicks = 0; }
-        } else {
-          reverseWithTicks = 0;
-        }
-      }
-    }
-
-    // A fast, edgy pause (the dot lingers, baiting an early tap).
-    if (reverseWithTicks === 0 && reverseLeft === 0 && Math.random() < 0.010) {
-      doPause = true;
-      pause = skillPauseTicks;
-    }
-
-    if (pause > 0) {
-      pause--;
-      doPause = true; // priority: the resume below must not move the marker during a pause
-    }
-
-    if (!doPause) {
-      pos += dir * speed;
-    }
+    pos += dir * speedAt(pos, cfg.base, cfg.boost);
 
     // Bounce off the edges.
-    if (pos >= 100 && !doPause && pause === 0) { pos = 100; dir = -1; bounces++; updateCycle(); }
-    else if (pos <= 0 && !doPause && pause === 0) { pos = 0; dir = 1; bounces++; updateCycle(); }
+    if (pos >= 100) { pos = 100; dir = -1; bounces++; if (!isLinear) updateCycle(); }
+    else if (pos <= 0) { pos = 0; dir = 1; bounces++; if (!isLinear) updateCycle(); }
 
-    marker.style.left = pos + '%';
+    paint();
     if (bounces >= maxBounces) { resolve(); return; }
-    // Vary speed each bounce
-    if (bounces % 2 === 0 && speed > 0) {
-      speed = isUlt
-        ? (1.5 + Math.random() * 4.5)
-        : (1.0 + Math.random() * 2.0);
-    }
-    // Roll whether a direction jab happens on the next sweep.
-    if (bounces < 10 && reverseWithTicks === 0 && Math.random() < 0.18) {
-      scheduleReverse();
-    }
 
     animId = requestAnimationFrame(animate);
   }
 
   function updateCycle() {
-    cycleEl.textContent = _pt('Ciclo ', 'Cycle ') + Math.ceil(bounces / 2) + '/10';
+    resultEl.textContent = _pt('Ciclo ', 'Cycle ') + Math.ceil(bounces / 2) + '/' + (maxBounces / 2);
+    resultEl.style.color = 'rgba(255,255,255,0.5)';
   }
 
-  overlay.addEventListener('click', resolve);
+  overlay.addEventListener('click', tapResolve);
+  overlay.addEventListener('keydown', (e) => { if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); resolve(); } });
+  paint();
   animId = requestAnimationFrame(animate);
 }
+const SKILL_CHECK_CFG = {
+  burst:    { titlePT: '💥 Rajada',       titleEN: '💥 Burst',          color: '#3498db', base: 1.1, boost: 3.0, maxBounces: 20, linear: false },
+  ultimate: { titlePT: '⚡ Supremo',       titleEN: '⚡ Ultimate',       color: '#e74c3c', base: 2.4, boost: 3.2, maxBounces: 20, linear: false },
+  defend:   { titlePT: '🌟 Foco de Batalha', titleEN: '🌟 Battle Focus', color: '#9b7dff', base: 1.3, boost: 4.0, maxBounces: 10, linear: true },
+  closing:  { titlePT: '🌟 Golpe Final',   titleEN: '🌟 Final Blow',     color: '#ffd700', base: 1.5, boost: 4.5, maxBounces: 12, linear: true },
+};
 
 function roomDeckNav(dir) {
   if (!D._roomMonsterOffset) D._roomMonsterOffset = {};
@@ -4432,6 +6047,29 @@ function roomDeckNav(dir) {
   }
 
 function dungeonExit() {
+    // Trial of the Arcane:
+    // - Pre-BEGIN (lobby): leave without starting the timer/run; do NOT record an attempt.
+    // - Post-BEGIN: leaving records a defeat because the run is in progress.
+    if (D.eventMode) {
+        if (D._eventRunCompleted) {
+            resetEventState();
+            return;
+        }
+        if (!D._eventStarted) {
+            resetEventState();
+            return;
+        }
+        const msg = _pt('Sair agora registrará esta tentativa como derrota. Tem certeza?', 'Exiting now will record this attempt as a defeat. Are you sure?');
+        const confirmExit = () => finishEventRun(false);
+        if (typeof openGameDialog === 'function') {
+            openGameDialog({ title: _pt('Sair do Trial', 'Exit Trial'), message: msg, confirmLabel: _pt('Sair', 'Exit'), showCancel: true })
+                .then(confirmed => { if (confirmed) confirmExit(); })
+                .catch(() => {});
+        } else {
+            if (confirm(msg)) confirmExit();
+        }
+        return;
+    }
     if (D.activeDungeon) {
         D.savedProgress[D.activeDungeon] = {
             floor: D.floor, 
@@ -5132,6 +6770,319 @@ global.debugDungeonDetails = function() {
     }
     console.log('Monster creation would happen', monsterCount, 'out of 100 times');
 };
+
+  // ── Trial of the Arcane ─────────────────────────────────────
+
+  function _lbEscape(name) {
+      return String(name || '').replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  }
+
+  function formatEventTime(minutes) {
+      const m = Math.max(0, Math.floor(Number(minutes || 0)));
+      const s = Math.max(0, Math.round((Number(minutes || 0) - m) * 60));
+      return `${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  function formatEventCountdown(sec) {
+      sec = Math.max(0, Math.floor(Number(sec || 0)));
+      const p = n => String(n).padStart(2, '0');
+      const d = Math.floor(sec / 86400);
+      const h = Math.floor((sec % 86400) / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      return `${p(d)}:${p(h)}:${p(m)}:${p(s)}`;
+  }
+
+  function stopEventCountdown() {
+      if (global.__eventCdTimer) { clearInterval(global.__eventCdTimer); global.__eventCdTimer = null; }
+  }
+
+  function startEventCountdown(endsAtSec) {
+      stopEventCountdown();
+      const el = document.getElementById('event-countdown-el');
+      if (!el || !endsAtSec) return;
+      const tick = () => {
+          const secLeft = Math.floor(Number(endsAtSec) - Date.now() / 1000);
+          el.textContent = secLeft <= 0 ? '00:00:00:00' : formatEventCountdown(secLeft);
+      };
+      tick();
+      global.__eventCdTimer = setInterval(tick, 1000);
+  }
+
+  function showEventErrorDialog(msg) {
+      if (typeof openGameDialog !== 'function') { alert(msg); return; }
+      stopEventCountdown();
+      apiFetch('GET', '/event/status').then(st => {
+          const endsAt = Number(st?.eventEndsAt || 0) || null;
+          let countdown = '';
+          if (endsAt) countdown = `<br><br>⏰ ${_pt('O Evento termina em:', 'Event ends in:')} <span id="event-countdown-el" style="font-weight:800;color:#ffd700;letter-spacing:.5px">${formatEventCountdown(Math.floor(endsAt - Date.now() / 1000))}</span>`;
+          const p = openGameDialog({ title: _pt('Provação do Arcano', 'Trial of the Arcane'), message: msg + countdown, confirmLabel: 'OK', showCancel: false });
+          if (endsAt) startEventCountdown(endsAt);
+          p.then(stopEventCountdown).catch(stopEventCountdown);
+      }).catch(() => {
+          const p = openGameDialog({ title: _pt('Provação do Arcano', 'Trial of the Arcane'), message: msg, confirmLabel: 'OK', showCancel: false });
+          p.catch(() => {});
+      });
+  }
+
+  async function fetchEventLeaderboard() {
+      try {
+          const res = await apiFetch('GET', '/event/leaderboard');
+          return Array.isArray(res?.leaderboard) ? res.leaderboard : [];
+      } catch(e) {
+          console.error('Failed to load event leaderboard:', e);
+          return null;
+      }
+  }
+
+  function eventLeaderboardHTML(rows) {
+      if (!rows) return `<div class="event-lb-empty">${_pt('Não foi possível carregar o ranking.', 'Could not load the leaderboard.')}</div>`;
+      if (!rows.length) return `<div class="event-lb-empty">${_pt('Nenhuma pontuação ainda — seja o primeiro!', 'No scores yet — be the first!')}</div>`;
+      const myName = global.character?.char_name;
+      const medals = ['🥇', '🥈', '🥉'];
+      return rows.map((r, i) => {
+          const mine = myName && r.char_name === myName;
+          return `<div class="event-lb-row${mine ? ' event-lb-row-self' : ''}">
+              <span class="event-lb-rank">${medals[i] || `${i + 1}.`}</span>
+              <span class="event-lb-name">${_lbEscape(r.char_name)}</span>
+              <span class="event-lb-score">⭐ ${r.best_score}</span>
+              <span class="event-lb-time">⏱ ${formatEventTime(r.best_time)}</span>
+          </div>`;
+      }).join('');
+  }
+
+  function renderEventStartScreen() {
+      const area = document.getElementById('dungeon-main-area');
+      if (!area) return;
+      area.innerHTML = `
+          <div style="display:flex;align-items:center;justify-content:center;min-height:420px;padding:24px;text-align:center;">
+              <div style="max-width:520px;width:100%;padding:36px 28px;border-radius:18px;background:linear-gradient(180deg,rgba(37,24,74,0.92),rgba(26,19,48,0.95));border:2px solid rgba(168,85,247,0.45);box-shadow:0 0 40px rgba(168,85,247,0.25);">
+                  <div style="font-size:3rem;margin-bottom:10px">👁️</div>
+                  <div style="font-size:1.7rem;font-weight:800;letter-spacing:1px;color:#e9d5ff">${_pt('PROVAÇÃO DO ARCANO', 'TRIAL OF THE ARCANE')}</div>
+                  <div style="font-size:0.9rem;color:rgba(255,255,255,0.65);margin:14px 0 22px;line-height:1.5">
+                      ${_pt('10 salas. 1 mini-chefe + 2 lacaios por sala. Você comanda 4 campeões fixos (🔥 Piromante · ❄️ Criomante · 🛡️ Guardião · ✨ Curandeira) — escolha quem age e qual habilidade usar a cada turno. Derrote o Soberano Arcano (sala 10) para reivindicar a coroa. O tempo começa agora — termine rápido para o bônus!', '10 rooms. 1 mini-boss + 2 mobs per room. You command a fixed team of 4 champions (🔥 Pyromancer · ❄️ Cryomancer · 🛡️ Warden · ✨ Mender) — pick who acts and which ability each turn. Slay the Arcane Sovereign (room 10) to claim the crown. Time starts now — finish fast for the bonus!')}
+                  </div>
+                  <div class="event-lb-box">
+                      <div class="event-lb-title">🏆 ${_pt('TOP 10 MELHORES', 'TOP 10 LEADERS')}</div>
+                      <div id="event-lb-list" class="event-lb-list"><div class="event-lb-empty">${_pt('Carregando...', 'Loading...')}</div></div>
+                  </div>
+                  <button id="event-begin-btn" class="dungeon-btn dungeon-btn-fight" style="font-size:1.25rem;padding:16px 44px;border-radius:12px;box-shadow:0 0 24px rgba(168,85,247,0.5)">⚔️ ${_pt('COMEÇAR', 'BEGIN')}</button>
+              </div>
+          </div>
+      `;
+      const beginBtn = document.getElementById('event-begin-btn');
+      if (beginBtn) beginBtn.onclick = startEventTimer;
+      fetchEventLeaderboard().then(rows => {
+          const list = document.getElementById('event-lb-list');
+          if (list) list.innerHTML = eventLeaderboardHTML(rows);
+      });
+  }
+
+  async function startEventTimer() {
+      if (D._eventStarted) return;
+      try {
+          const res = await apiFetch('POST', '/event/start');
+          D._eventStarted = true;
+          D._eventStartTime = Number(res?.startTime || 0) || Date.now();
+          if (D.eventRun) D.eventRun.start_time = D._eventStartTime;
+          renderDungeonTab();
+      } catch(e) {
+          console.error('Failed to start event timer:', e);
+          const msg = e?.message || _pt('Erro ao começar o Trial.', 'Failed to start the Trial.');
+          if (typeof openGameDialog === 'function') openGameDialog({ title: _pt('Provação do Arcano', 'Trial of the Arcane'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+          else alert(msg);
+      }
+  }
+
+  function updateEventScoreDisplay() {
+      const run = D.eventRun || {};
+      const score = run.score ?? 0;
+      const room = run.room_index ?? 1;
+      document.querySelectorAll('#event-score-count, #event-cb-score').forEach(el => { el.textContent = score; });
+      document.querySelectorAll('#event-room-count, #event-cb-room').forEach(el => { el.textContent = room; });
+  }
+
+  // Sync run-level stats (score/kills/bosses) from any server response that
+  // carries them, so the results modal can never show stale or missed counts.
+  function syncEventRunStats(stats) {
+      if (!stats || !D.eventRun) return;
+      if (stats.score != null) D.eventRun.score = Number(stats.score);
+      if (stats.kills != null) D.eventRun.kills = Number(stats.kills);
+      if (stats.bosses != null) D.eventRun.bosses = Number(stats.bosses);
+      if (stats.total_dmg != null) D.eventRun.total_dmg = Number(stats.total_dmg);
+      if (stats.room_index != null) D.eventRun.room_index = Number(stats.room_index);
+      updateEventScoreDisplay();
+  }
+
+  async function enterEvent() {
+      if (D.eventMode) return;
+      const charFloor = Number((typeof character !== 'undefined' && character && character.dungeon_highest_floor) || 0);
+      if (charFloor < 5) {
+          const msg = _pt('Reach dungeon floor 5 to unlock the Trial of the Arcane.', 'Reach dungeon floor 5 to unlock the Trial of the Arcane.');
+          if (typeof openGameDialog === 'function') openGameDialog({ title: _pt('Trial Locked', 'Trial Locked'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+          else alert(msg);
+          return;
+      }
+      try {
+          const res = await apiFetch('POST', '/event/enter');
+          if (!res || !res.success) {
+              const msg = res?.error || 'Event unavailable';
+              showEventErrorDialog(msg);
+              return;
+          }
+          D.eventMode = true;
+          // Isolation sandbox: snapshot every shared tower-runtime field the event
+          // is about to replace. resetEventState() puts them back, so the conditional
+          // event floor can never clobber live dungeon progress (DB/localStorage saves
+          // are already blocked while eventMode is true).
+          D._towerSnapshot = {
+              rooms: D.rooms,
+              playerPos: D.playerPos,
+              exploredRooms: D.exploredRooms,
+              crawler: D.crawler,
+              floorRunId: D.floorRunId,
+              bossDefeated: D.bossDefeated,
+              combat: D.combat,
+              _combatPrefetch: D._combatPrefetch,
+              dungeonLog: D.dungeonLog,
+          };
+          // The event floor holds NO tower lock: release any live lock + orphaned
+          // refresh timer so the tower is free for other devices while we play.
+          if (D.lockRefreshInterval) { clearInterval(D.lockRefreshInterval); D.lockRefreshInterval = null; }
+          if (D.hasLock) { D.hasLock = false; apiFetch('POST', '/game/dungeon/lock-release').catch(() => {}); }
+          if (D.travelTimer) { clearTimeout(D.travelTimer); D.travelTimer = null; }
+          D.isTraveling = false;
+          D.eventRun = res.run || { room_index: 1, score: 0, kills: 0, bosses: 0, total_dmg: 0 };
+          D._eventStarted = false;
+          D._eventStartTime = Number(res.run?.start_time || 0) || Date.now();
+          D.activeDungeon = 'event';
+          global.__dungeonActive = true;
+          D.rooms = (res.floor || []).map((r, idx) => ({
+              ...r,
+              id: idx,
+              monsters: Array.isArray(r.monsters) ? r.monsters.map(m => ({ ...m, currentHp: m.currentHp ?? m.hp ?? m.maxHp, maxHp: m.maxHp ?? m.hp })) : [],
+          }));
+          D.playerPos = D.rooms.findIndex(r => r.isStart);
+          if (D.playerPos === -1) D.playerPos = 0;
+          D.exploredRooms = new Set([D.playerPos]);
+          D.crawler = null;
+          D.floorRunId = null;
+          D.bossDefeated = false;
+          D.combat = null;
+          D._combatPrefetch = null;
+          D.dungeonLog = [];
+          D.lockRefreshInterval = null;
+          log(`${_pt('🔮 Provação do Arcano começou! Avance pela sala 1 para começar a lutar.', '🔮 Trial of the Arcane has begun! Move into Room 1 to start fighting.')}`, 'log-enter');
+          if (typeof showTab === 'function') showTab('dungeon');
+          else renderDungeonTab();
+      } catch(e) {
+          console.error('Failed to enter event:', e);
+          const msg = e?.message || _pt('Erro ao entrar no Trial do Arcano.', 'Failed to enter the Trial of the Arcane.');
+          showEventErrorDialog(msg);
+      }
+  }
+
+  async function finishEventRun(completed) {
+      if (!D.eventMode || D._eventFinishing) return;
+      D._eventFinishing = true;
+      const prevEventRun = D.eventRun;
+      try {
+          const res = await apiFetch('POST', '/event/finish', { completed: !!completed });
+          showEventResultModal(res, prevEventRun, completed);
+      } catch(e) {
+          console.error('Failed to finish event run:', e);
+          alert(_pt('Erro ao finalizar o Trial do Arcano.', 'Failed to finalize the Trial of the Arcane.'));
+      }
+      D._eventFinishing = false;
+      resetEventState();
+  }
+
+  function resetEventState() {
+      if (D._eventTimerInterval) clearInterval(D._eventTimerInterval);
+      D._eventTimerInterval = null;
+      D._eventStartTime = 0;
+      D._eventStarted = false;
+      D._eventFinishing = false;
+      D._eventRunCompleted = false;
+      D.eventMode = false;
+      D.eventRun = null;
+      D.activeDungeon = null;
+      global.__dungeonActive = false;
+      D.combat = null;
+      D._combatPrefetch = null;
+      D._combatActive = false;
+      // Restore the tower runtime exactly as it was before the event sandbox took
+      // over — rooms, position, crawler, floorRunId and log come back untouched.
+      const snap = D._towerSnapshot;
+      if (snap) {
+          D.rooms = snap.rooms;
+          D.playerPos = snap.playerPos;
+          D.exploredRooms = snap.exploredRooms;
+          D.crawler = snap.crawler;
+          D.floorRunId = snap.floorRunId;
+          D.bossDefeated = snap.bossDefeated;
+          D.combat = snap.combat || null;
+          D._combatPrefetch = snap._combatPrefetch || null;
+          D.dungeonLog = snap.dungeonLog || [];
+          D._towerSnapshot = null;
+      }
+      document.body.classList.remove('modal-lock');
+      document.body.classList.remove('combat-lock');
+      if (typeof renderDungeonTab === 'function') renderDungeonTab();
+  }
+
+  function showEventResultModal(res, prevRun, completed) {
+      const score = res?.score ?? prevRun?.score ?? 0;
+      const baseScore = res?.baseScore ?? prevRun?.score ?? 0;
+      const timeBonus = res?.timeBonus ?? 0;
+      const timeTaken = Math.max(0, Number(res?.timeTaken ?? 0));
+      const attemptsUsed = res?.attemptsUsed ?? '?';
+      const attemptsLimit = res?.attemptsLimit ?? null;
+      const kills = prevRun?.kills ?? 0;
+      const bosses = prevRun?.bosses ?? 0;
+      let overlay = document.getElementById('event-result-modal');
+      if (!overlay) {
+          overlay = document.createElement('div');
+          overlay.id = 'event-result-modal';
+          overlay.className = 'modal-overlay';
+          document.body.appendChild(overlay);
+      }
+      overlay.classList.remove('hidden');
+      overlay.classList.add('modal-overlay');
+      overlay.innerHTML = `
+          <div class="modal-box dungeon-victory-box" style="background:linear-gradient(180deg,#2a1e4f,#1a1330);border:2px solid rgba(168,85,247,0.5)">
+              <div class="victory-icon">${completed ? '👁️' : '💀'}</div>
+              <div class="victory-title" style="color:#c9a7ff">${_pt('PROVAÇÃO DO ARCANO', 'TRIAL OF THE ARCANE')}</div>
+              <div class="victory-boss-name">${completed ? _pt('Trial Completo!', 'Trial Complete!') : _pt('Você foi derrotado', 'You were defeated')}</div>
+              <div style="text-align:center;margin:12px 0">
+                  <div style="font-size:1.9rem;font-weight:800;color:#f5d76e">⭐ ${score}</div>
+                  <div style="font-size:0.85rem;color:rgba(255,255,255,0.65);margin-top:4px">
+                      ⚔️ ${kills} ${_pt('mortes', 'kills')} · 💀 ${bosses} ${_pt('chefes', 'bosses')}
+                  </div>
+                  <div style="font-size:0.85rem;color:rgba(255,255,255,0.55);margin-top:6px">
+                      ${_pt('Base:', 'Base:')} ${baseScore} + ${_pt('Bonus de tempo:', 'Time bonus:')} ${timeBonus}<br>
+                      ${attemptsLimit === null ? `${_pt(`Tentativas: ${attemptsUsed}`, `Attempts: ${attemptsUsed}`)}` : `${_pt(`Tentativas: ${attemptsUsed}/${attemptsLimit}`, `Attempts: ${attemptsUsed}/${attemptsLimit}`)}`}
+                  </div>
+                  <div id="event-result-rank" style="margin-top:8px"></div>
+              </div>
+              <button id="event-result-close-btn" class="btn-primary" style="margin-top:12px;width:100%">OK</button>
+          </div>`;
+      overlay.onclick = (ev) => { if (ev.target === overlay) overlay.classList.add('hidden'); };
+      const btn = overlay.querySelector('#event-result-close-btn');
+      if (btn) btn.onclick = () => { overlay.classList.add('hidden'); };
+      fetchEventLeaderboard().then(rows => {
+          const el = document.getElementById('event-result-rank');
+          if (!el) return;
+          const myName = (typeof character !== 'undefined' && character && character.name) ? character.name : ((typeof global !== 'undefined' && global && global.character && global.character.name) ? global.character.name : null);
+          if (!rows || !myName) { el.innerHTML = ''; return; }
+          const idx = rows.findIndex(r => r.char_name === myName);
+          const style = 'font-size:1rem;font-weight:700;color:#c9a7ff;text-align:center;letter-spacing:0.5px';
+          el.innerHTML = idx !== -1
+              ? `<div style="${style}">🏆 ${_pt('SEU RANK:', 'YOUR RANK:')} #${idx + 1}</div>`
+              : `<div style="${style};color:rgba(255,255,255,0.45)">${_pt('Fora do Top 10', 'Not in the Top 10')}</div>`;
+      });
+  }
+
   function resetDungeonState() {
     D = {
       tokens: 0,
@@ -5152,11 +7103,19 @@ global.debugDungeonDetails = function() {
       dungeonGold: 0,
       blacksmithUnlocked: false,
       guildReputation: 0,
+      eventMode: false,
+      eventRun: null,
+      _eventStarted: false,
+      _eventStartTime: 0,
+      _eventTimerInterval: null,
     };
+    if (D._eventTimerInterval) clearInterval(D._eventTimerInterval);
     try { localStorage.removeItem('dungeon_state'); } catch(e) {}
   }
 
   global.resetDungeonState = resetDungeonState;
+  global.enterEvent = enterEvent;
+  global.startEventTimer = startEventTimer;
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
@@ -5191,6 +7150,10 @@ global.claimGuildBounty = claimGuildBounty;
   global.deckNav             = deckNav;
   global.selectMonster       = selectMonster;
   global.selectAttack        = selectAttack;
+  global.trialSelectChar     = trialSelectChar;
+  global.trialUseAbility     = trialUseAbility;
+  global.trialEndTurn        = trialEndTurn;
+  global.trialSkipAction     = trialSkipAction;
   global.roomDeckNav         = roomDeckNav;
   global.dungeonElementalInfo = globalThis.dungeonElementalInfo;
   global.dungeonDiscoverElemental = globalThis.dungeonDiscoverElemental;
@@ -5199,10 +7162,11 @@ global.claimGuildBounty = claimGuildBounty;
   global.closeDungeonOverlay = globalThis.closeDungeonOverlay;
   global.renderDungeonTab    = function() {
     renderDungeonTab();
-    if (character) {
+    if (character && !D.eventMode) {
       loadDungeonDataFromDB();
     }
   };
+  global.renderRaidsTab      = renderRaidsTab;
 
   // ── Init ───────────────────────────────────────────────────
   loadCSS();
