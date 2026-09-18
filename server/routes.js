@@ -4,7 +4,7 @@ const { getDb } = require('./db');
 const BotRunner = require('./bot-runner');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES } = require('./gamedata');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES, STORY_QUESTS, STORY_NPC } = require('./gamedata');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -1145,7 +1145,14 @@ const WEEKLY_TASKS = [
                                                                 redeemed_at INTEGER NOT NULL,
                                                                 UNIQUE(voucher_id, user_id)
                 )`,
+            `CREATE TABLE IF NOT EXISTS character_story_progress (
+                                                                character_id INTEGER PRIMARY KEY,
+                                                                current_quest INTEGER NOT NULL DEFAULT 0,
+                                                                completed_at INTEGER NOT NULL DEFAULT 0,
+                                                                updated_at INTEGER NOT NULL DEFAULT 0
+                )`,
         ];
+        try { await dbRun(db, 'ALTER TABLE character_story_progress ADD COLUMN accepted_stage INTEGER NOT NULL DEFAULT -1'); } catch {}
         for (const sql of migrations) {
             try { await db.execute({ sql, args: [] }); } catch {}
         }
@@ -1223,10 +1230,17 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS war_performance (war_id INTEGER NOT NULL, char_id INTEGER NOT NULL, damage_dealt INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (war_id, char_id))`, args: [] }); } catch {}
         // Server settings table (key-value)
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS server_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`, args: [] }); } catch {}
+        // Event tables
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS event_attempts (character_id INTEGER, attempt_no INTEGER, score INTEGER, clear_time REAL, cleared_at DATETIME, cleared INTEGER)`, args: [] }); } catch {}
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS event_leaderboard (character_id INTEGER PRIMARY KEY, best_score INTEGER, best_time REAL)`, args: [] }); } catch {}
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS event_runs (character_id INTEGER PRIMARY KEY, room_index INTEGER, score INTEGER, total_dmg INTEGER, kills INTEGER, bosses INTEGER, start_time REAL)`, args: [] }); } catch {}
         // Default SW enabled
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('sw_enabled', '1')`, args: [] }); } catch {}
         // Server 1 registration-launch timestamp (epoch ms). Overridable via admin panel.
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('s1_launch_at', '1787400000000')`, args: [] }); } catch {}
+        // Story mode launch timestamp (epoch seconds). Set once on first deploy; the first 30 days
+        // after this grant boosted story rewards. The quests themselves are permanent.
+        try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('story_launch_at', '0')`, args: [] }); } catch {}
         // Stale clients table — logs requests from old app.js versions
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS stale_clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', version TEXT DEFAULT '', path TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
         try {
@@ -10224,6 +10238,142 @@ async function grantAchievementRewards(db, char, rewards) {
     }
 }
 
+// ── Story Mode helpers ────────────────────────────────────────────────────
+const STORY_BOOST_WINDOW = 30 * 24 * 3600; // 30 days in seconds
+
+// Total number of stages across the whole story (sum of each quest's stages).
+function storyTotalStages() {
+    return STORY_QUESTS.reduce((n, q) => n + (Array.isArray(q.stages) ? q.stages.length : 0), 0);
+}
+
+// Maps a global linear stage index → { quest, questIdx, stage, stageIdx, isQuestFinalStage }.
+function storyUnitForStage(stageIdx) {
+    let cursor = 0;
+    for (let qi = 0; qi < STORY_QUESTS.length; qi++) {
+        const q = STORY_QUESTS[qi];
+        const count = Array.isArray(q.stages) ? q.stages.length : 0;
+        if (stageIdx >= cursor && stageIdx < cursor + count) {
+            const si = stageIdx - cursor;
+            return {
+                quest: q,
+                questIdx: qi,
+                stage: q.stages[si],
+                stageIdx: si,
+                isQuestFinalStage: si === count - 1,
+            };
+        }
+        cursor += count;
+    }
+    return null; // beyond end (story done)
+}
+
+async function getStoryLaunchAt(db) {
+    const row = await dbGet(db, "SELECT value FROM server_settings WHERE key = 'story_launch_at'");
+    return Number(row?.value || 0);
+}
+
+async function getStoryProgress(db, charId) {
+    const row = await dbGet(db, 'SELECT * FROM character_story_progress WHERE character_id = ?', [charId]);
+    return row || { character_id: charId, current_quest: 0, accepted_stage: -1, completed_at: 0, updated_at: 0 };
+}
+
+function isStoryBoosted(launchAt, now) {
+    if (!launchAt) return false;
+    return (now - launchAt) < STORY_BOOST_WINDOW;
+}
+
+// The one global story quest (stages run across the map). Returns null if no
+// story is defined.
+function storyRoot() {
+    return STORY_QUESTS && STORY_QUESTS.length ? STORY_QUESTS[0] : null;
+}
+
+// Returns the active stage object for a given global stage index (or null).
+// In the single-quest model the stage IS the story step: { stage, stageIdx,
+// isLastStage }.
+function storyActiveStage(stageIdx) {
+    const root = storyRoot();
+    if (!root || !Array.isArray(root.stages)) return null;
+    const stages = root.stages;
+    if (stageIdx < 0 || stageIdx >= stages.length) return null;
+    const stage = stages[stageIdx];
+    return {
+        stage,
+        stageIdx,
+        isLastStage: stageIdx === stages.length - 1,
+    };
+}
+
+// Grants story stage rewards (boosted if completed within the 30-day launch window).
+// `rewards` is a stage reward object ({ gold, gems, premium, lootbox, consumable }).
+async function grantStoryRewards(db, char, rewards) {
+    if (!rewards) return {};
+    if (rewards.gold) {
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [rewards.gold, char.id]);
+    }
+    if (rewards.gems) {
+        await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?', [rewards.gems, rewards.gems, char.id]);
+    }
+    if (rewards.lootbox) {
+        const lootBox = LOOT_BOXES.find(box => box.id === rewards.lootbox.id);
+        if (lootBox) {
+            await addStackableInventoryItem(db, char.id, 'consumable', lootBox, rewards.lootbox.qty || 1);
+        }
+    }
+    if (rewards.consumable) {
+        await addStackableInventoryItem(db, char.id, 'consumable', makeConsumableRewardItem(rewards.consumable.id), rewards.consumable.qty || 1);
+    }
+    if (rewards.premium) {
+        const refreshedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        const activePrem = applyPremiumFeatureToCharacter(refreshedChar, rewards.premium.id, rewards.premium.days * 24 * 3600);
+        await dbRun(db, 'UPDATE characters SET premium_features = ? WHERE id = ?', [JSON.stringify(activePrem), char.id]);
+    }
+    return { rewards };
+}
+
+// Fetches the full story state for a character (stage progress + boost status).
+// The story is ONE quest with multiple stages across the map; the player accepts
+// each stage individually. Only the final stage grants gems (completes the story).
+async function getStoryState(db, char) {
+    const progress = await getStoryProgress(db, char.id);
+    const launchAt = await getStoryLaunchAt(db);
+    const now = Math.floor(Date.now() / 1000);
+    const boosted = isStoryBoosted(launchAt, now);
+    const totalStages = storyTotalStages();
+    const currentStage = Math.min(progress.current_quest, totalStages);
+    const done = progress.completed_at ? (currentStage >= totalStages) : false;
+    const boostEndsAt = boosted ? launchAt + STORY_BOOST_WINDOW : 0;
+
+    // If story is done or no stages, no active step.
+    const active = (done || totalStages === 0) ? null : storyActiveStage(currentStage);
+    const root = storyRoot();
+    const activeStage = active ? {
+        ...active.stage,
+        stageIdx: active.stageIdx,
+        goldReward: active.stage.reward?.gold || 0,
+        gemReward: active.stage.reward?.gems || 0,
+        // The stage carries its own dialogue/cutscene in the single-quest model.
+        dialogue: active.stage.dialogue || [],
+        cutscene: active.stage.cutscene || [],
+    } : null;
+
+    return {
+        npc: STORY_NPC,
+        activeQuest: root, // the single story quest completion (used for icons/naming)
+        activeStage,
+        currentStage,
+        acceptedStage: progress.accepted_stage,
+        currentQuest: done ? 1 : 0,
+        totalQuests: 1,
+        totalStages,
+        completedAt: progress.completed_at || 0,
+        done,
+        boosted,
+        boostEndsAt,
+        lastReward: { boosted: false },
+    };
+}
+
 async function getCharacterAchievements(db, char) {
     const claimedRows = await dbAll(db, 'SELECT achievement_id, claimed_at FROM character_achievements WHERE char_id = ?', [char.id]);
     const claimedMap = new Map(claimedRows.map(row => [row.achievement_id, row.claimed_at]));
@@ -10459,6 +10609,7 @@ async function buildCharacterResponse(char, db) {
         battle_cooldown_remaining: battleCooldownRemaining,
         battle_cooldown_ends_at:   battleCooldownEndsAt,
         active_event: eventInfo,
+        story: await getStoryState(db, char),
         armor_value:  armorValue,
         elem_dmg:     elemDmg,
         elem_resist:  elemResist,
@@ -10510,7 +10661,10 @@ async function buildCharacterResponse(char, db) {
         })(),
         squad_discount_pct: squadDiscountPct,
         raid_tokens: char.raid_tokens || 0,
-    };
+         unlocked_rings: JSON.parse(char.unlocked_rings || '[]'),
+         active_ring:    char.active_ring
+     };
+     return response;
 }
 // ── Character creation ────────────────────────────────────────────────────
 router.post('/character', auth, async (req, res) => {
@@ -13625,6 +13779,76 @@ async function collectMissionForCharacter(db, characterId) {
             await recordDamageStyleWin(db, freshChar.id, battle.totalElemDmgDealtA || battle.totalElemDmgDealt || 0);
         }
 
+        // ── Story mode quest detection ────────────────────────────────────
+        // Story quests are multi-stage: each stage is a mission at a zone+spot.
+        // Advancing a stage requires WINNING a mission on the active stage's
+        // zone+spot. Each stage grants its own reward; the final stage of a
+        // quest grants gems (already included in that stage's reward).
+        let storyResult = null;
+        if (playerWon && STORY_QUESTS.length) {
+            try {
+                const storyProgress = await getStoryProgress(db, freshChar.id);
+                const totalStages = storyTotalStages();
+                const storyLaunch = await getStoryLaunchAt(db);
+                const storyNow = Math.floor(Date.now() / 1000);
+                const storyBoosted = isStoryBoosted(storyLaunch, storyNow);
+                const activeUnit = storyActiveStage(storyProgress.current_quest);
+
+                // Check if this stage is accepted. IMPORTANT: do NOT return
+                // from the collect function here — that would skip drops + the
+                // battle report and leave the client with an empty response.
+                const stageAccepted = storyProgress.accepted_stage === storyProgress.current_quest;
+                console.log('[STORY-DBG] char=%d stage=%d accepted=%d mission=%s/%s want=%s/%s matched=%s',
+                    freshChar.id, storyProgress.current_quest, storyProgress.accepted_stage,
+                    mission.zone, mission.spot,
+                    activeUnit && activeUnit.stage.zone, activeUnit && activeUnit.stage.spot,
+                    !!(activeUnit && activeUnit.stage.zone === mission.zone && activeUnit.stage.spot === mission.spot));
+
+                if (stageAccepted && activeUnit && activeUnit.stage.zone === mission.zone && activeUnit.stage.spot === mission.spot) {
+                    const freshStoryChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [freshChar.id]);
+                    const stageRewards = storyBoosted ? (activeUnit.stage.boostedReward || activeUnit.stage.reward) : activeUnit.stage.reward;
+                    const granted = await grantStoryRewards(db, freshStoryChar, stageRewards);
+                    const questComplete = activeUnit.isLastStage;
+                    const storyComplete = questComplete; // single quest: completing last stage completes the story
+                    const nextStage = Math.min(storyProgress.current_quest + 1, totalStages);
+                    const nextUnit = (nextStage < totalStages) ? storyActiveStage(nextStage) : null;
+                    const completedAt = storyComplete ? storyNow : 0;
+                    await dbRun(db, `INSERT INTO character_story_progress (character_id, current_quest, completed_at, updated_at)
+                                     VALUES (?, ?, ?, ?)
+                                     ON CONFLICT(character_id) DO UPDATE SET
+                                       current_quest = excluded.current_quest,
+                                       completed_at = CASE WHEN excluded.completed_at > 0 THEN excluded.completed_at ELSE character_story_progress.completed_at END,
+                                       updated_at = excluded.updated_at`,
+                        [freshChar.id, nextStage, completedAt, storyNow]);
+                    storyResult = {
+                        completed: true,
+                        stageComplete: true,
+                        questComplete: storyComplete,
+                        storyComplete,
+                        questId: activeUnit.stage.id,
+                        questName: activeUnit.stage.name,
+                        icon: activeUnit.stage.icon,
+                        stageIdx: activeUnit.stageIdx,
+                        stageTotal: totalStages,
+                        isFinal: storyComplete,
+                        boosted: storyBoosted,
+                        boostEndsAt: storyBoosted ? (storyLaunch + STORY_BOOST_WINDOW) : 0,
+                        rewards: granted.rewards,
+                        loreUnlock: questComplete ? activeUnit.stage.loreUnlock : null,
+                        currentStage: nextStage,
+                        totalStages,
+                        done: storyComplete,
+                        completedAt,
+                        nextObjective: nextUnit ? nextUnit.stage.objective : null,
+                        questName: activeUnit.stage.name,
+                        stageNames: (storyRoot() && storyRoot().stages) ? storyRoot().stages.map(s => s.name) : [],
+                    };
+                }
+            } catch (e) {
+                console.error('Story quest detection error:', e);
+            }
+        }
+
         const drops = [];
         let matsByZone;
         if (mission.map_type === 'abyss') {
@@ -13784,6 +14008,7 @@ async function collectMissionForCharacter(db, characterId) {
             tutorialMessage,
             activeEvent: isEvent ? GLOBAL_EVENTS[0] : null,
             character: await buildCharacterResponse(updatedChar, db),
+            storyResult,
             totalDmgDealt: battle.totalDmgToB,
             totalDmgTaken: battle.totalDmgToA,
             battleStats,
@@ -13796,7 +14021,29 @@ async function collectMissionForCharacter(db, characterId) {
     }
 }
 
-// ── Missions Collect (thin HTTP wrapper) ───────────────────────────────────
+// ── Story Mode Accept ─────────────────────────────────────────────────────
+router.post('/story/accept', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        
+        const state = await getStoryState(db, char);
+        if (state.done || !state.activeStage) return res.status(400).json({ error: 'No stage to accept' });
+        
+        const nowU = Math.floor(Date.now() / 1000);
+        await dbRun(db, `INSERT INTO character_story_progress (character_id, current_quest, accepted_stage, completed_at, updated_at)
+                         VALUES (?, ?, ?, 0, ?)
+                         ON CONFLICT(character_id) DO UPDATE SET
+                           accepted_stage = excluded.accepted_stage,
+                           updated_at = excluded.updated_at`,
+            [char.id, state.currentStage, state.currentStage, nowU]);
+
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 router.post('/missions/collect', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -13807,6 +14054,19 @@ router.post('/missions/collect', auth, async (req, res) => {
         res.json(result);
     } catch (e) {
         console.error('Mission collect error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/story', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const state = await getStoryState(db, char);
+        res.json({ success: true, ...state });
+    } catch (e) {
+        console.error('Story error:', e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -16055,8 +16315,8 @@ router.get('/leaderboard', auth, async (req, res) => {
         const db = await getDb();
         const allowedSorts = ['wins','losses','draws','gold','level','total_gold_earned'];
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
-        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.honor,c.profile_pic,c.profile_badges,c.profile_pic_offset,
-                                                (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
+        const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.honor,c.profile_pic,c.profile_badges,c.profile_pic_offset,c.active_ring,
+                                                 (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
                                                 sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo
                                          FROM characters c
                                                   LEFT JOIN squad_members sm ON sm.char_id = c.id
@@ -16461,6 +16721,7 @@ router.get('/player/:id', auth, async (req, res) => {
             })(),
             squad_name: squadRow?.squad_name || null,
             squad_logo: squadRow?.squad_logo || null,
+            active_ring: player.active_ring
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -20982,6 +21243,28 @@ router.post('/dungeon/combat/start', auth, async (req, res) => {
                 return res.status(400).json({ error: `Need ${DUNGEON_BOSS_TOKEN_COST} tokens to challenge the boss. You have ${tokens}.` });
             }
             await dbRun(db, 'UPDATE characters SET dungeon_tokens = dungeon_tokens - ? WHERE id = ?', [DUNGEON_BOSS_TOKEN_COST, char.id]);
+        } else if (kind === 'event') {
+            // Trial of the Arcane — deterministic event floor (fixed seed, identical for all players).
+            // Each room holds 1 mini-boss + 2 mobs at 5x strength; the final room is a FREE event boss.
+            const { getEventFloor } = require('./event-engine');
+            const run = await dbGet(db, `SELECT room_index FROM event_runs WHERE character_id = ?`, [char.id]);
+            if (!run) return res.status(400).json({ error: 'Start the event first from the banner.' });
+            if (roomIndex !== Math.max(1, Number(run.room_index || 1))) {
+                return res.status(400).json({ error: 'Clear the event rooms in order.' });
+            }
+            const eventRooms = getEventFloor();
+            const eventRoom = Array.isArray(eventRooms) ? eventRooms[roomIndex] : null;
+            const eventMonsters = Array.isArray(eventRoom?.monsters) ? eventRoom.monsters : [];
+            if (!eventRoom || eventMonsters.length === 0) {
+                return res.status(400).json({ error: 'No enemies in this room.' });
+            }
+            // Fresh copies per request — never share the cached floor objects (combat mutates HP).
+            monsters = eventMonsters.map(m => ({
+                ...m,
+                lastKilled: null,
+                currentHp: m.currentHp ?? m.hp ?? m.maxHp,
+                maxHp: m.maxHp ?? m.hp ?? m.currentHp,
+            }));
         } else {
             let progress = null;
             try { progress = char.dungeon_progress ? JSON.parse(char.dungeon_progress) : null; } catch {}
@@ -21108,6 +21391,13 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         );
         if (!row?.id) return res.status(404).json({ error: 'Combat session not found.' });
 
+        // Trial sessions are resolved by the dedicated /event/combat/act endpoint.
+        // Guard so a stale client (or a crafted request) can't run the player combat
+        // engine against a fixed 4-champion trial party.
+        if (String(row.combat_type || '').toLowerCase() === 'trial') {
+            return res.status(400).json({ error: 'Trial combat uses the dedicated event endpoints.' });
+        }
+
         const serverNonce = Number(row.turn_nonce || 0);
         if (clientNonce !== serverNonce) {
             return res.status(409).json({ error: 'Out-of-sync action (double-submit or stale state).', turnNonce: serverNonce });
@@ -21213,6 +21503,11 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
 
             cur.currentHp = Math.max(0, Number(cur.currentHp || cur.maxHp || cur.hp) - pDmg);
 
+            // Event scoring: accumulate damage dealt across the whole fight.
+            if (kind === 'event') {
+                state._eventDmg = Math.max(0, Number(state._eventDmg || 0)) + Math.max(0, Math.floor(pDmg));
+            }
+
             const zoneLabel = skillCheckMult === 1.0 ? 'PERFECT!' : skillCheckMult === 0.75 ? 'GOOD' : skillCheckMult === 0.5 ? 'MISS' : '';
             const atkLabel = attackType === 'burst' ? '💥 Burst' : attackType === 'ultimate' ? '⚡ Ultimate' : '⚔️ Strike';
             const zoneSuffix = zoneLabel ? ` [${zoneLabel}]` : '';
@@ -21269,6 +21564,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
         let outcome = null;
         let cleared = false;
         let bossLoot = null;
+        let eventStats = null;
         let newFloor = null;
         let highestFloor = null;
         let tokens = null;
@@ -21317,6 +21613,25 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
 
                 const tRow = await dbGet(db, 'SELECT dungeon_tokens FROM characters WHERE id = ?', [char.id]);
                 tokens = Number(tRow?.dungeon_tokens || 0);
+            } else if (kind === 'event') {
+                // Trial of the Arcane scoring: kills*100 + bosses*500 + floor(dmg/1000).
+                ended = true;
+                const eventDmg = Math.max(0, Math.floor(Number(state._eventDmg || 0)));
+                const kills = monsters.length;
+                const bossCount = monsters.filter(m => m.isBoss || m.isMiniBoss).length;
+                const isEventBossRoom = monsters.some(m => m.isBoss);
+                const points = kills * 100 + bossCount * 500 + Math.floor(eventDmg / 1000);
+                const nextRoom = isEventBossRoom ? 100 : Math.max(1, Number(state.roomIndex || 0) + 1);
+                await dbRun(
+                    db,
+                    `UPDATE event_runs
+                     SET room_index = ?, score = score + ?, kills = kills + ?, bosses = bosses + ?, total_dmg = total_dmg + ?
+                     WHERE character_id = ?`,
+                    [nextRoom, points, kills, bossCount, eventDmg, char.id]
+                );
+                const eventRunAfter = await dbGet(db, 'SELECT room_index, score, kills, bosses, total_dmg FROM event_runs WHERE character_id = ?', [char.id]);
+                outcome = isEventBossRoom ? 'event_complete' : 'room_cleared';
+                eventStats = { ...eventRunAfter, points, kills, bossCount, eventDmg, eventComplete: isEventBossRoom };
             } else {
                 outcome = 'room_cleared';
                 const claim = await claimDungeonRoomClearInternal(db, char.user_id, char, state.floor || 1, state.roomIndex || 0, state.floorRunId || null);
@@ -21378,6 +21693,7 @@ router.post('/dungeon/combat/act', auth, async (req, res) => {
             cleared,
             lootGranted,
             bossLoot,
+            eventStats,
             newFloor,
             highestFloor,
             tokens,
@@ -24482,11 +24798,197 @@ async function backfillWeeklyPerformance() {
         console.log('[WeeklyPerf] Backfill complete.');
     } catch (e) { console.error('[WeeklyPerf] Backfill error:', e.message); }
 }
+// ── Award Rings ──────────────────────────────────────────────────────────
+
+router.get('/character/rings', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No active character' });
+        const charData = await dbGet(db, 'SELECT unlocked_rings, active_ring FROM characters WHERE id = ?', [char.id]);
+        res.json({ unlocked: JSON.parse(charData.unlocked_rings || '[]'), active: charData.active_ring });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/character/ring/select', auth, async (req, res) => {
+    try {
+        const { ringId } = req.body;
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, unlocked_rings');
+        if (!char) return res.status(404).json({ error: 'No active character' });
+
+        if (!ringId) {
+            await dbRun(db, 'UPDATE characters SET active_ring = NULL WHERE id = ?', [char.id]);
+            return res.json({ success: true, active: null });
+        }
+
+        const unlocked = JSON.parse(char.unlocked_rings || '[]');
+
+        if (!unlocked.includes(ringId)) {
+            return res.status(403).json({ error: 'Ring not unlocked' });
+        }
+        await dbRun(db, 'UPDATE characters SET active_ring = ? WHERE id = ?', [ringId, char.id]);
+        res.json({ success: true, active: ringId });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/character/ring/toggle', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No active character' });
+        const charData = await dbGet(db, 'SELECT active_ring, unlocked_rings FROM characters WHERE id = ?', [char.id]);
+        let newActive = null;
+        if (charData.active_ring === null) {
+            const unlocked = JSON.parse(charData.unlocked_rings || '[]');
+            newActive = unlocked.length > 0 ? unlocked[0] : null;
+        }
+        await dbRun(db, 'UPDATE characters SET active_ring = ? WHERE id = ?', [newActive, char.id]);
+        res.json({ success: true, active: newActive });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Ring Forge (admin asset builder) ─────────────────────────────────────────
+const RING_IMG_DIR = path.join(__dirname, '../public/images/assets/awards');
+if (!fs.existsSync(RING_IMG_DIR)) fs.mkdirSync(RING_IMG_DIR, { recursive: true });
+
+const RING_ID_RE = /^[a-z0-9][a-z0-9_\-]{0,60}$/i;
+
+const ringStorage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, RING_IMG_DIR),
+    filename: (req, file, cb) => cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.png`)
+});
+const uploadRing = multer({
+    storage: ringStorage,
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        const ext = (path.extname(String(file.originalname || '')) || '').toLowerCase();
+        if (ext !== '.png') return cb(new Error('Only PNG images allowed'));
+        cb(null, true);
+    }
+}).single('ring');
+
+// List ring assets currently on disk (public/images/assets/awards/*.png).
+router.get('/admin/rings', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        let files = [];
+        try { files = fs.readdirSync(RING_IMG_DIR); } catch {}
+        const rings = files
+            .filter(f => f.toLowerCase().endsWith('.png'))
+            .map(f => ({ id: path.parse(f).name, url: '/images/assets/awards/' + f }))
+            .sort((a, b) => a.id.localeCompare(b.id));
+        res.json({ rings });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Save a composed ring PNG. ringId defines the canonical filename (award-ring-2.png etc).
+router.post('/admin/rings/save', auth, uploadLimiter, uploadRing, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const ringId = String((req.body && req.body.ringId) || '').trim();
+        if (!RING_ID_RE.test(ringId)) {
+            try { if (req.file) fs.unlinkSync(req.file.path); } catch {}
+            return res.status(400).json({ error: 'Invalid ring id. Use letters, numbers, dashes or underscores.' });
+        }
+        if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+        if (!isRealImageFile(req.file.path)) {
+            try { fs.unlinkSync(req.file.path); } catch {}
+            return res.status(400).json({ error: 'Uploaded file is not a valid image.' });
+        }
+        const canonical = path.join(RING_IMG_DIR, ringId + '.png');
+        if (canonical !== req.file.path) {
+            if (fs.existsSync(canonical)) { try { fs.unlinkSync(canonical); } catch {} }
+            fs.renameSync(req.file.path, canonical);
+        }
+        res.json({ success: true, id: ringId, url: '/images/assets/awards/' + ringId + '.png' });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Delete a ring asset from disk.
+router.post('/admin/rings/delete', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const ringId = String((req.body && req.body.ringId) || '').trim();
+        if (!RING_ID_RE.test(ringId)) return res.status(400).json({ error: 'Invalid ring id.' });
+        const target = path.join(RING_IMG_DIR, ringId + '.png');
+        if (fs.existsSync(target)) {
+            try { fs.unlinkSync(target); } catch (e) { return res.status(500).json({ error: 'Delete failed: ' + e.message }); }
+        }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Ring text markers ────────────────────────────────────────────────────────
+// Per-ring bounding box (normalized 0..1 fractions of image size) that locates
+// the title/branding lettering on a ring asset. The client (ring-fx.js) uses it
+// to build a letter-shaped glow mask that follows the text's curve instead of a
+// straight band. Stored as a static JSON in public/images/assets/awards so a
+// public endpoint can serve it to players without auth.
+const RING_TEXT_MAP_FILE = path.join(RING_IMG_DIR, 'ring-text-map.json');
+
+function readRingTextMap() {
+    try { return JSON.parse(fs.readFileSync(RING_TEXT_MAP_FILE, 'utf8')) || {}; }
+    catch { return {}; }
+}
+function writeRingTextMap(map) {
+    fs.writeFileSync(RING_TEXT_MAP_FILE, JSON.stringify(map, null, 2), 'utf8');
+}
+
+// Public (no auth) so ring-fx.js can query it in production.
+router.get('/ring-text-map', async (req, res) => {
+    res.json({ map: readRingTextMap() });
+});
+
+// Admin: read the whole marker map.
+router.get('/admin/ring-text', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    res.json({ map: readRingTextMap() });
+});
+
+// Admin: upsert lettering band for one ring id.
+// Entry = { ringId, cx, cy, r, thickness, startAngle, endAngle }.
+// cx,cy,r,thickness are fractions 0..1 of image width/height;
+// startAngle/endAngle are in radians.
+router.post('/admin/ring-text', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const b = req.body || {};
+        const ringId = String(b.ringId || '').trim();
+        if (!RING_ID_RE.test(ringId)) return res.status(400).json({ error: 'Invalid ring id.' });
+        const fields = ['cx','cy','r','thickness','startAngle','endAngle'];
+        const nums = {};
+        for (const f of fields) {
+            nums[f] = Number(b[f]);
+            if (!Number.isFinite(nums[f])) return res.status(400).json({ error: f + ' must be a number' });
+        }
+        ['cx','cy'].forEach(function (f) { if (nums[f] < -0.5 || nums[f] > 1.5) throw new Error(f + ' out of range'); });
+        if (nums.r <= 0 || nums.r > 2) throw new Error('r out of range');
+        if (nums.thickness <= 0 || nums.thickness > 1) throw new Error('thickness out of range');
+        const entry = { cx: nums.cx, cy: nums.cy, r: nums.r, thickness: nums.thickness, startAngle: nums.startAngle, endAngle: nums.endAngle, updatedAt: new Date().toISOString() };
+        const map = readRingTextMap();
+        map[ringId] = entry;
+        writeRingTextMap(map);
+        res.json({ success: true, entry });
+    } catch (e) { res.status(400).json({ error: e.message }); }
+});
+
+// Admin: clear marker for one ring id.
+router.post('/admin/ring-text/delete', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const ringId = String((req.body && req.body.ringId) || '').trim();
+        if (!RING_ID_RE.test(ringId)) return res.status(400).json({ error: 'Invalid ring id.' });
+        const map = readRingTextMap();
+        if (map[ringId]) { delete map[ringId]; writeRingTextMap(map); }
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
 
 // Export battle engine for use by tournament module
 module.exports = {
-    router, parseAdminPassword, dbGet, getDb,
-    simulateRound, runBattle, calculateMagicShield,
+    router, parseAdminPassword, dbGet, dbAll, getDb,
+    simulateRound, runBattle, calculateMagicShield, buildCombatFighter,
     calcHpMax, calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
     calcElemAttackValue, calcElemHealValue,
     getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
@@ -24495,6 +24997,7 @@ module.exports = {
     getFighterExtraHits,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
+    DUNGEON_MONSTER_POOL, DUNGEON_MINI_BOSS_POOL, buildRegularMonsterForFloor, buildMiniBossForFloor,
     runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements, checkAndAwardWarDamageAchievements,
     processPendingWars,
     processAutoMissions, collectMissionForCharacter,

@@ -556,11 +556,14 @@ const BANNER_MIGRATIONS = [
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
         image TEXT,
+        event_key TEXT,
         start_at INTEGER NOT NULL,
         end_at INTEGER NOT NULL,
         loot_table TEXT DEFAULT '[]',
         created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )`,
+    // Add event_key column if missing
+    `ALTER TABLE banner_events ADD COLUMN event_key TEXT`,
     // Add global banner pity to characters
     `ALTER TABLE characters ADD COLUMN banner_pity INTEGER DEFAULT 0`,
     // Migration: recreate table with char_id instead of user_id
@@ -608,7 +611,7 @@ adminRouter.get('/list', async (req, res) => {
 // POST /admin/banner/create - Create new banner
 adminRouter.post('/create', async (req, res) => {
     try {
-        const { name, image, start_at, end_at, loot_table } = req.body;
+        const { name, image, start_at, end_at, loot_table, event_key } = req.body;
         if (!name || !start_at || !end_at) {
             return res.status(400).json({ error: 'Missing required fields: name, start_at, end_at' });
         }
@@ -616,12 +619,12 @@ adminRouter.post('/create', async (req, res) => {
         const db = await getDb();
         const lootJson = JSON.stringify(loot_table || []);
         const result = await dbRun(db,
-            `INSERT INTO banner_events (name, image, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?)`,
-            [name, image || null, start_at, end_at, lootJson]
+            `INSERT INTO banner_events (name, image, event_key, start_at, end_at, loot_table) VALUES (?, ?, ?, ?, ?, ?)`,
+            [name, image || null, event_key || null, start_at, end_at, lootJson]
         );
         
         // Get inserted banner - use max id since lastInsertRowid may not work
-        const inserted = await dbGet(db, `SELECT id, name, image, start_at, end_at, loot_table FROM banner_events WHERE name = ? ORDER BY id DESC LIMIT 1`, [name]);
+        const inserted = await dbGet(db, `SELECT id, name, image, event_key, start_at, end_at, loot_table FROM banner_events WHERE name = ? ORDER BY id DESC LIMIT 1`, [name]);
         res.json({ success: true, banner: inserted });
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -632,7 +635,7 @@ adminRouter.post('/create', async (req, res) => {
 adminRouter.put('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { name, image, start_at, end_at, loot_table } = req.body;
+        const { name, image, start_at, end_at, loot_table, event_key } = req.body;
         
         const db = await getDb();
         const updates = [];
@@ -640,6 +643,7 @@ adminRouter.put('/:id', async (req, res) => {
         
         if (name !== undefined) { updates.push('name = ?'); values.push(name); }
         if (image !== undefined) { updates.push('image = ?'); values.push(image); }
+        if (event_key !== undefined) { updates.push('event_key = ?'); values.push(event_key); }
         if (start_at !== undefined) { updates.push('start_at = ?'); values.push(start_at); }
         if (end_at !== undefined) { updates.push('end_at = ?'); values.push(end_at); }
         if (loot_table !== undefined) { updates.push('loot_table = ?'); values.push(JSON.stringify(loot_table)); }

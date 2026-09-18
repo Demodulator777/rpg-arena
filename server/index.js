@@ -3,8 +3,6 @@ require('dotenv').config({ path: path.resolve(__dirname, '..', process.env.NODE_
 const express = require('express');
 const cors = require('cors');
 const http = require('http');
-console.log('DB URL:', process.env.TURSO_DATABASE_URL ? 'SET' : 'MISSING');
-console.log('DB TOKEN:', process.env.TURSO_AUTH_TOKEN ? 'SET' : 'MISSING');
 if (process.env.NODE_ENV === 'production') {
     const required = ['JWT_SECRET', 'ADMIN_PANEL_PASSWORD', 'ADMIN_KEY'];
     const missing = required.filter(k => !process.env[k]);
@@ -80,6 +78,10 @@ getDb().then(async (db) => {
   for (const sql of bannerModule.BANNER_MIGRATIONS) {
     try { await db.execute({ sql }); } catch {}
   }
+  // Ensure event_key column exists in banner_events
+  try { await db.execute({ sql: `ALTER TABLE banner_events ADD COLUMN event_key TEXT` }); } catch {}
+  // Ensure event_attempts has the cleared flag (Trial of the Arcane)
+  try { await db.execute({ sql: `ALTER TABLE event_attempts ADD COLUMN cleared INTEGER` }); } catch {}
 
   // CSP violations table
   try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS csp_violations (
@@ -119,6 +121,7 @@ getDb().then(async (db) => {
   // Mount routes - ORDER MATTERS!
   app.use('/api/auth', require('./auth'));
   app.use('/api/game', require('./routes').router);
+  app.use('/api/event', require('./event-routes'));
 
   // Secrets/settings endpoints (no auth)
   app.get('/api/server/settings', async (req, res) => {

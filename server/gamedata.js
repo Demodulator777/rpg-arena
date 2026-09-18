@@ -1477,8 +1477,135 @@ weapon: { name: "Colossus' Void Maul",      emoji: '🗿', weaponType: 'hammer',
     },
 };
 
+// ── Story Mode ─────────────────────────────────────────────────────────────
+// STORY_NPC: the wandering sage who guides the player through the quest chain.
+// STORY_QUESTS: an ordered list of independent story quests. Each quest is tied
+// to a specific zone + spot (the player must complete a mission there). The quest
+// itself is permanent — anyone can complete it at any time. Only the *rewards*
+// are boosted for the first 30 days after the story launches (see STORY_LAUNCH_KEY).
+const STORY_NPC = {
+    name: 'Maren',
+    title: 'The Wandering Sage',
+    icon: '🧙',
+};
+
+const STORY_QUESTS = [
+    {
+        // One single story quest with multiple stages. Each stage is a mission
+        // at a zone+spot across the map (Bandit Hideout → Rotting Swamp → Frozen
+        // Mountains → Ancient Ruins). Stages must be accepted individually; only
+        // the FINAL stage (The Final Seal) grants gems because it completes the story.
+        id: 'the_ancients_story',
+        name: 'The Ancients Story',
+        icon: '📜',
+        isFinal: true, // finishing the last stage completes the whole story
+        stages: [
+            {
+                id: 'relic_of_the_ancients',
+                name: 'Relic of the Ancients',
+                icon: '🗿',
+                zone: 'forest',
+                spot: 'forest_bandits',
+                objective: 'Drive the bandits out of the Whispering Forest and recover the Relic of the Ancients.',
+                hint: 'The bandits who robbed Maren are hiding at the Bandit Hideout.',
+                dialogue: [
+                    'Ah, a fresh face in these wilds! I am Maren, keeper of tales long forgotten.',
+                    'I was robbed, you see. Bandits set upon me in the Whispering Forest and made off with the Relic of the Ancients.',
+                    'It is an old thing — older than the Dark City itself. I was a fool to carry it so openly.',
+                    'The bandits lurk at their hideout in the deep woods. Find them, recover my relic, and perhaps I shall tell you what it truly is.',
+                ],
+                // One cutscene scene per dialogue line. Set `bg` to your module-wide
+                // background image path (one image per scene). Missing images fall
+                // back to a gradient until supplied.
+                cutscene: [
+                    { bg: '/images/story/relic_of_the_ancients/scene-1.png' },
+                    { bg: '/images/story/relic_of_the_ancients/scene-2.png' },
+                    { bg: '/images/story/relic_of_the_ancients/scene-3.png' },
+                    { bg: '/images/story/relic_of_the_ancients/scene-4.png' },
+                ],
+                loreUnlock: 'Maren recounts how the first empire of mages raised these very forests from ash — and how they fell from within.',
+                reward: { gold: 3000 },
+                boostedReward: { gold: 6000 },
+            },
+            {
+                id: 'amulet_of_the_fallen',
+                name: 'Amulet of the Fallen',
+                icon: '📿',
+                zone: 'swamp',
+                spot: 'swamp_heart',
+                objective: 'Recover the Amulet of the Fallen from the heart of the Rotting Swamp.',
+                hint: 'The amulet lies where the swamp grows deepest — the Swamp Heart.',
+                dialogue: [
+                    'You returned — and with my relic! I knew you had the spark, friend.',
+                    'But that relic was only a fragment. The true power rests in the Amulet of the Fallen.',
+                    'It was lost in the Rotting Swamp, dropped by a king who fled the Dark City centuries ago.',
+                    'The swamp\'s heart is treacherous — poison, mire, and things that whisper your name. But you are tougher now than when we met.',
+                ],
+                cutscene: [
+                    { bg: '/images/story/amulet_of_the_fallen/scene-1.png' },
+                    { bg: '/images/story/amulet_of_the_fallen/scene-2.png' },
+                    { bg: '/images/story/amulet_of_the_fallen/scene-3.png' },
+                    { bg: '/images/story/amulet_of_the_fallen/scene-4.png' },
+                ],
+                loreUnlock: 'Maren reveals the fleeing king was not fleeing an enemy — he was fleeing the thing the Dark City was becoming.',
+                reward: { gold: 5000 },
+                boostedReward: { gold: 10000 },
+            },
+            {
+                id: 'crown_of_the_frost_king',
+                name: 'Crown of the Frost King',
+                icon: '👑',
+                zone: 'mountains',
+                spot: 'ice_cavern',
+                objective: 'Claim the Crown of the Frost King from the deepest ice cavern.',
+                hint: 'The crown rests where the cold has never thawed — the Ice Cavern.',
+                dialogue: [
+                    'The Crown of the Frost King... it holds the memory of a civilization frozen forever in time.',
+                    'I have spent decades hunting these artifacts. The relic, the amulet, the crown — all threads of one tapestry.',
+                    'The crown lies deep within the ice caverns, guarded by the cold itself. It will test you as nothing has yet.',
+                    'Bring it to me, and you will see the pattern that connects them all.',
+                ],
+                cutscene: [
+                    { bg: '/images/story/crown_of_the_frost_king/scene-1.png' },
+                    { bg: '/images/story/crown_of_the_frost_king/scene-2.png' },
+                    { bg: '/images/story/crown_of_the_frost_king/scene-3.png' },
+                    { bg: '/images/story/crown_of_the_frost_king/scene-4.png' },
+                ],
+                loreUnlock: 'The Frost King was the last ruler to resist the Dark City. His crown is the key to understanding its fall.',
+                reward: { gold: 10000 },
+                boostedReward: { gold: 20000 },
+            },
+            {
+                id: 'the_final_seal',
+                name: 'The Final Seal',
+                icon: '🔐',
+                zone: 'ruins',
+                spot: 'ruins_crypt',
+                objective: 'Shatter the Final Seal in the ancient crypt beneath the ruins.',
+                hint: 'The seal waits where the dead rest eternal — the Ancient Crypt.',
+                dialogue: [
+                    'You have come so far, friend. Only the Final Seal remains.',
+                    'Deep in the crypts beneath the Ancient Ruins, the last seal of the old world waits unbroken.',
+                    'It was shattered when the Dark City fell — but the pieces still call to those who listen.',
+                    'Recover it, and I will at last tell you the whole truth. The real story. Not the one they tell in taverns.',
+                ],
+                cutscene: [
+                    { bg: '/images/story/the_final_seal/scene-1.png' },
+                    { bg: '/images/story/the_final_seal/scene-2.png' },
+                    { bg: '/images/story/the_final_seal/scene-3.png' },
+                    { bg: '/images/story/the_final_seal/scene-4.png' },
+                ],
+                loreUnlock: 'Maren finally tells you the truth: the Dark City was once a beacon of light, corrupted from within. The artifacts you recovered are the only keys left to undo that corruption — and the road ahead begins where the old world ended.',
+                reward: { gold: 15000, gems: 15 },
+                boostedReward: { gold: 30000, gems: 30, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 3 } },
+            },
+        ],
+    },
+];
+
 module.exports = {
     ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS,
     RAID_BOSS_GEAR,
-    generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES
+    generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES,
+    STORY_QUESTS, STORY_NPC,
 };
