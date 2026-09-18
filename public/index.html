@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-09-17-select-fix"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-09-19-news-feed"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-09-18-repaint-fix"/>
     <style>
@@ -810,6 +810,9 @@
                                 <button class="nav-btn nav-sub-btn" title="Tournament" data-en-title="Tournament" data-pt-title="Torneio" data-action="navigateMissionsHub" data-args='["tournament"]'>
                                     <div class="sub-btn-inner"><img class="sub-btn-icon" src="/images/tournamenticon.png" alt=""><span class="sub-btn-label" data-en="TOURNAMENT" data-pt="TORNEIO">TOURNAMENT</span></div>
                                 </button>
+                                <button class="nav-btn nav-sub-btn" title="News" data-en-title="News" data-pt-title="Notícias" data-action="navigateMissionsHub" data-args='["news"]'>
+                                    <div class="sub-btn-inner"><span class="sub-btn-icon" style="font-size:26px">📰</span><span class="sub-btn-label" data-en="NEWS" data-pt="NOTÍCIAS">NEWS</span></div>
+                                </button>
                             </div>
                         </div>
                         <div class="nav-hub-group">
@@ -1023,6 +1026,14 @@
                         <h2 data-en="🎴 Active Event" data-pt="🎴 Evento Ativo">🎴 Active Event</h2>
                     </div>
                     <div id="event-content" class="event-content"></div>
+                </div>
+
+                <!-- NEWS -->
+                <div id="tab-news" class="game-tab">
+                    <div class="tab-header"><h2 data-en="📰 News" data-pt="📰 Notícias">📰 News</h2></div>
+                    <div id="news-featured" class="news-featured"></div>
+                    <div id="news-list" class="news-list"></div>
+                    <div id="news-msg" class="msg-bar hidden"></div>
                 </div>
 
                 <!-- SHOP -->
@@ -1299,7 +1310,7 @@
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-<script src="/js/app.js?v=2026-09-17-trial-nonce"></script>
+    <script src="/js/app.js?v=2026-09-19-news-feed"></script>
     <script src="/js/ring-fx.js?v=2026-09-10-ring-arc-band"></script>
     <script src="/js/skills-tree.js?v=2026-09-04-train-dd-zoom2"></script>
 <script src="/js/dungeon.js?v=2026-09-18-skillcheck-grace"></script>
