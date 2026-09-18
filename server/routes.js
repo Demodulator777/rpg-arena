@@ -1238,9 +1238,11 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('sw_enabled', '1')`, args: [] }); } catch {}
         // Server 1 registration-launch timestamp (epoch ms). Overridable via admin panel.
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('s1_launch_at', '1787400000000')`, args: [] }); } catch {}
-        // Story mode launch timestamp (epoch seconds). Set once on first deploy; the first 30 days
-        // after this grant boosted story rewards. The quests themselves are permanent.
-        try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('story_launch_at', '0')`, args: [] }); } catch {}
+// Story mode launch timestamp (epoch seconds). Set once on first deploy; the first 30 days
+// after this grant boosted story rewards. The quests themselves are permanent.
+try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('story_launch_at', '0')`, args: [] }); } catch {}
+// Story boost on/off — admin-toggleable; defaults ON (boost applies inside the launch window).
+try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('story_boost_enabled', 'true')`, args: [] }); } catch {}
         // Stale clients table — logs requests from old app.js versions
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS stale_clients (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', version TEXT DEFAULT '', path TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
         try {
@@ -10277,8 +10279,10 @@ async function getStoryProgress(db, charId) {
     return row || { character_id: charId, current_quest: 0, accepted_stage: -1, completed_at: 0, updated_at: 0 };
 }
 
-function isStoryBoosted(launchAt, now) {
+function isStoryBoosted(launchAt, now, enabled) {
     if (!launchAt) return false;
+    // Admin on/off toggle: even inside the 30-day window, OFF means no boost.
+    if (enabled === false) return false;
     return (now - launchAt) < STORY_BOOST_WINDOW;
 }
 
@@ -10338,7 +10342,8 @@ async function getStoryState(db, char) {
     const progress = await getStoryProgress(db, char.id);
     const launchAt = await getStoryLaunchAt(db);
     const now = Math.floor(Date.now() / 1000);
-    const boosted = isStoryBoosted(launchAt, now);
+    const boostOn = await isFeatureEnabled(db, 'story_boost_enabled');
+    const boosted = isStoryBoosted(launchAt, now, boostOn);
     const totalStages = storyTotalStages();
     const currentStage = Math.min(progress.current_quest, totalStages);
     const done = progress.completed_at ? (currentStage >= totalStages) : false;
@@ -13791,7 +13796,8 @@ async function collectMissionForCharacter(db, characterId) {
                 const totalStages = storyTotalStages();
                 const storyLaunch = await getStoryLaunchAt(db);
                 const storyNow = Math.floor(Date.now() / 1000);
-                const storyBoosted = isStoryBoosted(storyLaunch, storyNow);
+                const storyBoostOn = await isFeatureEnabled(db, 'story_boost_enabled');
+                const storyBoosted = isStoryBoosted(storyLaunch, storyNow, storyBoostOn);
                 const activeUnit = storyActiveStage(storyProgress.current_quest);
 
                 // Check if this stage is accepted. IMPORTANT: do NOT return
@@ -17882,6 +17888,21 @@ router.post('/admin/settings/bot-detection', auth, async (req, res) => {
         await db.execute({
             sql: 'INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)',
             args: ['bot_detection_enabled', enabled ? 'true' : 'false']
+        });
+        res.json({ success: true, enabled });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Story-mode BOOSTED rewards on/off. When OFF, all story stages pay their
+// base `reward` even inside the 30-day launch window (see isStoryBoosted).
+router.post('/admin/settings/story-boost', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const { enabled } = req.body;
+        await db.execute({
+            sql: 'INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)',
+            args: ['story_boost_enabled', enabled ? 'true' : 'false']
         });
         res.json({ success: true, enabled });
     } catch (e) { res.status(500).json({ error: e.message }); }
