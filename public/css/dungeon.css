@@ -977,6 +977,18 @@
   padding: 8px 10px;
   font-size: 0.82rem;
 }
+select.raid-input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 28px;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23d4a843' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+}
+.raid-input option {
+  background: #0a0e18;
+  color: #e2e8f0;
+}
 
 .raid-input[type="range"] {
   appearance: auto;
@@ -986,6 +998,7 @@
   margin: 6px 0;
   border: none;
   background: transparent;
+  background-image: none;
   min-height: 20px;
   cursor: default;
   accent-color: #6b7280;
@@ -1230,13 +1243,32 @@ body.combat-lock #tab-content-area {
   margin-bottom: 0;
 }
 
+/* Trial action dock: pinned to the true bottom of the viewport (safe-area
+   aware) so Normal/Burst/Ultimate/Skip decals + Flee ALL sit in the thumb arc
+   on phones. Two stacked rows: ability decals on top, Flee beneath. */
 .dungeon-combat-panel .combat-actions {
   flex-shrink: 0;
-  position: sticky;
+  position: fixed;
+  left: 0;
+  right: 0;
   bottom: 0;
-  background: var(--dungeon-surface);
-  padding: 12px 0 0;
+  z-index: 20005;
+  background: linear-gradient(to top, rgba(8,8,18,0.97) 62%, rgba(8,8,18,0));
+  padding: 18px 14px calc(10px + env(safe-area-inset-bottom, 0px));
   margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+}
+/* Trial rows take the full width; escape-confirm buttons keep sharing a row. */
+.dungeon-combat-panel .combat-actions > .trial-ability-row,
+.dungeon-combat-panel .combat-actions > .trial-flee-row {
+  flex: 0 0 100%;
+}
+.dungeon-combat-panel .combat-actions:empty {
+  display: none;
 }
 
 /* ── Topbar ── */
@@ -1311,6 +1343,18 @@ body.combat-lock #tab-content-area {
   font-size: 0.7rem;
   color: var(--dungeon-muted);
   margin-top: 4px;
+}
+
+/* Trial of the Arcane (event) topbar: score/time/room pills + Exit must ALWAYS
+   stay on one line. Given a real class (no :has() dependency — the old
+   `:has(#event-score-count)` override silently failed on browsers without
+   :has() support, so the pills wrapped to a second row). */
+.dungeon-topbar.dungeon-event-topbar {
+  flex-wrap: nowrap !important;
+}
+.dungeon-topbar.dungeon-event-topbar .dungeon-token-wrap {
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 /* ── Dungeon List ── */
@@ -1997,6 +2041,1025 @@ body.combat-lock #tab-content-area {
   display: flex;
   gap: 10px;
   justify-content: center;
+}
+
+/* ── Trial of the Arcane — party/ability rows ── */
+.trial-party-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  margin: 8px 0 6px;
+  flex-shrink: 0;
+}
+.trial-char-card {
+  position: relative;
+  background: rgba(0,0,0,0.45);
+  border: 2px solid var(--trial-frame);
+  border-radius: 10px;
+  padding: 6px 4px 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  /* Same fixed-ratio portrait footprint as the VS strip cards: never stretch wide. */
+  width: 100%;
+  max-width: var(--trial-card-w);
+  aspect-ratio: var(--trial-card-ratio);
+  justify-self: center;
+}
+.trial-char-card:hover:not(.down) {
+  border-color: rgba(201,146,42,0.5);
+  background: rgba(255,255,255,0.05);
+  transform: translateY(-1px);
+}
+.trial-char-card.active {
+  border-color: var(--trial-frame-strong);
+  background: rgba(201,146,42,0.14);
+  box-shadow: 0 0 14px rgba(201,146,42,0.4), 0 4px 14px rgba(0,0,0,0.35);
+  transform: translateY(-2px);
+}
+.trial-char-card.down {
+  opacity: 0.55;
+  cursor: default;
+  filter: saturate(0.3) brightness(0.75);
+}
+/* Status/badge layers sit above the card art on every trial card. */
+.trial-mon-status,
+.trial-mon-target,
+.trial-acted-badge,
+.trial-char-down {
+  z-index: 3;
+}
+/* ── Trial card design language: every fighter card is a full-bleed image
+   inside a fixed-ratio, gold-framed card. One system for champions and ──
+   monsters, so the party row, monster row and VS strip all match. */
+:root {
+  --trial-card-w: 130px;
+  --trial-card-ratio: 3 / 4;
+  --trial-frame: rgba(201,146,42,0.45);
+  --trial-frame-strong: #c9a64a;
+}
+/* Full-bleed image treatment for trial champion/monster cards. */
+.trial-card-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 22%;
+  z-index: 0;
+  pointer-events: none;
+  filter: saturate(1.08) contrast(1.04);
+}
+.trial-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(2,4,10,0.94) 0%, rgba(2,4,10,0.62) 42%, rgba(2,4,10,0.08) 78%, rgba(2,4,10,0) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+/* Soft inner rim so bright art never bleeds into the gold frame. */
+.trial-card-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 22px rgba(0,0,0,0.55);
+}
+.trial-card-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 6px 4px 8px;
+  text-align: center;
+}
+/* Monster deck card (big active monster view) — full-bleed image. */
+.monster-combat-card {
+  position: relative;
+  overflow: hidden;
+}
+/* Trial frame: fixed-ratio, gold-framed card (trial panel only). */
+.dungeon-trial-panel .monster-combat-card {
+  width: var(--trial-card-w);
+  aspect-ratio: var(--trial-card-ratio);
+  background: rgba(6,8,16,0.85);
+  border: 2px solid var(--trial-frame);
+  border-radius: 10px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.45);
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+.dungeon-trial-panel .monster-combat-card:hover {
+  border-color: var(--trial-frame-strong);
+  box-shadow: 0 0 18px rgba(201,166,74,0.28), 0 10px 26px rgba(0,0,0,0.45);
+  transform: translateY(-2px);
+}
+.dungeon-trial-panel .monster-combat-card.current-target {
+  border-color: rgba(201,166,74,0.95);
+  box-shadow: 0 0 20px rgba(201,166,74,0.45), 0 10px 26px rgba(0,0,0,0.45);
+}
+.monster-combat-card .trial-card-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+.monster-combat-card .trial-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(2,4,10,0.94) 0%, rgba(2,4,10,0.62) 42%, rgba(2,4,10,0.08) 78%, rgba(2,4,10,0) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+.monster-combat-card .trial-card-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  min-height: 120px;
+  padding: 6px 4px 8px;
+  text-align: center;
+}
+/* Boss crown: purple-gold aura only on boss deck cards (trial panel). */
+.dungeon-trial-panel .monster-combat-card.is-boss-card {
+  border-color: rgba(233,196,106,0.85);
+  box-shadow: 0 0 22px rgba(168,85,247,0.4), 0 10px 26px rgba(0,0,0,0.5);
+}
+.dungeon-trial-panel .monster-combat-card.is-boss-card .trial-card-overlay {
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(168,85,247,0.18), transparent 55%),
+    linear-gradient(to top, rgba(2,4,10,0.94) 0%, rgba(2,4,10,0.62) 42%, rgba(2,4,10,0.08) 78%, rgba(2,4,10,0) 100%);
+}
+/* Keep deck arrows above the image/overlay (trial panel). */
+.dungeon-trial-panel .monster-combat-card .deck-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  background: rgba(0,0,0,0.45);
+  border: 1px solid rgba(201,146,42,0.35);
+  border-radius: 6px;
+}
+/* ── Trial arena: monster row on TOP, VS divider, champion row — NO preview cards.
+   The rows themselves are the fighters; attack animations run on the row cards.
+   The champion row (.trial-party-row) is a direct child of the panel (see the
+   renderTrialCombatPanel markup) so flex `order` can reposition it per device. ── */
+.dungeon-trial-panel .trial-arena {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+/* Desktop: champion row sits right under the VS divider (source position).
+   Mobile re-orders it below the log, directly above the fixed action dock. */
+.dungeon-trial-panel .trial-party-row { order: 0; }
+.dungeon-trial-panel .combat-log { order: 1; }
+.dungeon-trial-panel .trial-turn-block { order: 2; }
+.dungeon-trial-panel .combat-actions { order: 3; }
+.dungeon-trial-panel .trial-arena-clash {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  font-size: 0.8rem;
+  letter-spacing: 0.5em;
+  color: rgba(201,166,74,0.9);
+  text-shadow: 0 0 10px rgba(201,166,74,0.55);
+}
+/* Champion lunge + monster strike on the row cards. The champion stays a soft
+   non-moving glow (lunging the player card on EVERY attack read as constant
+   shifting on real handsets). Monsters get a calm motion back: a short
+   downward strike lean (translateY, no scale fight) and a small hit shake, so
+   NPC cards read as alive while the layout stays put.
+   Compositing: while an attack class is on, the card is promoted to its own
+   compositor layer (`will-change: transform`) — WITHOUT it, animating cards
+   inside the fixed full-screen panel repaints the ENTIRE panel every frame on
+   mobile ("whole layout flashes like a reset" before every NPC attack).
+   `filter` is deliberately kept out of the motion keyframes: animating a
+   brightness filter forces a full-surface repaint on Safari/Chrome. */
+.dungeon-trial-panel .combat-anim-player-lunge { animation: trial-card-hit-glow 0.6s ease-out; will-change: transform, filter; }
+.dungeon-trial-panel .combat-anim-player-burst { will-change: transform; }
+.dungeon-trial-panel .combat-anim-player-ultimate { will-change: transform; }
+.dungeon-trial-panel .combat-anim-monster-strike { animation: trial-mon-strike-down 0.32s ease-out; will-change: transform; }
+.dungeon-trial-panel .combat-anim-monster-hit { animation: trial-mon-hit-shake 0.35s ease-out; will-change: transform; }
+@keyframes trial-card-hit-glow {
+  0%, 100% { filter: brightness(1); }
+  45% { filter: brightness(1.28); }
+}
+@keyframes trial-mon-strike-down {
+  0% { transform: translateY(0); }
+  35% { transform: translateY(8px) scale(1.03); }
+  100% { transform: translateY(0); }
+}
+@keyframes trial-mon-hit-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  55% { transform: translateX(3px); }
+}
+/* Projectile streak + elemental impact auras (fire / frost). */
+.trial-projectile {
+  height: 4px;
+  border-radius: 999px;
+  transform-origin: 0 50%;
+  pointer-events: none;
+}
+.trial-projectile-fire {
+  background: linear-gradient(90deg, rgba(255,120,50,0), rgba(255,170,60,0.9) 55%, #fff3c4 100%);
+  box-shadow: 0 0 12px 2px rgba(255,140,50,0.85);
+}
+.trial-projectile-frost {
+  background: linear-gradient(90deg, rgba(72,195,255,0), rgba(120,210,255,0.9) 55%, #eaffff 100%);
+  box-shadow: 0 0 12px 2px rgba(72,195,255,0.85);
+}
+.trial-projectile-holy {
+  background: linear-gradient(90deg, rgba(255,215,0,0), rgba(255,238,180,0.9) 55%, #fff8e1 100%);
+  box-shadow: 0 0 12px 2px rgba(255,215,0,0.85);
+}
+.trial-projectile-ult {
+  height: 26px;
+  border-radius: 8px;
+  filter: saturate(1.3) brightness(1.2);
+}
+.trial-effect-aura {
+  width: 130px;
+  height: 130px;
+  margin: -65px 0 0 -65px;
+  border-radius: 50%;
+  animation: trial-aura-pop 0.65s ease-out forwards;
+}
+.trial-effect-ult {
+  animation: trial-aura-pop 0.9s ease-out forwards;
+}
+.trial-effect-holy {
+  background: radial-gradient(circle, rgba(255,236,170,0.55) 0%, rgba(255,215,0,0.28) 45%, transparent 70%);
+  box-shadow: 0 0 24px 6px rgba(255,215,0,0.55);
+}
+.trial-effect-fire {
+  background: radial-gradient(circle, rgba(255,150,60,0.55) 0%, rgba(255,90,40,0.28) 45%, transparent 70%);
+  box-shadow: 0 0 24px 6px rgba(255,110,40,0.55);
+}
+.trial-effect-frost {
+  background: radial-gradient(circle, rgba(140,220,255,0.55) 0%, rgba(72,195,255,0.28) 45%, transparent 70%);
+  box-shadow: 0 0 24px 6px rgba(72,195,255,0.55);
+}
+@keyframes trial-aura-pop {
+  0% { transform: scale(0.25); opacity: 0.95; }
+  70% { transform: scale(1.05); opacity: 0.55; }
+  100% { transform: scale(1.18); opacity: 0; }
+}
+/* All-room monster row — shows every monster's HP so the 3-vs-1 fight is legible. */
+.trial-monster-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
+  gap: 6px;
+  margin: 6px 0;
+}
+.trial-mon-card {
+  position: relative;
+  background: rgba(0,0,0,0.45);
+  border: 2px solid var(--trial-frame);
+  border-radius: 10px;
+  padding: 6px 4px 8px;
+  text-align: center;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s, transform 0.15s;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+  /* Same fixed-ratio portrait footprint as the VS strip cards: never stretch wide. */
+  width: 100%;
+  max-width: var(--trial-card-w);
+  aspect-ratio: var(--trial-card-ratio);
+  justify-self: center;
+}
+.trial-mon-card:hover:not(.down) {
+  border-color: var(--trial-frame-strong);
+  background: rgba(255,255,255,0.05);
+  transform: translateY(-1px);
+}
+.trial-mon-card.target {
+  border-color: var(--trial-frame-strong);
+  background: rgba(201,146,42,0.12);
+  box-shadow: 0 0 14px rgba(201,146,42,0.4);
+}
+.trial-mon-card.down {
+  opacity: 0.45;
+  filter: saturate(0.3) brightness(0.7);
+}
+/* Boss card in the monster row: gold crown top-center over the art. */
+.trial-mon-card.is-boss-card::before {
+  content: '👑';
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.72rem;
+  line-height: 1;
+  z-index: 2;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.9));
+}
+.trial-mon-card.is-boss-card {
+  border-color: rgba(233,196,106,0.7);
+  box-shadow: 0 0 12px rgba(168,85,247,0.28);
+}
+.trial-mon-card.is-boss-card.target {
+  border-color: var(--trial-frame-strong);
+  box-shadow: 0 0 16px rgba(201,166,74,0.5), 0 0 10px rgba(168,85,247,0.3);
+}
+/* Boss badge for the big deck card, top-center over the art (trial panel). */
+.dungeon-trial-panel .monster-combat-card.is-boss-card::before {
+  content: '👑 BOSS';
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffd700;
+  background: rgba(0,0,0,0.6);
+  border: 1px solid rgba(233,196,106,0.5);
+  border-radius: 999px;
+  padding: 1px 7px;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+.trial-mon-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  margin: 0 auto 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  border: 2px solid rgba(255,255,255,0.2);
+  overflow: hidden;
+  background: radial-gradient(circle at 50% 30%, rgba(120,80,40,0.5), rgba(0,0,0,0.6));
+}
+.trial-mon-target {
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+/* Effect status on trial monster cards: frozen (blue) vs burning (orange). */
+.trial-mon-card.burning {
+  border-color: rgba(230,88,51,0.65);
+  box-shadow: inset 0 0 14px rgba(230,88,51,0.35);
+}
+.trial-mon-card.frozen {
+  border-color: rgba(72,195,255,0.65);
+  box-shadow: inset 0 0 14px rgba(72,195,255,0.35);
+}
+.trial-mon-card.burning .trial-mon-avatar {
+  border-color: rgba(230,88,51,0.85);
+}
+.trial-mon-card.frozen .trial-mon-avatar {
+  border-color: rgba(72,195,255,0.85);
+}
+/* Status + target badges stay above the art on row cards. */
+.trial-mon-status,
+.trial-mon-target {
+  z-index: 3;
+}
+.trial-mon-status {
+  position: absolute;
+  top: 3px;
+  left: 4px;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.55);
+  z-index: 3;
+}
+.trial-mon-status-burn {
+  color: #ff6b4a;
+}
+.trial-mon-status-frozen {
+  color: #48c3ff;
+}
+.monster-combat-card.burning {
+  border-color: rgba(230,88,51,0.7);
+  box-shadow: 0 0 10px rgba(230,88,51,0.25);
+}
+.monster-combat-card.frozen {
+  border-color: rgba(72,195,255,0.7);
+  box-shadow: 0 0 10px rgba(72,195,255,0.25);
+}
+.monster-combat-card .mon-combat-status {
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  margin-top: 2px;
+}
+.monster-combat-card .mon-combat-status.burn {
+  color: #ff6b4a;
+}
+.monster-combat-card .mon-combat-status.freeze {
+  color: #48c3ff;
+}
+.trial-char-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  margin: 0 auto 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+  border: 2px solid rgba(255,255,255,0.2);
+}
+.trial-char-name {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--dungeon-text);
+  line-height: 1.2;
+}
+.trial-char-role {
+  font-size: 0.56rem;
+  color: var(--dungeon-muted);
+}
+.trial-char-stat {
+  font-size: 0.54rem;
+  color: var(--dungeon-muted);
+  margin-top: 1px;
+}
+.trial-char-down {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 0.9rem;
+}
+.trial-acted-badge {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 0.85rem;
+  color: #2ecc71;
+  z-index: 2;
+  text-shadow: 0 0 6px rgba(46,204,113,0.8);
+}
+.trial-turn-pill {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-left: 8px;
+  font-weight: 600;
+}
+.trial-turn-strip {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: #ffd700;
+  width: 100%;
+  padding: 2px 0;
+}
+/* (End Turn button removed — rounds auto-resolve. Styles retired.) */
+.combat-log-entry.combo {
+  color: #ffd700;
+  font-weight: 700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.55);
+}
+.trial-combo-flash {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #ffd700;
+  background: rgba(20,20,20,0.78);
+  border: 1px solid rgba(255,215,0,0.55);
+  border-radius: 999px;
+  padding: 6px 16px;
+  pointer-events: none;
+  z-index: 30;
+  text-shadow: 0 0 10px rgba(255,215,0,0.8);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  animation: trialComboPop 1.7s ease-out forwards;
+}
+@keyframes trialComboPop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.7); }
+  15% { opacity: 1; transform: translateX(-50%) scale(1.08); }
+  70% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-28px) scale(1.05); }
+}
+.trial-down-card {
+  opacity: 0.55;
+}
+.trial-down-hint {
+  color: #ff7675;
+  font-size: 0.78rem;
+  padding: 4px 0;
+  text-align: center;
+}
+.trial-ability-row {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 6px 0 4px;
+  min-height: 74px;
+}
+/* Inside the fixed bottom dock the decal row never wraps and hugs the edge. */
+.dungeon-combat-panel .combat-actions .trial-ability-row {
+  flex-wrap: nowrap;
+  margin: 0;
+  min-height: 0;
+  align-items: flex-end;
+}
+/* ── Attack-decal buttons (normal / burst / ultimate) ─────────────────
+   One shared alpha-channel decal per button type, ringed by an SVG energy
+   gauge that mirrors the active champion's bar. Type accent colors:
+   normal = steel blue · burst = molten orange · ultimate = royal gold. */
+.trial-ability-btn {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  width: 72px;
+  padding: 6px 4px 4px;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  color: var(--dungeon-text);
+  cursor: pointer;
+  transition: transform 0.16s ease, border-color 0.16s, background 0.16s, box-shadow 0.16s;
+}
+/* Hitbox split: the ULTIMATE wears the big hitbox; normal attack and burst
+   share the SAME (smaller) hitbox. The button box stays invisible (transparent
+   bg/border, no shadow) — only the decal art is ever seen. */
+.trial-ability-btn.trial-atk-attack,
+.trial-ability-btn.trial-atk-burst {
+  width: 66px;
+}
+.trial-ability-btn.trial-atk-attack .trial-decal-wrap,
+.trial-ability-btn.trial-atk-burst .trial-decal-wrap {
+  width: 46px;
+  height: 46px;
+}
+.trial-ability-btn.trial-atk-ultimate {
+  width: 88px;
+}
+.trial-ability-btn.trial-atk-ultimate .trial-decal-wrap {
+  width: 62px;
+  height: 62px;
+}
+.trial-ability-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: none;
+}
+.trial-ability-btn:disabled {
+  cursor: not-allowed;
+}
+.trial-ability-btn.trial-ability-locked {
+  opacity: 0.55;
+}
+.trial-ability-btn.trial-ability-locked .trial-decal-img {
+  filter: grayscale(0.85) brightness(0.55);
+}
+.trial-ability-btn.trial-atk-ultimate.trial-ability-ready {
+  filter: brightness(1.12);
+}
+/* Ready glow: every off-cooldown, affordable decal lights up so the player can
+   see at a glance what can be pressed RIGHT NOW (attacks included). No box or
+   shadow around the border — the glow stays on the art itself. */
+.trial-ability-btn.trial-ability-ready .trial-decal-img {
+  filter: brightness(1.22);
+}
+.trial-ability-btn.trial-ability-ready::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 12px;
+  pointer-events: none;
+  box-shadow: none;
+}
+.trial-ability-btn.trial-atk-burst.trial-ability-ready::after {
+  box-shadow: none;
+}
+.trial-ability-btn.trial-atk-ultimate.trial-ability-ready::after {
+  box-shadow: none;
+}
+@keyframes trial-ready-pulse {
+  0%, 100% { opacity: 0.45; }
+  50%      { opacity: 1; }
+}
+/* Skip-action decal: teal double-chevron, quiet until hover (it's the rarest
+   action — it should never visually compete with attack/burst/ultimate). */
+.trial-ability-btn.trial-atk-skip {
+  opacity: 0.85;
+}
+.trial-ability-btn.trial-atk-skip:not(:disabled):hover {
+  box-shadow: 0 0 14px rgba(38,208,206,0.35);
+}
+.trial-ability-btn.trial-atk-skip .trial-decal-img {
+  inset: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 36px);
+  height: calc(100% + 16px);
+  top: -8px;
+}
+.trial-decal-wrap {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+}
+.trial-decal-img {
+  position: absolute;
+  inset: -14px;               /* the PNG's transparent halo overlaps the ring */
+  width: calc(100% + 28px);
+  height: calc(100% + 28px);
+  object-fit: contain;
+  filter: none;               /* no drop-shadow — the hitbox border must stay clean */
+  transition: filter 0.16s;
+  pointer-events: none;
+}
+.trial-ability-btn:hover:not(:disabled) .trial-decal-img {
+  filter: brightness(1.12);
+}
+.trial-energy-ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+.trial-ring-bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.16);
+  stroke-width: 2.6;
+}
+.trial-ring-fill {
+  fill: none;
+  stroke: #63c9ff;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-dasharray: 100 100;
+  transition: stroke-dashoffset 0.45s ease;
+  filter: drop-shadow(0 0 3px rgba(99,201,255,0.7));
+}
+.trial-atk-ultimate .trial-ring-fill {
+  stroke: #ffd700;
+  filter: drop-shadow(0 0 4px rgba(255,215,0,0.8));
+}
+.trial-atk-burst .trial-ring-fill {
+  stroke: #ff9e42;
+  filter: drop-shadow(0 0 3px rgba(255,158,66,0.7));
+}
+/* Generator badge: +N energy this button feeds the ultimate. */
+.trial-gen-badge {
+  position: absolute;
+  bottom: -5px;
+  left: -7px;
+  padding: 1px 4px;
+  border-radius: 7px;
+  background: rgba(9,20,34,0.92);
+  border: 1px solid rgba(99,201,255,0.75);
+  color: #9bd8ff;
+  font-size: 0.54rem;
+  font-weight: 800;
+  line-height: 1.2;
+  z-index: 2;
+}
+.trial-atk-burst .trial-gen-badge {
+  border-color: rgba(255,200,90,0.85);
+  color: #ffd9a0;
+}
+.trial-cd-pill {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #2d1e0e;
+  border: 1px solid rgba(255,158,66,0.85);
+  color: #ffd9a0;
+  font-size: 0.62rem;
+  font-weight: 800;
+  line-height: 14px;
+  text-align: center;
+  z-index: 3;
+}
+/* Real-time cooldown veil: a dark disc that shrinks away as the wall-clock
+   cooldown drains (height scales with --cd-frac, set live by the updater). */
+.trial-cd-veil {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(6,4,14,0.72), rgba(6,4,14,0.55));
+  z-index: 2;
+  pointer-events: none;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - (100% - 100% * var(--cd-frac, 0))), 0 100%);
+  transition: clip-path 0.12s linear;
+}
+.trial-live-dot {
+  color: #37e0b8;
+  animation: trial-live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes trial-live-pulse {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+
+/* Golden panel wash when a champion unleashes an ultimate. */
+.trial-ult-flash {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at 50% 45%, rgba(255,225,140,0.4) 0%, rgba(255,200,80,0.16) 45%, transparent 72%);
+  pointer-events: none;
+  z-index: 50;
+  animation: trial-ult-flash-anim 1.05s ease-out forwards;
+}
+@keyframes trial-ult-flash-anim {
+  0% { opacity: 0; transform: scale(0.85); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.12); }
+}
+
+/* Blue-white energy-gain float (normal attacks generate energy). */
+.combat-damage-float.energy {
+  color: #9bd8ff;
+  text-shadow: 0 0 8px rgba(99,201,255,0.85), 0 2px 4px rgba(0,0,0,0.8);
+}
+
+/* ── Trial of the Arcane — ambient scene (behind the combat panel) ────────
+   The plain black backdrop is replaced by an arcane vault: deep purple/gold
+   vignette, a faint rune-floor glow, two counter-rotating mana swirls,
+   drifting runic glyphs and floating gold/blue motes. All layers live INSIDE
+   .dungeon-overlay-backdrop (z-index 19999), so the panel stays on top. */
+.trial-ambience {
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(124,58,237,0.30), transparent 55%),
+    radial-gradient(90% 70% at 50% 115%, rgba(201,146,42,0.20), transparent 60%),
+    linear-gradient(180deg, #070513 0%, #0d0820 48%, #140a18 100%);
+  backdrop-filter: none;
+  overflow: hidden;
+}
+.trial-ambience > * {
+  position: absolute;
+  pointer-events: none;
+}
+/* Cinematic vignette: dark edges so the panel focus pops. */
+.trial-ambience-vignette {
+  inset: 0;
+  background: radial-gradient(115% 90% at 50% 42%, transparent 42%, rgba(0,0,0,0.55) 100%);
+}
+/* Rune-floor: a soft elliptical glow beneath the arena. */
+.trial-ambience-vault {
+  left: 50%;
+  bottom: -8%;
+  width: 130vw;
+  height: 46vh;
+  transform: translateX(-50%);
+  background:
+    repeating-linear-gradient(90deg, rgba(201,166,74,0.055) 0 1px, transparent 1px 84px),
+    repeating-linear-gradient(0deg, rgba(201,166,74,0.045) 0 1px, transparent 1px 84px),
+    radial-gradient(50% 62% at 50% 100%, rgba(148,108,230,0.28), transparent 70%);
+  -webkit-mask-image: radial-gradient(60% 100% at 50% 100%, #000 30%, transparent 75%);
+  mask-image: radial-gradient(60% 100% at 50% 100%, #000 30%, transparent 75%);
+}
+/* Counter-rotating mana swirls (conic sheen, no images). Capped px size so
+   the rotating GPU texture stays cheap on big/hi-dpi screens. */
+.trial-ambience-swirl {
+  left: 50%;
+  top: 44%;
+  width: min(150vmax, 1500px);
+  height: min(150vmax, 1500px);
+  margin-left: calc(min(150vmax, 1500px) / -2);
+  margin-top: calc(min(150vmax, 1500px) / -2);
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    transparent 0deg, rgba(124,58,237,0.16) 40deg, transparent 80deg,
+    transparent 140deg, rgba(201,166,74,0.11) 185deg, transparent 230deg,
+    transparent 290deg, rgba(99,91,255,0.14) 330deg, transparent 360deg);
+  -webkit-mask-image: radial-gradient(circle, transparent 26%, #000 44%, transparent 70%);
+  mask-image: radial-gradient(circle, transparent 26%, #000 44%, transparent 70%);
+  animation: trial-swirl-rot 90s linear infinite;
+  will-change: transform;
+}
+.trial-swirl-a { opacity: 0.85; }
+.trial-swirl-b {
+  animation-direction: reverse;
+  animation-duration: 130s;
+  opacity: 0.55;
+  filter: blur(6px);
+}
+@keyframes trial-swirl-rot {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+/* Runic glyphs drifting upward, fading in and out. */
+.trial-ambience-glyphs,
+.trial-ambience-motes {
+  inset: 0;
+}
+.trial-ambience-glyphs span {
+  position: absolute;
+  bottom: -8%;
+  color: rgba(214,190,255,0.5);
+  text-shadow: 0 0 14px rgba(148,108,230,0.7);
+  font-size: 1.3rem;
+  animation: trial-glyph-rise 26s linear infinite;
+}
+.trial-ambience-glyphs span:nth-child(1)  { left: 6%;  font-size: 1.05rem; animation-delay: -3s;  animation-duration: 30s; }
+.trial-ambience-glyphs span:nth-child(2)  { left: 14%; font-size: 1.5rem;  animation-delay: -14s; }
+.trial-ambience-glyphs span:nth-child(3)  { left: 24%; font-size: 0.95rem; animation-delay: -8s;  animation-duration: 34s; }
+.trial-ambience-glyphs span:nth-child(4)  { left: 33%; font-size: 1.35rem; animation-delay: -21s; }
+.trial-ambience-glyphs span:nth-child(5)  { left: 41%; font-size: 1.1rem;  animation-delay: -5s;  animation-duration: 24s; }
+.trial-ambience-glyphs span:nth-child(6)  { left: 49%; font-size: 1.45rem; animation-delay: -17s; animation-duration: 32s; }
+.trial-ambience-glyphs span:nth-child(7)  { left: 57%; font-size: 1rem;   animation-delay: -11s; }
+.trial-ambience-glyphs span:nth-child(8)  { left: 65%; font-size: 1.3rem;  animation-delay: -25s; animation-duration: 28s; }
+.trial-ambience-glyphs span:nth-child(9)  { left: 74%; font-size: 1.15rem; animation-delay: -7s;  }
+.trial-ambience-glyphs span:nth-child(10) { left: 82%; font-size: 1.4rem;  animation-delay: -19s; animation-duration: 36s; }
+.trial-ambience-glyphs span:nth-child(11) { left: 90%; font-size: 1rem;   animation-delay: -12s; }
+.trial-ambience-glyphs span:nth-child(12) { left: 96%; font-size: 1.25rem; animation-delay: -22s; animation-duration: 26s; }
+@keyframes trial-glyph-rise {
+  0%   { transform: translateY(0) rotate(-8deg); opacity: 0; }
+  12%  { opacity: 0.85; }
+  85%  { opacity: 0.4; }
+  100% { transform: translateY(-108vh) rotate(10deg); opacity: 0; }
+}
+/* Floating motes (gold + blue embers) — deterministic per-index inline style. */
+.trial-ambience-motes i {
+  position: absolute;
+  bottom: -4%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(160,200,255,0.9), rgba(99,145,255,0) 70%);
+  box-shadow: 0 0 8px rgba(140,170,255,0.55);
+  animation: trial-mote-rise linear infinite;
+}
+@keyframes trial-mote-rise {
+  0%   { transform: translate(0, 0) scale(0.7); opacity: 0; }
+  10%  { opacity: 0.9; }
+  80%  { opacity: 0.5; }
+  100% { transform: translate(var(--mote-drift, 0px), -104vh) scale(1.15); opacity: 0; }
+}
+
+/* ── Trial panel sits IN the scene: arcane frame + vault glass ── */
+.dungeon-trial-panel {
+  /* Battlefield art under a violet scrim: dark enough for card/log legibility,
+     light enough that the trialofthearcane artwork reads through. */
+  background:
+    linear-gradient(180deg, rgba(18,12,38,0.8), rgba(10,7,24,0.86) 52%, rgba(14,9,28,0.82)),
+    radial-gradient(130% 90% at 50% 0%, rgba(124,58,237,0.22), transparent 58%),
+    url('/images/assets/trialofthearcane.png?v=2026-09-17-field') center/cover no-repeat;
+  border: 1px solid rgba(201,166,74,0.4);
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.5),
+    0 0 34px rgba(124,58,237,0.32),
+    0 0 90px rgba(201,146,42,0.14),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  backdrop-filter: blur(7px);
+}
+.dungeon-trial-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 55% at 50% -12%, rgba(148,108,230,0.20), transparent 60%),
+    radial-gradient(90% 40% at 50% 112%, rgba(201,146,42,0.13), transparent 62%);
+  z-index: 0;
+}
+.dungeon-trial-panel > * { position: relative; z-index: 1; }
+/* Keep the transient overlays ABSOLUTE: this 1-class rule (later in the file)
+   would otherwise force .trial-combo-flash / .trial-ult-flash into the flex
+   flow as position:relative blocks, dumping them at the bottom of the panel
+   behind the dock (the COMBO popup "disappearing" / pushing the layout). */
+.dungeon-trial-panel > .trial-combo-flash { position: absolute; z-index: 30; }
+.dungeon-trial-panel > .trial-ult-flash { position: absolute; z-index: 50; }
+/* Stack the body's children above the field FX — but NEVER touch the action
+   dock: this selector (3 classes) would override .combat-actions' own
+   `position: fixed` (2 classes) and yank it out of the viewport-pinned dock
+   back into the flex flow ("buttons in the middle of the screen"). */
+.dungeon-trial-panel .trial-card-body > *:not(.combat-actions) { position: relative; z-index: 1; }
+
+/* ── In-panel battlefield effects ─────────────────────────────────────
+   Ambience INSIDE the combat card: drifting arcane glyphs, floating motes
+   and a slow light sweep over the artwork. Pure decoration — it sits above
+   the background art but below every interactive element. */
+.dungeon-trial-panel .trial-field-fx {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.trial-field-vignette {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(125% 90% at 50% 32%, transparent 52%, rgba(8,5,20,0.5) 100%),
+    linear-gradient(180deg, rgba(8,5,20,0.32), transparent 20%, transparent 76%, rgba(8,5,20,0.38));
+}
+.trial-field-beam {
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 50%;
+  height: 220%;
+  transform: rotate(18deg);
+  background: linear-gradient(90deg, transparent, rgba(190,160,255,0.06) 42%, rgba(255,222,130,0.08) 56%, transparent);
+  animation: trial-field-sweep 12s ease-in-out infinite;
+}
+@keyframes trial-field-sweep {
+  0%, 100% { transform: rotate(18deg) translateX(-55%); opacity: 0.45; }
+  50%      { transform: rotate(18deg) translateX(260%); opacity: 1; }
+}
+.trial-field-glyphs span {
+  position: absolute;
+  color: rgba(230,200,130,0.8);
+  text-shadow: 0 0 10px rgba(201,166,74,0.42);
+  opacity: 0;
+  animation: trial-field-glyph ease-in-out infinite;
+}
+@keyframes trial-field-glyph {
+  0%, 100% { opacity: 0; transform: translateY(6px) rotate(-7deg) scale(0.92); }
+  50%      { opacity: 0.5; transform: translateY(-9px) rotate(6deg) scale(1); }
+}
+.trial-field-motes i {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(170,205,255,0.95), rgba(110,155,255,0) 70%);
+  box-shadow: 0 0 7px rgba(150,185,255,0.5);
+  opacity: 0;
+  animation: trial-field-wisp ease-in-out infinite;
+}
+.trial-field-motes i.gold {
+  background: radial-gradient(circle, rgba(255,222,130,0.95), rgba(255,200,80,0) 70%);
+  box-shadow: 0 0 8px rgba(255,205,95,0.55);
+}
+@keyframes trial-field-wisp {
+  0%, 100% { opacity: 0; transform: translate(0, 0) scale(0.8); }
+  50%      { opacity: 0.7; transform: translate(var(--wisp-dx, 0px), -16px) scale(1.15); }
+}
+@media (max-width: 640px) {
+  .trial-field-glyphs span:nth-child(even),
+  .trial-field-motes i:nth-child(even) { display: none; }
+  .trial-field-beam { animation-duration: 16s; }
+}
+
+/* ── Trial scene — mobile trim: fewer/simpler particles behind the panel ── */
+@media (max-width: 640px) {
+  .trial-ambience-glyphs span { font-size: 0.95rem !important; }
+  .trial-ambience-glyphs span:nth-child(even),
+  .trial-ambience-motes i:nth-child(even) { display: none; }
+  .trial-ambience-swirl { opacity: 0.6; }
+}
+
+/* Mobile calm mode: freeze ALL ambient motion on phones. Between slow sweeps,
+   drifting glyphs and the 8×/s cooldown refresh, the moving particles read as
+   constant flashing on a real handset — especially beneath the skill-check
+   overlay. Keep the static scene (gradients/vault glow) but pause every loop. */
+@media (max-width: 640px) {
+  .trial-ambience-swirl,
+  .trial-ambience-glyphs span,
+  .trial-ambience-motes i,
+  .trial-field-beam,
+  .trial-field-glyphs span,
+  .trial-field-motes i { animation: none; }
+  .trial-ambience-glyphs span { opacity: 0.35; }
+  .trial-ambience-motes i { opacity: 0.5; }
+  .trial-field-beam { opacity: 0.22; transform: rotate(18deg) translateX(-20%); }
+  .trial-field-glyphs span { opacity: 0.35; }
+  .trial-field-motes i { opacity: 0.4; }
+}
+
+/* Accessibility: collapse the scene to a static gradient. */
+@media (prefers-reduced-motion: reduce) {
+  .trial-ambience-swirl,
+  .trial-ambience-glyphs span,
+  .trial-ambience-motes i {
+    animation: none;
+    opacity: 0.28;
+  }
+  .trial-ambience-motes i { display: none; }
 }
 
 /* ── Dungeon Log ── */
@@ -3261,9 +4324,710 @@ body.combat-lock #tab-content-area {
   backdrop-filter: blur(2px);
 }
 
+/* ── Skill-check mini-game (Trial ring + dungeon zone bar) ────────────
+   Lives directly on <body> at z 400500 — ABOVE the combat overlay (400000),
+   below the shatter ghosts, so it never gets buried mid-fight again. */
 #skill-check-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(90% 70% at 50% 42%, rgba(30,20,60,0.55), rgba(4,2,10,0.88) 80%);
+  backdrop-filter: blur(3px);
   cursor: pointer;
 }
 #skill-check-overlay * {
   pointer-events: none;
+}
+.skc-panel {
+  position: relative;
+  background: linear-gradient(180deg, rgba(28,20,52,0.96), rgba(13,9,28,0.97));
+  border: 1px solid color-mix(in srgb, var(--skc-accent, #c9a64a) 55%, transparent);
+  border-radius: 18px;
+  padding: 20px 26px 18px;
+  text-align: center;
+  max-width: 440px;
+  width: min(90vw, 440px);
+  user-select: none;
+  box-shadow:
+    0 0 0 1px rgba(0,0,0,0.55),
+    0 18px 50px rgba(0,0,0,0.6),
+    0 0 42px color-mix(in srgb, var(--skc-accent, #c9a64a) 26%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.08);
+  animation: skc-panel-in 0.28s ease-out;
+}
+@keyframes skc-panel-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to { opacity: 1; transform: none; }
+}
+.skc-title {
+  font-size: 1.02rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--skc-accent, #c9a64a);
+  text-shadow: 0 0 14px color-mix(in srgb, var(--skc-accent, #c9a64a) 55%, transparent);
+  margin-bottom: 12px;
+}
+.skc-tap {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  text-shadow: none;
+}
+.skc-hint,
+.skc-result {
+  font-size: 0.8rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 12px;
+  min-height: 1.1em;
+}
+/* ── Ring mode (linear score: Trial defend / Final Blow) ── */
+.skc-ring-wrap {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto;
+}
+.skc-ring {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+.skc-ring-track {
+  fill: rgba(10,6,22,0.65);
+  stroke: rgba(255,255,255,0.14);
+  stroke-width: 1.5;
+}
+/* Tick marks around the rim (dash trick: tiny dashes, thick gaps). */
+.skc-ring-ticks {
+  fill: none;
+  stroke: rgba(255,255,255,0.16);
+  stroke-width: 5;
+  stroke-dasharray: 0.5 7.33; /* 40 ticks around r=47 */
+}
+.skc-ring-glow {
+  fill: none;
+  stroke: color-mix(in srgb, var(--skc-accent, #c9a64a) 32%, transparent);
+  stroke-width: 2.5;
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--skc-accent, #c9a64a) 45%, transparent));
+}
+.skc-needle line {
+  stroke: var(--skc-accent, #c9a64a);
+  stroke-width: 3;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--skc-accent, #c9a64a) 70%, transparent));
+}
+.skc-bullseye {
+  fill: rgba(255,215,0,0.14);
+  stroke: rgba(255,215,0,0.75);
+  stroke-width: 1.4;
+  animation: skc-bullseye-pulse 1.8s ease-in-out infinite;
+}
+.skc-bullseye-core {
+  fill: #ffd700;
+  filter: drop-shadow(0 0 7px rgba(255,215,0,0.95));
+}
+@keyframes skc-bullseye-pulse {
+  0%, 100% { opacity: 0.75; }
+  50% { opacity: 1; }
+}
+.skc-ring-readout {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.skc-ring-readout span {
+  font-size: 1.85rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: rgba(255,255,255,0.85);
+  text-shadow: 0 2px 12px rgba(0,0,0,0.8);
+}
+/* Result tiers: the whole panel flashes + the needle keeps its verdict color. */
+.skc-res-perfect {
+  animation: skc-panel-in 0.28s ease-out, skc-flash-perfect 0.55s ease-out;
+}
+.skc-res-good {
+  animation: skc-panel-in 0.28s ease-out, skc-flash-good 0.5s ease-out;
+}
+.skc-res-miss {
+  animation: skc-panel-in 0.28s ease-out, skc-flash-miss 0.5s ease-out;
+}
+@keyframes skc-flash-perfect {
+  0% { box-shadow: 0 0 0 3px rgba(255,215,0,0.85), 0 0 60px rgba(255,215,0,0.6); }
+  100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 18px 50px rgba(0,0,0,0.6), 0 0 42px rgba(255,215,0,0.25); }
+}
+@keyframes skc-flash-good {
+  0% { box-shadow: 0 0 0 3px rgba(155,125,255,0.8), 0 0 50px rgba(155,125,255,0.5); }
+  100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 18px 50px rgba(0,0,0,0.6), 0 0 42px rgba(155,125,255,0.2); }
+}
+@keyframes skc-flash-miss {
+  0% { box-shadow: 0 0 0 3px rgba(231,76,60,0.8), 0 0 50px rgba(231,76,60,0.5); }
+  100% { box-shadow: 0 0 0 1px rgba(0,0,0,0.55), 0 18px 50px rgba(0,0,0,0.6), 0 0 42px rgba(231,76,60,0.2); }
+}
+.skc-needle-perfect line { stroke: #ffd700; }
+.skc-needle-good line { stroke: #9b7dff; }
+.skc-needle-miss line { stroke: #e74c3c; }
+/* ── Bar mode (zoned score: dungeon burst / ultimate) ── */
+.skc-bar-track {
+  position: relative;
+  display: flex;
+  height: 40px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: rgba(8,5,18,0.8);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.skc-zone-miss { background: linear-gradient(180deg, rgba(231,76,60,0.30), rgba(231,76,60,0.16)); }
+.skc-zone-good { background: linear-gradient(180deg, rgba(155,125,255,0.32), rgba(155,125,255,0.16)); }
+.skc-zone-perfect { background: linear-gradient(180deg, rgba(255,215,0,0.42), rgba(255,215,0,0.2)); box-shadow: inset 0 0 18px rgba(255,215,0,0.35); }
+.skc-centerline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: rgba(255,255,255,0.35);
+}
+.skc-bar-marker {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 50%;
+  width: 8px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #fff, var(--skc-accent, #c9a64a));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--skc-accent, #c9a64a) 80%, transparent), 0 0 3px rgba(255,255,255,0.8);
+}
+.skc-bar-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.4);
+  margin-top: 5px;
+  text-align: center;
+}
+.skc-res-perfect .skc-bar-marker { background: linear-gradient(180deg, #fff, #ffd700); box-shadow: 0 0 14px rgba(255,215,0,0.9); }
+.skc-res-miss .skc-bar-marker { background: linear-gradient(180deg, #fff, #e74c3c); box-shadow: 0 0 14px rgba(231,76,60,0.9); }
+/* Mobile: shrink the gauge, keep it thumb-reachable. */
+@media (max-width: 640px) {
+  .skc-panel { padding: 16px 14px 14px; }
+  .skc-ring-wrap { width: 168px; height: 168px; }
+  .skc-ring-readout span { font-size: 1.55rem; }
+  .skc-title { font-size: 0.92rem; }
+}
+
+/* ── Event leaderboard (Trial of the Arcane) ────────────── */
+.event-lb-box {
+  background: rgba(0,0,0,0.25);
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 12px;
+  padding: 10px 14px;
+  margin: 0 auto 16px;
+  max-width: 420px;
+}
+.event-lb-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffd700;
+  margin-bottom: 8px;
+  text-align: center;
+}
+.event-lb-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.event-lb-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.8);
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  animation: lbRowIn 0.35s ease-out both;
+}
+@keyframes lbRowIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.event-lb-row-self {
+  background: rgba(168,85,247,0.25);
+  border: 1px solid rgba(168,85,247,0.55);
+  color: #f5d76e;
+  font-weight: 700;
+}
+.event-lb-rank {
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.event-lb-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-lb-score {
+  white-space: nowrap;
+}
+.event-lb-time {
+  white-space: nowrap;
+  color: rgba(255,255,255,0.5);
+  font-size: 0.7rem;
+}
+.event-lb-empty {
+  text-align: center;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.45);
+  padding: 6px;
+}
+
+/* ── Trial of the Arcane — Event Landing Page ───────────── */
+.event-landing {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: eventFadeIn 0.4s ease-out;
+}
+@keyframes eventFadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.event-landing-header {
+  text-align: center;
+  padding: 14px 10px 10px;
+  background: radial-gradient(ellipse at center top, rgba(168,85,247,0.18), transparent 70%);
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.event-landing-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(168,85,247,0.08), transparent 60%);
+  pointer-events: none;
+}
+.event-landing-icon {
+  font-size: 2.6rem;
+  line-height: 1;
+  margin-bottom: 6px;
+  filter: drop-shadow(0 0 8px rgba(168,85,247,0.5));
+  animation: iconPulse 2.8s ease-in-out infinite;
+}
+@keyframes iconPulse {
+  0%, 100% { transform: scale(1); filter: drop-shadow(0 0 8px rgba(168,85,247,0.5)); }
+  50%      { transform: scale(1.06); filter: drop-shadow(0 0 14px rgba(168,85,247,0.75)); }
+}
+.event-landing-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #f5d76e;
+  letter-spacing: 0.6px;
+  text-shadow: 0 0 12px rgba(168,85,247,0.45), 0 2px 4px rgba(0,0,0,0.7);
+  margin-bottom: 4px;
+}
+.event-landing-sub {
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.55);
+  letter-spacing: 0.3px;
+}
+.event-landing-info {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.event-info-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(168,85,247,0.3);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.85);
+  white-space: nowrap;
+}
+.event-landing-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.event-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 22px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.2s, background 0.2s;
+  color: #fff;
+  letter-spacing: 0.3px;
+  min-height: 44px;
+}
+.event-btn:active { transform: scale(0.97); }
+.event-btn-primary {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  box-shadow: 0 4px 14px rgba(168,85,247,0.35);
+}
+.event-btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #8b5cf6, #b985fb);
+  box-shadow: 0 6px 20px rgba(168,85,247,0.5);
+}
+.event-btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.2);
+}
+.event-btn-secondary {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(168,85,247,0.3);
+}
+.event-btn-secondary:hover:not(:disabled) {
+  background: rgba(255,255,255,0.14);
+  border-color: rgba(168,85,247,0.55);
+}
+.event-btn-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.event-hud {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.event-hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(168,85,247,0.35);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+}
+.event-hud-ico { font-size: 0.85rem; line-height: 1; }
+.event-hud-num {
+  font-weight: 800;
+  color: #ffd700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+.event-combat-hint {
+  text-align: center;
+  font-size: 0.72rem;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 4px;
+}
+.event-result-card {
+  text-align: center;
+  padding: 18px 14px;
+  background: radial-gradient(ellipse at center top, rgba(168,85,247,0.18), transparent 70%);
+  border: 1px solid rgba(168,85,247,0.25);
+  border-radius: 14px;
+}
+.event-result-title {
+  font-family: 'Cinzel', serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f5d76e;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 10px rgba(168,85,247,0.4);
+  margin-bottom: 8px;
+}
+.event-result-score {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: #ffd700;
+  text-shadow: 0 0 14px rgba(255,215,79,0.45);
+  margin-bottom: 10px;
+}
+.event-result-details {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.75);
+}
+.event-result-detail {
+  padding: 2px 0;
+}
+.event-error {
+  display: none;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #e74c3c;
+  padding: 6px 10px;
+  background: rgba(231,76,60,0.12);
+  border: 1px solid rgba(231,76,60,0.3);
+  border-radius: 8px;
+  margin-top: 4px;
+}
+
+/* ── Trial of the Arcane — integrated combat score HUD (top-center) ── */
+/* Re-render shell around the dynamic panel body: a REAL flex column (display:
+   contents is forbidden here — WebKit breaks position:fixed/absolute INSIDE a
+   display:contents element, which flung the fixed action dock into mid-flow
+   and pushed the COMBO flash into the layout). It reproduces the card's own
+   flex-column contract so the hud/log/arena/party/actions children behave
+   exactly as before while the ambience + field FX (card siblings) survive. */
+.trial-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+}
+.trial-hud {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap !important; /* score/time/room MUST stay on a single line */
+  margin-bottom: 8px;
+}
+.trial-hud-pill {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid rgba(168,85,247,0.35);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.9);
+  white-space: nowrap;
+  flex: 0 1 auto;   /* shrink (never grow) instead of ever wrapping to a 2nd row */
+  min-width: 0;
+}
+.trial-hud-num {
+  font-weight: 800;
+  color: #ffd700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trial-hud-ico { font-size: 0.85rem; line-height: 1; }
+
+/* Live score gain: "+N" floats up off the score pill, colored by what earned it.
+   Big moments (boss kill, Final Blow, big combos) also pulse a radial light. */
+.score-gain-float {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.95);
+  pointer-events: none;
+  z-index: 6;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  animation: scoreGainFloat 1.25s ease-out forwards;
+}
+.score-gain-float.kill     { color: #ffd54f; }
+.score-gain-float.boss     { color: #ff9f43; }
+.score-gain-float.combo    { color: #48c3ff; }
+.score-gain-float.flourish { color: #c86bff; }
+.score-gain-float.damage   { color: #ff6b6b; }
+@keyframes scoreGainFloat {
+  0%   { opacity: 0; transform: translate(-50%, 10px) scale(0.5); }
+  18%  { opacity: 1; transform: translate(-50%, -4px) scale(1.25); }
+  60%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -42px) scale(1); }
+}
+.score-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 55;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(255,215,79,0.16), transparent 60%),
+    radial-gradient(circle at 50% 42%, rgba(200,107,255,0.10), transparent 45%);
+  animation: scoreFlashPulse 0.55s ease-out forwards;
+}
+@keyframes scoreFlashPulse {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+/* End Turn / Flee never wrap or split — always one clean row. */
+/* Flee sits under the ability decals on the bottom dock (no more End Turn). */
+.dungeon-combat-panel.dungeon-trial-panel .combat-actions { flex-wrap: wrap; width: 100%; }
+.dungeon-combat-panel.dungeon-trial-panel .trial-flee-row {
+  flex: 0 0 100%;
+  display: flex;
+  justify-content: center;
+}
+.dungeon-combat-panel.dungeon-trial-panel .trial-flee-btn {
+  min-width: 150px;
+  max-width: 300px;
+  flex: 0 1 300px;
+  margin: 0 auto;
+  padding: 7px 12px;
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+/* The trial dock is two rows tall (decals + flee) — clear the log above it.
+   (Trial only: on mobile the champion row sits between log and dock instead.) */
+.dungeon-combat-panel.dungeon-trial-panel .combat-log { margin-bottom: 150px; }
+
+/* Regular dungeon combat: the bottom dock overlays the log's last lines —
+   keep them readable above the fade gradient (the trial panel has its own
+   spacing below). */
+.dungeon-combat-panel .combat-log {
+  margin-bottom: 74px;
+  padding-bottom: 10px;
+}
+@media (max-width: 640px) {
+  .dungeon-combat-panel .combat-log { margin-bottom: 64px; }
+}
+
+@media (max-width: 640px) {
+  /* Integrate the top count into the panel: compact strip at top-center. */
+  .dungeon-trial-panel .trial-hud { gap: 5px; margin-bottom: 5px; flex-wrap: nowrap !important; }
+  .dungeon-trial-panel .trial-hud-pill { padding: 2px 9px; font-size: 0.68rem; gap: 3px; }
+  .dungeon-trial-panel .trial-hud-ico { font-size: 0.72rem; }
+
+  /* Slimmer header so everything fits on one screen. */
+  .dungeon-trial-panel .combat-header { margin-bottom: 4px; }
+  .dungeon-trial-panel .combat-boss-warning { font-size: 0.66rem; margin-bottom: 2px; }
+  .dungeon-trial-panel .combat-title { font-size: 0.92rem; margin-bottom: 6px; }
+
+  /* Vertical arena (NPC top / champions bottom) → compact on phones.
+     Full-bleed framed cards shrink via the shared width token; the fixed
+     3:4 ratio keeps every image uncropped at any size. */
+  .dungeon-trial-panel { --trial-card-w: 84px; }
+  .dungeon-trial-panel .combat-fighters { margin-bottom: 6px; }
+  .dungeon-trial-panel .trial-arena-clash { height: 14px; font-size: 0.62rem; }
+  .dungeon-trial-panel .monster-combat-card .trial-card-content { min-height: 0; }
+  .dungeon-trial-panel .combat-fighters .fighter-name { font-size: 0.66rem; margin-bottom: 3px; }
+  .dungeon-trial-panel .combat-fighters .fighter-class { font-size: 0.58rem; margin-bottom: 2px; }
+  .dungeon-trial-panel .combat-fighters .fighter-stats { font-size: 0.6rem; }
+  .dungeon-trial-panel .combat-fighters .battle-fighter-fallback { font-size: 1.8rem; }
+
+  /* Monster row + party row: neat fixed grids, compact but tappable.
+     A shared min-height reserves room for the full-bleed portraits. */
+  .dungeon-trial-panel .trial-monster-row { grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 4px 0; }
+  .dungeon-trial-panel .trial-mon-card { padding: 4px 2px 6px; }
+  .dungeon-trial-panel .trial-party-row { grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 4px 0; }
+  .dungeon-trial-panel .trial-char-card { padding: 4px 2px 6px; }
+  .dungeon-trial-panel .trial-char-name { font-size: 0.6rem; }
+  .dungeon-trial-panel .trial-char-role { font-size: 0.5rem; }
+  .dungeon-trial-panel .trial-char-stat { font-size: 0.5rem; margin-top: 1px; }
+  .dungeon-trial-panel .trial-acted-badge,
+  .dungeon-trial-panel .trial-char-down { top: 2px; right: 3px; font-size: 0.68rem; }
+  /* Full-bleed image cards on mobile: keep text readable. */
+  .dungeon-trial-panel .trial-card-overlay { background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.55) 45%, rgba(0,0,0,0.05) 100%); }
+  .dungeon-trial-panel .trial-card-content { padding: 4px 2px 6px; }
+
+  /* One-line turn strip (hide long hint); the decal row now lives in the
+     bottom dock — abilities stay fixed-size squares, ≥48px tappable. */
+  .dungeon-trial-panel .trial-turn-strip { flex-wrap: nowrap; font-size: 0.62rem; gap: 4px; }
+  .dungeon-trial-panel .trial-turn-hint { display: none; }
+  /* Thumb-arc dock (right-aligned for one-handed reach): normal attack and a
+     big ultimate form the bottom row; burst floats higher on the left and
+     skip floats above the ultimate — following the thumb's natural sweep. */
+  .dungeon-trial-panel .trial-ability-row {
+    flex-wrap: nowrap;
+    overflow-x: visible;
+    justify-content: flex-end;
+    align-items: flex-end;
+    gap: 6px;
+    margin: 0;
+    min-height: 0;
+    padding: 0 0 0 6px;   /* no right padding: ultimate kisses the screen edge */
+  }
+  .dungeon-trial-panel .trial-ability-btn { flex: 0 0 auto; gap: 1px; padding: 5px 2px 3px; }
+  /* Thumb arc, right-aligned: bottom row [normal → ULTIMATE], burst floats a
+     full ~4 button-widths right (over the ultimate's left edge), skip floats
+     topmost above it. */
+  .dungeon-trial-panel .trial-atk-burst    { width: 66px; order: 1; margin-bottom: 84px; margin-right: -80px; z-index: 2; }
+  .dungeon-trial-panel .trial-atk-attack   { width: 66px; order: 2; margin-right: -30px;}
+  .dungeon-trial-panel .trial-atk-ultimate { width: 88px; order: 3; margin-right: -34px;}
+  .dungeon-trial-panel .trial-atk-skip     { width: 62px; order: 4; margin-bottom: 76px; margin-left: -40px; z-index: 3; }
+  .dungeon-trial-panel .trial-atk-burst .trial-decal-wrap { width: 46px; height: 46px; margin-right: -20px; margin-bottom: -20px; }
+  .dungeon-trial-panel .trial-atk-skip .trial-decal-wrap { width: 42px; height: 42px; margin-right: -20px; margin-bottom: -20px; }
+  .dungeon-trial-panel .trial-atk-attack .trial-decal-wrap { width: 46px; height: 46px; }
+  .dungeon-trial-panel .trial-atk-ultimate .trial-decal-wrap { width: 62px; height: 62px; }
+  .dungeon-trial-panel .trial-decal-img { inset: -11px; width: calc(100% + 22px); height: calc(100% + 22px); }
+  .dungeon-trial-panel .trial-atk-ultimate .trial-decal-img { inset: -14px; width: calc(100% + 28px); height: calc(100% + 28px); }
+  .dungeon-trial-panel .trial-cd-pill { top: -4px; right: -5px; min-width: 14px; height: 14px; font-size: 0.56rem; line-height: 12px; }
+  /* Battle reads top-to-bottom: status strip → log → enemies → champions → dock. */
+  .dungeon-trial-panel .trial-turn-block { order: 0; margin-bottom: 2px; }
+  .dungeon-trial-panel .combat-log { order: 1; }
+  .dungeon-trial-panel .trial-arena { order: 2; }
+  /* Champions hug the action dock: margin-top:auto absorbs all spare space and
+     margin-bottom clears the fixed dock (~150px tall: decals + flee). */
+  .dungeon-trial-panel .trial-party-row { order: 10; margin: 6px 0 170px; margin-top: auto; padding-top: 8px; }
+  /* Log needs no extra bottom clearance on mobile: the champion row + turn
+     strip live between it and the dock. */
+  .dungeon-combat-panel.dungeon-trial-panel .combat-log { margin-bottom: 6px; }
+  /* Dock spacing on phones: tighter but still thumb-sized. */
+  .dungeon-combat-panel.dungeon-trial-panel .combat-actions { padding: 10px 8px calc(6px + env(safe-area-inset-bottom, 0px)); gap: 4px; }
+  .dungeon-combat-panel.dungeon-trial-panel .trial-flee-btn { min-width: 130px; padding: 6px 10px; font-size: 0.74rem; }
+
+  /* Skip (raised far-right) needs vertical clearance: the dock can't clip it. */
+  .dungeon-combat-panel.dungeon-trial-panel .combat-actions { overflow: visible; }
+
+  /* Compact log; buttons always a single row. */
+  .dungeon-combat-panel .combat-log { height: 60px !important; min-height: 48px !important; max-height: 70px !important; padding: 6px 10px; }
+  .dungeon-combat-panel .combat-log-entry { font-size: 0.7rem; }
+  .dungeon-combat-panel .combat-actions { gap: 6px; padding: 10px 10px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .dungeon-combat-panel .combat-actions .dungeon-btn { white-space: nowrap; padding-left: 6px; padding-right: 6px; }
+
+  /* Event landing — mobile compact. */
+  .event-landing { padding: 10px; gap: 10px; }
+  .event-landing-header { padding: 10px 8px 8px; }
+  .event-landing-icon { font-size: 2rem; }
+  .event-landing-title { font-size: 1rem; }
+  .event-landing-sub { font-size: 0.68rem; }
+  .event-info-pill { padding: 3px 10px; font-size: 0.68rem; }
+  .event-btn { padding: 10px 16px; font-size: 0.8rem; min-height: 42px; }
+  .event-hud-pill { padding: 2px 9px; font-size: 0.68rem; gap: 3px; }
+  .event-hud-ico { font-size: 0.72rem; }
+  .event-result-score { font-size: 1.25rem; }
+  .event-result-title { font-size: 1rem; }
+
+  /* Walking HUD (outside combat): count tucked to top-center, huge title dropped. */
+  .dungeon-topbar.dungeon-event-topbar { flex-wrap: nowrap; align-items: center; justify-content: center; gap: 6px; padding: 8px 10px; }
+  .dungeon-topbar.dungeon-event-topbar .dungeon-title-wrap { display: none; }
+  .dungeon-topbar.dungeon-event-topbar .dungeon-token-wrap { gap: 6px; }
+  .dungeon-topbar.dungeon-event-topbar .dungeon-token-pill { padding: 3px 8px; font-size: 0.72rem; }
+  .dungeon-topbar.dungeon-event-topbar .dungeon-btn-hud { min-height: 0; padding: 4px 8px; font-size: 0.72rem; }
 }
