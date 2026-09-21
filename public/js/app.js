@@ -6219,8 +6219,6 @@ function renderSkills() {
         </div>`:''}
         <div style="font-size:0.74rem;color:var(--text-dim)">${isPT?'PM regeneram +5/h · Ativação de habilidade é <strong style="color:#9b59b6">grátis</strong> · 1 habilidade por dia · duração de 5h':'MP regenerates +5/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration'}</div>`;
 
-    renderEventBanner('skills-event-banner');
-
     const skills=c.class_skills||[];
     const activeSkills=c.active_skills||{};
     const lastUsed=c.skill_last_used||{};
