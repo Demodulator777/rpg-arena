@@ -3998,6 +3998,16 @@ const eqSlots=[
         // Desktop: hover shows cost popup, click upgrades
         btn.addEventListener('mouseenter', () => showStatUpgradeInfo(btn, true));
         btn.addEventListener('mouseleave', hideTooltip);
+        // Row preview: a plain tap/click anywhere on the stat row (outside the
+        // upgrade button) shows the cost popup — lets players preview the cost
+        // without accidentally spending gold. Button click/long-press untouched.
+        const row = btn.closest('.stat-row');
+        if (row) {
+            row.addEventListener('click', (e) => {
+                if (e.target && e.target.closest && e.target.closest('.stat-upgrade-btn')) return;
+                showStatUpgradeInfo(btn);
+            });
+        }
         // Mobile: long press shows cost popup, tap upgrades
         if ('ontouchstart' in window) {
             let longPressTimer, longPressed = false;
@@ -16418,11 +16428,16 @@ document.addEventListener('click', (event) => {
 
     if (overlay instanceof HTMLElement) {
         const tooltip = document.getElementById('item-tooltip');
+        // A stat-upgrade row is a tooltip trigger too: tapping it (outside the +)
+        // shows the cost popup, so it must not count as "clicking elsewhere".
+        const ovlRow = overlay.closest ? overlay.closest('.stat-row') : null;
+        const clickedUpgradeRow = !!ovlRow && !!ovlRow.querySelector('.stat-upgrade-btn');
         const clickedTooltipTrigger =
             !!overlay.closest('#item-tooltip') ||
             !!overlay.closest('[data-hover-action]') ||
             !!overlay.closest('[data-action="openItemTooltip"]') ||
-            !!overlay.closest('[data-action="openShopItemTooltip"]');
+            !!overlay.closest('[data-action="openShopItemTooltip"]') ||
+            clickedUpgradeRow;
         if (window.innerWidth <= 768 && tooltip && !tooltip.classList.contains('hidden') && !clickedTooltipTrigger) {
             hideItemTooltip();
         }
