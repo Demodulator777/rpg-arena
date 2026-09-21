@@ -6193,31 +6193,9 @@ function renderSkills() {
     if (!character) return;
     const c=character;
     const isPT = CURRENT_LANG === 'pt';
-    const mp=character?.mission_points??0, mpMax=character?.mp_max||120;
     const dailyMpSpent=character?.daily_mp_spent??0;
     const unlocked=character?.skills_unlocked||(dailyMpSpent>=60);
-    const mpPct=Math.min(100,Math.round((mp/mpMax)*100));
-    const unlockPct=Math.min(100,Math.round((dailyMpSpent/60)*100));
     const now=Math.floor(Date.now()/1000);
-
-    const mpEl=document.getElementById('skills-mp-bar');
-    if (mpEl) mpEl.innerHTML=`
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-weight:700;color:#9b59b6">🔮 ${isPT?'Pontos de Missão':'Mission Points'}</span>
-            <span style="font-weight:700;color:#9b59b6">${mp} / ${mpMax}</span>
-        </div>
-        <div style="background:rgba(255,255,255,0.08);border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px">
-            <div style="width:${mpPct}%;height:100%;background:linear-gradient(90deg,#8e44ad,#9b59b6);border-radius:6px;transition:width 0.4s"></div>
-        </div>
-        ${!unlocked?`
-        <div style="margin-bottom:10px;padding:10px 14px;background:rgba(155,89,182,0.1);border:1px solid rgba(155,89,182,0.3);border-radius:8px">
-            <div style="font-size:0.8rem;color:#9b59b6;font-weight:600;margin-bottom:6px">🔒 ${isPT?'Habilidades desbloqueiam ao gastar 60 PM em missões hoje':'Skills unlock by spending 60 MP on missions today'}</div>
-            <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:6px;overflow:hidden">
-                <div style="width:${unlockPct}%;height:100%;background:#9b59b6;border-radius:4px"></div>
-            </div>
-            <div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px">${dailyMpSpent} / 60 MP ${isPT?'gastos hoje':'spent today'}</div>
-        </div>`:''}
-        <div style="font-size:0.74rem;color:var(--text-dim)">${isPT?'PM regeneram +5/h · Ativação de habilidade é <strong style="color:#9b59b6">grátis</strong> · 1 habilidade por dia · duração de 5h':'MP regenerates +5/hr · Skill activation is <strong style="color:#9b59b6">free</strong> · 1 skill per day · 5h duration'}</div>`;
 
     const skills=c.class_skills||[];
     const activeSkills=c.active_skills||{};
@@ -6243,31 +6221,18 @@ function renderSkills() {
         else if (anyUsedToday&&!usedToday){ btnLabel=isPT?`✅ Outra habilidade ativa hoje`:`✅ Another skill active today`; btnDisabled=true; }
         else if (usedToday){ btnLabel=isPT?`✅ Usada hoje`:`✅ Used today`; btnDisabled=true; }
         else               { btnLabel=isPT?`✨ Ativar (Grátis)`:`✨ Activate (Free)`; btnDisabled=false; }
-        const cardBg=isActive
-            ?'background:linear-gradient(135deg,rgba(155,89,182,0.25),rgba(142,68,173,0.15));border-color:rgba(155,89,182,0.5)'
-            :(usedToday||anyUsedToday&&!isActive)
-                ?'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.06);opacity:0.6'
-                :unlocked?'background:rgba(255,255,255,0.04);border-color:rgba(255,255,255,0.1)'
-                    :'background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.05);opacity:0.5';
         const skillImg = getSkillImagePath(sk.id);
-        return `<div style="border:1px solid;border-radius:12px;padding:16px;${cardBg};display:flex;flex-direction:column;height:100%">
-            <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:8px">
-                <div style="width:100%;max-width:213px;height:320px;margin:0 auto;border-radius:14px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;overflow:hidden">
-                    <img src="${skillImg}" alt="${escHtml(dispName)}" style="width:213px;height:320px;object-fit:cover;display:block" data-error-hide="true" data-error-next-display="flex">
-                    <span style="display:none;width:100%;height:100%;align-items:center;justify-content:center;font-size:4rem">${sk.emoji}</span>
-                </div>
-                <div>
-                    <div style="font-weight:700;font-size:1rem;color:var(--text-bright)">${dispName}</div>
-                    ${isActive?`<div style="font-size:0.72rem;color:#9b59b6;font-weight:600">✨ ACTIVE · ${expiresStr} ${isPT?'restante':'remaining'}</div>`:
-            usedToday?`<div style="font-size:0.72rem;color:var(--text-dim)">${isPT?'Usada hoje — redefine à meia-noite':'Used today — resets at midnight'}</div>`:''}
-                </div>
+        return `<div class="skill-card${isActive?' is-active':''}${(usedToday||anyUsedToday&&!isActive)?' is-spent':''}${!unlocked?' is-locked':''}">
+            <div class="skill-art">
+                <img src="${skillImg}" alt="${escHtml(dispName)}" data-error-hide="true" data-error-next-display="flex">
+                <span class="skill-emoji" style="display:none" aria-hidden="true">${sk.emoji}</span>
+                ${isActive?`<span class="skill-status-chip">✨ ${isPT?'ATIVA':'ACTIVE'} · ${expiresStr}</span>`:''}
             </div>
-            <div style="font-size:0.82rem;color:var(--text-dim);margin-bottom:12px;line-height:1.45;flex:1">${dispDesc}</div>
-            <button ${actionAttrs('activateSkill', sk.id)} ${btnDisabled?'disabled':''}
-                style="width:100%;padding:8px;border-radius:8px;border:1px solid ${canActivate?'rgba(155,89,182,0.5)':'rgba(255,255,255,0.1)'};
-                background:${canActivate?'rgba(155,89,182,0.2)':'rgba(255,255,255,0.04)'};margin-top:auto;
-                color:${canActivate?'#9b59b6':'var(--text-dim)'};cursor:${canActivate?'pointer':'not-allowed'};
-                font-size:0.82rem;font-weight:600;transition:all 0.2s">${btnLabel}</button>
+            <div class="skill-deck">
+                <div class="skill-name">${dispName}</div>
+                <p class="skill-desc">${dispDesc}</p>
+                <button class="skill-btn${canActivate?' can':''}" ${actionAttrs('activateSkill', sk.id)} ${btnDisabled?'disabled':''}>${btnLabel}</button>
+            </div>
         </div>`;
     }).join('');
 }
