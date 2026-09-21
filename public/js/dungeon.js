@@ -3632,9 +3632,14 @@ function renderDungeonRaidHub(guildData) {
                 <div class="raid-mercenary-head">${_pt('Recrutar Mercenários', 'Recruit Mercenaries')}</div>
                 <div class="raid-mercenary-sub">${_pt('Gaste 1 gema para adicionar um recruta da masmorra a esta invasão. Eles contam para o tamanho e a força do grupo.', 'Spend 1 gem to add a dungeon recruit to this raid. They count toward party size and strength.')}</div>
                 <div class="raid-mercenary-board">
-                    ${raid.mercenaryPool.map(merc => `
+                    ${raid.mercenaryPool.map(merc => {
+                        const mercArt = MONSTER_POOL.find(m => m.id === merc.key);
+                        return `
                         <div class="raid-mercenary-card ${merc.recruited ? 'is-recruited' : ''}">
-                            <div class="raid-mercenary-name">${merc.name}</div>
+                            <div class="raid-mercenary-top">
+                                <div class="raid-mercenary-portrait"><img src="${mercArt ? mercArt.image : ''}" alt="${merc.name}" onerror="this.classList.add('is-missing')"></div>
+                                <div class="raid-mercenary-name">${merc.name}</div>
+                            </div>
                             <div class="raid-mercenary-stats">
                                 HP ${merc.stats.hp} · ATK ${merc.stats.dmgMin}-${merc.stats.dmgMax} · DEF ${merc.stats.defense}
                             </div>
@@ -3644,18 +3649,16 @@ function renderDungeonRaidHub(guildData) {
                             ${merc.recruited
                                 ? `<div class="raid-mercenary-status">${_pt('Recrutado', 'Recruited')}</div>`
                                 : `<button class="exchange-btn raid-mercenary-btn" ${actionAttrs('recruitGuildRaidMercenary', raid.id, merc.id)}>${_pt('Recrutar · 1 Gema', 'Recruit · 1 Gem')}</button>`}
-                        </div>
-                    `).join('')}
+                        </div>`;
+                    }).join('')}
                 </div>
             `
             : '';
 
         return `
             <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
-                ${raid.bossImage ? `<img class="raid-card-art" src="${raid.bossImage}" alt="" onerror="this.classList.add('is-missing')"><div class="raid-card-shade"></div>` : ''}
-                <div class="exchange-icon raid-card-icon${raid.bossImage ? ' raid-boss-thumb' : ''}">
-                    ${raid.bossImage ? `<img src="${raid.bossImage}" alt="${raid.bossName}" onerror="this.classList.add('is-missing')">` : _pt('Invasão', 'Raid')}
-                </div>
+                ${raid.bossImage ? `<img class="raid-card-art" src="${raid.bossImage}" alt="" onerror="this.classList.add('is-missing')">` : ''}
+                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt(`Andar ${raid.floor} · Invasão:`, `Floor ${raid.floor} Raid:`)} ${raid.bossName} (${raid.minLevel || 1}-${raid.maxLevel || 999})</div>
                     <div class="exchange-desc">${_pt('O grupo inteiro ataca como um só. Os ataques de invasão sempre acertam e não usam config de zonas.', 'The whole party strikes as one. Raid attacks always connect and do not use zone setups.')}</div>
@@ -3707,7 +3710,6 @@ function renderDungeonRaidHub(guildData) {
         ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">${_pt(`Recuperação de invasão ativa: ${formatRaidDuration(cooldownLeft)} restantes.`, `Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.`)}</div>` : ''}
         ${canCreateRaid ? `
             <div class="exchange-card exchange-available raid-create-card">
-                <div class="raid-card-shade raid-create-shade"></div>
                 <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt('Criar Invasão', 'Create a Raid')}</div>
