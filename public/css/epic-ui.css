@@ -486,6 +486,329 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     transform: translateX(-50%) scale(0.96);
 }
 
+/* ── 12 · RAIDS TAB — cinematic art (raid1/2/3.png) ─────────────────────
+   Markup (dungeon.js): .raid-hero-banner > img.raid-hero-img + shade +
+   content · hub head gets an art strip · raid cards get art backdrops.
+   All art degrades gracefully: .is-missing images hide themselves. */
+.raid-hero-banner {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: clamp(150px, 22vmin, 230px);
+    border-radius: 16px;
+    overflow: hidden;
+    isolation: isolate;
+    background: linear-gradient(145deg, var(--bg2), var(--bg3));
+    border: 1px solid var(--frame-rail);
+    box-shadow: 0 18px 44px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.raid-hero-img {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    filter: saturate(1.12) contrast(1.05);
+    transition: transform 5.5s cubic-bezier(0.2,0.7,0.3,1);
+}
+.raid-hero-banner:hover .raid-hero-img { transform: scale(1.06); }
+.raid-hero-shade {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, rgba(7,11,16,0.12) 0%, rgba(7,11,16,0.5) 55%, rgba(7,11,16,0.9) 100%),
+        radial-gradient(ellipse 62% 95% at 6% 100%, rgba(255,157,69,0.13), transparent 62%);
+}
+.raid-hero-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: clamp(14px, 2.4vmin, 26px) clamp(16px, 3vmin, 32px);
+}
+.raid-hero-kicker {
+    font-size: clamp(0.64rem, 1.3vmin, 0.76rem);
+    font-weight: 700;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold-light);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+.raid-hero-title {
+    margin: 0;
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.5rem, 4vmin, 2.3rem);
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-bright);
+    text-shadow: 0 2px 12px rgba(0,0,0,0.92), 0 0 30px rgba(194,88,31,0.3);
+}
+.raid-hero-sub {
+    margin: 0;
+    max-width: 62ch;
+    font-size: clamp(0.8rem, 1.7vmin, 0.92rem);
+    color: rgba(226,232,240,0.92);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.9);
+}
+
+/* Hub shell: translucent so the world glow breathes through */
+.dungeon-raid-hub-shell {
+    background: linear-gradient(180deg, rgba(8,12,20,0.74), rgba(6,10,18,0.68));
+    border: 1px solid var(--frame-rail);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.raid-hub-head-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+.dungeon-raid-hub-title {
+    font-family: 'Cinzel', serif;
+    font-size: 0.86rem;
+    letter-spacing: 0.18em;
+    color: var(--gold-light);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+.raid-hub-art-strip {
+    display: flex;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+.raid-hub-art-strip img {
+    width: clamp(64px, 11vmin, 96px);
+    height: clamp(44px, 7.5vmin, 64px);
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--frame-rail);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+    filter: saturate(1.1);
+    transition: transform 0.25s, border-color 0.25s, filter 0.25s;
+}
+.raid-hub-art-strip img:hover {
+    transform: translateY(-3px) scale(1.04);
+    border-color: var(--gold);
+    filter: saturate(1.22) brightness(1.08);
+}
+
+/* Raid cards: art backdrop under the violet raid identity */
+.raid-card,
+.raid-create-card {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    border-radius: 14px;
+    background: rgba(4,8,14,0.42);
+    border: 1px solid rgba(167,139,250,0.28);
+    box-shadow: 0 14px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
+    transition: border-color 0.22s, box-shadow 0.22s;
+}
+.raid-card:hover,
+.raid-create-card:hover {
+    border-color: rgba(196,181,253,0.5);
+    box-shadow: 0 18px 40px rgba(0,0,0,0.5), 0 0 20px rgba(124,58,237,0.2);
+}
+.raid-card-art {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.5;
+    filter: saturate(1.12) contrast(1.05);
+    transition: transform 0.5s ease, opacity 0.3s;
+}
+.raid-card:hover .raid-card-art,
+.raid-create-card:hover .raid-card-art { transform: scale(1.05); opacity: 0.62; }
+.raid-card-shade {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background:
+        linear-gradient(90deg, rgba(4,8,14,0.62) 0%, rgba(4,8,14,0.28) 45%, rgba(4,8,14,0.72) 100%),
+        linear-gradient(0deg, rgba(4,8,14,0.6), transparent 50%);
+}
+.raid-card > .exchange-icon,
+.raid-card > .exchange-info,
+.raid-create-card > .exchange-icon,
+.raid-create-card > .exchange-info { position: relative; z-index: 2; }
+.raid-card-icon {
+    backdrop-filter: blur(2px);
+    border: 1px solid rgba(196,181,253,0.35);
+    background:
+        linear-gradient(180deg, rgba(124,58,237,0.42), rgba(124,58,237,0.16)),
+        rgba(7,12,20,0.82);
+    text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 12px rgba(124,58,237,0.5);
+}
+
+/* Missing art files: hide so the layout degrades to the clean original */
+.raid-hero-img.is-missing,
+.raid-card-art.is-missing,
+.raid-hub-art-strip img.is-missing { display: none !important; }
+
+/* ── 13 · DUNGEON ENTRY — tower crest, boss showcase, floor strip ───── */
+/* Replace the 🗼 emoji with an engraved gold tower crest */
+.dungeon-tower-icon { font-size: 0; line-height: 0; }
+.tower-svg {
+    display: block;
+    width: clamp(44px, 7vmin, 64px);
+    height: clamp(44px, 7vmin, 64px);
+    filter: drop-shadow(0 4px 14px rgba(194,88,31,0.35));
+}
+
+/* Next-boss showcase: large art panel instead of a 64px blob */
+.dungeon-tower-next {
+    background: linear-gradient(180deg, rgba(8,12,20,0.75), rgba(6,10,18,0.65));
+    border: 1px solid var(--frame-rail);
+    border-radius: 14px;
+    padding: clamp(12px, 2vmin, 18px);
+}
+.dungeon-next-label {
+    font-size: 0.7rem;
+    color: var(--gold-light);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    margin-bottom: 12px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+.dungeon-next-boss {
+    display: flex;
+    align-items: stretch;
+    gap: clamp(14px, 2.2vmin, 22px);
+}
+.dungeon-next-art {
+    position: relative;
+    overflow: hidden;
+    isolation: isolate;
+    flex: 0 0 auto;
+    width: clamp(200px, 32vmin, 320px);
+    aspect-ratio: 3 / 2;
+    border-radius: 14px;
+    border: 1px solid var(--frame-rail);
+    background: var(--dungeon-bg);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+.dungeon-next-art img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: saturate(1.1) contrast(1.05);
+    transition: transform 5s cubic-bezier(0.2,0.7,0.3,1);
+}
+.dungeon-tower-next:hover .dungeon-next-art img { transform: scale(1.05); }
+/* Emoji fallback tile (shown when the art is missing) */
+.dungeon-next-art > span {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+.dungeon-next-shade {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+        linear-gradient(180deg, transparent 55%, rgba(7,11,16,0.5) 100%),
+        radial-gradient(ellipse 85% 30% at 50% 0%, rgba(7,11,16,0.35), transparent 65%);
+}
+.dungeon-next-floor {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    padding: 3px 10px;
+    border-radius: 999px;
+    background: rgba(7,11,16,0.8);
+    border: 1px solid var(--frame-rail);
+    color: var(--gold-light);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+.dungeon-next-info {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+}
+.dungeon-next-name {
+    font-family: 'Cinzel', serif;
+    font-size: clamp(1.05rem, 2.6vmin, 1.4rem);
+    letter-spacing: 0.05em;
+    color: #e2e8f0;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+}
+.dungeon-next-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: var(--dungeon-muted);
+}
+.dungeon-next-stats span {
+    padding: 4px 10px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.07);
+}
+.dungeon-next-drops { font-size: 0.74rem; color: var(--dungeon-gold); }
+.dungeon-next-lore {
+    font-size: 0.72rem;
+    line-height: 1.5;
+    font-style: italic;
+    color: var(--dungeon-muted);
+    border-left: 2px solid var(--frame-rail);
+    padding-left: 10px;
+}
+
+/* Upcoming floors: taller art + slow zoom */
+.dungeon-floor-preview-card { width: 168px; }
+.fp-banner { height: 104px; min-height: 104px; }
+.fp-banner img { width: 100%; height: 100%; transition: transform 0.5s ease; }
+.dungeon-floor-preview-card:hover .fp-banner img { transform: scale(1.08); }
+
+/* Mobile: stack boss showcase, wider art */
+@media (max-width: 640px) {
+    .dungeon-next-boss { flex-direction: column; }
+    .dungeon-next-art { width: 100%; aspect-ratio: 16 / 9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .dungeon-next-art img, .dungeon-tower-next:hover .dungeon-next-art img,
+    .fp-banner img, .dungeon-floor-preview-card:hover .fp-banner img { transition: none; transform: none; }
+}
+
+/* Mobile: tighter hero, dimmer card art */
+@media (max-width: 640px) {
+    .raid-hero-banner { min-height: 150px; border-radius: 14px; }
+    .raid-card-art { opacity: 0.34; }
+    .dungeon-raid-hub-shell { padding: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .raid-hero-img, .raid-hero-banner:hover .raid-hero-img,
+    .raid-card-art, .raid-card:hover .raid-card-art,
+    .raid-hub-art-strip img, .raid-hub-art-strip img:hover { transition: none; transform: none; }
+}
+
 @media (prefers-reduced-motion: reduce) {
     .skill-card, .skill-card:hover, .skill-art img { transition: none; transform: none; }
     .skill-card.is-active { animation: none; }
