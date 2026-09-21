@@ -861,38 +861,28 @@ function returnToBeta() {
 
 // Apply static bilingual labels (nav buttons, tab headers, etc.) declared with
 // data-en/data-pt + optional data-en-title/data-pt-title in index.html.
+// Idempotent and live-reversible: elements with ONLY data-pt (no data-en)
+// capture their English default text on first run and restore it when the
+// language is switched back, so a selection needs no full reload.
+const __staticLangDefaults = new WeakMap();
 function applyStaticLang() {
   var pt = CURRENT_LANG === 'pt';
-  document.querySelectorAll('[data-pt]').forEach(function (el) {
-    var hasEn = el.hasAttribute('data-en');
-    if (!pt && !hasEn) return;
-    var label = pt ? el.getAttribute('data-pt') : el.getAttribute('data-en');
-    if (label !== null) el.innerHTML = label;
-  });
-  document.querySelectorAll('[data-pt-html]').forEach(function (el) {
-    var hasEn = el.hasAttribute('data-en-html');
-    if (!pt && !hasEn) return;
-    var label = pt ? el.getAttribute('data-pt-html') : el.getAttribute('data-en-html');
-    if (label !== null) el.innerHTML = label;
-  });
-  document.querySelectorAll('[data-pt-title]').forEach(function (el) {
-    var hasEn = el.hasAttribute('data-en-title');
-    if (!pt && !hasEn) return;
-    var label = pt ? el.getAttribute('data-pt-title') : el.getAttribute('data-en-title');
-    if (label !== null) el.title = label;
-  });
-  document.querySelectorAll('[data-ph-pt]').forEach(function (el) {
-    var hasEn = el.hasAttribute('data-ph-en');
-    if (!pt && !hasEn) return;
-    var label = pt ? el.getAttribute('data-ph-pt') : el.getAttribute('data-ph-en');
-    if (label !== null) el.placeholder = label;
-  });
-  document.querySelectorAll('[data-alt-pt]').forEach(function (el) {
-    var hasEn = el.hasAttribute('data-alt-en');
-    if (!pt && !hasEn) return;
-    var label = pt ? el.getAttribute('data-alt-pt') : el.getAttribute('data-alt-en');
-    if (label !== null) el.setAttribute('alt', label);
-  });
+  function applyFamily(attrName, enAttrName, read, write) {
+    document.querySelectorAll('[' + attrName + ']').forEach(function (el) {
+      if (!__staticLangDefaults.has(el)) {
+        __staticLangDefaults.set(el, el.hasAttribute(enAttrName) ? null : read(el));
+      }
+      var label = pt
+        ? el.getAttribute(attrName)
+        : (el.hasAttribute(enAttrName) ? el.getAttribute(enAttrName) : __staticLangDefaults.get(el));
+      if (label !== null && label !== undefined && label !== read(el)) write(el, label);
+    });
+  }
+  applyFamily('data-pt', 'data-en', function (el) { return el.innerHTML; }, function (el, v) { el.innerHTML = v; });
+  applyFamily('data-pt-html', 'data-en-html', function (el) { return el.innerHTML; }, function (el, v) { el.innerHTML = v; });
+  applyFamily('data-pt-title', 'data-en-title', function (el) { return el.title; }, function (el, v) { el.title = v; });
+  applyFamily('data-ph-pt', 'data-ph-en', function (el) { return el.placeholder; }, function (el, v) { el.placeholder = v; });
+  applyFamily('data-alt-pt', 'data-alt-en', function (el) { return el.getAttribute('alt') || ''; }, function (el, v) { el.setAttribute('alt', v); });
 }
 
 // Server 1 launch countdown (driven by the s1_launch_at server setting).
@@ -1460,6 +1450,7 @@ function syncLangToServer() {
                 CURRENT_LANG = lang;
                 localStorage.setItem('rpg_lang', lang);
                 setLabel();
+                applyStaticLang();
             }
             close();
         });
@@ -5667,8 +5658,7 @@ function renderLoadout() {
         <div style="display:none" id="loadout-hidden-inputs">
             ${Array.from({length:10},(_,i)=>`<input id="atk-${i}" value="${_loadoutAttackZones[i]||'chest'}"><input id="blk-${i}" value="${_loadoutBlockZones[i]||'cross_guard'}">`).join('')}
         </div>
-        <button class="btn-primary" style="width:100%;margin-top:4px" ${actionAttrs('saveLoadout')}>${CURRENT_LANG==='pt' ? 'Salvar Loadout' : 'Save Loadout'}</button>
-        <div id="loadout-msg" class="msg-bar hidden"></div>`;
+        <button class="btn-primary" style="width:100%;margin-top:4px" ${actionAttrs('saveLoadout')}>${CURRENT_LANG==='pt' ? 'Salvar Loadout' : 'Save Loadout'}</button>`;
     _loadoutActiveRound = 0;
     renderLoadoutRoundTabs();
     renderLoadoutDotGrid('atk');
@@ -5914,9 +5904,39 @@ async function saveLoadout() {
         await api('POST','/game/loadout',{attackZones,blockZones});
         character.attack_zones=JSON.stringify(attackZones);
         character.block_zones=JSON.stringify(blockZones);
-        showMsg('loadout-msg','Loadout salvo!');
-    } catch(e) { showMsg('loadout-msg',e.message,true); }
+        showLoadoutSaveModal(true);
+    } catch(e) { showLoadoutSaveModal(false, e.message); }
 }
+
+// Confirmation modal instead of the old bottom msg-bar: a save can succeed
+// (✅ Loadout saved!) or fail (⚠️ Could not save) and both get full visibility.
+function showLoadoutSaveModal(ok, errMsg) {
+    const modal = document.getElementById('loadout-save-modal');
+    if (!modal) return;
+    const icon = document.getElementById('loadout-save-icon');
+    const title = document.getElementById('loadout-save-title');
+    const msg = document.getElementById('loadout-save-message');
+    const btn = modal.querySelector('.btn-primary');
+    if (icon) icon.textContent = ok ? '✅' : '⚠️';
+    if (title) {
+        title.style.color = ok ? '#f1c40f' : '#e74c3c';
+        title.textContent = ok ? _pt('Loadout salvo!', 'Loadout saved!')
+                               : _pt('Não foi possível salvar', 'Could not save');
+    }
+    if (msg) {
+        msg.textContent = ok
+            ? _pt('Suas zonas de ataque e bloqueio foram salvas.', 'Your attack and block zones were saved.')
+            : (errMsg || _pt('Ocorreu um erro ao salvar seu Loadout.', 'Something went wrong while saving your Loadout.'));
+    }
+    if (btn) btn.textContent = _pt('Continuar', 'Continue');
+    modal.classList.remove('hidden');
+}
+
+function closeLoadoutSave() {
+    const modal = document.getElementById('loadout-save-modal');
+    if (modal) modal.classList.add('hidden');
+}
+window.closeLoadoutSave = closeLoadoutSave;
 
 // ── Training ──────────────────────────────────────────────────────────────
 function renderUpgrade() {
@@ -9327,11 +9347,11 @@ function renderInventory(data) {
             const d = i.item_data;
             const itemImage = d.image || getItemImage(d.name);
             return `<div class="mat-card" style="position:relative;${itemImage?'--card-bg:url('+escHtml(itemImage)+')':''}">
-                        ${invBulkMode ? `<div style="position:absolute;top:4px;right:4px;font-size:0.7rem;color:var(--text-dim)">${getInventorySellPrice(d)}g</div>` : ''}
-                        <img src="${itemImage}" style="width:48px;height:48px;object-fit:contain;margin-bottom:8px;border-radius:12px" data-error-hide="true" data-error-next-display="block">
+                        ${invBulkMode ? `<div style="position:absolute;top:4px;left:4px;font-size:0.7rem;color:var(--text-dim)">${getInventorySellPrice(d)}g</div>` : ''}
+                        <img src="${itemImage}" style="width:34px;height:34px;object-fit:contain;margin-bottom:4px;border-radius:8px" data-error-hide="true" data-error-next-display="block">
                         <div style="font-size:1.6rem;display:none">${d.emoji || '📦'}</div>
                         <div class="mat-name">${d.name || d.id}</div>
-                        <div class="mat-qty">× ${d.qty || 1}</div>
+                        <div class="mat-qty mat-qty-chip">× ${d.qty || 1}</div>
                         <div class="mat-type" style="color:var(--text-dim);font-size:0.7rem">${i.item_type === 'component' ? _pt('Componente', 'Component') : _pt('Material Bruto', 'Raw Material')}</div>
                         ${invBulkMode ? `<button class="btn-sm danger" style="margin-top:6px;font-size:0.65rem;padding:2px 6px" ${actionAttrs('sellItemWithQty', i.id, d.name || d.id, getInventorySellPrice(d), d.qty || 1)}>${_pt('Vender', 'Sell')} ${getInventorySellPrice(d)}g</button>` : ''}
                     </div>`;
