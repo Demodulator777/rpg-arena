@@ -13833,6 +13833,7 @@ async function collectMissionForCharacter(db, characterId) {
                         storyComplete,
                         questId: activeUnit.stage.id,
                         questName: activeUnit.stage.name,
+                        questName_pt: activeUnit.stage.name_pt || activeUnit.stage.name,
                         icon: activeUnit.stage.icon,
                         stageIdx: activeUnit.stageIdx,
                         stageTotal: totalStages,
@@ -13841,11 +13842,13 @@ async function collectMissionForCharacter(db, characterId) {
                         boostEndsAt: storyBoosted ? (storyLaunch + STORY_BOOST_WINDOW) : 0,
                         rewards: granted.rewards,
                         loreUnlock: questComplete ? activeUnit.stage.loreUnlock : null,
+                        loreUnlock_pt: questComplete ? (activeUnit.stage.loreUnlock_pt || activeUnit.stage.loreUnlock) : null,
                         currentStage: nextStage,
                         totalStages,
                         done: storyComplete,
                         completedAt,
                         nextObjective: nextUnit ? nextUnit.stage.objective : null,
+                        nextObjective_pt: nextUnit ? (nextUnit.stage.objective_pt || nextUnit.stage.objective) : null,
                         questName: activeUnit.stage.name,
                         stageNames: (storyRoot() && storyRoot().stages) ? storyRoot().stages.map(s => s.name) : [],
                     };
@@ -18338,6 +18341,14 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
             await logFlagEvent(db, charName, String(detail).slice(0, 300), reasonType);
         }
         // Automatic escalating ban on untrusted API calls
+        // /upgrade: a touch-device long-press to read the cost tooltip then tap
+        // can fire the POST from touchend without a tracked touchstart/click —
+        // this false positive must never auto-lock a legit player. The flag above
+        // (untrusted_api) is still recorded for admin visibility; upgrades are
+        // gold-gated + concurrency-locked server-side, so a scripted call can't
+        // produce unearned progress. Never auto-ban for it (stale cached clients
+        // with the old trusted-event tracker are also protected until they update).
+        if (d.includes('/upgrade')) return res.json({ success: true });
         // Admins/moderators are trusted operators — never auto-lock them.
         if (!req.user.isAdmin && !req.user.isModerator) {
             await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
