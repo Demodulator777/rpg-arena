@@ -2284,6 +2284,12 @@ document.addEventListener('securitypolicyviolation', (e) => {
     document.addEventListener('click', onTrusted, true);
     document.addEventListener('keydown', onTrusted, true);
     document.addEventListener('touchstart', onTrusted, true);
+    // iPad/Safari can deliver touchend without a tracked touchstart/click
+    // (scroll-cancel or hover-consumed first tap after a long-press to read the
+    // cost tooltip). Actions like the stat + upgrade fire straight from touchend,
+    // so track the lift too or a legit tap looks like an untrusted API call.
+    document.addEventListener('touchend', onTrusted, true);
+    document.addEventListener('pointerup', onTrusted, true);
 })();
 
 // ── Auth ──────────────────────────────────────────────────────────────────
@@ -7291,7 +7297,7 @@ function renderStoryPanel() {
         const as = st.activeStage;
         const stageTotal = Array.isArray(st.activeQuest.stages) ? st.activeQuest.stages.length : 0;
         tip = as
-            ? `${label} · ${pt ? 'Etapa' : 'Stage'} ${(as.stageIdx || 0) + 1}/${stageTotal} · 📍 ${storyStageLocation(as)}: ${as.objective || ''}${as.hint ? ' — ' + as.hint : ''}`
+            ? `${label} · ${pt ? 'Etapa' : 'Stage'} ${(as.stageIdx || 0) + 1}/${stageTotal} · 📍 ${storyStageLocation(as)}: ${pt && as.objective_pt ? as.objective_pt : as.objective || ''}${as.hint ? ' — ' + (pt && as.hint_pt ? as.hint_pt : as.hint) : ''}`
             : label;
     } else {
         icon = '📜';
@@ -7378,14 +7384,18 @@ function openStoryDialogue() {
 
     // cutscene: optional array of scene data. If not provided, synthesize one
     // scene per dialogue line with a fallback background gradient.
+    // Dialogue is localized server-side (dialogue_pt mirrors dialogue); pick by language.
+    const dialogue = (pt && Array.isArray(stg.dialogue_pt) && stg.dialogue_pt.length)
+        ? stg.dialogue_pt
+        : (stg.dialogue || []);
     let scenes = Array.isArray(stg.cutscene) && stg.cutscene.length
         ? stg.cutscene.slice()
-        : stg.dialogue.map((d, i) => ({ bg: null, line: d }));
+        : dialogue.map((d, i) => ({ bg: null, line: d }));
 
     // Normalize: each scene may be { bg, line } or a plain string.
     scenes = scenes.map((s, i) => {
         const obj = (typeof s === 'string') ? { line: s } : { line: s.line, bg: s.bg };
-        const rawLine = (typeof obj.line === 'string') ? obj.line : stg.dialogue[i];
+        const rawLine = (typeof obj.line === 'string') ? obj.line : (dialogue[i] || '');
         return {
             bg: obj.bg || null,
             line: rawLine,
@@ -7470,7 +7480,7 @@ function scenesProgressLabel() {
                 : ` · Stage ${(as.stageIdx || 0) + 1}/${stageTotal}`;
         }
     }
-    if (as) s += ` · ${as.icon || ''} ${as.name}`;
+    if (as) s += ` · ${as.icon || ''} ${pt && as.name_pt ? as.name_pt : as.name}`;
     return s.trim();
 }
 
@@ -7585,15 +7595,15 @@ function showStoryCompletionModal(result) {
         : (pt ? 'MISSÃO DA HISTÓRIA CONCLUÍDA!' : 'STORY QUEST COMPLETE!');
 
     const nameLine = onlyStage
-        ? `<div class="story-completion-name">${result.icon || '📜'} ${result.questName} · ${pt ? 'Etapa' : 'Stage'} ${(result.stageIdx || 0) + 1}/${stageTotal}</div>`
-        : `<div class="story-completion-name">${result.icon || '🗿'} ${result.questName}</div>`;
+        ? `<div class="story-completion-name">${result.icon || '📜'} ${pt && result.questName_pt ? result.questName_pt : result.questName} · ${pt ? 'Etapa' : 'Stage'} ${(result.stageIdx || 0) + 1}/${stageTotal}</div>`
+        : `<div class="story-completion-name">${result.icon || '🗿'} ${pt && result.questName_pt ? result.questName_pt : result.questName}</div>`;
 
     const loreBox = (!onlyStage && result.loreUnlock)
-        ? `<div class="story-lore-box">${escHtml(result.loreUnlock)}</div>`
+        ? `<div class="story-lore-box">${escHtml(pt && result.loreUnlock_pt ? result.loreUnlock_pt : result.loreUnlock)}</div>`
         : '';
 
     const nextLine = result.nextObjective
-        ? `<div class="story-next-line">${pt ? 'Próximo:' : 'Next:'} ${escHtml(result.nextObjective)}</div>`
+        ? `<div class="story-next-line">${pt ? 'Próximo:' : 'Next:'} ${escHtml(pt && result.nextObjective_pt ? result.nextObjective_pt : result.nextObjective)}</div>`
         : '';
 
     const finalMsg = result.done || result.storyComplete
