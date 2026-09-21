@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/css/style.css?v=2026-09-19-news-feed"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-09-18-repaint-fix"/>
+    <link rel="stylesheet" href="/css/epic-ui.css?v=2026-09-21-epic-ui2"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
         #app { display: none; }
@@ -1177,6 +1178,16 @@
             </div>
         </div>
 
+        <!-- Loadout save confirmation -->
+        <div id="loadout-save-modal" class="modal-overlay hidden">
+            <div class="modal-box loadout-save-box" style="text-align:center">
+                <div id="loadout-save-icon" style="font-size:2rem;margin-bottom:8px">✅</div>
+                <h3 id="loadout-save-title" style="margin:0 0 12px;color:#f1c40f">Loadout saved!</h3>
+                <div id="loadout-save-message" style="font-size:0.95rem;color:#fff;line-height:1.6">Your attack and block zones were saved.</div>
+                <button class="btn-primary" style="margin-top:16px;width:100%" data-action="closeLoadoutSave">Continue</button>
+            </div>
+        </div>
+
         <!-- Compose modal -->
         <div id="compose-modal" class="modal-overlay hidden">
             <div class="modal-box">
@@ -1307,7 +1318,7 @@
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="/js/app.js?v=2026-09-21-row-preview-fix"></script>
+    <script src="/js/app.js?v=2026-09-21-loadout-modal"></script>
     <script src="/js/ring-fx.js?v=2026-09-10-ring-arc-band"></script>
     <script src="/js/skills-tree.js?v=2026-09-04-train-dd-zoom2"></script>
 <script src="/js/dungeon.js?v=2026-09-18-skillcheck-grace"></script>
