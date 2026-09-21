@@ -3454,13 +3454,13 @@ function renderRaidsTab() {
     if (!container) return;
     container.innerHTML = `
         <div class="dungeon-wrapper">
-            <div class="dungeon-topbar">
-                <div class="dungeon-title-wrap">
-                    <span class="dungeon-title-icon">🏰</span>
-                    <div>
-                        <div class="dungeon-title-text">${_pt('Invasões', 'Raids')}</div>
-                        <div class="dungeon-title-sub">${_pt('Forme um esquadrão de até seis e derrube chefes colossais.', 'Form a squad of up to six and bring down colossal bosses.')}</div>
-                    </div>
+            <div class="raid-hero-banner">
+                <img class="raid-hero-img" src="/images/assets/raid1.png" alt="" onerror="this.classList.add('is-missing')">
+                <div class="raid-hero-shade"></div>
+                <div class="raid-hero-content">
+                    <div class="raid-hero-kicker">⚔ ${_pt('Batalhas de Guilda', 'Guild Assaults')}</div>
+                    <h2 class="raid-hero-title">${_pt('Invasões', 'Raids')}</h2>
+                    <p class="raid-hero-sub">${_pt('Forme um esquadrão de até seis e derrube chefes colossais.', 'Form a squad of up to six and bring down colossal bosses.')}</p>
                 </div>
             </div>
             <div id="raids-main-area">
@@ -3614,7 +3614,7 @@ function renderDungeonRaidHub(guildData) {
         raid.isMember || raid.isAccountMember || raid.isLeader ||
         (viewerLevel >= raid.minLevel && viewerLevel <= raid.maxLevel)
     );
-    const raidCards = visibleRaids.length ? visibleRaids.map(raid => {
+    const raidCards = visibleRaids.length ? visibleRaids.map((raid, raidIdx) => {
         const members = Array.isArray(raid.members) ? raid.members : [];
         const showMembers = raid.isMember || raid.isAccountMember;
         const membersHtml = showMembers ? members.map(member => `
@@ -3652,7 +3652,10 @@ function renderDungeonRaidHub(guildData) {
 
         return `
             <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
-                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
+                ${raid.bossImage ? `<img class="raid-card-art" src="${raid.bossImage}" alt="" onerror="this.classList.add('is-missing')"><div class="raid-card-shade"></div>` : ''}
+                <div class="exchange-icon raid-card-icon${raid.bossImage ? ' raid-boss-thumb' : ''}">
+                    ${raid.bossImage ? `<img src="${raid.bossImage}" alt="${raid.bossName}" onerror="this.classList.add('is-missing')">` : _pt('Invasão', 'Raid')}
+                </div>
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt(`Andar ${raid.floor} · Invasão:`, `Floor ${raid.floor} Raid:`)} ${raid.bossName} (${raid.minLevel || 1}-${raid.maxLevel || 999})</div>
                     <div class="exchange-desc">${_pt('O grupo inteiro ataca como um só. Os ataques de invasão sempre acertam e não usam config de zonas.', 'The whole party strikes as one. Raid attacks always connect and do not use zone setups.')}</div>
@@ -3704,6 +3707,7 @@ function renderDungeonRaidHub(guildData) {
         ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">${_pt(`Recuperação de invasão ativa: ${formatRaidDuration(cooldownLeft)} restantes.`, `Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.`)}</div>` : ''}
         ${canCreateRaid ? `
             <div class="exchange-card exchange-available raid-create-card">
+                <div class="raid-card-shade raid-create-shade"></div>
                 <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt('Criar Invasão', 'Create a Raid')}</div>
@@ -3850,7 +3854,16 @@ const previewFloors = [0,1,2,3,4].map(offset => {
     area.innerHTML = `
       <div class="dungeon-tower-entry" style="--dtheme:${nextTheme.theme};--dglow:${nextTheme.themeGlow}">
         <div class="dungeon-tower-top">
-          <div class="dungeon-tower-icon">🗼</div>
+          <div class="dungeon-tower-icon" aria-hidden="true">
+            <svg class="tower-svg" viewBox="0 0 48 48">
+              <defs><linearGradient id="tower-gold" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#e8b84b"/><stop offset="0.55" stop-color="#d49a2e"/><stop offset="1" stop-color="#c2581f"/>
+              </linearGradient></defs>
+              <path d="M13 44 V13 H10 V5 H16 V9 H20 V5 H28 V9 H32 V5 H38 V13 H35 V44 Z" fill="url(#tower-gold)"/>
+              <rect x="21" y="19" width="6" height="9" rx="3" fill="#0a0e14" opacity="0.85"/>
+              <path d="M20.5 44 v-5.5 a3.5 3.5 0 0 1 7 0 V44 Z" fill="#0a0e14" opacity="0.85"/>
+            </svg>
+          </div>
           <div class="dungeon-tower-info">
             <div class="dungeon-card-name">${_pt('A Torre Infinita', 'The Endless Tower')}</div>
             <div class="dungeon-card-desc">${_pt('Uma torre infinita de escuridão. Limpe cada andar para subir. Os chefes ficam mais fortes para sempre.', 'An infinite tower of darkness. Clear each floor to ascend. Bosses grow stronger forever.')}</div>
@@ -3863,22 +3876,29 @@ const previewFloors = [0,1,2,3,4].map(offset => {
         </div>
 
         <div class="dungeon-tower-next">
-          <div style="font-size:0.7rem;color:var(--dungeon-muted);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px">
+          <div class="dungeon-next-label">
             ${_pt(`Próximo chefe — Andar ${curFloor}`, `Next boss — Floor ${curFloor}`)}
           </div>
-<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-    <img src="${nextBoss.image}" alt="${nextBoss.name}" style="width:64px;height:64px;object-fit:cover;border-radius:50%;border:2px solid ${nextTheme.theme}" data-error-hide="true" data-error-next-display="flex">
-    <div style="display:none;font-size:2.5rem">${nextBoss.icon}</div>
-    <div>
-        <div style="font-family:'Cinzel',serif;color:#e2e8f0;font-size:1rem">${nextBoss.name}</div>
-        <div style="font-size:0.75rem;color:var(--dungeon-muted);margin-top:2px">
-            ❤️ ${nextBoss.hp} ${_pt('PV', 'HP')} · ⚔️ ${nextBoss.atk} ${_pt('ATQ', 'ATK')} · 🛡️ ${nextBoss.def} ${_pt('DEF', 'DEF')}
-        </div>
-        <div style="font-size:0.72rem;color:var(--dungeon-gold);margin-top:4px">
-            ${_pt('Saque:', 'Drops:')} 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · ✨ ${_pt('Premium Aleatório', 'Random Premium')} (${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]} ${_pt('dias', 'days')})
-        </div>
-    </div>
-</div>
+          <div class="dungeon-next-boss">
+            <div class="dungeon-next-art">
+              <img src="${nextBoss.image}" alt="${nextBoss.name}" data-error-hide="true" data-error-next-display="flex">
+              <span style="display:none;font-size:3rem">${nextBoss.icon}</span>
+              <div class="dungeon-next-shade"></div>
+              <div class="dungeon-next-floor">F${curFloor}</div>
+            </div>
+            <div class="dungeon-next-info">
+              <div class="dungeon-next-name">${nextBoss.name}</div>
+              <div class="dungeon-next-stats">
+                <span>❤️ ${nextBoss.hp} ${_pt('PV', 'HP')}</span>
+                <span>⚔️ ${nextBoss.atk} ${_pt('ATQ', 'ATK')}</span>
+                <span>🛡️ ${nextBoss.def} ${_pt('DEF', 'DEF')}</span>
+              </div>
+              <div class="dungeon-next-drops">
+                ${_pt('Saque:', 'Drops:')} 💰${nextLoot.gold[0]}–${nextLoot.gold[1]} · 💎${nextLoot.gems[0]}–${nextLoot.gems[1]} · ✨ ${_pt('Premium Aleatório', 'Random Premium')} (${nextLoot.premiumDays[0]}–${nextLoot.premiumDays[1]} ${_pt('dias', 'days')})
+              </div>
+              <div class="dungeon-next-lore">${nextBoss.lore}</div>
+            </div>
+          </div>
         </div>
 
         <button class="dungeon-btn dungeon-btn-enter" style="width:100%;padding:12px;font-size:1rem;margin-top:16px"
