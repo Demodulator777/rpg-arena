@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/css/style.css?v=2026-09-19-news-feed"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-09-18-repaint-fix"/>
-    <link rel="stylesheet" href="/css/epic-ui.css?v=2026-09-21-mercportraits"/>
+    <link rel="stylesheet" href="/css/epic-ui.css?v=2026-09-21-shopbtns"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
         #app { display: none; }
@@ -1044,7 +1044,15 @@
                                 🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
                             </button>
                         </div>
-                    </div> -->
+                    </div>                    -->
+                    <div class="shop-header-actions">
+                        <button class="btn-secondary shop-gems-cta" data-action="openFreeGemsModal">
+                            Claim Free Gems
+                        </button>
+                        <button class="btn-secondary" style="font-size:0.78rem;padding:6px 14px" data-action="rerollShop">
+                            🎲 Reroll Shop <span style="color:var(--purple);font-size:0.7rem">1 💎</span>
+                        </button>
+                    </div>
                     <div class="shop-currency-row">
                         <span id="shop-gold"></span>
                         <span id="shop-gems"></span>
