@@ -43,30 +43,24 @@ function renderSkillTreeUI(root) {
 
 // ── Header ────────────────────────────────────────────────────────────────────
     let html = `
-    <div style="padding:0 0 20px">
+    <div style="padding:0 0 20px; --st-accent:${accent}; --st-accent-b:${accent}; --st-accent-c:${accent}66; --st-accent-glow:${accent}55">
 
-        <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px;padding:16px;
-                    background:rgba(255,255,255,0.03);border:1px solid ${accent}33;border-radius:12px">
-            <img src="/images/class/${charClass}.png" style="width:56px;height:56px;border-radius:50%;
-                 object-fit:cover;border:2px solid ${accent}66" data-error-hide="true">
-            <div style="flex:1">
-                <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:${accent}">
-                    ${capitalize(charClass)} ${CURRENT_LANG === 'pt' ? 'Árvore de Habilidades' : 'Skill Tree'}
+        <div class="stt-hero">
+            <div class="stt-hero-bg" style="background-image:url('/images/class/${charClass}.png')"></div>
+            <div class="stt-hero-shade"></div>
+            <div class="stt-hero-crest"><span></span></div>
+            <div class="stt-hero-body">
+                <div class="stt-hero-eyebrow">${CURRENT_LANG === 'pt' ? 'Salão de Treinamento' : 'Training Hall'}</div>
+                <div class="stt-hero-title">${capitalize(charClass)} <em>${CURRENT_LANG === 'pt' ? 'Árvore de Habilidades' : 'Skill Tree'}</em></div>
+                ${tree.description ? `<div class="stt-hero-desc">${tree.description}</div>` : ''}
+                <div class="stt-hero-chips">
+                    <span class="stt-chip">💰 ${(character.gold||0).toLocaleString()}</span>
+                    <span class="stt-chip stt-chip-accent">✦ ${learned.length} ${CURRENT_LANG === 'pt' ? 'habilidade(s) dominada(s)' : `skill${learned.length!==1?'s':''} mastered`}</span>
                 </div>
-                <div style="font-size:0.76rem;color:rgba(255,255,255,0.45);margin-top:3px;line-height:1.4">
-                    ${tree.description || ''}
-                </div>
-            </div>
-            <div style="text-align:right;font-size:0.72rem;color:rgba(255,255,255,0.35)">
-            <div><span style="color:var(--gold)">💰 ${(character.gold||0).toLocaleString()}</span></div>
-                <div style="margin-top:3px">${learned.length} ${CURRENT_LANG === 'pt' ? 'habilidade(s) aprendida(s)' : `skill${learned.length!==1?'s':''} learned`}</div>
             </div>
         </div>
         
-        <!-- DISCOVERY MESSAGE -->
-        <div style="padding:8px 14px;border-radius:8px;background:rgba(155,89,182,0.08);
-                  border:1px solid rgba(155,89,182,0.25);margin-bottom:14px;font-size:0.72rem;
-                  color:rgba(255,255,255,0.5);text-align:center">
+        <div class="stt-loreline">
             🌳 <strong>${CURRENT_LANG === 'pt' ? 'Árvore de habilidades viva' : 'Living skill tree'}</strong> — ${CURRENT_LANG === 'pt' ? 'Treine uma habilidade para revelar o próximo passo do seu caminho. Domine um caminho completo para desbloquear sua evolução.' : 'Train a skill to reveal the next step of its path. Master a full path to unlock its evolution.'}
         </div>`;
 
@@ -74,13 +68,11 @@ function renderSkillTreeUI(root) {
     const penalties = upgradePenalties  || {};
     const discounts = upgradeDiscounts  || {};
     if (Object.keys(penalties).length || Object.keys(discounts).length) {
-        const pArr = Object.entries(penalties).map(([s,v]) => `<span style="color:#e74c3c">+${Math.round(v*100)}% ${s.replace('_',' ')} ${CURRENT_LANG === 'pt' ? 'custo' : 'cost'}</span>`);
-        const dArr = Object.entries(discounts).map(([s,v]) => `<span style="color:#2ecc71">-${Math.round(v*100)}% ${s.replace('_',' ')} ${CURRENT_LANG === 'pt' ? 'custo' : 'cost'}</span>`);
+        const pArr = Object.entries(penalties).map(([s,v]) => `<span class="stt-pen">+${Math.round(v*100)}% ${s.replace('_',' ')} ${CURRENT_LANG === 'pt' ? 'custo' : 'cost'}</span>`);
+        const dArr = Object.entries(discounts).map(([s,v]) => `<span class="stt-disc">-${Math.round(v*100)}% ${s.replace('_',' ')} ${CURRENT_LANG === 'pt' ? 'custo' : 'cost'}</span>`);
         html += `
-        <div style="font-size:0.72rem;padding:8px 12px;border-radius:8px;
-                    background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.07);
-                    margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-            <span style="color:rgba(255,255,255,0.35)">${CURRENT_LANG === 'pt' ? 'Custos de atributo de classe:' : 'Class stat costs:'}</span>
+        <div class="stt-notice-row">
+            <span>${CURRENT_LANG === 'pt' ? 'Custos de atributo de classe:' : 'Class stat costs:'}</span>
             ${[...pArr,...dArr].join(' &nbsp;·&nbsp; ')}
         </div>`;
     }
@@ -90,9 +82,7 @@ function renderSkillTreeUI(root) {
         const pathColor = mPath === 'shadow' ? '#9b59b6' : '#f1c40f';
         const pathName  = mPath === 'shadow' ? (CURRENT_LANG === 'pt' ? '🌑 Caminho das Sombras' : '🌑 Shadow Path') : (CURRENT_LANG === 'pt' ? '☀️ Caminho da Luz' : '☀️ Light Path');
         html += `
-        <div style="padding:8px 14px;border-radius:8px;border:1px solid ${pathColor}55;
-                    background:${pathColor}11;font-size:0.78rem;color:${pathColor};
-                    margin-bottom:14px;font-weight:600">
+        <div class="stt-notice" style="border-color:${pathColor}55;border-left-color:${pathColor};color:${pathColor};background:linear-gradient(90deg, ${pathColor}18, transparent 70%)">
             ${CURRENT_LANG === 'pt' ? `Você caminha pelo ${pathName}. O caminho oposto está fechado para sempre.` : `You walk the ${pathName}. The opposite path is forever closed.`}
         </div>`;
     }
@@ -100,14 +90,11 @@ function renderSkillTreeUI(root) {
 // ── Rogue dual-wield notice ───────────────────────────────────────────────
     if (charClass === 'rogue') {
         if (dualWieldUnlocked) {
-            html += `<div style="padding:8px 14px;border-radius:8px;border:1px solid #2ecc7155;
-                                 background:#2ecc7111;font-size:0.78rem;color:#2ecc71;margin-bottom:14px">
+            html += `<div class="stt-notice" style="border-color:#2ecc7155;border-left-color:#2ecc71;color:#2ecc71;background:linear-gradient(90deg, #2ecc7118, transparent 70%)">
                         ⚔️⚔️ <strong>${CURRENT_LANG === 'pt' ? 'Armas Duplas Desbloqueadas!' : 'Dual Wield Unlocked!'}</strong> ${CURRENT_LANG === 'pt' ? 'Equipe uma segunda arma no seu slot de escudo.' : 'Equip a second weapon in your shield slot.'}
                      </div>`;
         }
-        html += `<div style="padding:8px 14px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);
-                              background:rgba(255,255,255,0.02);font-size:0.72rem;color:rgba(255,255,255,0.4);
-                              margin-bottom:14px">
+        html += `<div class="stt-notice" style="border-color:rgba(255,255,255,0.10);border-left-color:rgba(255,255,255,0.28);background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.48)">
                     🛡️ ${CURRENT_LANG === 'pt' ? 'Sem escudo equipado? Você ganha passivamente <strong style="color:#2ecc71">+5 Agilidade</strong>.' : 'No shield equipped? You passively gain <strong style="color:#2ecc71">+5 Agility</strong>.'}
                     ${CURRENT_LANG === 'pt' ? 'Vitórias sem escudo rastreadas:' : 'Current shield-less wins tracked:'} <strong>${extraStats?.wins_no_shield || 0}</strong>
                  </div>`;
@@ -119,21 +106,15 @@ function renderSkillTreeUI(root) {
         const left = activeTraining.timeLeft || 0;
         const timeStr = stFormatTime(left);
         html += `
-        <div id="st-training-bar" style="padding:14px 16px;border-radius:10px;
-                  border:1px solid ${done ? '#2ecc7155' : accent+'44'};
-                  background:${done ? 'rgba(46,204,113,0.08)' : `${accent}11`};
-                  margin-bottom:18px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-            <div style="flex:1">
-                <div style="font-weight:700;font-size:0.9rem;color:${done?'#2ecc71':accent}">
-                    ${done ? (CURRENT_LANG === 'pt' ? '✅ Treino Concluído!' : '✅ Training Complete!') : `⏳ ${CURRENT_LANG === 'pt' ? 'Treinando' : 'Training'}: ${activeTraining.skill_id.replace(/_/g,' ')}`}
-                </div>
-                <div style="font-size:0.74rem;color:rgba(255,255,255,0.4);margin-top:3px">
-                    ${done ? (CURRENT_LANG === 'pt' ? 'Colete sua nova habilidade abaixo.' : 'Collect your new skill below.') : `${timeStr} ${CURRENT_LANG === 'pt' ? 'restante' : 'remaining'}`}
-                </div>
+        <div id="st-training-bar" class="stt-training${done ? ' stt-done' : ''}" style="--st-accent:${accent}">
+            <div class="stt-training-orb">${done ? '⚡' : '⏳'}</div>
+            <div class="stt-training-info">
+                <div class="stt-training-title">${done ? (CURRENT_LANG === 'pt' ? 'Treino Concluído!' : 'Training Complete!') : `${CURRENT_LANG === 'pt' ? 'Treinando' : 'Training'}: ${activeTraining.skill_id.replace(/_/g,' ')}`}</div>
+                <div class="stt-training-sub">${done ? (CURRENT_LANG === 'pt' ? 'Colete sua nova habilidade abaixo.' : 'Collect your new skill below.') : `${timeStr} ${CURRENT_LANG === 'pt' ? 'restante' : 'remaining'}`}</div>
             </div>
             ${done
-                ? `<button class="btn-primary" style="padding:8px 18px;font-size:0.82rem" ${actionAttrs('stCollect')}>⚡ ${CURRENT_LANG === 'pt' ? 'Coletar Habilidade' : 'Collect Skill'}</button>`
-                : `<button class="btn-secondary" style="padding:6px 14px;font-size:0.78rem;color:var(--red-light)" ${actionAttrs('stCancel')}>${CURRENT_LANG === 'pt' ? 'Cancelar (reembolso parcial)' : 'Cancel (partial refund)'}</button>`
+                ? `<button class="btn-primary stt-collect-btn" ${actionAttrs('stCollect')}>⚡ ${CURRENT_LANG === 'pt' ? 'Coletar Habilidade' : 'Collect Skill'}</button>`
+                : `<button class="btn-secondary stt-cancel-btn" ${actionAttrs('stCancel')}>${CURRENT_LANG === 'pt' ? 'Cancelar (reembolso parcial)' : 'Cancel (partial refund)'}</button>`
             }
         </div>`;
     }
@@ -166,37 +147,56 @@ function renderSkillTreeUI(root) {
 // ═══ Skill tree graph — starter → rail → branch paths → doctrine splits ═══
 function stTreeCss() {
     return `<style>
-    .st-tree { --st-line: rgba(255,255,255,0.22); --st-line-lit: rgba(232,184,75,0.7); }
+    .st-tree { --st-line: rgba(220,200,150,0.16); --st-line-lit: rgba(244,208,111,0.85); }
     .st-scroll { overflow-x:auto; padding: 4px 2px 16px; }
     .st-tree-wrap { display:flex; flex-direction:column; align-items:center; width:max-content; margin:0 auto; }
     .st-starter-row { display:flex; justify-content:center; padding-bottom:0; width:100%; }
     .st-tree-stem { width:3px; height:20px; background:var(--st-line); }
     .st-fork-row { position:relative; width:100%; height:3px; }
     .st-fork-line { position:absolute; top:0; height:3px; background:var(--st-line); border-radius:2px; }
-    .st-fork-lit { position:absolute; top:0; height:3px; background:var(--st-line-lit); border-radius:2px; z-index:1; }
+    .st-fork-lit { position:absolute; top:0; height:3px; background:var(--st-line-lit); border-radius:2px; z-index:1; box-shadow:0 0 8px rgba(244,208,111,0.5); }
     .st-branches { display:flex; align-items:stretch; }
-    .st-branch-col { flex:1 1 0; min-width:158px; display:flex; flex-direction:column; align-items:center; padding:0 5px; }
+    .st-branch-col { flex:1 1 0; min-width:132px; display:flex; flex-direction:column; align-items:center; padding:0 4px; }
     .st-stub { width:3px; height:20px; background:var(--st-line); flex-shrink:0; }
-    .st-stub.lit { background:var(--st-line-lit); }
+    .st-stub.lit { background:var(--st-line-lit); box-shadow:0 0 7px rgba(244,208,111,0.45); }
     .st-link { width:3px; height:16px; background:var(--st-line); flex-shrink:0; }
-    .st-link.lit { background:var(--st-line-lit); }
-    .st-blob { width:100%; max-width:150px; border-radius:12px; border:1px solid rgba(255,255,255,0.12);
-               background:rgba(255,255,255,0.03); padding:10px 8px 9px; text-align:center; position:relative;
-               box-sizing:border-box; }
-    .st-blob-icon { width:44px; height:44px; margin:0 auto 6px; display:flex; align-items:center; justify-content:center; font-size:2rem; line-height:1; }
-    .st-blob-icon img { width:100%; height:100%; object-fit:contain; }
-    .st-blob-name { font-size:0.72rem; font-weight:700; line-height:1.25; color:rgba(255,255,255,0.82); }
-    .st-blob-sub { font-size:0.6rem; color:rgba(255,255,255,0.42); margin-top:4px; line-height:1.35; }
-    .st-progress { height:4px; border-radius:3px; background:rgba(255,255,255,0.1); overflow:hidden; margin-top:6px; }
-    .st-progress > div { height:100%; border-radius:3px; }
-    .st-badge { position:absolute; top:6px; right:7px; font-size:0.62rem; line-height:1; }
+    .st-link.lit { background:var(--st-line-lit); box-shadow:0 0 7px rgba(244,208,111,0.45); }
+    .st-card { position:relative; width:100%; max-width:124px; min-height:158px; border-radius:11px; overflow:hidden;
+               border:1px solid rgba(255,255,255,0.14); background:rgba(10,12,19,0.9); display:flex; flex-direction:column;
+               justify-content:flex-end; box-sizing:border-box; cursor:help;
+               box-shadow:0 8px 22px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(255,255,255,0.02);
+               transition:transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease; }
+    .st-card:hover { transform:translateY(-2px);
+               box-shadow:0 10px 22px rgba(0,0,0,0.6), 0 0 14px color-mix(in srgb, var(--bc, #e8b84b) 30%, transparent); }
+    .st-card-art { position:absolute; inset:0; z-index:0; background:#12151f; }
+    .st-card-art img { width:100%; height:100%; object-fit:cover; object-position:center top; display:block;
+               transition:transform 0.4s ease; }
+    .st-card:hover .st-card-art img { transform:scale(1.06); }
+    .st-card-emoji { position:absolute; top:42%; left:50%; transform:translate(-50%,-50%); font-size:1.9rem; line-height:1;
+               filter:drop-shadow(0 3px 8px rgba(0,0,0,0.7)); }
+    .st-card-lock { position:absolute; top:5px; left:6px; font-size:0.78rem; line-height:1; z-index:3;
+               filter:drop-shadow(0 1px 3px rgba(0,0,0,0.9)); }
+    .st-card::before { content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+               background:linear-gradient(180deg, rgba(6,8,14,0.08) 0%, rgba(6,8,14,0.34) 46%, rgba(5,7,12,0.92) 100%); }
+    .st-card.st-learned::after { content:''; position:absolute; inset:0; z-index:1; pointer-events:none;
+               background:color-mix(in srgb, var(--bc, #e8b84b) 13%, transparent); }
+    .st-card.st-evo { border-color:rgba(241,196,15,0.5); }
+    .st-card-body { position:relative; z-index:2; padding:7px 7px 7px; display:flex; flex-direction:column; gap:3px; }
+    .st-card-name { font-family:'Cinzel',serif; font-size:0.64rem; font-weight:700; line-height:1.22;
+               text-shadow:0 1px 3px rgba(0,0,0,0.95); }
+    .st-card-sub { font-size:0.55rem; color:rgba(255,255,255,0.55); line-height:1.3; text-shadow:0 1px 2px rgba(0,0,0,0.9); }
+    .st-progress { height:4px; border-radius:2px; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.14); overflow:hidden; margin-top:2px; }
+    .st-progress > div { height:100%; border-radius:2px; }
+    .st-badge { position:absolute; top:4px; right:6px; font-size:0.72rem; line-height:1; z-index:3;
+               text-shadow:0 1px 4px rgba(0,0,0,0.9); }
     .st-train-row { display:flex; gap:3px; margin-top:8px; }
-    .st-train-row select { flex:0 0 46px; background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.22); border-radius:4px; color:#fff; font-size:0.62rem; padding:3px 2px; }
-    .st-train-row button { flex:1; border-radius:4px; font-size:0.62rem; font-weight:700; padding:4px 2px; cursor:pointer; }
+    .st-train-row select { flex:0 0 46px; background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.18); border-radius:5px; color:#fff; font-size:0.62rem; padding:3px 2px; }
+    .st-train-row button { flex:1; border-radius:5px; font-size:0.62rem; font-weight:700; padding:4px 2px; cursor:pointer; letter-spacing:0.02em; transition:filter 0.15s ease; }
+    .st-train-row button:hover { filter:brightness(1.25); }
     .st-train-row .st-dd, .st-train-row .st-dd-btn { flex:0 0 46px; }
     .st-dd { position:relative; }
     .st-dd-btn { display:flex; align-items:center; justify-content:space-between; gap:2px; width:100%;
-                 background:rgba(0,0,0,0.6); border:1px solid rgba(255,255,255,0.22); border-radius:4px;
+                 background:rgba(0,0,0,0.55); border:1px solid rgba(255,255,255,0.18); border-radius:5px;
                  color:#fff; font-size:0.62rem; font-weight:700; padding:4px 6px; cursor:pointer; text-align:left;
                  position:relative; z-index: 250001; }
     .st-dd-btn:hover { border-color:rgba(255,255,255,0.4); }
@@ -211,13 +211,95 @@ function stTreeCss() {
     .st-dd-list .st-dd-opt.selected { background:rgba(255,255,255,0.12); color:#fff; }
     .st-state-training { animation: stPulse 1.8s ease-in-out infinite; }
     @keyframes stPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(241,196,15,0); } 50% { box-shadow: 0 0 14px 2px rgba(241,196,15,0.35); } }
-    .st-future { border-style:dashed; opacity:0.55; }
+    .st-future { border-style:dashed; opacity:0.85; filter:saturate(0.55) brightness(0.8); }
     .st-doctrines { display:flex; gap:10px; width:100%; }
     .st-sub-col { flex:1 1 0; min-width:0; display:flex; flex-direction:column; align-items:center; }
     .st-sub-rail-row { position:relative; height:20px; width:100%; }
     .st-sub-rail { position:absolute; top:18px; height:2px; background:var(--st-line); }
-    .st-sub-col .st-blob { max-width:none; width:100%; }
+    .st-sub-col .st-card { max-width:none; width:100%; }
     .st-closed-note { font-size:0.58rem; color:rgba(224,82,82,0.8); letter-spacing:0.08em; font-weight:700; }
+
+    /* — Training hall hero — */
+    .stt-hero { position:relative; overflow:hidden; border-radius:16px; border:1px solid var(--st-accent-c, #e8b84b66);
+                background:linear-gradient(150deg, rgba(16,19,30,0.94), rgba(9,11,18,0.97));
+                box-shadow:0 14px 36px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,235,190,0.07);
+                padding:22px 24px; margin-bottom:16px; }
+    .stt-hero-bg { position:absolute; right:-40px; top:50%; transform:translateY(-50%); width:min(46%, 420px); aspect-ratio:2/3;
+                background-size:cover; background-position:center top; opacity:0.5;
+                -webkit-mask-image:linear-gradient(90deg, transparent 0%, #000 45%); mask-image:linear-gradient(90deg, transparent 0%, #000 45%);
+                filter:saturate(1.1); pointer-events:none; }
+    .stt-hero-shade { position:absolute; inset:0; pointer-events:none;
+                background:linear-gradient(90deg, rgba(9,11,18,0.96) 34%, rgba(9,11,18,0.55) 62%, transparent 86%); }
+    .stt-hero-crest { position:absolute; left:0; top:0; bottom:0; width:4px;
+                background:linear-gradient(180deg, transparent, var(--st-accent-b, #e8b84b) 22%, var(--st-accent-b, #e8b84b) 78%, transparent); }
+    .stt-hero-crest span { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%) rotate(45deg); width:9px; height:9px;
+                background:var(--st-accent-b, #e8b84b); box-shadow:0 0 10px var(--st-accent-glow, #e8b84b88); }
+    .stt-hero-body { position:relative; z-index:2; max-width:72%; }
+    .stt-hero-eyebrow { font-size:0.62rem; letter-spacing:0.32em; text-transform:uppercase; color:var(--st-accent-b, #e8b84b); opacity:0.85; }
+    .stt-hero-title { font-family:'Cinzel',serif; font-size:clamp(1.25rem, 2.6vw, 1.75rem); font-weight:700; color:#f3ead2;
+                text-shadow:0 2px 10px rgba(0,0,0,0.8); margin-top:4px; }
+    .stt-hero-title em { font-style:normal; color:var(--st-accent-b, #e8b84b); }
+    .stt-hero-desc { font-size:0.76rem; color:rgba(255,255,255,0.5); line-height:1.5; margin-top:6px; max-width:52ch; }
+    .stt-hero-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+    .stt-chip { font-size:0.7rem; font-weight:700; padding:4px 11px; border-radius:999px;
+                background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.14); color:rgba(255,255,255,0.8); }
+    .stt-chip-accent { border-color:var(--st-accent-c, #e8b84b66); color:var(--st-accent-b, #e8b84b);
+                box-shadow:0 0 12px var(--st-accent-glow, #e8b84b33); }
+
+    /* — Notices — */
+    .stt-loreline { padding:9px 14px; border-radius:10px; background:rgba(155,89,182,0.07);
+                border:1px solid rgba(155,89,182,0.22); border-left:3px solid rgba(155,89,182,0.55);
+                margin-bottom:14px; font-size:0.72rem; color:rgba(255,255,255,0.52); text-align:center; }
+    .stt-notice-row { font-size:0.72rem; padding:8px 12px; border-radius:10px;
+                background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.07);
+                margin-bottom:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; color:rgba(255,255,255,0.38); }
+    .stt-pen { color:#e74c3c; }
+    .stt-disc { color:#2ecc71; }
+    .stt-notice { padding:9px 14px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);
+                border-left:3px solid rgba(255,255,255,0.3); font-size:0.76rem;
+                margin-bottom:14px; line-height:1.5; }
+
+    /* — Active training bar — */
+    .stt-training { padding:14px 16px; border-radius:12px; border:1px solid color-mix(in srgb, var(--st-accent, #e8b84b) 30%, transparent);
+                background:linear-gradient(90deg, color-mix(in srgb, var(--st-accent, #e8b84b) 9%, transparent), transparent 78%);
+                margin-bottom:18px; display:flex; align-items:center; gap:13px; flex-wrap:wrap; }
+    .stt-training.stt-done { border-color:rgba(46,204,113,0.4); background:linear-gradient(90deg, rgba(46,204,113,0.10), transparent 78%); }
+    .stt-training-orb { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+                font-size:1.05rem; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.16);
+                box-shadow:inset 0 0 12px rgba(0,0,0,0.6); flex-shrink:0; }
+    .stt-training.stt-done .stt-training-orb { border-color:rgba(46,204,113,0.5); box-shadow:0 0 14px rgba(46,204,113,0.3); }
+    .stt-training-info { flex:1; min-width:170px; }
+    .stt-training-title { font-family:'Cinzel',serif; font-weight:700; font-size:0.92rem; color:var(--st-accent-b, #e8b84b); }
+    .stt-training.stt-done .stt-training-title { color:#2ecc71; }
+    .stt-training-sub { font-size:0.74rem; color:rgba(255,255,255,0.42); margin-top:3px; }
+    .stt-collect-btn { padding:8px 18px; font-size:0.82rem; }
+    .stt-cancel-btn { padding:6px 14px; font-size:0.78rem; color:var(--red-light); }
+
+    /* — Branch banners — */
+    .st-branch-banner { display:flex; align-items:center; gap:8px; padding:6px 9px; border-radius:10px;
+                border:1px solid rgba(255,255,255,0.1); border-left:3px solid var(--bc, rgba(255,255,255,0.3));
+                background:rgba(255,255,255,0.02); box-shadow:inset 0 1px 0 rgba(255,255,255,0.04); }
+    .st-branch-emoji { font-size:1.15rem; line-height:1; filter:drop-shadow(0 2px 4px rgba(0,0,0,0.6)); }
+    .st-branch-name { font-family:'Cinzel',serif; font-size:0.78rem; font-weight:700;
+                white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+    .st-branch-count { font-size:0.6rem; margin-left:auto; white-space:nowrap; font-weight:700; }
+    .st-unlearn-btn { font-size:0.52rem; padding:1px 6px; background:rgba(231,76,60,0.12);
+                border:1px solid rgba(231,76,60,0.3); border-radius:4px; color:#e74c3c; cursor:pointer; }
+    .st-closed-pill { font-size:0.52rem; color:#e74c3c; background:rgba(231,76,60,0.12); border:1px solid rgba(231,76,60,0.25);
+                border-radius:4px; padding:1px 5px; white-space:nowrap; }
+
+    /* — Starter emphasis + responsive — */
+    .st-starter-row .st-card { max-width:138px; min-height:176px; border-color:rgba(244,208,111,0.45);
+                box-shadow:0 8px 20px rgba(0,0,0,0.55), 0 0 16px rgba(244,208,111,0.14); }
+    @media (prefers-reduced-motion: reduce) {
+        .st-card, .st-card:hover, .st-card-art img { transition:none; transform:none; }
+    }
+    @media (max-width: 640px) {
+        .stt-hero { padding:16px 14px; }
+        .stt-hero-body { max-width:100%; }
+        .stt-hero-bg { width:58%; opacity:0.35; }
+        .st-card { max-width:118px; min-height:150px; }
+    }
     </style>`;
 }
 
@@ -243,8 +325,8 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
     const progress = Math.floor(sk.progress || 0);
     const isEvo = sk.type === 'evolution';
 
-    let borderColor = 'rgba(255,255,255,0.12)', bg = 'rgba(255,255,255,0.03)', nameColor = 'rgba(255,255,255,0.82)';
-    if (learned) { borderColor = bc; bg = bc + '14'; nameColor = bc; }
+    let borderColor = 'rgba(255,255,255,0.14)', bg = 'rgba(255,255,255,0.03)', nameColor = 'rgba(255,255,255,0.82)';
+    if (learned) { borderColor = bc; bg = bc + '14'; nameColor = '#f3ead2'; }
     else if (training) { borderColor = '#f1c40f'; bg = 'rgba(241,196,15,0.07)'; nameColor = '#f1c40f'; }
     else if (trainable) { borderColor = bc + '99'; bg = bc + '0a'; }
     if (isEvo && !learned) { borderColor = trainable ? '#f1c40f' : 'rgba(241,196,15,0.35)'; bg = trainable ? 'rgba(241,196,15,0.06)' : 'rgba(241,196,15,0.02)'; nameColor = trainable ? '#f1c40f' : 'rgba(241,196,15,0.5)'; }
@@ -257,7 +339,7 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         const gainTxt = gain >= 0.1 ? `· +${gain.toFixed(1)}%` : '';
         sub = `⏳ ${stFormatTime(activeTraining.remainingSeconds || activeTraining.remaining || 0)} ${CURRENT_LANG === 'pt' ? 'restante' : 'left'}`;
         progressHtml = `<div class="st-progress"><div style="width:${tp}%;background:#f1c40f"></div></div>
-            <div class="st-blob-sub">${tp < 10 ? tp.toFixed(1) : Math.floor(tp)}%${gainTxt}</div>`;
+            <div class="st-card-sub">${tp < 10 ? tp.toFixed(1) : Math.floor(tp)}%${gainTxt}</div>`;
         sub = `${progress < 10 ? progress.toFixed(1) : Math.floor(progress)}% ${CURRENT_LANG === 'pt' ? 'aprendido' : 'learned'}`;
         progressHtml = `<div class="st-progress"><div style="width:${progress}%;background:${bc}"></div></div>`;
     } else if (learned) {
@@ -277,7 +359,7 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         const missionCollect = !!busyState?.missionReadyToCollect;
         if (missionActive || cooldown || traveling || missionCollect) {
             const label = missionCollect ? (CURRENT_LANG === 'pt' ? 'Coletar missão' : 'Collect mission') : missionActive ? (CURRENT_LANG === 'pt' ? 'Missão ativa' : 'Mission active') : cooldown ? (CURRENT_LANG === 'pt' ? 'Recarga de batalha' : 'Battle cooldown') : (CURRENT_LANG === 'pt' ? 'Viajando' : 'Traveling');
-            controls = `<div class="st-blob-sub" style="margin-top:7px">🔒 ${label}</div>`;
+            controls = `<div class="st-card-sub" style="margin-top:7px">🔒 ${label}</div>`;
         } else {
             const hasArcaneReservoir = !!(character?.premium_features?.arcane_reservoir);
             const maxHours = hasArcaneReservoir ? 12 : 8;
@@ -322,13 +404,16 @@ function stSkillBlob(sk, bc, activeTraining, busyState) {
         state: stateText
     });
 
-    return `<div class="st-blob${training ? ' st-state-training' : ''}" style="border-color:${borderColor};background:${bg};cursor:help" data-sttip="${tipIdx}">
+    return `<div class="st-card${training ? ' st-state-training' : ''}${learned ? ' st-learned' : ''}${isEvo ? ' st-evo' : ''}" style="--bc:${bc};border-color:${borderColor};background:${bg}" data-sttip="${tipIdx}">
         ${badge}
-        <div class="st-blob-icon"><img src="/images/assets/skills/${skillKey}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:2rem;line-height:1">${sk.emoji || '⚔️'}</span></div>
-        <div class="st-blob-name" style="color:${nameColor}">${sk.name}</div>
-        ${sub ? `<div class="st-blob-sub">${sub}</div>` : ''}
-        ${progressHtml}
-        ${controls}
+        <div class="st-card-art"><img src="/images/assets/skills/${skillKey}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span class="st-card-emoji" style="display:none">${sk.emoji || '⚔️'}</span></div>
+        ${sk.locked && !training && !learned ? '<div class="st-card-lock">🔒</div>' : ''}
+        <div class="st-card-body">
+            <div class="st-card-name" style="color:${nameColor}">${sk.name}</div>
+            ${sub ? `<div class="st-card-sub">${sub}</div>` : ''}
+            ${progressHtml}
+            ${controls}
+        </div>
     </div>`;
 }
 
@@ -344,9 +429,11 @@ function stFutureBlob() {
         effects: [],
         state: ''
     });
-    return `<div class="st-blob st-future" style="cursor:help" data-sttip="${tipIdx}">
-        <div class="st-blob-icon" style="color:rgba(255,255,255,0.25)">❓</div>
-        <div class="st-blob-name" style="color:rgba(255,255,255,0.3)">???</div>
+    return `<div class="st-card st-future" style="--bc:rgba(255,255,255,0.4)" data-sttip="${tipIdx}">
+        <div class="st-card-art"><span class="st-card-emoji">❓</span></div>
+        <div class="st-card-body">
+            <div class="st-card-name" style="color:rgba(255,255,255,0.3)">???</div>
+        </div>
     </div>`;
 }
 
@@ -363,10 +450,12 @@ function stLockedBlob(sk, bc) {
         effects: stEffectParts(sk.effects),
         state: CURRENT_LANG === 'pt' ? '🔒 Conclua a habilidade anterior para desbloquear' : '🔒 Complete previous skill to unlock'
     });
-    return `<div class="st-blob st-future" style="border-color:${bc}22;background:${bc}06;cursor:help" data-sttip="${tipIdx}">
-        <div class="st-blob-icon" style="opacity:0.45"><img src="/images/assets/skills/${sk.id}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1.6rem;line-height:1">${sk.emoji || '⚔️'}</span></div>
-        <div class="st-blob-name" style="color:rgba(255,255,255,0.45)">${sk.name || '???'}</div>
-        <div class="st-blob-sub" style="color:rgba(255,255,255,0.3)">🔒</div>
+    return `<div class="st-card st-future" style="--bc:${bc};border-color:${bc}22;background:${bc}06" data-sttip="${tipIdx}">
+        <div class="st-card-art" style="opacity:0.4"><img src="/images/assets/skills/${sk.id}.png" alt="" data-error-hide="true" data-error-next-display="inline-flex"><span class="st-card-emoji" style="display:none">${sk.emoji || '⚔️'}</span></div>
+        <div class="st-card-lock">🔒</div>
+        <div class="st-card-body">
+            <div class="st-card-name" style="color:rgba(255,255,255,0.45)">${sk.name || '???'}</div>
+        </div>
     </div>`;
 }
 
@@ -387,13 +476,12 @@ function stBranchBlob(branchId, branch, bc, accent) {
         state: `${learnedCount}/${total} ${CURRENT_LANG === 'pt' ? 'dominado(s)' : 'mastered'}${branch.exclusiveLocked ? (CURRENT_LANG === 'pt' ? ' · fechado para sempre' : ' · forever closed') : ''}`
     });
     return `<div style="width:100%;margin:4px 0 0;cursor:help" data-sttip="${tipIdx}">
-        <div style="display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:8px;background:${bc}0d;border:1px solid ${bc}33">
-            <span style="font-size:1.2rem;line-height:1">${branch.emoji || '⚔️'}</span>
-            <span style="font-size:0.78rem;font-weight:700;color:${bc};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1">${branch.name}</span>
-            <span style="font-size:0.6rem;color:${bc}99;margin-left:auto;white-space:nowrap">${learnedCount}/${total}</span>
-            ${canUnlearn ? `<button ${actionAttrs('stUnlearnStep', branchId)} title="${CURRENT_LANG === 'pt' ? 'Desaprenda a última habilidade deste caminho (50% de reembolso em ouro)' : 'Unlearn the last skill of this path (50% gold refund)'}"
-                style="font-size:0.52rem;padding:1px 6px;background:rgba(231,76,60,0.12);border:1px solid rgba(231,76,60,0.3);border-radius:4px;color:#e74c3c;cursor:pointer">↩</button>` : ''}
-            ${branch.exclusiveLocked ? `<span style="font-size:0.52rem;color:#e74c3c;background:rgba(231,76,60,0.12);border-radius:4px;padding:1px 5px;white-space:nowrap">🔒 ${CURRENT_LANG === 'pt' ? 'FECHADO' : 'CLOSED'}</span>` : ''}
+        <div class="st-branch-banner" style="--bc:${bc};color:${bc}">
+            <span class="st-branch-emoji">${branch.emoji || '⚔️'}</span>
+            <span class="st-branch-name" style="color:${bc}">${branch.name}</span>
+            <span class="st-branch-count" style="color:${bc}99">${learnedCount}/${total}</span>
+            ${canUnlearn ? `<button ${actionAttrs('stUnlearnStep', branchId)} title="${CURRENT_LANG === 'pt' ? 'Desaprenda a última habilidade deste caminho (50% de reembolso em ouro)' : 'Unlearn the last skill of this path (50% gold refund)'}" class="st-unlearn-btn">↩</button>` : ''}
+            ${branch.exclusiveLocked ? `<span class="st-closed-pill">🔒 ${CURRENT_LANG === 'pt' ? 'FECHADO' : 'CLOSED'}</span>` : ''}
         </div>
     </div>`;
 }
@@ -598,8 +686,8 @@ function stRenderTree(tree, accent, activeTraining, charClass, busyState) {
             html += stBranchBlob(branchId, branch, bc, accent);
 
             if (closed) {
-                html += `<div class="st-link"></div><div class="st-blob st-future" style="padding:16px 8px">
-                <div class="st-closed-note">🔒 ${CURRENT_LANG === 'pt' ? 'CAMINHO<br>FECHADO' : 'PATH<br>CLOSED'}</div></div>`;
+                html += `<div class="st-link"></div><div class="st-card st-future" style="--bc:#e74c3c;padding:16px 8px;min-height:auto">
+                <div class="st-card-body" style="position:relative;z-index:2"><div class="st-closed-note">🔒 ${CURRENT_LANG === 'pt' ? 'CAMINHO<br>FECHADO' : 'PATH<br>CLOSED'}</div></div></div>`;
             } else {
                 html += `<div class="st-link"></div>`;
                 html += stChain(branch, bc, activeTraining, busyState, branchId);
