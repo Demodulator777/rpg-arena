@@ -1629,6 +1629,56 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 
 .sq-member-id { display: inline-flex; align-items: center; }
 
+.sq-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    overflow: hidden;
+    flex-shrink: 0;
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    background: rgba(212, 175, 55, 0.06);
+    font-size: 1.35rem;
+}
+.sq-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.sq-header-card { position: relative; overflow: hidden; }
+.sq-header-card .sq-header-backdrop {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: var(--sq-backdrop-opacity, 0.45);
+    pointer-events: none;
+}
+.sq-header-card > .squads-card-head { position: relative; z-index: 1; }
+
+.sq-browse-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; max-height: 300px; overflow-y: auto; }
+.sq-browse-loading { font-size: 0.78rem; color: var(--text-dim); padding: 6px 2px; }
+.sq-browse-empty { font-size: 0.78rem; color: var(--text-dim); margin-top: 6px; }
+.sq-browse-refresh { margin-top: 8px; }
+.sq-browse-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 8px;
+    background: rgba(212, 175, 55, 0.04);
+}
+.sq-browse-row .sq-logo { width: 34px; height: 34px; border-radius: 9px; font-size: 1.05rem; }
+.sq-browse-info { flex: 1; min-width: 0; }
+.sq-browse-name { font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sq-browse-tag { color: var(--gold-light); opacity: 0.85; }
+.sq-browse-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 1px; }
+
 .squads-member-sub {
     display: flex;
     flex-wrap: wrap;
