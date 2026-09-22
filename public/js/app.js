@@ -12597,7 +12597,7 @@ function renderSquads() {
         <div class="squads-card" style="margin-top:10px">
             <div class="squads-title">📋 ${CURRENT_LANG === 'pt' ? `Inscrições Pendentes (${apps.length})` : `Pending Applications (${apps.length})`}</div>
             <div class="squads-members">
-                ${apps.map(a => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
+                ${apps.map(a => `<div class="squads-member sq-member-row">
                     <span><span class="squads-member-name">${escHtml(a.name)}</span>
                     <span class="squads-member-sub">Lv.${a.level} ${escHtml(capitalize(a.class))}</span></span>
                     <span style="display:flex;gap:4px">
@@ -12611,7 +12611,7 @@ function renderSquads() {
         tabContent = `<div class="squads-card" style="margin-top:10px">
             <div class="squads-title">👥 ${CURRENT_LANG === 'pt' ? `Membros (${members.length})` : `Members (${members.length})`}</div>
             <div class="squads-members">
-                ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
+                ${members.map(m => `<div class="squads-member sq-member-row">
                    <span class="sq-member-id" data-hover-action="hoverSquadMemberTooltip" data-leave-action="scheduleHideTooltip" data-sq="${encodeActionArgs([{ name: m.name, level: m.level, cls: m.class, role: roleLabels[m.role] || (CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'), ge: m.total_gold_earned||0, gd: m.gold_donated||0, gems: m.gems_donated||0, last: m.last_online_at||0 }])}">
                        <img class="sq-member-avatar" src="/images/class/${escHtml(m.class)}.png" alt="" data-error-hide="true">
                        <span>
@@ -12620,7 +12620,7 @@ function renderSquads() {
                        ${roleLabels[m.role] && !(m.role in {leader:1,co_leader:1,officer:1,member:1}) ? `<span class="sq-role-chip" title="${(customRoles.find(r => r.key === m.role)?.permissions || []).map(p => roleDescriptions[p] || p).join(' · ')}">${(customRoles.find(r => r.key === m.role)?.permissions || []).length} ✦</span>` : ''}
                        <span class="squads-member-sub"><span class="sq-sub-item">Lv.${m.level} ${escHtml(capitalize(m.class))}</span><span class="sq-sub-item sq-sub-status">${onlineDot(m.last_online_at)} ${formatRelativeTime(m.last_online_at)}</span></span>
                        </span>
-                    <span style="display:flex;align-items:center;gap:4px">
+                    <span class="sq-member-actions">
                         ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader') || (myPerms.includes('roles') && m.role !== 'leader' && m.role !== 'co_leader' && m.role !== 'officer')) ? `
                             <select class="input-field squad-role-select" data-role-select="${m.id}" style="width:auto;padding:2px 24px 2px 6px;font-size:0.75rem">
                                 ${roleOptions(m.role, isLeader)}
