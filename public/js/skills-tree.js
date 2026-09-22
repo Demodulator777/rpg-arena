@@ -1036,15 +1036,47 @@ function startSkillTreePoll() {
         if (!root || !tab?.classList.contains('active')) return;
         try {
             const status = await api('GET', '/skills/training/status');
-            if (status && _stData) {
-                _stData.activeTraining = status;
-                renderSkillTreeUI(root);
-            }
+            if (!status || !_stData) return;
+            const prev = _stData.activeTraining;
+            const prevActive = !!prev;
+            const nowActive = !!status.active;
+            const prevDone = !!(prev && prev.done);
+            const nowDone = !!(status && status.done);
+            _stData.activeTraining = nowActive ? status : null;
+            // Full rebuild only on real transitions. Rebuilding the whole tree on
+            // every tick closed open hour-dropdowns and churned the layout every
+            // 30s while training ("dropdown blinks / can't select / can't scroll").
+            const stateChanged =
+                prevActive !== nowActive ||
+                prevDone !== nowDone ||
+                (prev && status && prev.skillId !== status.skillId);
+            if (stateChanged) { renderSkillTreeUI(root); return; }
+            stRefreshTrainingUI(root, status);
         } catch {}
     }, 30000);
 }
 function stopSkillTreePoll() {
     if (_stPollTimer) { clearInterval(_stPollTimer); _stPollTimer = null; }
+}
+
+// ── Lightweight countdown refresh (keeps the hero timer live without a rebuild) ─
+function stRefreshTrainingUI(root, status) {
+    if (!status || !status.active) return;
+    const done = !!status.done;
+    const timeStr = stFormatTime(status.remainingSeconds || status.remaining || 0);
+    const bar = root.querySelector('#st-training-bar');
+    if (!bar) return;
+    bar.classList.toggle('stt-done', done);
+    const orb = bar.querySelector('.stt-training-orb');
+    const title = bar.querySelector('.stt-training-title');
+    const sub = bar.querySelector('.stt-training-sub');
+    if (orb) orb.textContent = done ? '⚡' : '⏳';
+    if (title) title.textContent = done
+        ? (CURRENT_LANG === 'pt' ? 'Treino Concluído!' : 'Training Complete!')
+        : `${CURRENT_LANG === 'pt' ? 'Treinando' : 'Training'}: ${(status.skillName || status.skill_id || '').replace(/_/g, ' ')}`;
+    if (sub) sub.textContent = done
+        ? (CURRENT_LANG === 'pt' ? 'Colete sua nova habilidade abaixo.' : 'Collect your new skill below.')
+        : `${timeStr} ${CURRENT_LANG === 'pt' ? 'restante' : 'remaining'}`;
 }
 
 // ── Hook into existing showTab ───────────────────────────────────────────────
