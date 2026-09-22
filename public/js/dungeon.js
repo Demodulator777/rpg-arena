@@ -3357,9 +3357,7 @@ function renderDungeonRaidHub(guildData) {
             ? `<div class="raid-result-log">${raid.resultLog.map(line => `<div class="raid-result-line">${line}</div>`).join('')}</div>`
             : '';
 
-        return `
-            <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
-                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
+        return `                <div class="exchange-card exchange-available raid-card raid-status-${raid.status}"${raid.bossImage ? ` style="--raid-bg:url('${raid.bossImage}')"` : ''}>
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt(`Andar ${raid.floor} Invasão:`, `Floor ${raid.floor} Raid:`)} ${raid.bossName}</div>
                     <div class="exchange-desc">${_pt('Até seis jogadores se unem em um único ataque contra um chefe de invasão escalonado pelo andar.', 'Up to six players combine into one strike against a floor-scaled raid boss.')}</div>
@@ -3397,8 +3395,7 @@ function renderDungeonRaidHub(guildData) {
         </div>
         ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">${_pt(`Recuperação de invasão ativa: ${formatRaidDuration(cooldownLeft)} restantes.`, `Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.`)}</div>` : ''}
         ${canCreateRaid ? `
-            <div class="exchange-card exchange-available raid-create-card">
-                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
+            <div class="exchange-card exchange-available raid-create-card" style="--raid-bg:url('/images/assets/raid2.png')">
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt('Criar Invasão', 'Create a Raid')}</div>
                     <div class="exchange-desc">${_pt('Escolha qualquer andar até o andar de masmorra mais alto que você já limpou. Inicie manualmente, quando cheio, ou em um agendamento.', 'Choose any floor up to your highest cleared dungeon floor. You can start manually, when full, or on a schedule.')}</div>
@@ -3636,15 +3633,13 @@ function renderDungeonRaidHub(guildData) {
                         const mercArt = MONSTER_POOL.find(m => m.id === merc.key);
                         return `
                         <div class="raid-mercenary-card ${merc.recruited ? 'is-recruited' : ''}">
-                            <div class="raid-mercenary-top">
-                                <div class="raid-mercenary-portrait"><img src="${mercArt ? mercArt.image : ''}" alt="${merc.name}" onerror="this.classList.add('is-missing')"></div>
-                                <div class="raid-mercenary-name">${merc.name}</div>
-                            </div>
+                            ${mercArt ? `<img class="raid-mercenary-art" src="${mercArt.image}" alt="${merc.name}" onerror="this.classList.add('is-missing')">` : ''}
+                            <div class="raid-mercenary-name">${merc.name}</div>
                             <div class="raid-mercenary-stats">
                                 HP ${merc.stats.hp} · ATK ${merc.stats.dmgMin}-${merc.stats.dmgMax} · DEF ${merc.stats.defense}
                             </div>
                             <div class="raid-mercenary-stats">
-                                AGI ${merc.stats.agility} · MAG ${merc.stats.magic} · HIT ${merc.stats.hitChance}% · CRIT ${merc.stats.critChance}%
+                                AGI ${merc.stats.agility} · MAG ${merc.stats.magic} · HIT ${merc.stats.hitChance} · CRIT ${merc.stats.critChance}
                             </div>
                             ${merc.recruited
                                 ? `<div class="raid-mercenary-status">${_pt('Recrutado', 'Recruited')}</div>`
@@ -3656,9 +3651,8 @@ function renderDungeonRaidHub(guildData) {
             : '';
 
         return `
-            <div class="exchange-card exchange-available raid-card raid-status-${raid.status}">
+            <div class="exchange-card exchange-available raid-card raid-status-${raid.status}"${raid.bossImage ? ` style="--raid-bg:url('${raid.bossImage}')"` : ''}>
                 ${raid.bossImage ? `<img class="raid-card-art" src="${raid.bossImage}" alt="" onerror="this.classList.add('is-missing')">` : ''}
-                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt(`Andar ${raid.floor} · Invasão:`, `Floor ${raid.floor} Raid:`)} ${raid.bossName} (${raid.minLevel || 1}-${raid.maxLevel || 999})</div>
                     <div class="exchange-desc">${_pt('O grupo inteiro ataca como um só. Os ataques de invasão sempre acertam e não usam config de zonas.', 'The whole party strikes as one. Raid attacks always connect and do not use zone setups.')}</div>
@@ -3709,8 +3703,7 @@ function renderDungeonRaidHub(guildData) {
         </div>
         ${cooldownLeft > 0 ? `<div class="rep-bar-text" style="margin-bottom:10px">${_pt(`Recuperação de invasão ativa: ${formatRaidDuration(cooldownLeft)} restantes.`, `Raid recovery active: ${formatRaidDuration(cooldownLeft)} remaining.`)}</div>` : ''}
         ${canCreateRaid ? `
-            <div class="exchange-card exchange-available raid-create-card">
-                <div class="exchange-icon raid-card-icon">${_pt('Invasão', 'Raid')}</div>
+            <div class="exchange-card exchange-available raid-create-card" style="--raid-bg:url('/images/assets/raid2.png')">
                 <div class="exchange-info">
                     <div class="exchange-name">${_pt('Criar Invasão', 'Create a Raid')}</div>
                     <div class="exchange-desc">${isRaidLocked
