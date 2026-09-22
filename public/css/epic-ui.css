@@ -1707,11 +1707,25 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
         justify-content: flex-start;
         gap: 6px;
     }
-    .sq-member-row .sq-member-id { width: 100%; }
+    .sq-member-row .sq-member-id { flex: 0 0 auto; width: 100%; }
+    .sq-member-row .sq-member-id > span { flex: 1 1 auto; }
+    .sq-member-row .sq-member-id .squads-member-sub {
+        width: 100%;
+        justify-content: space-between;
+    }
     .sq-member-row .sq-member-actions {
         width: 100%;
-        justify-content: flex-start;
+        justify-content: flex-end;
         align-items: center;
+        flex-wrap: nowrap;
+        gap: 6px;
+    }
+    .sq-member-row .sq-member-actions .squad-role-select,
+    .sq-member-row .sq-member-actions .btn-danger,
+    .sq-member-row .sq-member-actions .btn-primary {
+        height: 24px;
+        box-sizing: border-box;
+        margin: 0;
     }
     .sq-member-row .sq-member-actions .squad-role-select {
         max-width: 60%;
