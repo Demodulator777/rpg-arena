@@ -947,14 +947,21 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 }
 
 /* ── 15 · LOADOUT — zone pickers & save button ───────────────────────── */
-/* Save Loadout: centered action button, not a stretched form-footer bar.
-   (.btn-primary base is width:100% — exempt the loadout one.) */
+/* Inline .btn-primary.btn-sm sit beside inputs, not as full-width form bars.
+   (.btn-primary base is width:100%; the btn-sm modifier implies inline use.) */
 .loadout-save-btn {
     width: auto;
     min-width: 240px;
     max-width: 380px;
     display: flex;
     margin: 16px auto 4px;
+}
+.btn-primary.btn-sm {
+    width: auto;
+    display: inline-flex;
+}
+#tab-squads .squads-card .btn-primary.btn-sm {
+    width: auto;
 }
 
 /* ── 14 · PREMIUM CHAMBER — gem hero, medallion cards, synergy crest ──── */
@@ -1568,5 +1575,188 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 @media (prefers-reduced-motion: reduce) {
     .pr-ultimate.is-ultimate { animation: none; }
     .premium-feature-card, .premium-feature-art, .pr-btn { transition: none; }
+}
+
+/* ═══════════════ 17 · SQUAD CUSTOM ROLES ═══════════════ */
+
+/* Squad subtabs (class-based replacement for the old inline-styled buttons) */
+.squad-subtabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; }
+
+.squad-subtab {
+    padding: 8px 16px;
+    background: #14141e;
+    border: 1px solid #2a2a35;
+    border-radius: 6px;
+    color: #8a8a90;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.squad-subtab:hover { color: #c8a86e; border-color: #4a4a58; }
+
+.squad-subtab.active {
+    background: #1a1a28;
+    border-color: #c8a86e;
+    color: #c8a86e;
+}
+
+.sq-role-chip {
+    display: inline-block;
+    margin-left: 5px;
+    padding: 0 5px;
+    font-size: 0.58rem;
+    line-height: 14px;
+    border-radius: 7px;
+    color: var(--gold, #d4af37);
+    border: 1px solid rgba(212, 175, 55, 0.35);
+    background: rgba(212, 175, 55, 0.08);
+    vertical-align: middle;
+    cursor: help;
+}
+
+.sq-member-avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.sq-member-id { display: inline-flex; align-items: center; }
+
+.squads-member-sub {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    margin-top: 2px;
+}
+
+.sq-sub-item { white-space: nowrap; }
+.sq-sub-status { opacity: 0.85; }
+
+.sq-roles-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+
+.sq-role-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 7px 10px;
+    border: 1px solid rgba(212, 175, 55, 0.16);
+    border-radius: 8px;
+    background: rgba(212, 175, 55, 0.04);
+}
+
+.sq-role-name { font-weight: 600; font-size: 0.8rem; min-width: 120px; }
+
+.sq-role-perms { display: flex; flex-wrap: wrap; gap: 4px; flex: 1; }
+
+.sq-perm-chip {
+    font-size: 0.62rem;
+    padding: 1px 7px;
+    border-radius: 8px;
+    border: 1px solid rgba(155, 89, 182, 0.4);
+    background: rgba(155, 89, 182, 0.1);
+    color: #c9a7e8;
+}
+
+.sq-perm-chip.sq-perm-none { border-color: rgba(255, 255, 255, 0.12); background: transparent; color: var(--text-dim, #888); font-style: italic; }
+
+.sq-role-add-btn { display: inline-flex; width: auto; margin-top: 4px; }
+
+/* Editor modal */
+.sq-role-overlay { z-index: 1200; }
+
+.sq-role-editor {
+    width: min(480px, 92vw);
+    max-height: 86vh;
+    overflow-y: auto;
+}
+
+.sq-role-editor-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.sq-role-editor-title { font-family: 'Cinzel', serif; font-size: 1.05rem; color: var(--gold, #d4af37); letter-spacing: 0.04em; }
+
+.sq-role-editor-close {
+    background: none;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: var(--text-dim, #999);
+    width: 26px;
+    height: 26px;
+    cursor: pointer;
+    font-size: 0.8rem;
+}
+
+.sq-role-editor-close:hover { color: #fff; border-color: rgba(255, 255, 255, 0.4); }
+
+.sq-role-field-label {
+    display: block;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim, #999);
+    margin-bottom: 5px;
+}
+
+.sq-perm-grid { display: flex; flex-direction: column; gap: 6px; }
+
+.sq-perm-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 9px;
+    padding: 8px 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.sq-perm-option:hover { border-color: rgba(212, 175, 55, 0.35); background: rgba(212, 175, 55, 0.04); }
+
+.sq-perm-option:has(input:checked) { border-color: rgba(212, 175, 55, 0.5); background: rgba(212, 175, 55, 0.07); }
+
+.sq-perm-option input[type="checkbox"] { margin-top: 3px; accent-color: var(--gold, #d4af37); }
+
+.sq-perm-option-text { display: flex; flex-direction: column; gap: 2px; }
+
+.sq-perm-option-text strong { font-size: 0.78rem; font-weight: 600; }
+
+.sq-perm-option-text small { font-size: 0.64rem; color: var(--text-dim, #999); line-height: 1.35; }
+
+.sq-role-editor-note {
+    margin-top: 12px;
+    font-size: 0.64rem;
+    color: var(--text-dim, #999);
+    font-style: italic;
+    line-height: 1.4;
+    padding: 7px 9px;
+    border-left: 2px solid rgba(212, 175, 55, 0.35);
+    background: rgba(212, 175, 55, 0.04);
+    border-radius: 0 6px 6px 0;
+}
+
+.sq-role-editor-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+@media (max-width: 480px) {
+    .sq-role-row { flex-direction: column; align-items: flex-start; }
+    .sq-role-name { min-width: 0; }
 }
 
