@@ -9494,10 +9494,32 @@ function hoverSquadMemberTooltip(el, event) {
             </div>
         </div>`;
     tooltip.classList.remove('hidden');
+    tooltip.style.pointerEvents = 'none';
     tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
     const r = el.getBoundingClientRect();
-    const tw = tooltip.offsetWidth || 240;
-    _ttPos(tooltip, r, tw, tooltip.offsetHeight || 240);
+    const tw = tooltip.offsetWidth || 240, th = tooltip.offsetHeight || 240;
+    positionSquadMemberTooltip(tooltip, r, tw, th);
+}
+
+// The squad-row tooltip stays anchored to the LEFT member block (avatar/name) instead of
+// floating +150px right over the role select + Kick button, and is pointer-transparent so
+// it never blocks those controls.
+function positionSquadMemberTooltip(tooltip, r, tw, th) {
+    const zf = uiZoomFactor();
+    const rl = r.left / zf, rt = r.top / zf, rw = r.width / zf, rh = r.height / zf;
+    const vw = window.innerWidth / zf, vh = window.innerHeight / zf;
+    let left = rl + rw + 14;
+    let top = rt + rh / 2 - th / 2;
+    if (top + th > vh - 8) top = Math.max(8, vh - th - 8);
+    if (top < 8) top = 8;
+    if (left + tw > vw - 8) {
+        left = rl + rw / 2 - tw / 2;
+        top = rt + rh + 10;
+        if (top + th > vh - 8) top = Math.max(8, vh - th - 8);
+        if (top < 8) top = 8;
+    }
+    tooltip.style.left = Math.max(8, Math.round(left)) + 'px';
+    tooltip.style.top = Math.round(top) + 'px';
 }
 
 function openItemTooltip(itemId, el, event) {
@@ -12408,12 +12430,9 @@ function renderSquads() {
     const isOfficer = myRole === 'officer';
     const isCoLeader = myRole === 'co_leader';
     const canManageApps = isLeader || isCoLeader || isOfficer;
-    const roleLabels = {
-        leader: CURRENT_LANG === 'pt' ? '👑 Líder' : '👑 Leader',
-        co_leader: CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader',
-        officer: CURRENT_LANG === 'pt' ? '⚔️ Oficial' : '⚔️ Officer',
-        member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
-    };
+    const roleLabels = {};
+    const builtinOverrides = me.roleLabels || {};
+    Object.keys(BUILTIN_ROLE_META).forEach(k => { roleLabels[k] = squadRoleLabel(k, builtinOverrides); });
     const customRoles = me.customRoles || [];
     customRoles.forEach(r => { roleLabels[r.key] = `🎖️ ${r.label}`; });
     const roleDescriptions = {
@@ -12434,9 +12453,9 @@ function renderSquads() {
 
     function roleOptions(currentRole, isLeaderAssigner) {
         const opts = [];
-        if (isLeaderAssigner) opts.push(['co_leader', CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader']);
-        opts.push(['officer', '⚔️ Officer']);
-        opts.push(['member', CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member']);
+        if (isLeaderAssigner) opts.push(['co_leader', roleLabels.co_leader]);
+        opts.push(['officer', roleLabels.officer]);
+        opts.push(['member', roleLabels.member]);
         customRoles.forEach(r => opts.push([r.key, `🎖️ ${r.label}`]));
         return opts.map(([v, l]) => `<option value="${v}" ${v === currentRole ? 'selected' : ''}>${l}</option>`).join('');
     }
@@ -12459,12 +12478,23 @@ function renderSquads() {
                 </div>
                 
                 <div class="squads-setup-box">
-                    <div class="squads-subhead">${CURRENT_LANG === 'pt' ? 'Entrar em Esquadrão Existente' : 'Join Existing Squad'}</div>
-                    <input id="squad-code" class="input-field" placeholder="${CURRENT_LANG === 'pt' ? 'Código de Convite' : 'Invite Code'}">
-                    <button class="btn-secondary" ${actionAttrs('joinSquad')}>${CURRENT_LANG === 'pt' ? 'Entrar' : 'Join Squad'}</button>
+                    <div class="squads-subhead">${CURRENT_LANG === 'pt' ? 'Explorar Esquadrões' : 'Browse Squads'}</div>
+                    <input id="squad-search" class="input-field" placeholder="${CURRENT_LANG === 'pt' ? 'Buscar por nome ou tag...' : 'Search by name or tag...'}">
+                    <div id="squad-browse-list" class="sq-browse-list"></div>
+                    <div class="sq-browse-empty" id="squad-browse-empty">${CURRENT_LANG === 'pt' ? 'Nenhum esquadrão encontrado.' : 'No squads found.'}</div>
+                    <button class="btn-secondary btn-sm sq-browse-refresh" ${actionAttrs('refreshSquadBrowse')}>${CURRENT_LANG === 'pt' ? '🔄 Atualizar lista' : '🔄 Refresh list'}</button>
                 </div>
             </div>
         </div>`;
+        loadSquadBrowse();
+        const searchInput = document.getElementById('squad-search');
+        if (searchInput) {
+            let browseTimer = null;
+            searchInput.addEventListener('input', () => {
+                clearTimeout(browseTimer);
+                browseTimer = setTimeout(() => loadSquadBrowse(), 300);
+            });
+        }
         return;
     }
 
@@ -12473,13 +12503,17 @@ function renderSquads() {
     const logoDisplay = squad.logo
         ? `<span class="sq-logo"><img src="${escHtml(squad.logo)}" alt="${escHtml(squad.name)}"></span>`
         : `<span class="sq-logo sq-logo-empty">🛡️</span>`;
-    const squadHeader = `<div class="squads-card">
+    const logoBackdrop = squad.logo
+        ? `<div class="sq-header-backdrop" style="background-image:url('${escHtml(squad.logo)}');--sq-backdrop-opacity:0.45"></div>`
+        : '';
+    const squadHeader = `<div class="squads-card sq-header-card">
+        ${logoBackdrop}
         <div class="squads-card-head">
             <div style="display:flex;align-items:center;gap:12px">
                 ${logoDisplay}
                 <div>
                     <div class="squads-title">${escHtml(squad.name)}${squad.squad_tag ? ` [${escHtml(squad.squad_tag)}]` : ''}</div>
-                    <div class="squads-meta">${CURRENT_LANG === 'pt' ? `Código de convite: <strong>${escHtml(squad.invite_code || '')}</strong> · Membros: <strong>${members.length}</strong>` : `Invite code: <strong>${escHtml(squad.invite_code || '')}</strong> · Members: <strong>${members.length}</strong>`}</div>
+                    <div class="squads-meta">${CURRENT_LANG === 'pt' ? `Membros: <strong>${members.length}</strong>` : `Members: <strong>${members.length}</strong>`}</div>
                 </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center">
@@ -12616,6 +12650,13 @@ function renderSquads() {
                 </div>`).join('')}
             </div>`}
             <button class="btn-primary btn-sm sq-role-add-btn" ${actionAttrs('openRoleEditor', '')}>➕ ${CURRENT_LANG === 'pt' ? 'Criar Nova Função' : 'Create New Role'}</button>
+            <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px">
+                <div class="squads-meta">${CURRENT_LANG === 'pt' ? 'Nome dos cargos padrão:' : 'Built-in role names:'}</div>
+                <div class="sq-roles-list">
+                    ${Object.keys(BUILTIN_ROLE_META).map(k => `<div class="sq-role-row"><span class="sq-role-name">${squadRoleLabel(k, builtinOverrides)}</span></div>`).join('')}
+                </div>
+                <button class="btn-secondary btn-sm" ${actionAttrs('openRoleNamesEditor', '')} style="font-size:0.7rem;padding:3px 8px;align-self:flex-start">✏️ ${CURRENT_LANG === 'pt' ? 'Renomear Cargos' : 'Rename Roles'}</button>
+            </div>
         </div>` : (myMembership && !['leader', 'co_leader', 'officer'].includes(myRole) ? `
         <div class="squads-card" style="margin-top:10px">
             <div class="squads-title">🎖️ ${CURRENT_LANG === 'pt' ? 'A Sua Função' : 'Your Role'}</div>
@@ -13296,12 +13337,9 @@ async function showSquadDetail(squadId) {
         const members = res.members || [];
         if (!s) return;
         const amMember = (members || []).some(m => m.id === character?.id);
-        const roleLabels = {
-            leader: CURRENT_LANG === 'pt' ? '👑 Líder' : '👑 Leader',
-            co_leader: CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader',
-            officer: CURRENT_LANG === 'pt' ? '⚔️ Oficial' : '⚔️ Officer',
-            member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
-        };
+        const roleLabels = {};
+        const sdOverrides = res.roleLabels || {};
+        Object.keys(BUILTIN_ROLE_META).forEach(k => { roleLabels[k] = squadRoleLabel(k, sdOverrides); });
         const membersHtml = members.map(m => {
             const splashSrc = `/images/class/${m.class}-st.png`;
             const portraitSrc = `/images/class/${m.class}.png`;
@@ -13369,17 +13407,60 @@ async function createSquad() {
 }
 window.createSquad = createSquad;
 
-async function joinSquad() {
-    const code = document.getElementById('squad-code')?.value || '';
+async function applyToSquad(squadId) {
     try {
-        const res = await api('POST', '/game/squads/join', { code });
-        await openGameNoticeDialog({ title: '🛡️ ' + (CURRENT_LANG === 'pt' ? 'Entrou no Esquadrão' : 'Joined Squad'), message: CURRENT_LANG === 'pt' ? `Entrou em "${res.squad?.name || 'Esquadrão'}".` : `Joined "${res.squad?.name || 'Squad'}".` });
-        await loadSquads();
+        await api('POST', '/game/squads/apply', { squad_id: squadId });
+        await openGameNoticeDialog({ title: '🛡️ ' + (CURRENT_LANG === 'pt' ? 'Aplicação Enviada' : 'Application Sent'), message: CURRENT_LANG === 'pt' ? 'Sua aplicação foi enviada. O líder do esquadrão irá revisá-la.' : 'Your application has been sent. The squad leader will review it.' });
+        await loadSquadBrowse();
     } catch (e) {
         await openGameNoticeDialog({ title: (CURRENT_LANG === 'pt' ? '🛡️ Esquadrões' : '🛡️ Squads'), message: e.message || String(e) });
     }
 }
-window.joinSquad = joinSquad;
+window.applyToSquad = applyToSquad;
+
+let _sqBrowseTimer = null;
+async function loadSquadBrowse() {
+    clearTimeout(_sqBrowseTimer);
+    try {
+        const q = document.getElementById('squad-search')?.value?.trim() || '';
+        const listEl = document.getElementById('squad-browse-list');
+        const emptyEl = document.getElementById('squad-browse-empty');
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="sq-browse-loading">' + (CURRENT_LANG === 'pt' ? 'Carregando esquadrões...' : 'Loading squads...') + '</div>';
+        const res = await api('GET', '/game/squads/browse' + (q ? '?q=' + encodeURIComponent(q) : ''));
+        const rows = Array.isArray(res) ? res : (res?.squads || []);
+        if (!listEl.isConnected) return;
+        if (!rows.length) {
+            listEl.innerHTML = '';
+            if (emptyEl) emptyEl.style.display = '';
+            return;
+        }
+        if (emptyEl) emptyEl.style.display = 'none';
+        listEl.innerHTML = rows.map((s) => {
+            const logo = s.logo
+                ? `<span class="sq-logo"><img src="${escHtml(s.logo)}" alt=""></span>`
+                : `<span class="sq-logo sq-logo-empty">🛡️</span>`;
+            const owner = s.owner ? ` · <span title="${escHtml(s.owner.name)}">👑 ${escHtml(s.owner.name)} (lvl ${s.owner.level})</span>` : '';
+            const btn = s.applied
+                ? `<button class="btn-secondary btn-sm" disabled>${CURRENT_LANG === 'pt' ? '✅ Pendente' : '✅ Pending'}</button>`
+                : `<button class="btn-primary btn-sm" ${actionAttrs('applyToSquad', s.id)}>${CURRENT_LANG === 'pt' ? '🖊️ Aplicar' : '🖊️ Apply'}</button>`;
+            return `<div class="sq-browse-row">
+                ${logo}
+                <div class="sq-browse-info">
+                    <div class="sq-browse-name">${escHtml(s.name)}${s.tag ? ` <span class="sq-browse-tag">[${escHtml(s.tag)}]</span>` : ''}</div>
+                    <div class="sq-browse-sub">${s.member_count} ${CURRENT_LANG === 'pt' ? 'membros' : 'members'}${s.avg_level ? ` · ${CURRENT_LANG === 'pt' ? 'lvl médio' : 'avg lvl'} ${s.avg_level}` : ''}${owner}</div>
+                </div>
+                ${btn}
+            </div>`;
+        }).join('');
+    } catch (e) {
+        const listEl = document.getElementById('squad-browse-list');
+        if (listEl && listEl.isConnected) {
+            listEl.innerHTML = '<div class="sq-browse-loading">' + (CURRENT_LANG === 'pt' ? 'Erro ao carregar.' : 'Error loading.') + '</div>';
+        }
+    }
+}
+window.refreshSquadBrowse = loadSquadBrowse;
 
 async function leaveSquad() {
     try {
@@ -13513,6 +13594,19 @@ async function changeMemberRole(charId, role) {
 }
 window.changeMemberRole = changeMemberRole;
 
+const BUILTIN_ROLE_META = {
+    leader: { icon: '👑', pt: 'Líder', en: 'Leader' },
+    co_leader: { icon: '⭐', pt: 'Co-Líder', en: 'Co-Leader' },
+    officer: { icon: '⚔️', pt: 'Oficial', en: 'Officer' },
+    member: { icon: '🪖', pt: 'Membro', en: 'Member' }
+};
+function squadRoleLabel(key, overrides) {
+    const meta = BUILTIN_ROLE_META[key];
+    if (!meta) return null;
+    const name = (overrides && overrides[key]) || (CURRENT_LANG === 'pt' ? meta.pt : meta.en);
+    return `${meta.icon} ${name}`;
+}
+
 const SQUAD_PERM_KEYS = [
     ['applications', CURRENT_LANG === 'pt' ? 'Gerir inscrições' : 'Manage applications', CURRENT_LANG === 'pt' ? 'Ver, aceitar e recusar pedidos de entrada.' : 'View, accept and reject join requests.'],
     ['kick', CURRENT_LANG === 'pt' ? 'Expulsar membros' : 'Kick members', CURRENT_LANG === 'pt' ? 'Expulsar membros comuns (nunca líderes).' : 'Kick plain members (never leaders).'],
@@ -13599,6 +13693,62 @@ async function deleteCustomRole(roleKey) {
     }
 }
 window.deleteCustomRole = deleteCustomRole;
+
+function openRoleNamesEditor() {
+    document.getElementById('sq-role-editor-overlay')?.remove();
+    const me = squadsData?.me || {};
+    const overrides = me.roleLabels || {};
+    const overlay = document.createElement('div');
+    overlay.id = 'sq-role-editor-overlay';
+    overlay.className = 'modal-overlay sq-role-overlay';
+    const current = (k) => (overrides[k] || (CURRENT_LANG === 'pt' ? BUILTIN_ROLE_META[k].pt : BUILTIN_ROLE_META[k].en));
+    overlay.innerHTML = `
+        <div class="modal-box sq-role-editor">
+            <div class="sq-role-editor-head">
+                <div class="sq-role-editor-title">✏️ ${CURRENT_LANG === 'pt' ? 'Renomear Cargos' : 'Rename Roles'}</div>
+                <button class="sq-role-editor-close" data-role-editor-close>✕</button>
+            </div>
+            <div class="squads-meta" style="margin-bottom:8px">${CURRENT_LANG === 'pt' ? 'Personalize o nome de cada cargo padrão deste esquadrão. Os poderes e a hierarquia mantêm-se inalterados.' : 'Customize each built-in role name for this squad. Powers and ranking stay unchanged.'}</div>
+            ${Object.keys(BUILTIN_ROLE_META).map(k => {
+                const m = BUILTIN_ROLE_META[k];
+                return `<label class="sq-role-field-label" style="margin-top:8px">${m.icon} ${m.en} (${CURRENT_LANG === 'pt' ? m.pt : m.en})</label>
+                <input class="input-field sq-role-name-input" data-role-key="${k}" maxlength="24" value="${escHtml(current(k))}">`;
+            }).join('')}
+            <div class="sq-role-editor-note">${CURRENT_LANG === 'pt' ? 'Deixe um campo vazio para voltar ao nome padrão.' : 'Leave a field empty to restore its default name.'}</div>
+            <div class="sq-role-editor-actions">
+                <button class="btn-secondary btn-sm" data-role-editor-close>${CURRENT_LANG === 'pt' ? 'Cancelar' : 'Cancel'}</button>
+                <button class="btn-primary btn-sm" id="sq-role-save">💾 ${CURRENT_LANG === 'pt' ? 'Guardar' : 'Save'}</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeRoleEditor(); });
+    overlay.querySelectorAll('[data-role-editor-close]').forEach(b => b.addEventListener('click', closeRoleEditor));
+    overlay.querySelector('#sq-role-save').addEventListener('click', async () => {
+        const labels = {};
+        const bad = [];
+        overlay.querySelectorAll('.sq-role-name-input').forEach(inp => {
+            const v = inp.value.trim().slice(0, 24);
+            if (v !== '' && v.length < 2) bad.push(inp.dataset.roleKey);
+            labels[inp.dataset.roleKey] = v;
+        });
+        if (bad.length) {
+            await openGameNoticeDialog({ title: '✏️ ' + (CURRENT_LANG === 'pt' ? 'Renomear Cargos' : 'Rename Roles'), message: CURRENT_LANG === 'pt' ? 'Os nomes das funções devem ter 2-24 caracteres.' : 'Role names must be 2-24 characters.' });
+            return;
+        }
+        const btn = overlay.querySelector('#sq-role-save');
+        btn.disabled = true;
+        try {
+            await api('PUT', '/game/squads/role-names', labels);
+            closeRoleEditor();
+            await openGameNoticeDialog({ title: '✏️ ' + (CURRENT_LANG === 'pt' ? 'Renomear Cargos' : 'Rename Roles'), message: CURRENT_LANG === 'pt' ? 'Nomes dos cargos atualizados.' : 'Role names updated.' });
+            await loadSquads();
+        } catch (e) {
+            btn.disabled = false;
+            await openGameNoticeDialog({ title: '✏️ ' + (CURRENT_LANG === 'pt' ? 'Renomear Cargos' : 'Rename Roles'), message: e.message || String(e) });
+        }
+    });
+}
+window.openRoleNamesEditor = openRoleNamesEditor;
 
 async function kickMember(charId) {
     if (!confirm(CURRENT_LANG === 'pt' ? 'Expulsar este membro do esquadrão?' : 'Kick this member from the squad?')) return;
