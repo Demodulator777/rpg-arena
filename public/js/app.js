@@ -5658,7 +5658,7 @@ function renderLoadout() {
         <div style="display:none" id="loadout-hidden-inputs">
             ${Array.from({length:10},(_,i)=>`<input id="atk-${i}" value="${_loadoutAttackZones[i]||'chest'}"><input id="blk-${i}" value="${_loadoutBlockZones[i]||'cross_guard'}">`).join('')}
         </div>
-        <button class="btn-primary" style="width:100%;margin-top:4px" ${actionAttrs('saveLoadout')}>${CURRENT_LANG==='pt' ? 'Salvar Loadout' : 'Save Loadout'}</button>`;
+        <button class="btn-primary loadout-save-btn" ${actionAttrs('saveLoadout')}>${CURRENT_LANG==='pt' ? 'Salvar Loadout' : 'Save Loadout'}</button>`;
     _loadoutActiveRound = 0;
     renderLoadoutRoundTabs();
     renderLoadoutDotGrid('atk');
@@ -5818,7 +5818,9 @@ function showLoadoutPopup(type, anchorRect) {
         const color = isAtk ? (ZONE_COLORS[k]||'#aaa') : (BLOCK_COLORS[k]||'#aaa');
         const stat  = isAtk
             ? `\u00d7${v.dmgMult} \u00b7 ${Math.round(v.hitChance*100)}% ${CURRENT_LANG==='pt'?'acerto':'hit'}`
-            : `${Math.round(v.reduction*100)}% ${CURRENT_LANG==='pt'?'bloqueio':'block'}`;
+            : (v.protects.length === 0
+                ? (CURRENT_LANG==='pt' ? 'n\u00e3o bloqueia' : 'blocks nothing')
+                : (CURRENT_LANG==='pt' ? `cobre ${v.protects.length} zonas` : `covers ${v.protects.length} zones`));
         return `<div ${actionAttrs('pickLoadoutZone', type, k)}
             style="display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;
                    background:${isActive?hexToRgba(color, 0.13):'transparent'};
@@ -5881,8 +5883,9 @@ function updateLoadoutZoneInfo(type, zoneKey) {
     } else {
         const z = BLOCK_ZONES[zoneKey]; if (!z) return;
         const color = BLOCK_COLORS[zoneKey] || '#aaa';
+        const covers = (z.protects || []).map(pk => zoneLabel(pk)).join(' + ');
         el.innerHTML = `<span style="color:${color};font-weight:700">${zoneLabel(zoneKey)}</span>
-            <span style="color:rgba(255,255,255,0.35)"> · ${Math.round(z.reduction*100)}% ${CURRENT_LANG==='pt'?'bloqueio':'block'}</span>
+            <span style="color:rgba(255,255,255,0.35)"> · ${covers ? (CURRENT_LANG==='pt' ? `cobre: ${covers}` : `covers: ${covers}`) : (CURRENT_LANG==='pt' ? 'não bloqueia nada' : 'blocks nothing')}</span>
             <div style="color:rgba(255,255,255,0.4);font-size:0.7rem;margin-top:2px">${zoneDesc(zoneKey)}</div>`;
     }
 }
