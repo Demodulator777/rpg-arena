@@ -1349,6 +1349,15 @@ try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value
                                                                               joined_at INTEGER NOT NULL,
                                                                               PRIMARY KEY (squad_id, char_id)
                 )`, args: [] });
+        await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_roles (
+                                                                           squad_id INTEGER NOT NULL,
+                                                                           role_key TEXT NOT NULL,
+                                                                           label TEXT NOT NULL,
+                                                                           rank INTEGER NOT NULL DEFAULT 4,
+                                                                           permissions TEXT NOT NULL DEFAULT '[]',
+                                                                           created_at INTEGER NOT NULL,
+                                                                           PRIMARY KEY (squad_id, role_key)
+                )`, args: [] });
         await db.execute({ sql: `CREATE INDEX IF NOT EXISTS idx_squad_members_char_id ON squad_members(char_id)`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_applications (
                                                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -11392,6 +11401,7 @@ router.get('/squads/me', auth, async (req, res) => {
         const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ squad: null, members: [] });
         const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at, squad_tag FROM squads WHERE id=?', [membership.squad_id]);
+        const customRoles = await getSquadRoleHelpers(db, membership.squad_id);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
                                                 COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
                                                 COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated,
@@ -11405,7 +11415,7 @@ router.get('/squads/me', auth, async (req, res) => {
                                                                      ELSE 4
                                                                      END,
                                                                  c.level DESC, c.total_gold_earned DESC LIMIT 50`, [membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id, membership.squad_id]);
-        res.json({ squad, members });
+        res.json({ squad, members, customRoles });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -11563,8 +11573,10 @@ router.get('/squads/applications', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ applications: [] });
+        const myCustomRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        if (!memberHasPermission(membership.role, myCustomRoles, 'applications')) return res.json({ applications: [] });
         const apps = await dbAll(db, `SELECT sa.id, sa.char_id, sa.status, sa.created_at, c.name, c.class, c.level
                                       FROM squad_applications sa JOIN characters c ON c.id = sa.char_id
                                       WHERE sa.squad_id=? AND sa.status='pending' ORDER BY sa.created_at DESC`,
@@ -11586,8 +11598,10 @@ router.post('/squads/applications/:appId/accept', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only squad leaders, co-leaders and officers can accept applications.' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const acceptRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        if (!memberHasPermission(membership.role, acceptRoles, 'applications')) return res.status(403).json({ error: 'You do not have permission to accept applications.' });
         const appId = Number(req.params.appId);
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
@@ -11619,8 +11633,10 @@ router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only squad leaders, co-leaders and officers can reject applications.' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const rejectRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        if (!memberHasPermission(membership.role, rejectRoles, 'applications')) return res.status(403).json({ error: 'You do not have permission to reject applications.' });
         const appId = Number(req.params.appId);
         const app = await dbGet(db, 'SELECT * FROM squad_applications WHERE id=? AND squad_id=? AND status=?', [appId, membership.squad_id, 'pending']);
         if (!app) return res.status(404).json({ error: 'Application not found.' });
@@ -11637,6 +11653,132 @@ router.post('/squads/applications/:appId/reject', auth, async (req, res) => {
 
 // ── Squad Role Management ───────────────────────────────────────────
 
+// ── Custom Squad Roles ──────────────────────────────────────────────
+// Built-in roles keep their implicit powers (leader > co_leader > officer > member).
+// Custom roles live in squad_roles with a permissions list. Permission keys:
+//   applications — view/accept/reject join applications
+//   kick         — kick members (not leaders/co-leaders)
+//   roles        — assign officer/member (+ custom roles ranked below the granter)
+//   treasury     — donate to treasury on behalf of view + donate normally allowed to all
+//   wars         — open the war panel / participate in war actions
+//   base         — base upgrades
+const SQUAD_PERMISSIONS = ['applications', 'kick', 'roles', 'wars', 'base'];
+const BUILTIN_RANKS = { leader: 0, co_leader: 1, officer: 2, member: 3 };
+
+async function getSquadRoleHelpers(db, squadId) {
+    const roles = await dbAll(db, 'SELECT role_key, label, rank, permissions FROM squad_roles WHERE squad_id=? ORDER BY rank ASC, created_at ASC', [squadId]);
+    return roles.map(r => ({
+        key: r.role_key,
+        label: r.label,
+        rank: Number(r.rank) || 4,
+        permissions: (() => { try { return JSON.parse(r.permissions || '[]'); } catch { return []; } })()
+    }));
+}
+
+// Effective permission check for a membership row + squad's custom roles.
+// Built-ins: leader/co_leader/officer all count as having every permission
+// EXCEPT where callers apply stricter built-in rules (e.g. only leader promotes
+// to co_leader). Custom roles only have what's in their permissions list.
+function memberHasPermission(membershipRole, customRoles, permission) {
+    if (membershipRole === 'leader' || membershipRole === 'co_leader') return true;
+    if (membershipRole === 'officer') return true; // officers keep their implicit full set
+    const role = (customRoles || []).find(r => r.key === membershipRole);
+    return !!(role && (role.permissions || []).includes(permission));
+}
+
+router.get('/squads/roles', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const roles = await getSquadRoleHelpers(db, membership.squad_id);
+        res.json({ roles, permissions: SQUAD_PERMISSIONS });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/squads/roles', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        if (membership.role !== 'leader' && membership.role !== 'co_leader') {
+            return res.status(403).json({ error: 'Only the squad leader and co-leaders can manage custom roles.' });
+        }
+        const label = String(req.body.label || '').trim().slice(0, 24);
+        if (label.length < 2) return res.status(400).json({ error: 'Role name must be 2-24 characters.' });
+        const permissions = Array.isArray(req.body.permissions) ? req.body.permissions.filter(p => SQUAD_PERMISSIONS.includes(p)) : [];
+        const rank = Math.max(4, Math.min(20, Number(req.body.rank) || 4));
+        const roleKey = 'custom_' + Date.now().toString(36) + Math.floor(Math.random() * 1000).toString(36);
+        const existingCount = await dbGet(db, 'SELECT COUNT(*) AS n FROM squad_roles WHERE squad_id=?', [membership.squad_id]);
+        if (Number(existingCount?.n || 0) >= 8) return res.status(400).json({ error: 'Custom role limit reached (8).' });
+        await dbRun(db, 'INSERT INTO squad_roles (squad_id, role_key, label, rank, permissions, created_at) VALUES (?,?,?,?,?,?)',
+            [membership.squad_id, roleKey, label, rank, JSON.stringify(permissions), Math.floor(Date.now() / 1000)]);
+        const roles = await getSquadRoleHelpers(db, membership.squad_id);
+        res.json({ success: true, roles });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/squads/roles/:roleKey', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        if (membership.role !== 'leader' && membership.role !== 'co_leader') {
+            return res.status(403).json({ error: 'Only the squad leader and co-leaders can manage custom roles.' });
+        }
+        const roleKey = String(req.params.roleKey || '');
+        const existing = await dbGet(db, 'SELECT id FROM squad_roles WHERE squad_id=? AND role_key=?', [membership.squad_id, roleKey]);
+        if (!existing) return res.status(404).json({ error: 'Custom role not found.' });
+        const updates = [];
+        const args = [];
+        if (req.body.label !== undefined) {
+            const label = String(req.body.label || '').trim().slice(0, 24);
+            if (label.length < 2) return res.status(400).json({ error: 'Role name must be 2-24 characters.' });
+            updates.push('label=?'); args.push(label);
+        }
+        if (req.body.permissions !== undefined) {
+            const permissions = Array.isArray(req.body.permissions) ? req.body.permissions.filter(p => SQUAD_PERMISSIONS.includes(p)) : [];
+            updates.push('permissions=?'); args.push(JSON.stringify(permissions));
+        }
+        if (req.body.rank !== undefined) {
+            updates.push('rank=?'); args.push(Math.max(4, Math.min(20, Number(req.body.rank) || 4)));
+        }
+        if (!updates.length) return res.status(400).json({ error: 'Nothing to update.' });
+        args.push(membership.squad_id, roleKey);
+        await dbRun(db, `UPDATE squad_roles SET ${updates.join(', ')} WHERE squad_id=? AND role_key=?`, args);
+        const roles = await getSquadRoleHelpers(db, membership.squad_id);
+        res.json({ success: true, roles });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.delete('/squads/roles/:roleKey', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, name');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        if (membership.role !== 'leader' && membership.role !== 'co_leader') {
+            return res.status(403).json({ error: 'Only the squad leader and co-leaders can manage custom roles.' });
+        }
+        const roleKey = String(req.params.roleKey || '');
+        const holders = await dbGet(db, 'SELECT COUNT(*) AS n FROM squad_members WHERE squad_id=? AND role=?', [membership.squad_id, roleKey]);
+        if (Number(holders?.n || 0) > 0) {
+            return res.status(400).json({ error: `Cannot delete: ${holders.n} member(s) still have this role. Reassign them first.` });
+        }
+        const r = await dbRun(db, 'DELETE FROM squad_roles WHERE squad_id=? AND role_key=?', [membership.squad_id, roleKey]);
+        if (!r || r.changes === 0) return res.status(404).json({ error: 'Custom role not found.' });
+        const roles = await getSquadRoleHelpers(db, membership.squad_id);
+        res.json({ success: true, roles });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.post('/squads/members/:charId/role', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -11648,24 +11790,38 @@ router.post('/squads/members/:charId/role', auth, async (req, res) => {
         if (!targetId) return res.status(400).json({ error: 'Invalid character ID.' });
         if (targetId === char.id) return res.status(400).json({ error: 'You cannot change your own role.' });
         const { role } = req.body;
-        if (!role || !['co_leader', 'officer', 'member'].includes(role)) return res.status(400).json({ error: 'Role must be "co_leader", "officer", or "member".' });
+        const customRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        const isBuiltin = ['co_leader', 'officer', 'member'].includes(role);
+        const customRole = isBuiltin ? null : customRoles.find(r => r.key === role);
+        if (!isBuiltin && !customRole) return res.status(400).json({ error: 'Unknown role.' });
         const target = await dbGet(db, 'SELECT role FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
         if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
-        // Authorization
-        if (membership.role === 'leader') {
-            // Leader can assign any role
-        } else if (membership.role === 'co_leader') {
-            if (target.role === 'leader' || target.role === 'co_leader') {
-                return res.status(403).json({ error: 'Co-leaders cannot change roles of leaders or other co-leaders.' });
+        // Authorization — leader/co_leader pass naturally; custom roles need the "roles" permission.
+        // Rank rules: co-leaders cannot touch leaders/other co-leaders, cannot promote to co-leader;
+        // custom roles can only assign roles ranked BELOW their own (and never co-leader).
+        const assignerRank = membership.role === 'leader' ? BUILTIN_RANKS.leader
+            : membership.role === 'co_leader' ? BUILTIN_RANKS.co_leader
+            : (assignRoles.find(r => r.key === membership.role) || {}).rank;
+        if (assignerRank === undefined) {
+            return res.status(403).json({ error: 'Only leaders, co-leaders and roles with the "roles" permission can assign roles.' });
+        }
+        const targetRole = (assignRoles.find(r => r.key === target.role) || {});
+        const targetRank = BUILTIN_RANKS[target.role] !== undefined ? BUILTIN_RANKS[target.role] : targetRole.rank;
+        if (assignerRank !== BUILTIN_RANKS.leader && targetRank <= assignerRank) {
+            return res.status(403).json({ error: 'You cannot change the role of a member ranked at or above you.' });
+        }
+        if (assignerRank !== BUILTIN_RANKS.leader && role === 'co_leader') {
+            return res.status(403).json({ error: 'Only the squad leader can promote to co-leader.' });
+        }
+        if (assignerRank !== BUILTIN_RANKS.leader && role !== 'co_leader') {
+            const newRoleRank = BUILTIN_RANKS[role] !== undefined ? BUILTIN_RANKS[role] : (assignRoles.find(r => r.key === role) || {}).rank;
+            if (newRoleRank === undefined || newRoleRank <= assignerRank) {
+                return res.status(403).json({ error: 'You can only assign roles ranked below your own.' });
             }
-            if (role === 'co_leader') {
-                return res.status(403).json({ error: 'Only the squad leader can promote to co-leader.' });
-            }
-        } else {
-            return res.status(403).json({ error: 'Only leaders and co-leaders can assign roles.' });
         }
         await dbRun(db, 'UPDATE squad_members SET role=? WHERE char_id=? AND squad_id=?', [role, targetId, membership.squad_id]);
-        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '🔰 Squad Role Changed', `Your role has been changed to "${role}".`]);
+        const newLabel = isBuiltin ? role : (customRole?.label || role);
+        await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '🔰 Squad Role Changed', `Your role has been changed to "${newLabel}".`]);
         res.json({ success: true, role });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -11684,15 +11840,24 @@ router.post('/squads/members/:charId/kick', auth, async (req, res) => {
         if (targetId === char.id) return res.status(400).json({ error: 'You cannot kick yourself.' });
         const target = await dbGet(db, 'SELECT role FROM squad_members WHERE char_id=? AND squad_id=? LIMIT 1', [targetId, membership.squad_id]);
         if (!target) return res.status(404).json({ error: 'Member not found in your squad.' });
-        // Authorization: leader can kick anyone; co-leader can kick officers and members; officer can kick members only
+        // Authorization: leader can kick anyone; co-leader can kick officers and members; officer can kick members only;
+        // custom roles need the explicit "kick" permission and can only kick plain members.
+        const kickRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        const canKick = membership.role === 'leader' || membership.role === 'co_leader'
+            || (membership.role === 'officer')
+            || memberHasPermission(membership.role, kickRoles, 'kick');
+        if (!canKick) {
+            return res.status(403).json({ error: 'You do not have permission to kick members.' });
+        }
+        const isCustomKicker = !['leader', 'co_leader', 'officer'].includes(membership.role);
+        if (isCustomKicker && target.role !== 'member') {
+            return res.status(403).json({ error: 'Custom roles can only kick plain members.' });
+        }
         if (membership.role === 'officer' && target.role !== 'member') {
             return res.status(403).json({ error: 'Officers can only kick members.' });
         }
         if (membership.role === 'co_leader' && (target.role === 'leader' || target.role === 'co_leader')) {
             return res.status(403).json({ error: 'Co-leaders cannot kick leaders or other co-leaders.' });
-        }
-        if (membership.role === 'member') {
-            return res.status(403).json({ error: 'Only leaders, co-leaders and officers can kick members.' });
         }
         await dbRun(db, 'DELETE FROM squad_members WHERE char_id=? AND squad_id=?', [targetId, membership.squad_id]);
         await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [char.id, targetId, '👢 Kicked from Squad', `You have been kicked from the squad by ${char.name}.`]);
@@ -11883,7 +12048,10 @@ router.post('/squads/bases/:baseId/upgrade', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
-        if (membership.role === 'member') return res.status(403).json({ error: 'Only leaders, co-leaders and officers can upgrade.' });
+        const baseRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        if (membership.role === 'member' || !memberHasPermission(membership.role, baseRoles, 'base')) {
+            return res.status(403).json({ error: 'Only leaders, co-leaders, officers and roles with the base permission can upgrade.' });
+        }
         const baseId = Number(req.params.baseId);
         const base = await dbGet(db, 'SELECT * FROM clan_bases WHERE id=?', [baseId]);
         if (!base) return res.status(404).json({ error: 'Base not found.' });
@@ -12602,8 +12770,10 @@ router.post('/squads/wars/start', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader','officer') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only leaders, co-leaders and officers can start wars.' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const warRoles = await getSquadRoleHelpers(db, membership.squad_id);
+        if (!memberHasPermission(membership.role, warRoles, 'wars')) return res.status(403).json({ error: 'You do not have permission to start wars.' });
         const baseId = Number(req.body.base_id);
         if (!baseId) return res.status(400).json({ error: 'Base ID required.' });
         const targetBase = await dbGet(db, 'SELECT * FROM clan_bases WHERE id=?', [baseId]);
@@ -12913,10 +13083,17 @@ router.post('/squads/wars/:warId/start-battle', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const membership = await dbGet(db, "SELECT squad_id FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
-        if (!membership) return res.status(403).json({ error: 'Only leaders and co-leaders can start battles.' });
+        const membership = await dbGet(db, "SELECT squad_id, role FROM squad_members WHERE char_id=? AND role IN ('leader','co_leader') LIMIT 1", [char.id]);
+        let battleMembership = membership;
+        if (!battleMembership) {
+            const alt = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
+            if (!alt) return res.status(403).json({ error: 'You are not in a squad.' });
+            const battleRoles = await getSquadRoleHelpers(db, alt.squad_id);
+            if (!memberHasPermission(alt.role, battleRoles, 'wars')) return res.status(403).json({ error: 'Only leaders, co-leaders and roles with the wars permission can start battles.' });
+            battleMembership = alt;
+        }
         const warId = Number(req.params.warId);
-        const war = await dbGet(db, "SELECT * FROM clan_wars WHERE id=? AND attacker_squad_id=? AND phase='attacking' AND status='preparation'", [warId, membership.squad_id]);
+        const war = await dbGet(db, "SELECT * FROM clan_wars WHERE id=? AND attacker_squad_id=? AND phase='attacking' AND status='preparation'", [warId, battleMembership.squad_id]);
         if (!war) return res.status(400).json({ error: 'War not found or not in attack phase. Wait for scout phase to end.' });
         const isNpcWar = Number(war.is_npc_war || 0) === 1;
         // Validate each outpost has fighters
@@ -18313,6 +18490,9 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
     if (mutation_type === 'untrusted_api' && charName) {
         const d = String(detail || '') + ' ' + String(target_info || '');
         if (d.includes('/setups') || d.includes('/tutorial')) return res.json({ success: true, ignored: true });
+        // Language preference auto-saves on page load and can land >3s after any click;
+        // cosmetic setting, zero game impact — never a scripting signal.
+        if (d.includes('/settings/language')) return res.json({ success: true, ignored: true });
         // File uploads are picked via the OS file dialog, so the API call reliably
         // lands >3s after the last trusted event — never a scripting signal.
         if (d.includes('/squads/logo')) return res.json({ success: true, ignored: true });
@@ -18320,7 +18500,7 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
         // bookkeeping POSTs legitimately land >3s after the player's last click.
         if (d.includes('/dungeon/release-room') || d.includes('/dungeon/room-exit') ||
             d.includes('/dungeon/crawler') || d.includes('/dungeon/tokens') ||
-            d.includes('/event/finish')) return res.json({ success: true, ignored: true });
+            d.includes('/event/finish') || d.includes('/event/combat/act')) return res.json({ success: true, ignored: true });
         await ensureFlaggedTable(db);
         const reasonType = 'untrusted_api';
         const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
