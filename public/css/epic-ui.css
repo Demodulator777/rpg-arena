@@ -1679,6 +1679,46 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 .sq-browse-tag { color: var(--gold-light); opacity: 0.85; }
 .sq-browse-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 1px; }
 
+.sq-member-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.sq-member-row .sq-member-id {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+}
+.sq-member-row .sq-member-id > span { min-width: 0; }
+.sq-member-row .squads-member-name { overflow-wrap: anywhere; word-break: break-word; }
+.sq-member-row .sq-member-actions {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+}
+@media (max-width: 520px) {
+    .sq-member-row {
+        flex-direction: column;
+        align-items: stretch;
+        justify-content: flex-start;
+        gap: 6px;
+    }
+    .sq-member-row .sq-member-id { width: 100%; }
+    .sq-member-row .sq-member-actions {
+        width: 100%;
+        justify-content: flex-start;
+        align-items: center;
+    }
+    .sq-member-row .sq-member-actions .squad-role-select {
+        max-width: 60%;
+        min-width: 0;
+    }
+}
+
 .squads-member-sub {
     display: flex;
     flex-wrap: wrap;
