@@ -968,6 +968,7 @@ async function api(method, path, body=null) {
         path.indexOf('/dungeon/crawler') === -1 &&
         path.indexOf('/dungeon/tokens') === -1 &&
         path.indexOf('/event/finish') === -1 &&
+        path.indexOf('/event/combat/act') === -1 &&
         path.indexOf('/squads/logo') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
@@ -9470,6 +9471,35 @@ function hoverItemTooltip(itemId, el, event) {
     showItemTooltip(withCurrentTarget(event, el), itemId);
 }
 
+function hoverSquadMemberTooltip(el, event) {
+    if (!el?.dataset?.sq) return;
+    let d;
+    try { d = JSON.parse(el.dataset.sq); } catch { return; }
+    if (Array.isArray(d)) d = d[0];
+    if (!d) return;
+    cancelHideTooltip();
+    const tooltip = document.getElementById('item-tooltip');
+    if (!tooltip) return;
+    const isPT = CURRENT_LANG === 'pt';
+    tooltip.innerHTML = `
+        <div class="tt-preview"><img src="/images/class/${escHtml(d.cls)}.png" data-error-hide="true" data-error-next-display="block" alt=""><span class="tt-preview-emoji" style="display:none">🧙</span></div>
+        <div class="tt-body">
+            <div class="tt-name">${escHtml(d.name)}</div>
+            <div class="tt-meta">${escHtml(d.role)} · Lv.${d.level} ${escHtml(d.cls)}</div>
+            <div class="tt-stats">
+                <div class="tt-stat"><span class="tt-stat-name">💰 ${isPT ? 'Ouro total ganho' : 'Total gold earned'}</span><span class="tt-stat-val">${Number(d.ge).toLocaleString()}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">💵 ${isPT ? 'Ouro doado' : 'Gold donated'}</span><span class="tt-stat-val">${Number(d.gd).toLocaleString()}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">💎 ${isPT ? 'Gemas doadas' : 'Gems donated'}</span><span class="tt-stat-val">${Number(d.gems).toLocaleString()}</span></div>
+                <div class="tt-stat"><span class="tt-stat-name">🕒 ${isPT ? 'Online' : 'Last online'}</span><span class="tt-stat-val">${onlineDot(d.last)} ${escHtml(formatRelativeTime(d.last))}</span></div>
+            </div>
+        </div>`;
+    tooltip.classList.remove('hidden');
+    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
+    const r = el.getBoundingClientRect();
+    const tw = tooltip.offsetWidth || 240;
+    _ttPos(tooltip, r, tw, tooltip.offsetHeight || 240);
+}
+
 function openItemTooltip(itemId, el, event) {
     if (el?.closest?.('#leaderboard-list')) return;
     showItemTooltip(withCurrentTarget(event, el), itemId);
@@ -12384,13 +12414,30 @@ function renderSquads() {
         officer: CURRENT_LANG === 'pt' ? '⚔️ Oficial' : '⚔️ Officer',
         member: CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'
     };
-    const canAssignRoles = isLeader || isCoLeader;
+    const customRoles = me.customRoles || [];
+    customRoles.forEach(r => { roleLabels[r.key] = `🎖️ ${r.label}`; });
+    const roleDescriptions = {
+        applications: CURRENT_LANG === 'pt' ? 'Ver e gerir inscrições' : 'View & manage applications',
+        kick: CURRENT_LANG === 'pt' ? 'Expulsar membros' : 'Kick members',
+        roles: CURRENT_LANG === 'pt' ? 'Atribuir funções' : 'Assign roles',
+        wars: CURRENT_LANG === 'pt' ? 'Declarar e iniciar guerras' : 'Declare & start wars',
+        base: CURRENT_LANG === 'pt' ? 'Melhorar bases' : 'Upgrade bases'
+    };
+    const myPerms = myMembership && !['leader', 'co_leader', 'officer'].includes(myMembership.role)
+        ? ((customRoles.find(r => r.key === myMembership.role) || {}).permissions || [])
+        : [];
+    const canKick = isLeader || isCoLeader || isOfficer || myPerms.includes('kick');
+    const canAssignRoles = isLeader || isCoLeader || myPerms.includes('roles');
+    const canWar = isLeader || isCoLeader || myPerms.includes('wars');
+    const canBase = isLeader || isCoLeader || isOfficer || myPerms.includes('base');
+    const canManageCustomRoles = isLeader || isCoLeader;
 
     function roleOptions(currentRole, isLeaderAssigner) {
         const opts = [];
         if (isLeaderAssigner) opts.push(['co_leader', CURRENT_LANG === 'pt' ? '⭐ Co-Líder' : '⭐ Co-Leader']);
         opts.push(['officer', '⚔️ Officer']);
         opts.push(['member', CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member']);
+        customRoles.forEach(r => opts.push([r.key, `🎖️ ${r.label}`]));
         return opts.map(([v, l]) => `<option value="${v}" ${v === currentRole ? 'selected' : ''}>${l}</option>`).join('');
     }
 
@@ -12424,8 +12471,8 @@ function renderSquads() {
     // Squad header
     const canChangeLogo = isLeader || isCoLeader;
     const logoDisplay = squad.logo
-        ? `<img src="${escHtml(squad.logo)}" alt="${escHtml(squad.name)}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;flex-shrink:0">`
-        : `<div style="width:48px;height:48px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.5rem">🛡️</div>`;
+        ? `<span class="sq-logo"><img src="${escHtml(squad.logo)}" alt="${escHtml(squad.name)}"></span>`
+        : `<span class="sq-logo sq-logo-empty">🛡️</span>`;
     const squadHeader = `<div class="squads-card">
         <div class="squads-card-head">
             <div style="display:flex;align-items:center;gap:12px">
@@ -12443,10 +12490,10 @@ function renderSquads() {
     </div>`;
 
     // Subtab navigation
-    const subTabsHtml = `<div class="squad-subtabs" style="display:flex;gap:4px;margin-bottom:12px;flex-wrap:wrap">
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'squad' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'squad' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'squad' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">${t('sq.squad', 'Squad')}</button>
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'members' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'members' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'members' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">${t('sq.members', 'Members')} (${members.length})</button>
-        <button class="squad-subtab" style="padding:8px 16px;background:${_squadSubTab === 'map' ? '#1a1a28' : '#14141e'};border:1px solid ${_squadSubTab === 'map' ? '#c8a86e' : '#2a2a35'};border-radius:6px;color:${_squadSubTab === 'map' ? '#c8a86e' : '#8a8a90'};cursor:pointer;font-size:13px;font-weight:600" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">${t('sq.baseMap', 'Base Map')}</button>
+    const subTabsHtml = `<div class="squad-subtabs">
+        <button class="squad-subtab${_squadSubTab === 'squad' ? ' active' : ''}" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['squad'])}">${t('sq.squad', 'Squad')}</button>
+        <button class="squad-subtab${_squadSubTab === 'members' ? ' active' : ''}" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['members'])}">${t('sq.members', 'Members')} (${members.length})</button>
+        <button class="squad-subtab${_squadSubTab === 'map' ? ' active' : ''}" data-action="switchSquadSubTab" data-args="${encodeActionArgs(['map'])}">${t('sq.baseMap', 'Base Map')}</button>
     </div>`;
 
     // Tab content
@@ -12531,24 +12578,49 @@ function renderSquads() {
             <div class="squads-title">👥 ${CURRENT_LANG === 'pt' ? `Membros (${members.length})` : `Members (${members.length})`}</div>
             <div class="squads-members">
                 ${members.map(m => `<div class="squads-member" style="display:flex;align-items:center;justify-content:space-between">
-                   <span>
+                   <span class="sq-member-id" data-hover-action="hoverSquadMemberTooltip" data-leave-action="scheduleHideTooltip" data-sq="${encodeActionArgs([{ name: m.name, level: m.level, cls: m.class, role: roleLabels[m.role] || (CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member'), ge: m.total_gold_earned||0, gd: m.gold_donated||0, gems: m.gems_donated||0, last: m.last_online_at||0 }])}">
+                       <img class="sq-member-avatar" src="/images/class/${escHtml(m.class)}.png" alt="" data-error-hide="true">
+                       <span>
                        <span class="squads-member-name" style="cursor:pointer" ${actionAttrs('openProfile', m.id)}>${escHtml(m.name)}</span>
                        <span style="margin-left:6px;font-size:0.75rem;opacity:0.7">${roleLabels[m.role] || (CURRENT_LANG === 'pt' ? '🪖 Membro' : '🪖 Member')}</span>
-                       <span class="squads-member-sub" style="display:block">Lv.${m.level} ${escHtml(capitalize(m.class))} · 💰 ${Number(m.total_gold_earned||0).toLocaleString()} · 💵 ${Number(m.gold_donated||0).toLocaleString()} · 💎 ${Number(m.gems_donated||0)} · ${onlineDot(m.last_online_at)} ${formatRelativeTime(m.last_online_at)}</span>
-                   </span>
+                       ${roleLabels[m.role] && !(m.role in {leader:1,co_leader:1,officer:1,member:1}) ? `<span class="sq-role-chip" title="${(customRoles.find(r => r.key === m.role)?.permissions || []).map(p => roleDescriptions[p] || p).join(' · ')}">${(customRoles.find(r => r.key === m.role)?.permissions || []).length} ✦</span>` : ''}
+                       <span class="squads-member-sub"><span class="sq-sub-item">Lv.${m.level} ${escHtml(capitalize(m.class))}</span><span class="sq-sub-item sq-sub-status">${onlineDot(m.last_online_at)} ${formatRelativeTime(m.last_online_at)}</span></span>
+                       </span>
                     <span style="display:flex;align-items:center;gap:4px">
-                        ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader')) ? `
+                        ${canAssignRoles && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader' && m.role !== 'co_leader') || (myPerms.includes('roles') && m.role !== 'leader' && m.role !== 'co_leader' && m.role !== 'officer')) ? `
                             <select class="input-field squad-role-select" data-role-select="${m.id}" style="width:auto;padding:2px 24px 2px 6px;font-size:0.75rem">
                                 ${roleOptions(m.role, isLeader)}
                             </select>
                         ` : ''}
-                        ${(isLeader || (isCoLeader && m.role !== 'leader') || (isOfficer && m.role === 'member')) && m.id !== character?.id ? `
+                        ${(canKick && m.id !== character?.id && (isLeader || (isCoLeader && m.role !== 'leader') || (isOfficer && m.role === 'member') || (!['leader','co_leader','officer'].includes(myRole) && m.role === 'member'))) ? `
                             <button class="btn-danger btn-sm" ${actionAttrs('kickMember', m.id)} style="font-size:0.7rem;padding:2px 6px">👢 ${CURRENT_LANG === 'pt' ? 'Expulsar' : 'Kick'}</button>
                         ` : ''}
                     </span>
                 </div>`).join('')}
             </div>
         </div>
+        ${canManageCustomRoles ? `
+        <div class="squads-card" style="margin-top:10px">
+            <div class="squads-title">🎖️ ${CURRENT_LANG === 'pt' ? 'Funções Personalizadas' : 'Custom Roles'}</div>
+            <div class="squads-meta" style="margin:4px 0 10px">${CURRENT_LANG === 'pt' ? 'Crie funções com nome próprio e conceda permissões específicas. Atribua-as no menu de função de cada membro.' : 'Create named roles and grant specific permissions. Assign them from each member\'s role menu.'}</div>
+            ${customRoles.length === 0 ? `<div class="squads-meta" style="opacity:0.6;font-style:italic">${CURRENT_LANG === 'pt' ? 'Nenhuma função personalizada ainda.' : 'No custom roles yet.'}</div>` : `
+            <div class="sq-roles-list">
+                ${customRoles.map(r => `
+                <div class="sq-role-row">
+                    <span class="sq-role-name">🎖️ ${escHtml(r.label)}</span>
+                    <span class="sq-role-perms">${r.permissions.length ? r.permissions.map(p => `<span class="sq-perm-chip">${roleDescriptions[p] || p}</span>`).join('') : `<span class="sq-perm-chip sq-perm-none">${CURRENT_LANG === 'pt' ? 'sem permissões' : 'no permissions'}</span>`}</span>
+                    <span style="display:flex;gap:4px">
+                        <button class="btn-secondary btn-sm" ${actionAttrs('openRoleEditor', r.key)} style="font-size:0.7rem;padding:2px 8px">✏️ ${CURRENT_LANG === 'pt' ? 'Editar' : 'Edit'}</button>
+                        <button class="btn-danger btn-sm" ${actionAttrs('deleteCustomRole', r.key)} style="font-size:0.7rem;padding:2px 8px">🗑️</button>
+                    </span>
+                </div>`).join('')}
+            </div>`}
+            <button class="btn-primary btn-sm sq-role-add-btn" ${actionAttrs('openRoleEditor', '')}>➕ ${CURRENT_LANG === 'pt' ? 'Criar Nova Função' : 'Create New Role'}</button>
+        </div>` : (myMembership && !['leader', 'co_leader', 'officer'].includes(myRole) ? `
+        <div class="squads-card" style="margin-top:10px">
+            <div class="squads-title">🎖️ ${CURRENT_LANG === 'pt' ? 'A Sua Função' : 'Your Role'}</div>
+            <div class="squads-meta" style="margin-top:4px">${roleLabels[myRole] || escHtml(myRole)}${myPerms.length ? ` — ${myPerms.map(p => roleDescriptions[p] || p).join(' · ')}` : ''}</div>
+        </div>` : '')}
         ${appsHtml}`;
     } else if (_squadSubTab === 'map') {
         tabContent = renderBaseMapContent();
@@ -13440,6 +13512,93 @@ async function changeMemberRole(charId, role) {
     }
 }
 window.changeMemberRole = changeMemberRole;
+
+const SQUAD_PERM_KEYS = [
+    ['applications', CURRENT_LANG === 'pt' ? 'Gerir inscrições' : 'Manage applications', CURRENT_LANG === 'pt' ? 'Ver, aceitar e recusar pedidos de entrada.' : 'View, accept and reject join requests.'],
+    ['kick', CURRENT_LANG === 'pt' ? 'Expulsar membros' : 'Kick members', CURRENT_LANG === 'pt' ? 'Expulsar membros comuns (nunca líderes).' : 'Kick plain members (never leaders).'],
+    ['roles', CURRENT_LANG === 'pt' ? 'Atribuir funções' : 'Assign roles', CURRENT_LANG === 'pt' ? 'Atribuir funções de classificação inferior (membro e funções personalizadas).' : 'Assign lower-ranked roles (member and custom roles).'],
+    ['wars', CURRENT_LANG === 'pt' ? 'Guerras' : 'Wars', CURRENT_LANG === 'pt' ? 'Declarar guerras e iniciar batalhas.' : 'Declare wars and start battles.'],
+    ['base', CURRENT_LANG === 'pt' ? 'Melhorar bases' : 'Upgrade bases', CURRENT_LANG === 'pt' ? 'Melhorar bases do esquadrão com o tesouro.' : 'Upgrade squad bases using the treasury.']
+];
+
+function closeRoleEditor() {
+    document.getElementById('sq-role-editor-overlay')?.remove();
+}
+window.closeRoleEditor = closeRoleEditor;
+
+function openRoleEditor(roleKey = '') {
+    closeRoleEditor();
+    const me = squadsData?.me || {};
+    const customRoles = me.customRoles || [];
+    const existing = customRoles.find(r => r.key === roleKey);
+    const isEdit = !!existing;
+    const overlay = document.createElement('div');
+    overlay.id = 'sq-role-editor-overlay';
+    overlay.className = 'modal-overlay sq-role-overlay';
+    overlay.innerHTML = `
+        <div class="modal-box sq-role-editor">
+            <div class="sq-role-editor-head">
+                <div class="sq-role-editor-title">🎖️ ${isEdit ? (CURRENT_LANG === 'pt' ? 'Editar Função' : 'Edit Role') : (CURRENT_LANG === 'pt' ? 'Nova Função' : 'New Role')}</div>
+                <button class="sq-role-editor-close" data-role-editor-close>✕</button>
+            </div>
+            <label class="sq-role-field-label">${CURRENT_LANG === 'pt' ? 'Nome da função' : 'Role name'}</label>
+            <input id="sq-role-name" class="input-field" maxlength="24" placeholder="${CURRENT_LANG === 'pt' ? 'Ex.: Recrutador, Estratega…' : 'e.g. Recruiter, Tactician…'}" value="${existing ? escHtml(existing.label) : ''}">
+            <div class="sq-role-field-label" style="margin-top:14px">${CURRENT_LANG === 'pt' ? 'Permissões' : 'Permissions'}</div>
+            <div class="sq-perm-grid">
+                ${SQUAD_PERM_KEYS.map(([key, name, desc]) => `
+                <label class="sq-perm-option" title="${escHtml(desc)}">
+                    <input type="checkbox" class="sq-perm-check" value="${key}" ${existing?.permissions?.includes(key) ? 'checked' : ''}>
+                    <span class="sq-perm-option-text"><strong>${escHtml(name)}</strong><small>${escHtml(desc)}</small></span>
+                </label>`).join('')}
+            </div>
+            <div class="sq-role-editor-note">${CURRENT_LANG === 'pt' ? 'As funções personalizadas ficam abaixo de Oficial: podem afetar apenas membros comuns e atribuir funções de classificação inferior.' : 'Custom roles rank below Officer: they can only affect plain members and assign lower-ranked roles.'}</div>
+            <div class="sq-role-editor-actions">
+                <button class="btn-secondary btn-sm" data-role-editor-close>${CURRENT_LANG === 'pt' ? 'Cancelar' : 'Cancel'}</button>
+                <button class="btn-primary btn-sm" id="sq-role-save">${isEdit ? (CURRENT_LANG === 'pt' ? '💾 Guardar' : '💾 Save') : (CURRENT_LANG === 'pt' ? '➕ Criar Função' : '➕ Create Role')}</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeRoleEditor(); });
+    overlay.querySelectorAll('[data-role-editor-close]').forEach(b => b.addEventListener('click', closeRoleEditor));
+    overlay.querySelector('#sq-role-save').addEventListener('click', async () => {
+        const label = overlay.querySelector('#sq-role-name').value.trim();
+        if (label.length < 2) {
+            await openGameNoticeDialog({ title: '🎖️ ' + (CURRENT_LANG === 'pt' ? 'Função Personalizada' : 'Custom Role'), message: CURRENT_LANG === 'pt' ? 'O nome da função deve ter 2-24 caracteres.' : 'Role name must be 2-24 characters.' });
+            return;
+        }
+        const permissions = [...overlay.querySelectorAll('.sq-perm-check:checked')].map(c => c.value);
+        const saveBtn = overlay.querySelector('#sq-role-save');
+        saveBtn.disabled = true;
+        try {
+            if (isEdit) {
+                await api('PUT', `/game/squads/roles/${encodeURIComponent(roleKey)}`, { label, permissions });
+            } else {
+                await api('POST', '/game/squads/roles', { label, permissions });
+            }
+            closeRoleEditor();
+            await openGameNoticeDialog({ title: '🎖️ ' + (CURRENT_LANG === 'pt' ? 'Função Personalizada' : 'Custom Role'), message: isEdit ? (CURRENT_LANG === 'pt' ? 'Função atualizada.' : 'Role updated.') : (CURRENT_LANG === 'pt' ? 'Função criada. Atribua-a no menu de função de um membro.' : 'Role created. Assign it from a member\'s role menu.') });
+            await loadSquads();
+        } catch (e) {
+            saveBtn.disabled = false;
+            await openGameNoticeDialog({ title: '🎖️ ' + (CURRENT_LANG === 'pt' ? 'Função Personalizada' : 'Custom Role'), message: e.message || String(e) });
+        }
+    });
+}
+window.openRoleEditor = openRoleEditor;
+
+async function deleteCustomRole(roleKey) {
+    const me = squadsData?.me || {};
+    const role = (me.customRoles || []).find(r => r.key === roleKey);
+    if (!confirm(CURRENT_LANG === 'pt' ? `Eliminar a função "${role?.label || roleKey}"?` : `Delete the "${role?.label || roleKey}" role?`)) return;
+    try {
+        await api('DELETE', `/game/squads/roles/${encodeURIComponent(roleKey)}`);
+        await openGameNoticeDialog({ title: '🎖️ ' + (CURRENT_LANG === 'pt' ? 'Função Personalizada' : 'Custom Role'), message: CURRENT_LANG === 'pt' ? 'Função eliminada.' : 'Role deleted.' });
+        await loadSquads();
+    } catch (e) {
+        await openGameNoticeDialog({ title: '🎖️ ' + (CURRENT_LANG === 'pt' ? 'Função Personalizada' : 'Custom Role'), message: e.message || String(e) });
+    }
+}
+window.deleteCustomRole = deleteCustomRole;
 
 async function kickMember(charId) {
     if (!confirm(CURRENT_LANG === 'pt' ? 'Expulsar este membro do esquadrão?' : 'Kick this member from the squad?')) return;
