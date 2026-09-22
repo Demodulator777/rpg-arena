@@ -205,6 +205,12 @@ function stTreeCss() {
                   background:rgba(15,15,28,0.98); border:1px solid rgba(255,255,255,0.25); border-radius:6px;
                   box-shadow:0 8px 24px rgba(0,0,0,0.6); overflow-y:auto; padding:3px;
                   touch-action: pan-y; overscroll-behavior: contain; }
+    /* While an hour dropdown is open, drop the .st-card:hover lift: the hover
+       transform creates a containing block that re-anchors the fixed-position
+       .st-dd-list to the card, misplacing it (blinking/jumping) and making the
+       options unclickable. */
+    #skill-tree-root.st-dd-open .st-card,
+    #skill-tree-root.st-dd-open .st-card:hover { transform:none; }
     .st-dd-opt, .st-dd-list .st-dd-opt { display:block; width:100%; border:0; background:transparent; color:rgba(255,255,255,0.85);
                  font-size:0.62rem; font-weight:700; padding:4px 8px; border-radius:4px; cursor:pointer; text-align:center; }
     .st-dd-list .st-dd-opt:hover { background:rgba(255,255,255,0.08); }
@@ -520,6 +526,7 @@ function stCancelHideTip() {
 function stShowTipFor(el) {
     const d = _stTips[Number(el.getAttribute('data-sttip'))];
     if (!d) return;
+    if (_stDropdownOpen) return; // hour dropdown open → keep card tooltip off its overlap zone
     stCancelHideTip();
     let tip = document.getElementById(_ST_TT_ID);
     if (!tip) {
@@ -768,8 +775,11 @@ function stSpinner(msg) {
 // ── Custom hour dropdowns ─────────────────────────────────────────────────────
 let _stHourOutsideClose = null;
 let _stReposCleanup = null;
+let _stDropdownOpen = false;
 function stWireHourDropdowns(root) {
     if (!root) return;
+    _stDropdownOpen = false;
+    root.classList.remove('st-dd-open');
     if (_stHourOutsideClose) { document.removeEventListener('click', _stHourOutsideClose); _stHourOutsideClose = null; }
     if (_stReposCleanup) { _stReposCleanup(); _stReposCleanup = null; }
     
@@ -793,6 +803,8 @@ function stWireHourDropdowns(root) {
             }
             if (btn) btn.setAttribute('aria-expanded', 'false');
         });
+        _stDropdownOpen = false;
+        root.classList.remove('st-dd-open');
     };
     root.querySelectorAll('.st-dd').forEach(wrap => {
         const btn = wrap.querySelector('[data-hour-dd-toggle]');
@@ -814,19 +826,27 @@ function stWireHourDropdowns(root) {
             const gap = 4;
             const spaceBelow = window.innerHeight - wrapRect.bottom - gap;
             const spaceAbove = wrapRect.top - gap;
+            const topbar = document.querySelector('.topbar');
+            const tbBottom = topbar ? Math.max(0, topbar.getBoundingClientRect().bottom / zf) : 0;
+            // Cap the list to ~4 visible entries and scroll inside it; never let it
+            // clip under the fixed topbar or run past the viewport edge. Sized with a
+            // constant item height because the list is display:none while we measure.
+            const optH = 22;
+            const listPad = 10;
+            const wanted = Math.min(optH * 4 + listPad, 400);
             let top, maxH;
             if (spaceBelow >= 60 || spaceBelow >= spaceAbove) {
                 top = wrapRect.bottom + gap;
-                maxH = spaceBelow;
+                maxH = Math.min(wanted, spaceBelow);
             } else {
-                maxH = spaceAbove;
+                maxH = Math.min(wanted, spaceAbove - Math.max(0, tbBottom) - gap);
                 top = wrapRect.top - gap - maxH;
             }
             list.style.position = 'fixed';
-            list.style.top = Math.max(8, Math.floor(top)) + 'px';
+            list.style.top = Math.max(Math.max(8, tbBottom + gap), Math.floor(top)) + 'px';
             list.style.left = Math.floor(wrapRect.left) + 'px';
             list.style.width = Math.floor(wrapRect.width) + 'px';
-            list.style.maxHeight = Math.max(60, Math.min(260, Math.floor(maxH))) + 'px';
+            list.style.maxHeight = Math.max(40, Math.floor(maxH)) + 'px';
         };
         wrap._stRepos = positionList;
 
@@ -835,6 +855,8 @@ function stWireHourDropdowns(root) {
             stHideTipNow();
             closeAll();
             const willOpen = list.classList.contains('hidden');
+            _stDropdownOpen = willOpen;
+            root.classList.toggle('st-dd-open', willOpen);
             if (willOpen) {
                 positionList();
                 wrap.classList.add('open');
@@ -859,6 +881,8 @@ function stWireHourDropdowns(root) {
                 wrap.classList.remove('open');
                 list.classList.add('hidden');
                 btn.setAttribute('aria-expanded', 'false');
+                _stDropdownOpen = false;
+                root.classList.remove('st-dd-open');
             });
         });
     });
