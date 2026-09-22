@@ -604,6 +604,7 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
    the left, actions centered at the bottom. */
 .raid-card {
     --art-w: clamp(130px, 27%, 230px); /* boss-art panel width, reused for layout */
+    --art-w-px: 230px; /* px twin for transform math (% would resolve against the button, not the card) */
 }
 .raid-card,
 .raid-create-card {
@@ -611,8 +612,14 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     overflow: hidden;
     isolation: isolate;
     border-radius: 14px;
+    /* dungeon.css sizes these cards as "84px icon | info" columns; the icon
+       tile is gone, so collapse to a single full-width column. */
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
     background:
         linear-gradient(90deg, rgba(4,8,14,0.72) 0%, rgba(4,8,14,0.5) 52%, rgba(4,8,14,0.18) 100%),
+        var(--raid-bg, none) center 30% / cover no-repeat,
         rgba(5,9,15,0.92);
     border: 1px solid rgba(167,139,250,0.28);
     box-shadow: 0 14px 30px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.04);
@@ -643,9 +650,7 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 .raid-card:hover .raid-card-art { transform: scale(1.04); }
 /* Keep info text clear of the art panel */
 .raid-card .exchange-info { padding-right: var(--art-w, clamp(130px, 27%, 230px)); }
-.raid-card > .exchange-icon,
 .raid-card > .exchange-info,
-.raid-create-card > .exchange-icon,
 .raid-create-card > .exchange-info { position: relative; z-index: 2; }
 /* Action buttons: centered at the bottom of the card, not full-width.
    Buttons center inside .exchange-info, whose content box excludes the art
@@ -658,15 +663,25 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     min-width: 210px;
     max-width: 380px;
     margin: 14px auto 2px;
-    transform: translateX(calc(var(--art-w, 0px) / 2));
+    transform: translateX(calc(var(--art-w-px, 0px) / 2));
 }
-.raid-card-icon {
-    backdrop-filter: blur(2px);
-    border: 1px solid rgba(196,181,253,0.35);
-    background:
-        linear-gradient(180deg, rgba(124,58,237,0.42), rgba(124,58,237,0.16)),
-        rgba(7,12,20,0.82);
-    text-shadow: 0 1px 2px rgba(0,0,0,0.9), 0 0 12px rgba(124,58,237,0.5);
+/* Leader's inline settings row: the "Update Start" button belongs beside the
+   threshold select (compact, never stretched full-width). */
+.raid-card .raid-setting-row {
+    margin-top: 10px;
+}
+.raid-card .raid-setting-row .exchange-btn.raid-settings-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    min-width: 0;
+    max-width: none;
+    flex: 0 0 auto;
+    margin: 0;
+    transform: none;
+    padding: 9px 16px;
+    white-space: nowrap;
 }
 
 /* Missing art files: hide so the layout degrades to the clean original */
@@ -674,37 +689,58 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 .raid-card-art.is-missing { display: none !important; }
 .raid-card .exchange-info:has(+ .raid-card-art) { padding-right: 0; }
 
-/* Mercenary cards: monster portrait beside the name */
-.raid-mercenary-top {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-.raid-mercenary-portrait {
-    flex: 0 0 auto;
-    width: 44px;
-    height: 44px;
-    border-radius: 10px;
+/* Mercenary cards: full-bleed monster art with an info deck at the base */
+.raid-mercenary-card {
+    position: relative;
     overflow: hidden;
-    border: 1px solid var(--frame-rail);
-    background:
-        radial-gradient(ellipse 120% 100% at 50% 0%, rgba(124,58,237,0.22), transparent 70%),
-        var(--dungeon-bg);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.45);
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    min-height: 168px;
 }
-.raid-mercenary-portrait img {
+.raid-mercenary-art {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    display: block;
+    object-position: center 18%;
     filter: saturate(1.1);
 }
-.raid-mercenary-portrait img.is-missing { display: none; }
-.raid-mercenary-card.is-recruited .raid-mercenary-portrait {
-    border-color: rgba(46,204,113,0.35);
-    filter: grayscale(0.4);
+.raid-mercenary-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(4,7,12,0.06) 0%, rgba(4,7,12,0.42) 46%, rgba(3,6,10,0.94) 100%);
 }
+.raid-mercenary-card > .raid-mercenary-name,
+.raid-mercenary-card > .raid-mercenary-stats,
+.raid-mercenary-card > .raid-mercenary-status,
+.raid-mercenary-card > .raid-mercenary-btn {
+    position: relative;
+    z-index: 2;
+}
+.raid-mercenary-card .raid-mercenary-name {
+    margin-top: auto;
+    margin-bottom: 2px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.95);
+}
+.raid-mercenary-card .raid-mercenary-stats {
+    text-shadow: 0 1px 2px rgba(0,0,0,0.9);
+}
+.raid-mercenary-card .raid-mercenary-btn {
+    margin-top: 7px;
+}
+.raid-mercenary-card.is-recruited .raid-mercenary-art {
+    filter: grayscale(0.55) brightness(0.8);
+}
+.raid-mercenary-card.is-recruited {
+    border-color: rgba(46,204,113,0.35);
+}
+.raid-mercenary-art.is-missing { display: none; }
 
 /* ── 13 · DUNGEON ENTRY — tower crest, boss showcase, floor strip ───── */
 /* Replace the 🗼 emoji with an engraved gold tower crest */
@@ -848,7 +884,7 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 /* Mobile: narrower art panel, actions stay centered */
 @media (max-width: 640px) {
     .raid-hero-banner { min-height: 150px; border-radius: 14px; }
-    .raid-card { --art-w: 100px; }
+    .raid-card { --art-w: 100px; --art-w-px: 100px; }
     .raid-card-art { -webkit-mask-image: linear-gradient(90deg, transparent, #000 50%); mask-image: linear-gradient(90deg, transparent, #000 50%); }
     .raid-card .exchange-info > .exchange-btn, .raid-create-card .exchange-info > .exchange-btn { min-width: 170px; max-width: calc(100% - 10px); }
     .dungeon-raid-hub-shell { padding: 12px; }
