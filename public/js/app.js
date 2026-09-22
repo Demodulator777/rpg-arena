@@ -11963,6 +11963,9 @@ function setShopCategory(category, btn) {
 async function refreshShop() { if(!character)return; shopInventory=await generateShopInventory(character.level); renderShop(); }
 async function generateShopInventory(playerLevel) { try { const r=await api('GET','/game/shop/items'); return r.items; } catch { return []; } }
 
+
+let _premiumFeatureMeta = null;
+function premiumMetaById(id) { return (_premiumFeatureMeta || []).find(f => f.id === id) || null; }
 // ── Premium ───────────────────────────────────────────────────────────────
 async function loadPremium() {
     const el = document.getElementById('premium-content');
@@ -11970,6 +11973,8 @@ async function loadPremium() {
     el.innerHTML = `<p class="loading">${_pt('Carregando...', 'Loading...')}</p>`;
     try {
         const data = await api('GET', '/game/premium/features');
+        _premiumFeatureMeta = data.features || [];
+        window._premiumFeatureMeta = _premiumFeatureMeta;
         renderPremium(data);
     } catch(e) { el.innerHTML = `<p class="loading">${e.message}</p>`; }
 }
@@ -11994,59 +11999,72 @@ async function renderPremium(data) {
     function pfDesc(id, desc) { return (CURRENT_LANG === 'pt' && PREMIUM_FEATURE_DESC_PT[id]) || desc; }
     function psName(key, name) { return (CURRENT_LANG === 'pt' && PREMIUM_SYNERGY_NAME_PT[key]) || name; }
     function psDesc(key, desc) { return (CURRENT_LANG === 'pt' && PREMIUM_SYNERGY_DESC_PT[key]) || desc; }
+    function psReqLabel(s) {
+        const names = (s.requires || []).map(id => { const f = premiumMetaById(id); return f ? pfName(f.id, f.name) : id; });
+        return (CURRENT_LANG === 'pt' ? 'Requer: ' : 'Requires: ') + names.join(' + ');
+    }
+
 
         const ultimateBanner = ultimate ? `
-        <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(155,89,182,0.15));border:1px solid rgba(241,196,15,0.4);border-radius:12px;padding:16px 20px;margin-bottom:20px;text-align:center">
-            <div style="font-size:1.5rem;margin-bottom:4px">🌟 ${_pt('ASCENDENTE', 'ASCENDANT')}</div>
-            <div style="font-size:0.82rem;color:var(--gold);font-weight:600">${CURRENT_LANG === 'pt' ? 'Todos os 6 recursos ativos · +50% XP de todas as fontes · +1% em todos os atributos' : 'All 6 features active · +50% XP from all sources · +1% to all stats'}</div>
-        </div>` : (activeCount >= 2 ? `
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
-            ${activeCount}/6 ${CURRENT_LANG === 'pt' ? 'recursos ativos' : 'features active'}${synergies.length ? ` · <span style="color:var(--gold)">${synergies.map(s=>`${s.emoji} ${s.name}`).join(', ')} ${CURRENT_LANG === 'pt' ? 'sinergia ativa!' : 'synergy active!'}</span>` : (CURRENT_LANG === 'pt' ? ' · Ative mais para bônus de sinergia' : ' · Activate more for synergy bonuses')}
+        <div class="pr-ultimate is-ultimate">
+            <span class="pr-ultimate-crest">✦</span>
+            <div class="pr-ultimate-title">🌟 ${_pt('ASCENDENTE', 'ASCENDANT')}</div>
+            <div class="pr-ultimate-sub">${CURRENT_LANG === 'pt' ? 'Todos os 6 recursos ativos · +50% XP de todas as fontes · +1% em todos os atributos' : 'All 6 features active · +50% XP from all sources · +1% to all stats'}</div>
         </div>` : `
-        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:0.78rem;color:var(--text-dim)">
-            ${activeCount}/6 ${CURRENT_LANG === 'pt' ? 'recursos ativos' : 'features active'} · ${CURRENT_LANG === 'pt' ? 'Ative todos os 6 para o bônus supremo 🌟 Ascendente' : 'Activate all 6 for the 🌟 Ascendant ultimate bonus'}
-        </div>`);
+        <div class="pr-ultimate">
+            <span class="pr-ultimate-crest">${activeCount >= 2 ? '✧' : '✦'}</span>
+            <div class="pr-ultimate-title">${activeCount}/6 ${_pt('recursos ativos', 'features active')}</div>
+            <div class="pr-ultimate-sub">${synergies.length
+            ? `${synergies.map(s => `${s.emoji} ${psName(s.name, s.name)}`).join(' · ')} — ${_pt('sinergia ativa!', 'synergy active!')}`
+            : (activeCount >= 2
+                ? _pt('Ative mais recursos para desbloquear bônus de sinergia', 'Activate more features to unlock synergy bonuses')
+                : _pt('Ative todos os 6 para o bônus supremo 🌟 Ascendente', 'Activate all 6 for the 🌟 Ascendant ultimate bonus'))}</div>
+        </div>`;
 
-    const synergyHtml = synergies.length ? `
-        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px">
-            ${synergies.map(s => {
-            const sn = psName(s.name, s.name);
-            const sd = psDesc(s.name, s.desc);
-            return `
-            <div style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(241,196,15,0.08);border:1px solid rgba(241,196,15,0.3);border-radius:20px;font-size:0.76rem;color:var(--gold)">
-                ${s.emoji} <strong>${sn}</strong> · ${sd}
-            </div>`;
-        }).join('')}
-        </div>` : '';
+    // Synergy panel is ALWAYS rendered (never conditionally inserted) so
+    // activating a synergy never shifts the cards below — it just fills in.
+    // Chips are compact (desc in tooltip) and the content zone has a fixed
+    // height, so 0 → N synergies keeps the panel the exact same size.
+    const synergyHtml = `
+        <div class="pr-synergy-panel${synergies.length ? ' has-synergies' : ''}">
+            <div class="pr-synergy-head">
+                <span class="pr-synergy-glyph">✦</span>
+                <span class="pr-synergy-title">${_pt('Sinergias Ativas', 'Active Synergies')}</span>
+                <span class="pr-synergy-count">${synergies.length}</span>
+            </div>
+            ${synergies.length ? `
+            <div class="pr-synergy-track" id="pr-synergy-track">
+                ${synergies.map(s => `
+                <div class="pr-synergy-chip" data-name="${escHtml(psName(s.name, s.name))}" data-desc="${escHtml(s.desc)}" data-emoji="${s.emoji}" data-requires="${(s.requires || []).join(',')}" data-req-label="${escHtml(psReqLabel(s))}" role="button" tabindex="0">
+                    <span>${s.emoji}</span>
+                    <strong>${psName(s.name, s.name)}</strong>
+                    <span class="pr-chip-info">i</span>
+                </div>`).join('')}
+            </div>` : `
+            <div class="pr-synergy-empty">${_pt('Nenhuma sinergia ativa — ative 2 ou mais recursos para desbloquear.', 'No synergies active — activate 2 or more features to unlock.')}</div>`}
+        </div>`;
 
-    const cardsHtml = `<div class="premium-feature-grid" style="display:flex;flex-wrap:wrap;justify-content:center;gap:16px">
+    const cardsHtml = `<div class="premium-feature-grid">
         ${features.map(f => {
         const isActive = f.active;
         const daysLeft = isActive ? Math.ceil(f.expiresIn / 86400) : 0;
-        const borderColor = isActive ? 'rgba(241,196,15,0.5)' : 'var(--border)';
-        const bg = isActive ? 'linear-gradient(145deg,rgba(241,196,15,0.08),rgba(241,196,15,0.04))' : 'linear-gradient(145deg,var(--bg2),var(--bg3))';
         const artSrc = premiumArt[f.id];
         const dispName = pfName(f.id, f.name);
         const dispDesc = pfDesc(f.id, f.desc);
-        return `<div class="premium-feature-card${isActive ? ' is-active' : ''}" style="background:${bg};border:1px solid ${borderColor};border-radius:var(--radius);position:relative;overflow:hidden;display:flex;flex-direction:column">
-                <div class="premium-feature-art-wrap pc-only">
-                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}${CURRENT_LANG === 'pt' ? 'd restantes' : 'd left'}</div>` : ''}
-                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${escHtml(dispName)}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:100%;object-fit:cover">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:flex;align-items:center;justify-content:center;height:100%">${f.emoji}</span>`}
+        const costLabel = _pt(`${f.cost} 💎 / 30 dias`, `${f.cost} 💎 / 30 days`);
+        return `<div class="premium-feature-card${isActive ? ' is-active' : ''}">
+                <div class="premium-feature-art-wrap">
+                    <span class="pr-halo"></span>
+                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${escHtml(dispName)}" loading="lazy" decoding="async" data-error-hide="true">` : `<span class="premium-feature-emoji">${f.emoji}</span>`}
+                    ${isActive ? `<div class="premium-feature-days">${daysLeft}${CURRENT_LANG === 'pt' ? 'd restantes' : 'd left'}</div>` : ''}
                 </div>
-                <div class="premium-feature-art-wrap mobile-only" style="width:100%;position:relative">
-                    ${isActive ? `<div class="premium-feature-days" style="position:absolute;top:8px;right:8px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.4);border-radius:10px;padding:2px 8px;font-size:0.62rem;color:var(--gold);font-weight:700">${daysLeft}${CURRENT_LANG === 'pt' ? 'd restantes' : 'd left'}</div>` : ''}
-                    ${artSrc ? `<img class="premium-feature-art" src="${artSrc}" alt="${escHtml(dispName)}" loading="lazy" decoding="async" data-error-hide="true" style="width:100%;height:auto;display:block">` : `<span class="premium-feature-emoji" style="font-size:3rem;display:block;text-align:center;padding:20px">${f.emoji}</span>`}
-                </div>
-                <div class="premium-feature-body" style="flex:1;display:flex;flex-direction:column;padding:12px">
-                    <div class="premium-feature-meta">
-                    <div style="font-family:'Cinzel',serif;font-size:0.9rem;font-weight:700;color:var(--text-bright)">${dispName}</div>
-                    <div style="font-size:0.62rem;color:var(--gold)">${f.cost} 💎 / 30 ${CURRENT_LANG === 'pt' ? 'dias' : 'days'}</div>
-                    </div>
-                    <div class="premium-feature-desc" style="font-size:0.78rem;color:var(--text-dim);margin:8px 0;line-height:1.5;flex:1">${dispDesc}</div>
-                    <button ${actionAttrs('activatePremium', f.id)}
-                        style="width:100%;padding:10px;border-radius:var(--radius-sm);border:1px solid ${isActive ? 'rgba(241,196,15,0.4)' : 'rgba(155,89,182,0.4)'};background:${isActive ? 'rgba(241,196,15,0.1)' : 'rgba(155,89,182,0.12)'};color:${isActive ? 'var(--gold)' : '#9b59b6'};font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.15s;margin-top:auto"
+                <div class="premium-feature-body">
+                    <div class="premium-feature-name">${dispName}</div>
+                    <div class="premium-feature-cost">${costLabel}</div>
+                    <div class="premium-feature-desc">${dispDesc}</div>
+                    <button class="pr-btn${isActive ? ' is-renew' : ''}" ${actionAttrs('activatePremium', f.id)}
                         ${gems < f.cost && !isActive ? 'disabled' : ''}>
-                    ${isActive ? (CURRENT_LANG === 'pt' ? `✅ Ativo · Renovar por ${f.cost} 💎` : `✅ Active · Renew for ${f.cost} 💎`) : (gems >= f.cost ? (CURRENT_LANG === 'pt' ? `Ativar · ${f.cost} 💎` : `Activate · ${f.cost} 💎`) : (CURRENT_LANG === 'pt' ? `Precisa de mais ${f.cost - gems} 💎` : `Need ${f.cost - gems} more 💎`))}
+                    ${isActive ? _pt(`✅ Ativo · Renovar por ${f.cost} 💎`, `✅ Active · Renew for ${f.cost} 💎`) : (gems >= f.cost ? _pt(`Ativar · ${f.cost} 💎`, `Activate · ${f.cost} 💎`) : _pt(`Precisa de mais ${f.cost - gems} 💎`, `Need ${f.cost - gems} more 💎`))}
                     </button>
                 </div>
             </div>`;
@@ -12072,14 +12090,23 @@ async function renderPremium(data) {
     }
 
     el.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:10px 14px;background:rgba(155,89,182,0.08);border:1px solid rgba(155,89,182,0.25);border-radius:var(--radius-sm)">
-            <span style="font-size:0.82rem;color:var(--text-dim)">${CURRENT_LANG === 'pt' ? 'Suas gemas' : 'Your gems'}</span>
-            <span style="font-size:1.1rem;font-weight:700;color:#9b59b6">💎 ${gems.toLocaleString()}</span>
+        <div class="pr-head">
+            <div class="pr-head-title">
+                <span class="pr-head-crest">✦</span>
+                <div>
+                    <div class="pr-head-eyebrow">${_pt('CÂMARA DAS GEMAS', 'GEM CHAMBER')}</div>
+                    <div class="pr-head-name">${_pt('Recursos Premium', 'Premium Resources')}</div>
+                </div>
+            </div>
+            <div class="pr-head-gems">
+                <span class="pr-head-gems-label">${_pt('Suas gemas', 'Your gems')}</span>
+                <span class="pr-head-gems-value">💎 ${gems.toLocaleString()}</span>
+            </div>
         </div>
         ${adminBtnHtml}
         ${ultimateBanner}
         ${synergyHtml}
-        ${cardsHtml}`;
+        ${cardsHtml}`;wireSynergyChips();
 }
 
 async function activatePremium(featureId) {
@@ -12097,6 +12124,101 @@ async function activatePremium(featureId) {
 
 function updatePremiumCard(featureId) {
     // No-op retained for safety; day counts are refreshed via renderPremium() after activation.
+}
+// ── Synergy interactions: custom hover tooltip + click modal ──────────────
+// Chips carry data-* attributes (name / desc / requires / emoji); hover uses a
+// single shared floating tooltip on pointer devices, click opens a modal.
+function openSynergyModal(name, desc, requires, emoji) {
+    ensureSynergyModal();
+    const isPT = CURRENT_LANG === 'pt';
+    document.getElementById('synergy-modal-name').innerHTML = `${emoji} ${escHtml(name)}`;
+    document.getElementById('synergy-modal-desc').textContent = desc;
+    document.getElementById('synergy-modal-req').innerHTML = (requires || [])
+        .map(id => {
+            const f = (window._premiumFeatureMeta || []).find(x => x.id === id);
+            return `<span class="pr-req-chip">${f ? f.emoji : '✦'} ${escHtml(f ? pfNamePub(id, f.name) : id)}</span>`;
+        })
+        .join(`<span class="pr-req-plus">+</span>`);
+    document.getElementById('synergy-modal-req-label').textContent = isPT ? 'Requer recursos ativos' : 'Requires active features';
+    document.getElementById('synergy-modal').classList.remove('hidden');
+}
+
+function closeSynergyModal() {
+    document.getElementById('synergy-modal')?.classList.add('hidden');
+}
+
+function ensureSynergyModal() {
+    if (document.getElementById('synergy-modal')) return;
+    const isPT = CURRENT_LANG === 'pt';
+    document.body.insertAdjacentHTML('beforeend', `
+        <div id="synergy-modal" class="modal-overlay hidden">
+            <div class="modal-box pr-synergy-modal">
+                <button class="btn-secondary modal-float-close" ${actionAttrs('closeSynergyModal')}>✕</button>
+                <div class="pr-synergy-modal-crest">✦</div>
+                <h3 id="synergy-modal-name" class="pr-synergy-modal-name"></h3>
+                <p id="synergy-modal-desc" class="pr-synergy-modal-desc"></p>
+                <div id="synergy-modal-req-label" class="pr-synergy-modal-req-label"></div>
+                <div id="synergy-modal-req" class="pr-synergy-modal-req"></div>
+            </div>
+        </div>
+    `);
+    document.getElementById('synergy-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'synergy-modal') closeSynergyModal();
+    });
+}
+
+function pfNamePub(id, name) { return (CURRENT_LANG === 'pt' && PREMIUM_FEATURE_NAME_PT[id]) || name; }
+
+// Shared floating tooltip (pointer devices only; touch users get the modal via tap)
+function ensurePrTip() {
+    if (document.getElementById('pr-tip')) return;
+    const tip = document.createElement('div');
+    tip.id = 'pr-tip';
+    tip.className = 'pr-tip hidden';
+    document.body.appendChild(tip);
+}
+
+function showPrTip(chip) {
+    const tip = document.getElementById('pr-tip');
+    if (!tip || window.matchMedia('(hover: none)').matches) return;
+    tip.innerHTML = `<div class="pr-tip-name">${chip.dataset.emoji || '✦'} ${escHtml(chip.dataset.name || '')}</div>
+        <div class="pr-tip-desc">${escHtml(chip.dataset.desc || '')}</div>
+        <div class="pr-tip-req">${escHtml(chip.dataset.reqLabel || '')}</div>`;
+    tip.classList.remove('hidden');
+    const r = chip.getBoundingClientRect();
+    const tw = tip.offsetWidth, th = tip.offsetHeight;
+    let x = r.left + r.width / 2 - tw / 2;
+    x = Math.max(8, Math.min(x, window.innerWidth - tw - 8));
+    let y = r.top - th - 10;
+    if (y < 8) y = r.bottom + 10;
+    tip.style.left = x + 'px';
+    tip.style.top = y + 'px';
+    tip.classList.add('pr-tip-show');
+}
+
+function hidePrTip() {
+    const tip = document.getElementById('pr-tip');
+    if (!tip) return;
+    tip.classList.remove('pr-tip-show');
+    tip.classList.add('hidden');
+}
+
+// Wire live chip events after each render
+function wireSynergyChips() {
+    ensurePrTip();
+    document.querySelectorAll('.pr-synergy-chip[data-name]').forEach(chip => {
+        if (chip._prWired) return;
+        chip._prWired = true;
+        chip.addEventListener('mouseenter', () => showPrTip(chip));
+        chip.addEventListener('mouseleave', hidePrTip);
+        chip.addEventListener('click', () => {
+            hidePrTip();
+            openSynergyModal(chip.dataset.name, chip.dataset.desc, (chip.dataset.requires || '').split(',').filter(Boolean), chip.dataset.emoji || '✦');
+        });
+        chip.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); chip.click(); }
+        });
+    });
 }
 
 // ── Shop Reroll ────────────────────────────────────────────────────────────
