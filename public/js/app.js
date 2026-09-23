@@ -12335,16 +12335,18 @@ function setLbSort(sort, btn) {
 async function loadLeaderboard() {
     document.getElementById('leaderboard-list').innerHTML=`<p class="loading">${_pt('Carregando...', 'Loading...')}</p>`;
     try {
-        const [freshCharacter, leaderboard, squadLb, weeklyLb, weeklyHist] = await Promise.all([
+        const [freshCharacter, leaderboard, squadLb, weeklyLb, weeklyHist, weeklyStats] = await Promise.all([
             api('GET','/game/character'),
             api('GET',`/game/leaderboard?sort=${lbSort}`),
             api('GET', '/game/squads/leaderboard').catch(() => []),
             api('GET', '/game/leaderboard/weekly').catch(() => ({ current_dmg_top: [], current_win_top: [], previous_dmg_winner: null, previous_win_winner: null })),
             api('GET', '/game/leaderboard/weekly/history?limit=20').catch(() => ({ history_dmg: [], history_win: [] })),
+            api('GET', '/game/leaderboard/weekly/stats').catch(() => ({ week_start: 0, total_battles: 0, total_wins: 0, total_losses: 0, total_draws: 0, stats: [] })),
         ]);
         character = freshCharacter;
         lbData = leaderboard;
         lbSquadData = squadLb;
+        window._weeklyStats = weeklyStats;
         window._weeklyLbData = weeklyLb;
         window._weeklyLbHistoryDmg = weeklyHist.history_dmg || [];
         window._weeklyLbHistoryWin = weeklyHist.history_win || [];
@@ -12378,6 +12380,7 @@ window.setLbMode = setLbMode;
 window.setLbSort = setLbSort;
 window.setWeeklyLbSub = setWeeklyLbSub;
 window.setWeeklyLbMode = setWeeklyLbMode;
+window.toggleWeeklyStats = toggleWeeklyStats;
 
 // ── Squads ────────────────────────────────────────────────────────────────
 let squadsData = null;
@@ -13805,6 +13808,72 @@ function setWeeklyLbMode(mode) {
     window._weeklyLbMode = mode;
     renderLeaderboard();
 }
+function renderWeeklyStatsBanner() {
+    const s = window._weeklyStats;
+    if (!s) return '';
+    const battles = Number(s.total_battles || 0);
+    const wins = Number(s.total_wins || 0);
+    const losses = Number(s.total_losses || 0);
+    const draws = Number(s.total_draws || 0);
+    const weekStart = Number(s.week_start || 0);
+    let rangeText = '';
+    if (weekStart > 0) {
+        const wn = getWeekNumber(weekStart);
+        const y = new Date(weekStart * 1000).getUTCFullYear();
+        const f = ts => new Date(ts * 1000).toLocaleDateString(CURRENT_LANG === 'pt' ? 'pt-BR' : 'en-US', { day: '2-digit', month: 'short' });
+        rangeText = `${_pt('Semana', 'Week')} ${wn} (${y}) · ${f(weekStart)} – ${f(weekStart + 6 * 86400)}`;
+    }
+    const statCell = (label, val, color) => `<div style="display:flex;flex-direction:column;align-items:center;padding:6px 4px;border-radius:10px;background:rgba(255,255,255,0.04)">
+        <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim)">${label}</div>
+        <div style="font-size:1rem;font-weight:700;color:${color}">${val.toLocaleString()}</div>
+    </div>`;
+    let html = `<div class="card-compact" style="padding:10px 12px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px;font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px">
+            <span>📊 ${_pt('Estatísticas Semanais do Servidor', 'Server Weekly Statistics')}</span>
+            ${rangeText ? `<span style="font-size:10px;color:var(--text-dim);font-weight:600">${rangeText}</span>` : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
+            ${statCell(_pt('Batalhas', 'Battles'), battles, '#fff')}
+            ${statCell(_pt('Vitórias', 'Wins'), wins, '#60e060')}
+            ${statCell(_pt('Derrotas', 'Losses'), losses, '#e06060')}
+            ${statCell(_pt('Empates', 'Draws'), draws, '#e0a050')}
+        </div>`;
+    const top = Array.isArray(s.stats) ? s.stats.slice(0, 10) : [];
+    if (top.length > 0) {
+        const open = !!window._weeklyStatsOpen;
+        const CLASS_EMOJI = { Warrior: '🛡️', Mage: '🔮', Rogue: '🗡️', Paladin: '✨' };
+        const emoji = c => CLASS_EMOJI[c] || '⚔️';
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:pointer;font-size:0.75rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px;padding:6px 8px;border-radius:8px;background:rgba(255,255,255,0.04)" ${actionAttrs('toggleWeeklyStats')}>
+            <span>⚔️ ${_pt('Mais Ativos da Semana', 'Most Active This Week')}</span>
+            <span style="color:var(--gold)">${open ? '▾ ' + _pt('Recolher', 'Collapse') : '▸ ' + _pt('Ver', 'Show')}</span>
+        </div>`;
+        if (open) {
+            html += '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:repeat(4,50px);margin-left:auto"><div class="lb-stat"><div class="lb-stat-lbl">⚔️</div></div><div class="lb-stat"><div class="lb-stat-lbl">W</div></div><div class="lb-stat"><div class="lb-stat-lbl">L</div></div><div class="lb-stat"><div class="lb-stat-lbl">D</div></div></div></div>';
+            top.forEach((r, i) => {
+                const rc = i === 0 ? 'gold-rank' : i === 1 ? 'silver-rank' : i === 2 ? 'bronze-rank' : '';
+                const rs = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i + 1}`;
+                html += `<div class="lb-row" ${actionAttrs('openProfile', r.id)}>
+                    <div class="lb-rank ${rc}">${rs}</div>
+                    <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.05);display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0">${emoji(r.class)}</div>
+                    <div class="lb-info"><div class="lb-name">${escHtml(r.name)}</div><div class="lb-sub">Lv.${r.level} ${capitalize(r.class)}</div></div>
+                    <div class="lb-stats" style="grid-template-columns:repeat(4,50px)">
+                        <div class="lb-stat"><div class="lb-stat-val">${Number(r.total_battles || 0).toLocaleString()}</div></div>
+                        <div class="lb-stat"><div class="lb-stat-val" style="color:#60e060">${Number(r.wins || 0).toLocaleString()}</div></div>
+                        <div class="lb-stat"><div class="lb-stat-val" style="color:#e06060">${Number(r.losses || 0).toLocaleString()}</div></div>
+                        <div class="lb-stat"><div class="lb-stat-val" style="color:#e0a050">${Number(r.draws || 0).toLocaleString()}</div></div>
+                    </div>
+                </div>`;
+            });
+            html += `<div style="font-size:9px;color:var(--text-dim);text-align:center;margin-top:4px">${_pt('Clique em um jogador para ver o perfil', 'Click a player to view profile')}</div>`;
+        }
+    }
+    html += '</div>';
+    return html;
+}
+function toggleWeeklyStats() {
+    window._weeklyStatsOpen = !window._weeklyStatsOpen;
+    renderLeaderboard();
+}
 function renderLeaderboard() {
     // Weekly damage view
     if (lbSort === 'weekly_dmg') {
@@ -13952,7 +14021,7 @@ function renderLeaderboard() {
                 });
             }
         }
-        document.getElementById('leaderboard-list').innerHTML = html;
+        document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + html;
         return;
     }
 
@@ -13962,7 +14031,7 @@ function renderLeaderboard() {
     </div>`;
     if (lbMode === 'squads') {
         const filtered = lbSquadData || [];
-        document.getElementById('leaderboard-list').innerHTML = modeToggle + (
+        document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + modeToggle + (
             filtered.length === 0
                 ? `<p class="empty">${_pt('Nenhum esquadrão encontrado.', 'No squads found.')}</p>`
                 : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 ' + _pt('TOTAL GANHO', 'TOTAL EARNED') + '</div></div></div></div>' +
@@ -13980,7 +14049,7 @@ function renderLeaderboard() {
             : `<p class="empty" style="padding:10px">${_pt('Seu personagem ainda não está classificado.', 'Your character is not ranked yet.')}</p>`;
     }
     if (!filtered.length){
-        document.getElementById('leaderboard-list').innerHTML = modeToggle + `<p class="empty">${_pt('Nenhum jogador encontrado.', 'No players found.')}</p>`;
+        document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + modeToggle + `<p class="empty">${_pt('Nenhum jogador encontrado.', 'No players found.')}</p>`;
         return;
     }
     const totalPages = Math.ceil(filtered.length / LB_PAGE_SIZE);
@@ -13994,7 +14063,7 @@ function renderLeaderboard() {
             ? '<div style="display:flex;justify-content:center;padding:4px 0">' + buildLbPageNav(lbPage, totalPages, false) + '</div>'
             : '<div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none">' + pageNavCompact.replace(/<button /g, '<button style="pointer-events:auto" ') + '</div>')
         : '';
-    document.getElementById('leaderboard-list').innerHTML = modeToggle +
+    document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + modeToggle +
         (isMobile ? topNavHtml : '') +
         '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none' + (isMobile ? ';justify-content:center' : '') + '"><div style="display:flex;align-items:center;gap:12px' + (isMobile ? ';display:none' : '') + '"><div></div><div></div><div></div></div><div class="lb-stats" style="' + (isMobile ? 'margin-left:0;width:100%;grid-template-columns:1fr 1fr 1fr' : 'margin-left:auto') + '"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ ' + _pt('VITÓRIAS', 'WON') + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 ' + _pt('DERROTAS', 'LOST') + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 ' + _pt('GANHOS', 'EARNED') + '</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
