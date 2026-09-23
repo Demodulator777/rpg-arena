@@ -6915,6 +6915,10 @@ function calcArmorValue(char, equippedItems, additionalDefense = 0) {
 
 function calcElemDmg(equippedItems) {
     const totals = { pyro:0, water:0, wind:0, electro:0 };
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    for (const elem of ['pyro','water','wind','electro']) {
+        totals[elem] += setBonuses[`${elem}_dmg`] || 0;
+    }
     for (const item of equippedItems) {
         try {
             const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
