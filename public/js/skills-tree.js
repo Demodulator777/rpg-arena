@@ -297,6 +297,10 @@ function stTreeCss() {
     /* — Starter emphasis + responsive — */
     .st-starter-row .st-card { max-width:138px; min-height:176px; border-color:rgba(244,208,111,0.45);
                 box-shadow:0 8px 20px rgba(0,0,0,0.55), 0 0 16px rgba(244,208,111,0.14); }
+    /* Skill-tree tooltip art fills the card: kill the shared .tt-preview
+       aspect-ratio trick for #st-tooltip and let the img fill edge-to-edge. */
+    #st-tooltip .tt-preview { aspect-ratio:auto; height:150px; padding:0; background:#0d0f18; }
+    #st-tooltip .tt-preview img { width:100% !important; height:100% !important; object-fit:cover; border-radius:0; }
     @media (prefers-reduced-motion: reduce) {
         .st-card, .st-card:hover, .st-card-art img { transition:none; transform:none; }
     }
@@ -539,10 +543,10 @@ function stShowTipFor(el) {
         '<div class="tt-stat"><span class="tt-stat-name" style="text-transform:none">' + p + '</span></div>'
     ).join('');
     tip.innerHTML =
-        '<div class="tt-preview" style="padding:12px">' +
+        '<div class="tt-preview">' +
             (d.img
-                ? '<img src="' + d.img + '" alt="" data-error-hide="true" data-error-next-display="inline-flex" style="width:80px;height:80px"><span class="tt-preview-emoji" style="display:none;font-size:3rem">' + (d.emoji || '') + '</span>'
-                : '<span class="tt-preview-emoji" style="font-size:3rem">' + (d.emoji || '') + '</span>') +
+                ? '<img src="' + d.img + '" alt="" data-error-hide="true" data-error-next-display="inline-flex" style="width:100%;height:100%;object-fit:cover;display:block"><span class="tt-preview-emoji" style="display:none;font-size:3.4rem">' + (d.emoji || '') + '</span>'
+                : '<span class="tt-preview-emoji" style="font-size:3.4rem">' + (d.emoji || '') + '</span>') +
         '</div>' +
         '<div class="tt-body">' +
             '<div class="tt-name" style="color:' + (d.color || 'var(--text-bright)') + '">' + d.name + '</div>' +
