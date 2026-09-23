@@ -16634,6 +16634,120 @@ router.get('/leaderboard', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// ── Weekly Server Battle Statistics (public) ─────────────────────────────
+// Public mirror of the admin weekly view, restricted to the battle/W/L/D
+// fields only. Server-wide totals are the true battle count (PvP battles +
+// mission BATTLE_REPORT messages); per-player rows count each PvP side the
+// same way the admin panel does (attacker + defender).
+router.get('/leaderboard/weekly/stats', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const now = Math.floor(Date.now() / 1000);
+        const weekStart = getCurrentWeekStart(now);
+        const weekEnd = weekStart + 7 * 86400;
+
+        // Server-wide outcome totals (PvP + missions)
+        const pvp = await dbGet(db, `SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
+                        SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                        SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws
+                      FROM battles WHERE fought_at >= ? AND fought_at < ?`, [weekStart, weekEnd]);
+        const missions = await dbGet(db, `SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
+                        SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
+                            AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
+                        SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws
+                      FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
+                        AND json_extract(substr(body, 15), '$.type') = 'mission'
+                        AND sent_at >= ? AND sent_at < ?`, [weekStart, weekEnd]);
+        const total_battles = Number(pvp?.total || 0) + Number(missions?.total || 0);
+        const total_wins = Number(pvp?.wins || 0) + Number(missions?.wins || 0);
+        const total_losses = Number(pvp?.losses || 0) + Number(missions?.losses || 0);
+        const total_draws = Number(pvp?.draws || 0) + Number(missions?.draws || 0);
+
+        // Per-player rows — only battles/w/l/d (identity fields for the list UI)
+        const rows = await dbAll(db, `
+            SELECT char_id,
+                   SUM(battles) AS battles,
+                   SUM(wins) AS wins,
+                   SUM(losses) AS losses,
+                   SUM(draws) AS draws
+            FROM (
+                     SELECT attacker_id AS char_id,
+                            COUNT(*) AS battles,
+                            SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
+                            SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws
+                     FROM battles
+                     WHERE fought_at >= ? AND fought_at < ?
+                     GROUP BY attacker_id
+
+                     UNION ALL
+
+                     SELECT defender_id AS char_id,
+                            COUNT(*) AS battles,
+                            SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
+                            SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws
+                     FROM battles
+                     WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                     GROUP BY defender_id
+
+                     UNION ALL
+
+                     SELECT receiver_id AS char_id,
+                            COUNT(*) AS battles,
+                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
+                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
+                                AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
+                            SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws
+                     FROM messages
+                     WHERE body LIKE 'BATTLE_REPORT:%'
+                       AND json_extract(substr(body, 15), '$.type') = 'mission'
+                       AND sent_at >= ? AND sent_at < ?
+                     GROUP BY receiver_id
+                 )
+            GROUP BY char_id
+        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
+
+        const charStatMap = {};
+        for (const r of rows) {
+            const id = Number(r.char_id);
+            if (!id) continue;
+            charStatMap[id] = {
+                total_battles: Number(r.battles || 0),
+                wins: Number(r.wins || 0),
+                losses: Number(r.losses || 0),
+                draws: Number(r.draws || 0),
+            };
+        }
+
+        const charIds = Object.keys(charStatMap).filter(k => charStatMap[k].total_battles > 0).map(Number);
+        let stats = [];
+        if (charIds.length > 0) {
+            const placeholders = charIds.map(() => '?').join(',');
+            const chars = await dbAll(db, `SELECT id, name, class, level FROM characters WHERE id IN (${placeholders})`, charIds);
+            for (const ch of chars) {
+                const cid = Number(ch.id);
+                const s = charStatMap[cid];
+                stats.push({
+                    id: cid,
+                    name: ch.name,
+                    class: ch.class,
+                    level: Number(ch.level),
+                    total_battles: s.total_battles,
+                    wins: s.wins,
+                    losses: s.losses,
+                    draws: s.draws,
+                });
+            }
+            stats.sort((a, b) => b.total_battles - a.total_battles || b.wins - a.wins);
+        }
+
+        res.json({ week_start: weekStart, total_battles, total_wins, total_losses, total_draws, stats });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Weekly Damage Leaderboard ────────────────────────────────────────────
 router.get('/leaderboard/weekly', auth, async (req, res) => {
     try {
