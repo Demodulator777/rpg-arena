@@ -1864,3 +1864,67 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     .sq-role-name { min-width: 0; }
 }
 
+/* =====================================================================
+   Hover-cursor stability (button-edge flicker fix) — loaded LAST (index.html)
+   ---------------------------------------------------------------------
+   :hover rules that translateY/scale the element ITSELF move its hit-box.
+   Park the cursor on an edge and the moving edge sweeps across it, so
+   :hover keeps toggling on/off and the cursor flips between arrow/hand
+   ("can't decide which mode to stay"). We null the geometry motion on
+   hover but keep the glow / border / box-shadow feedback. Press-state
+   (:active) transforms are excluded via :not(:active) so press squish
+   still works, and inner-content zooms (img scale on hover) are untouched
+   — they don't change the clickable hit area.
+   ===================================================================== */
+.skip-tutorial-btn:hover:not(:active),
+.goto-missions-btn:hover:not(:active),
+.android-qr-link:hover:not(:active),
+.game-logo:hover:not(:active),
+.class-card:hover:not(:active),
+.create-carousel-nav:hover:not(:active),
+.btn-primary:hover:not(:active),
+.btn-attack:hover:not(:active):not(:disabled),
+.btn-train:hover:not(:active):not(:disabled),
+.btn-upgrade:hover:not(:active):not(:disabled),
+.btn-forge:not(:disabled):hover:not(:active),
+.btn-shop:hover:not(:active):not(:disabled),
+.btn-danger:hover:not(:active),
+.btn-craft-direct:hover:not(:active),
+.topbar-chat-btn:hover:not(:active),
+.topbar-menu-btn:hover:not(:active),
+.topbar-menu-action:hover:not(:active),
+.topbar-menu-toggle:hover:not(:active),
+.nav-btn:hover:not(:active),
+.character-hub-option:hover:not(:active),
+.character-switch-card:hover:not(:active),
+.weekly-task-material-btn:hover:not(:active),
+.upgrade-card:hover:not(:active),
+.forge-card:hover:not(:active),
+.inv-item-cell:hover:not(:active),
+.inv-consumable-card:hover:not(:active),
+.mat-card:hover:not(:active),
+.shop-card:hover:not(:active),
+.news-item:hover:not(:active),
+.news-item-cta-btn:hover:not(:active),
+.story-fab:hover:not(:active),
+.mz-spot-card:hover:not(.mz-spot-locked):not(:active),
+.mz-mission-card:hover:not(:active),
+.footer-btn:hover:not(:active),
+.footer-donate-btn:hover:not(:active),
+.abyss-exit-btn:hover:not(:active),
+.btn-join:hover:not(:active),
+.dungeon-floor-preview-card:hover:not(:active),
+.dungeon-path-btn:hover:not(:active):not(:disabled),
+.dungeon-direction-btn:hover:not(:active):not(:disabled),
+.trial-char-card:hover:not(.down):not(:active),
+.trial-mon-card:hover:not(.down):not(:active),
+.monster-combat-card:hover:not(:active),
+.trial-ability-btn:hover:not(:active):not(:disabled),
+.dungeon-scene-image:hover:not(:active),
+.material-card:hover:not(:active),
+.craft-btn:hover:not(:active):not(:disabled),
+.skill-card:hover:not(:active),
+.premium-feature-card:hover:not(:active) {
+    transform: none !important;
+}
+
