@@ -9335,12 +9335,12 @@ function renderInventory(data) {
                         <div class="mat-name">${rate.name}</div>
                         <div class="mat-qty" style="color: #f1c40f;">${_pt('Custo:', 'Cost:')} ${rate.fragmentCost} ${matIcon('Legendary Fragment', '⭐', '0.9em')} ${_pt('cada', 'each')}</div>
                         <div class="mat-qty" style="color: rgba(255,255,255,0.55); font-size:0.7rem;">${_pt('Você pode pagar:', 'You can afford:')} ${maxCan}</div>
-                        <div style="display:flex; align-items:center; gap:4px; margin-top:auto; padding-top:8px;">
-                            <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, -1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">−</button>
+                        <div style="display:flex; align-items:stretch; gap:4px; margin-top:auto; padding-top:8px; width:100%;" class="mat-qty-row">
+                            <button class="btn-sm mat-qty-btn" ${actionAttrs('exchangeQtyStep', id, -1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">−</button>
                             <input type="number" class="mat-qty-input" data-eid="${id}" value="${maxCan >= 1 ? 1 : 0}" min="0" max="${maxCan}"
-                                style="flex:1; min-width:0; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:4px 2px; font-size:0.9rem;">
-                            <button class="btn-sm" ${actionAttrs('exchangeQtyStep', id, 1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">+</button>
-                            <button class="btn-sm" ${actionAttrs('exchangeQtySetMax', id)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 38px; padding:2px 0;">${_pt('MÁX', 'MAX')}</button>
+                                style="flex:1; min-width:0; box-sizing:border-box; text-align:center; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.15); color:#fff; border-radius:6px; padding:0; line-height:1; font-size:0.85rem;">
+                            <button class="btn-sm mat-qty-btn" ${actionAttrs('exchangeQtyStep', id, 1)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 24px; padding:2px 0; font-weight:700;">+</button>
+                            <button class="btn-sm mat-qty-btn" ${actionAttrs('exchangeQtySetMax', id)} ${maxCan < 1 ? 'disabled' : ''} style="flex:0 0 38px; padding:2px 0;">${_pt('MÁX', 'MAX')}</button>
                         </div>
                         <button class="btn-sm" ${actionAttrs('exchangeFragmentForMaterialInput', id)} ${maxCan < 1 ? 'disabled' : ''}
                             style="margin-top: 8px; width: 100%;">${_pt('Trocar', 'Exchange')}</button>
