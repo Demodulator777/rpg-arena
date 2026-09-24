@@ -3442,13 +3442,23 @@ select.input-field {
     background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23d4a843' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 9px center;
+    /* Explicit size — without it some browsers scale the SVG background to
+       fill the whole select box on click/focus (the chevron "fills the box"). */
+    background-size: 10px 6px;
 }
 select.input-field option {
     background: #0a0e18;
     color: var(--text-bright);
 }
 select.input-field:focus {
+    background-color: #0a0e18;
     background-image: url("data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23d4a843' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 9px center;
+    /* The base .input-field:focus shorthand resets background-repeat to 'repeat'
+       and background-position to 0% 0%; re-declaring them here keeps the chevron
+       at the right edge instead of tiling across / filling the whole select box. */
+    background-size: 10px 6px;
 }
 .achievement-launch-meta {
     color: var(--gold);
