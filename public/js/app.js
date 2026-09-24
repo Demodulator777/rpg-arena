@@ -7867,10 +7867,53 @@ function stopAutoOverlayPoll() {
     if (autoOverlayPollInterval) { clearInterval(autoOverlayPollInterval); autoOverlayPollInterval = null; }
     _lastAutoMissionId = null;
 }
+function resolveMissionOverlayImg(active) {
+    if (!active || typeof active !== 'object') return '';
+    const currentMap = active.map_type || character?.current_map || 'overworld';
+    let zone;
+    if (currentMap === 'abyss') {
+        zone = (abyssData && abyssData.zones && abyssData.zones[active.zone]) || null;
+    } else {
+        zone = ZONES[active.zone] || null;
+    }
+    const spot = zone && zone.spots ? zone.spots.find(s => s.id === active.spot) : null;
+    if (!spot || !Array.isArray(spot.missions)) return '';
+    const rawName = active.mission_name || active.missionName || '';
+    const mission = spot.missions.find(m => typeof m === 'object' && m && m.name === rawName)
+        || spot.missions.find(m => typeof m === 'object' && m && m.img);
+    return (mission && typeof mission === 'object' && mission.img) ? mission.img : '';
+}
+
+function resolveSummonOverlayImg(auto) {
+    const zoneId = (auto && auto.zone) || _autoPickerZone;
+    const spotId = (auto && auto.spot) || _autoPickerSpot;
+    const currentMap = (auto && auto.currentMap) || character?.current_map || 'overworld';
+    let zone;
+    if (currentMap === 'abyss') {
+        zone = (abyssData && abyssData.zones && abyssData.zones[zoneId]) || null;
+    } else {
+        zone = ZONES[zoneId] || null;
+    }
+    const spot = zone && zone.spots ? zone.spots.find(s => s.id === spotId) : null;
+    if (!spot || !Array.isArray(spot.missions)) return '';
+    const idx = Number(auto && auto.missionIdx);
+    const mission = Number.isInteger(idx) && idx >= 0 && idx < spot.missions.length
+        ? spot.missions[idx]
+        : (spot.missions[Number(_autoSelMission)] || spot.missions[0]);
+    return (mission && typeof mission === 'object' && mission.img) ? mission.img : '';
+}
+
 function showMissionOverlay(active, displayName) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
     overlayMissionCollectBusy = false;
+    const img = resolveMissionOverlayImg(active);
+    const innerEl = overlay.querySelector('.mission-overlay-inner');
+    if (innerEl && img) {
+        innerEl.style.setProperty('--ovbg', `url('${img.replace(/'/g, "\\'")}')`);
+    } else if (innerEl) {
+        innerEl.style.removeProperty('--ovbg');
+    }
     const nameEl=document.getElementById('overlay-mission-name');
     const zoneEl=document.getElementById('overlay-mission-zone');
     const timerEl=document.getElementById('overlay-mission-timer');
@@ -7909,6 +7952,13 @@ function showAutoSummonOverlay(auto) {
     const overlay=document.getElementById('mission-overlay'); if(!overlay) return;
     if (overlayInterval) { clearInterval(overlayInterval); overlayInterval=null; }
     overlayMissionCollectBusy=false;
+    const innerEl = overlay.querySelector('.mission-overlay-inner');
+    const summonImg = resolveSummonOverlayImg(auto);
+    if (innerEl && summonImg) {
+        innerEl.style.setProperty('--ovbg', `url('${summonImg.replace(/'/g, "\\'")}')`);
+    } else if (innerEl) {
+        innerEl.style.removeProperty('--ovbg');
+    }
     const nameEl=document.getElementById('overlay-mission-name');
     const zoneEl=document.getElementById('overlay-mission-zone');
     const timerEl=document.getElementById('overlay-mission-timer');
@@ -7937,6 +7987,12 @@ async function refreshMissionOverlayAuto() {
     const box=document.getElementById('overlay-auto'); if(!box) return;
     if (!_autoEnabledCache) { box.style.display='none'; box.innerHTML=''; return; }
     box.style.display='block';
+    const autoImg = resolveSummonOverlayImg(status);
+    if (autoImg) {
+        box.style.setProperty('--arc-bg', `url('${autoImg.replace(/'/g, "\\'")}')`);
+    } else {
+        box.style.removeProperty('--arc-bg');
+    }
     const pool=status.autoMp||0, runs=status.runs||0, last=status.lastResult?escHtml(status.lastResult):'';
     const paused = !!status.paused;
     const nowS = Math.floor(Date.now()/1000);
@@ -8033,7 +8089,11 @@ function hideMissionOverlay() {
     stopAutoOverlayPoll();
     overlayMissionCollectBusy = false;
     const o = document.getElementById('mission-overlay');
-    if(o) o.classList.add('hidden');
+    if(o) {
+        o.classList.add('hidden');
+        const innerEl = o.querySelector('.mission-overlay-inner');
+        if (innerEl) innerEl.style.removeProperty('--ovbg');
+    }
     window.activeMission = false;
 }
 async function overlayCollectMission() {
