@@ -6744,6 +6744,7 @@ let _autoHpHealOn = false;
 let _autoPickerZone = null;
 let _autoPickerSpot = null;
 let _autoPickerMissions = [];
+let _autoPickerMissionImgs = [];
 
 async function renderAutoCompletePanel(zoneId, spotId) {
     const panel = document.getElementById('auto-complete-panel');
@@ -6765,10 +6766,14 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     _autoPickerZone = zoneId;
     _autoPickerSpot = spotId;
     _autoPickerMissions = spot.missions.map((m, idx) => typeof m === 'string' ? m : zMissionName(m) || (currentLangPt ? `Missão ${idx + 1}` : `Mission ${idx + 1}`));
+    _autoPickerMissionImgs = spot.missions.map((m) => (typeof m === 'object' && m && m.img) ? m.img : '');
     const _autoPickMissionName = _autoPickerMissions[Number(_autoSelMission) || 0] || _autoPickerMissions[0] || (currentLangPt ? 'Missão' : 'Mission');
+    const runningMission = Number(status?.missionIdx) >= 0 && Number(status?.missionIdx) < spot.missions.length ? spot.missions[Number(status.missionIdx)] : null;
+    const bgMissionImg = running ? (runningMission && typeof runningMission === 'object' && runningMission.img ? runningMission.img : '') : (_autoPickerMissionImgs[Number(_autoSelMission) || 0] || '');
+    const arcBgStyle = bgMissionImg ? `--arc-bg:url('${bgMissionImg.replace(/'/g, "\\'")}')` : '';
 
     panel.innerHTML = `
-        <div class="arc-panel">
+        <div class="arc-panel" style="${arcBgStyle}">
             <div class="arc-panel-head">
                 <div class="arc-panel-rune">🧿</div>
                 <div>
@@ -6785,6 +6790,13 @@ async function renderAutoCompletePanel(zoneId, spotId) {
         : running ? `
             <div style="font-size:0.8rem;line-height:1.7">
                 <div style="font-weight:700;color:#2ecc71;margin-bottom:6px">● ${currentLangPt ? 'Auto-complete em execução' : 'Auto-complete running'}</div>
+                ${runningMission ? `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:8px 10px;border-radius:10px;background:rgba(0,0,0,0.25);border:1px solid rgba(155,89,182,0.3)">
+                    ${runningMission.img ? `<img src="${escHtml(runningMission.img)}" alt="" style="width:44px;height:44px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(155,89,182,0.4)" data-error-hide="true" data-error-next-display="inline"><span style="display:none;font-size:1.4rem;line-height:1">${runningMission.emoji || '⚔️'}</span>` : `<span style="font-size:1.4rem">${runningMission.emoji || '⚔️'}</span>`}
+                    <div style="min-width:0">
+                        <div style="font-size:0.6rem;color:rgba(255,255,255,0.45);text-transform:uppercase;letter-spacing:0.08em">${currentLangPt ? 'Missão atual' : 'Current mission'}</div>
+                        <div style="font-weight:700;color:#fff;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(zMissionName(runningMission))}</div>
+                    </div>
+                </div>` : ''}
                 <div style="color:var(--text-dim)">
                     ${status.autoMp > 0 ? `<div>🔮 ${currentLangPt ? 'PM no reservatório: ' : 'Pool MP: '}<strong style="color:#dcd0ff">${status.autoMp}</strong></div>` : ''}
                     <div>✅ ${currentLangPt ? 'Missões concluídas: ' : 'Missions completed: '}<strong style="color:#fff">${status.runs || 0}</strong></div>
@@ -7051,8 +7063,12 @@ function openAutoPicker(kind) {
         const opts = (_autoPickerMissions && _autoPickerMissions.length ? _autoPickerMissions : [CURRENT_LANG === 'pt' ? 'Missão' : 'Mission']);
         list.innerHTML = opts.map((name, idx) => {
             const active = String(_autoSelMission) === String(idx);
-            return `<button class="arc-opt${active ? ' active' : ''}" data-action="pickAutoMission" data-args="${encodeActionArgs([idx])}">
-                <span>${escHtml(name)}</span>${active ? '<span class="arc-opt-check">✓</span>' : ''}
+            const img = _autoPickerMissionImgs && _autoPickerMissionImgs[idx] || '';
+            return `<button class="arc-opt arc-opt-mission${active ? ' active' : ''}" data-action="pickAutoMission" data-args="${encodeActionArgs([idx])}" style="display:flex;align-items:center;gap:10px;justify-content:flex-start">
+                ${img ? `<span style="width:40px;height:40px;flex-shrink:0;border-radius:8px;overflow:hidden;border:1px solid rgba(155,89,182,0.4);background:rgba(0,0,0,0.3);display:inline-flex;align-items:center;justify-content:center">
+                    <img src="${escHtml(img)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1.1rem">⚔️</span>
+                </span>` : `<span style="width:40px;height:40px;flex-shrink:0;border-radius:8px;background:rgba(155,89,182,0.14);border:1px solid rgba(155,89,182,0.35);display:inline-flex;align-items:center;justify-content:center;font-size:1.1rem">⚔️</span>`}
+                <span style="flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escHtml(name)}</span>${active ? '<span class="arc-opt-check">✓</span>' : ''}
             </button>`;
         }).join('');
     } else {
