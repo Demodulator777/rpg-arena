@@ -13895,6 +13895,7 @@ function setWeeklyLbMode(mode) {
     renderLeaderboard();
 }
 function renderWeeklyStatsBanner() {
+    if ((window._lbTab || 'board') !== 'hof') return '';
     const s = window._weeklyStats;
     if (!s) return '';
     const battles = Number(s.total_battles || 0);
