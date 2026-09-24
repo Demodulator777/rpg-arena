@@ -1692,40 +1692,81 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 .sq-browse-sub { font-size: 0.72rem; color: var(--text-dim); margin-top: 1px; }
 
 .sq-member-row {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-.sq-member-row .sq-member-id {
-    flex: 1 1 0;
-    min-width: 0;
+    justify-content: stretch;
+    gap: 4px 10px;
+    position: relative;
     overflow: hidden;
+    border-radius: 10px;
 }
-.sq-member-row .sq-member-id > span { min-width: 0; }
-.sq-member-row .squads-member-name { overflow-wrap: anywhere; word-break: break-word; }
+/* Member rows get a class-art backdrop + dedicated info/online/actions columns */
+.sq-member-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--sq-row-bg, none);
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: var(--sq-row-bg-opacity, 0.16);
+    pointer-events: none;
+    z-index: 0;
+}
+.sq-member-row > * { position: relative; z-index: 1; min-width: 0; }
+.sq-member-row .sq-member-id { display: inline-flex; align-items: center; }
+.sq-member-row .sq-member-id > span { flex: 1 1 auto; min-width: 0; }
+.sq-member-row .sq-member-id .squads-member-name { display: inline; word-break: break-word; }
+.sq-member-role { margin-left: 6px; font-size: 0.75rem; opacity: 0.7; white-space: nowrap; }
+.sq-member-row .sq-member-id .squads-member-sub { justify-content: flex-start; }
+/* Dedicated "last online" column: nowrap, right-aligned to the actions column edge */
+.sq-member-row .sq-member-online {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    text-align: right;
+}
+/* Dedicated actions column: pinned far right, never floats mid-row */
 .sq-member-row .sq-member-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 5px;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
+.squads-members.sq-manage .sq-member-actions { margin-left: 0; min-width: 168px; }
+.squads-members.sq-manage .sq-member-row { grid-template-columns: minmax(0, 1fr) auto auto; }
+.squads-members:not(.sq-manage) .sq-member-row { grid-template-columns: minmax(0, 1fr) auto; }
+.squads-members.sq-manage .squad-role-select { width: 104px; min-width: 0; }
+.squads-members.sq-manage .sq-member-actions .btn-danger { flex: 0 0 auto; }
+/* Non-manage viewers get no actions column at all — online stays far right */
+.squads-members:not(.sq-manage) .sq-member-actions { display: none; }
+/* Squad member tooltip: class-art backdrop under the card content */
+.item-tooltip .tt-squad-bg {
+    position: absolute; inset: 0; z-index: 0;
+    background-size: cover; background-position: center;
+    opacity: 0.14; border-radius: 14px; overflow: hidden;
+    pointer-events: none;
+}
+.item-tooltip:has(.tt-squad-bg) .tt-preview,
+.item-tooltip:has(.tt-squad-bg) .tt-body { position: relative; z-index: 1; }
 @media (max-width: 520px) {
-    .sq-member-row {
-        flex-direction: column;
-        align-items: stretch;
-        justify-content: flex-start;
-        gap: 6px;
+    .sq-member-row,
+    .squads-members.sq-manage .sq-member-row,
+    .squads-members:not(.sq-manage) .sq-member-row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 6px 10px;
     }
-    .sq-member-row .sq-member-id { flex: 0 0 auto; width: 100%; }
-    .sq-member-row .sq-member-id > span { flex: 1 1 auto; }
-    .sq-member-row .sq-member-id .squads-member-sub {
-        width: 100%;
-        justify-content: space-between;
-    }
+    .sq-member-row .sq-member-id { grid-column: 1; grid-row: 1; width: 100%; }
+    .sq-member-row .sq-member-online { grid-column: 2; grid-row: 1; justify-content: flex-end; }
     .sq-member-row .sq-member-actions {
+        grid-column: 1 / -1;
+        grid-row: 2;
         width: 100%;
         justify-content: flex-end;
         align-items: center;
