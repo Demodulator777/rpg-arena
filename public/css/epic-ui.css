@@ -189,7 +189,7 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     width: 100%;
     font-size: 0.66rem;
     line-height: 1.25;
-    max-height: 1.7em;
+    max-height: 2.5em;
     overflow: hidden;
     margin: 0 0 1px;
     display: -webkit-box;
@@ -223,6 +223,18 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
 /* The two exchange grids on the same tab keep roomier cells */
 .mat-grid[style*="150px"] { grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)) !important; gap: 8px; }
 .mat-grid[style*="150px"] .mat-card { padding: 10px 6px 8px; }
+
+/* Exchange qty input: hide the native spin buttons so the number centers
+   (the −/+ buttons already provide stepping; spinners steal ~16px on the
+   right and push the text left of center) */
+.mat-grid[style*="150px"] .mat-qty-input::-webkit-outer-spin-button,
+.mat-grid[style*="150px"] .mat-qty-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.mat-grid[style*="150px"] .mat-qty-input {
+    -moz-appearance: textfield;
+}
 
 /* ── 7 · RESPONSIVE FRAME RAILS (align to any screen) ───────────────────── */
 .topbar {
@@ -1560,8 +1572,8 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
         min-width: 148px;
         max-width: none;
     }
-    .premium-feature-art-wrap { padding: 0; }
-    .premium-feature-art { width: 100%; height: 100%; }
+    .premium-feature-art-wrap { padding: 0; max-width: none; width: 100%; margin: 0; }
+    .premium-feature-art { width: 100%; height: 100%; object-fit: cover; }
     .premium-feature-emoji { width: auto; height: auto; line-height: 1; font-size: 2.8rem; }
     .premium-feature-body { padding: 8px 11px 11px; }
     .premium-feature-desc { font-size: 0.7rem; }
@@ -1569,7 +1581,7 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     .pr-head { padding: 13px 14px; }
     .pr-head-gems { align-items: flex-end; }
 }
-@media (max-width: 380px) {
+@media (max-width: 340px) {
     .premium-feature-card { flex: 1 1 100%; }
 }
 @media (prefers-reduced-motion: reduce) {
