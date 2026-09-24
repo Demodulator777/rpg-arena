@@ -6093,6 +6093,15 @@ select.input-field:focus {
     padding: 36px 48px; min-width: 300px; max-width: 420px;
     box-shadow: 0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
 }
+.mission-overlay-inner {
+    background-color: rgba(12,20,34,0.94);
+    background-image:
+        linear-gradient(150deg, rgba(10,17,30,0.86), rgba(14,22,38,0.9)),
+        var(--ovbg, linear-gradient(145deg, rgba(12,20,34,0.95), rgba(16,26,44,0.9)));
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
+}
 .mission-overlay-badge {
     font-family: 'Cinzel', serif; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.14em;
     color: var(--gold); text-transform: uppercase;
@@ -6128,6 +6137,15 @@ select.input-field:focus {
 .arc-relic::before {
     content: ''; position: absolute; inset: 0; pointer-events: none;
     background: linear-gradient(120deg, rgba(155,89,182,0.16) 0%, transparent 40%, rgba(201,146,42,0.12) 100%);
+}
+#overlay-auto .arc-relic {
+    background-color: rgba(24,14,40,0.9);
+    background-image:
+        linear-gradient(180deg, rgba(30,18,48,0.9), rgba(16,10,30,0.92)),
+        var(--arc-bg, linear-gradient(180deg, rgba(34,20,52,0.92), rgba(18,12,34,0.94)));
+    background-size: cover, cover;
+    background-position: center, center;
+    background-repeat: no-repeat, no-repeat;
 }
 .arc-relic-head {
     display: flex; align-items: center; gap: 10px;
