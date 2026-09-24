@@ -6092,6 +6092,7 @@ select.input-field:focus {
     border: 1px solid rgba(201,146,42,0.25); border-radius: var(--radius-lg);
     padding: 36px 48px; min-width: 300px; max-width: 420px;
     box-shadow: 0 24px 80px rgba(0,0,0,0.8), 0 0 0 1px rgba(255,255,255,0.04);
+    max-height: 100%; overflow-y: auto; -webkit-overflow-scrolling: touch;
 }
 .mission-overlay-inner {
     background-color: rgba(12,20,34,0.94);
@@ -6973,8 +6974,15 @@ select.input-field:focus {
     .char-hero-left { flex-shrink: 0; }
     .char-hero-right { min-width: 0; }
 
-    .mission-overlay, .travel-overlay { position: absolute; inset: 0; z-index: 500; padding: 20px; }
-    .mission-overlay-inner, .travel-overlay-inner { padding: 28px 24px; min-width: unset; width: 90%; max-width: 340px; }
+    .mission-overlay, .travel-overlay {
+        position: absolute; inset: 0; z-index: 500; padding: 20px;
+        align-items: flex-start;
+    }
+    .mission-overlay-inner, .travel-overlay-inner {
+        padding: 28px 24px; min-width: unset; width: 90%; max-width: 340px;
+        max-height: calc(100vh - 150px);
+        max-height: calc(100dvh - 150px);
+    }
     .mission-overlay-timer { font-size: 2rem; }
 
     .auth-container { padding: 28px 16px 32px; gap: 14px; }
