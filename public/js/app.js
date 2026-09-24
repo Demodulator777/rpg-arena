@@ -14066,7 +14066,7 @@ function renderLeaderboard() {
                     const val = isHonor ? (Number(h.net_honor) > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + _pt(' honra', ' honor') : (isDmg ? Number(h.total_dmg).toLocaleString() + _pt(' dano', ' dmg') : Number(h.total_wins).toLocaleString() + _pt(' vitórias', ' wins'));
                     const logoHtml = h.logo
                         ? `<img src="${escHtml(h.logo)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">`
-                        : `<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);margin-bottom:4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>`;
+                        : `<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);margin:0 auto 4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>`;
                     html += `<div style="flex-shrink:0;background:linear-gradient(135deg,rgba(255,215,0,0.08),rgba(255,215,0,0.02));border:1px solid rgba(255,215,0,0.2);border-radius:10px;padding:10px 14px;text-align:center;min-width:120px;cursor:pointer" ${actionAttrs('showSquadDetail', h.squad_id)}>
                         <div style="font-size:10px;color:#6a6a70;margin-bottom:4px">${_pt('Semana', 'Week')} ${wn} (${y})</div>
                         ${logoHtml}
