@@ -8313,7 +8313,7 @@ function renderForge() {
             const recipeStr=Object.entries(c.recipe).map(([mat,qty])=>{
                 const have=(forgeData.mats[mat]?.qty||0);
                 const matData = forgeData.mats[mat] || {};
-                const matName = translateItemNameExactPT(matData.name || mat.replace(/_/g,' '));
+                const matName = translateItemNameExactPT(RAW_MATERIAL_INFO[mat]?.name || matData.name || mat.replace(/_/g,' '));
                 return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (${_pt('tem', 'have')} ${have})</span>`;
             }).join(' ');
             const bgImg = getAssetImagePath(c.name);
@@ -8451,7 +8451,8 @@ const sets = forgeData.sets || {};
             const compStr = Object.entries(r.components).map(([comp,qty]) => {
                 const have = (forgeData.mats[comp]?.qty||0);
                 const matData = forgeData.mats[comp] || {};
-                const matName = translateItemNameExactPT(matData.name || comp.replace(/_/g,' '));
+                const compName = COMPONENT_UPGRADE_VALUES[comp]?.name || RAW_MATERIAL_INFO[comp]?.name || matData.name;
+                const matName = translateItemNameExactPT(compName || comp.replace(/_/g,' '));
                 return `<span style="display:inline-flex;align-items:center;gap:3px;color:${have>=qty?'var(--green)':'var(--red-light)'}">${qty}× ${matIcon(matName, matData.emoji, '1.1rem')} ${matName} (${_pt('tem', 'have')} ${have})</span>`;
             }).join(' ');
 
@@ -12304,13 +12305,11 @@ function setLbMode(mode, btn) {
     if (btn) btn.classList.add('active');
     renderLeaderboard();
 }
-function setLbSort(sort, btn) {
-    if (sort === 'weekly_dmg') {
-        lbSort = sort;
-        lbPage = 0;
+function setLbTab(tab, btn) {
+    if (tab === 'hof') {
+        window._lbTab = 'hof';
         window._weeklyLbSub = window._weeklyLbSub || 'damage';
-        document.querySelectorAll('.lb-filters .filter-btn').forEach(b => b.classList.remove('active'));
-        if (btn) btn.classList.add('active');
+        lbPage = 0;
         Promise.all([
             api('GET', '/game/leaderboard/weekly'),
             api('GET', '/game/leaderboard/weekly/history?limit=20'),
@@ -12324,6 +12323,16 @@ function setLbSort(sort, btn) {
             window._weeklyLbHistoryHonor = hist.history_honor || [];
             renderLeaderboard();
         }).catch(() => renderLeaderboard());
+        return;
+    }
+    window._lbTab = 'board';
+    lbPage = 0;
+    lbSort = lbSort === 'weekly_dmg' ? 'total_gold_earned' : lbSort;
+    loadLeaderboard();
+}
+function setLbSort(sort, btn) {
+    if (sort === 'weekly_dmg') {
+        setLbTab('hof');
         return;
     }
     lbSort = sort;
@@ -12378,6 +12387,7 @@ function buildSquadLeaderboardRow(s, idx) {
 }
 window.setLbMode = setLbMode;
 window.setLbSort = setLbSort;
+window.setLbTab = setLbTab;
 window.setWeeklyLbSub = setWeeklyLbSub;
 window.setWeeklyLbMode = setWeeklyLbMode;
 window.toggleWeeklyStats = toggleWeeklyStats;
@@ -13875,8 +13885,14 @@ function toggleWeeklyStats() {
     renderLeaderboard();
 }
 function renderLeaderboard() {
+    const isHof = (window._lbTab || 'board') === 'hof';
+    const posBox = document.getElementById('lb-position-box');
+    const lbControls = document.querySelector('.lb-controls');
+    if (posBox) posBox.style.display = isHof ? 'none' : '';
+    if (lbControls) lbControls.style.display = isHof ? 'none' : '';
+    document.querySelectorAll('.lb-subnav .filter-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-args') === JSON.stringify([isHof ? 'hof' : 'board'])));
     // Weekly damage view
-    if (lbSort === 'weekly_dmg') {
+    if (isHof) {
         const data = window._weeklyLbData;
         const sub = window._weeklyLbSub || 'damage';
         const wMode = window._weeklyLbMode || 'players';
