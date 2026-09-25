@@ -13702,6 +13702,17 @@ function squadRoleLabel(key, overrides) {
     return `${meta.icon} ${name}`;
 }
 
+function squadRoleDisplay(roleKey, overrides, customLabel) {
+    const key = String(roleKey || '');
+    if (!key) return '';
+    const meta = BUILTIN_ROLE_META[key];
+    if (meta) {
+        const name = (overrides && overrides[key]) || (CURRENT_LANG === 'pt' ? meta.pt : meta.en);
+        return `${meta.icon} ${escHtml(name)}`;
+    }
+    return `🎖️ ${escHtml(String(customLabel || key))}`;
+}
+
 const SQUAD_PERM_KEYS = [
     ['applications', CURRENT_LANG === 'pt' ? 'Gerir inscrições' : 'Manage applications', CURRENT_LANG === 'pt' ? 'Ver, aceitar e recusar pedidos de entrada.' : 'View, accept and reject join requests.'],
     ['kick', CURRENT_LANG === 'pt' ? 'Expulsar membros' : 'Kick members', CURRENT_LANG === 'pt' ? 'Expulsar membros comuns (nunca líderes).' : 'Kick plain members (never leaders).'],
@@ -13918,8 +13929,9 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const badgeHtml = badges.length
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${badgeIconImg(b.id, b)}</span>`).join('')}</div>`
         : '';
+    const squadRoleText = p.squad_id ? squadRoleDisplay(p.squad_role, null, p.squad_custom_role_label) : '';
     const squadHtml = p.squad_id
-        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:none">` : `<span style="font-size:1rem">🛡️</span>`}<span style="font-size:0.8rem;color:var(--gold)">${p.squad_tag ? `[${escHtml(p.squad_tag)}]` : escHtml(p.squad_name||'')}</span></span>`
+        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:none">` : `<span style="font-size:1rem">🛡️</span>`}<span style="font-size:0.8rem;color:var(--gold)">${p.squad_tag ? `[${escHtml(p.squad_tag)}]` : escHtml(p.squad_name||'')}</span>${squadRoleText ? `<span style="font-size:0.72rem;color:var(--text-dim)">· ${squadRoleText}</span>` : ''}</span>`
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
@@ -14377,7 +14389,7 @@ async function openProfile(id) {
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Conquistas','Achievements')}</span><span style="color:var(--gold);font-weight:600">🏆 ${achievementsCompleted.toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Total Ganho','Total Earned')}</span><span style="color:var(--gold);font-weight:600">💰 ${(p.total_gold_earned??p.gold??0).toLocaleString()}</span></div>
                 <div style="display:flex;justify-content:space-between"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Total Perdido','Total Lost')}</span><span style="color:var(--red-light);font-weight:600">💸 ${(p.total_gold_lost??0).toLocaleString()}</span></div>
-                ${p.squad_name ? `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Esquadrão','Squad')}</span><span style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--gold)">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover">` : ''}${escHtml(p.squad_name)}</span></div>` : ''}
+                ${p.squad_name ? `<div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:7px;margin-top:2px"><span style="color:var(--text-dim);font-size:0.82rem">${_pt('Esquadrão','Squad')}</span><span style="display:flex;align-items:center;gap:6px;font-weight:600;color:var(--gold)">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:18px;height:18px;border-radius:50%;object-fit:cover">` : ''}${escHtml(p.squad_name)}${p.squad_role ? `<span style="font-weight:500;font-size:0.8rem;color:var(--text-dim)">· ${squadRoleDisplay(p.squad_role, p.squad_role_labels, p.squad_custom_role_label)}</span>` : ''}</span></div>` : ''}
               </div>
             </div>
           </div>
