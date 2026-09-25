@@ -18759,6 +18759,11 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
         // File uploads are picked via the OS file dialog, so the API call reliably
         // lands >3s after the last trusted event — never a scripting signal.
         if (d.includes('/squads/logo')) return res.json({ success: true, ignored: true });
+        // Squad management (role changes, renames, description, treasury) is driven by
+        // select/textarea changes and dialogs that follow other actions, so its calls
+        // often land >3s after the last trusted click. Squad routes are permission- and
+        // rank-gated server-side, so never auto-ban for them.
+        if (d.includes('/game/squads') || d.includes('/squads/')) return res.json({ success: true, ignored: true });
         // Dungeon combat resolves automatically on the server; the follow-up
         // bookkeeping POSTs legitimately land >3s after the player's last click.
         if (d.includes('/dungeon/release-room') || d.includes('/dungeon/room-exit') ||
