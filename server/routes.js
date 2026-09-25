@@ -12433,10 +12433,19 @@ router.get('/squads/:squadId', auth, async (req, res) => {
         const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
                                                 COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
                                                 COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
-                                         FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId, squadId, squadId]);
+                                         FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY
+                                                                 CASE sm.role
+                                                                     WHEN 'leader' THEN 1
+                                                                     WHEN 'co_leader' THEN 2
+                                                                     WHEN 'officer' THEN 3
+                                                                     ELSE 4
+                                                                     END,
+                                                                 c.level DESC, c.total_gold_earned DESC`, [squadId, squadId, squadId, squadId, squadId]);
+        const customRoles = await getSquadRoleHelpers(db, squadId);
         res.json({
             squad: { id: Number(squad.id), name: squad.name, logo: squad.logo || null, description: squad.description || null },
             roleLabels: parseSquadRoleLabels(squad),
+            customRoles,
             members: members.map(m => ({
                 id: Number(m.id), name: m.name, level: Number(m.level),
                 class: m.class, role: m.role,
