@@ -1981,3 +1981,34 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     transform: none !important;
 }
 
+.sq-desc-strip {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.sq-desc-text {
+    flex: 1; min-width: 0;
+    font-size: 0.82rem; line-height: 1.5;
+    color: var(--text-dim);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.sq-desc-empty { opacity: 0.6; font-style: italic; }
+.sq-desc-edit { flex-shrink: 0; align-self: center; }
+.sd-desc {
+    margin-top: 6px;
+    font-size: 0.85rem; line-height: 1.5;
+    color: var(--text-dim);
+    white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.sq-browse-desc {
+    font-size: 0.72rem; line-height: 1.4;
+    color: var(--text-dim);
+    margin-top: 2px;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.sq-desc-textarea {
+    width: 100%; min-height: 92px;
+    resize: vertical;
+    font-family: inherit; font-size: 0.85rem; line-height: 1.5;
+}
+
