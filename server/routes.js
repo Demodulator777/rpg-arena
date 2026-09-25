@@ -16633,10 +16633,12 @@ router.get('/leaderboard', auth, async (req, res) => {
         const sort = allowedSorts.includes(req.query.sort) ? req.query.sort : 'total_gold_earned';
         const players = await dbAll(db, `SELECT c.id,c.name,c.class,c.level,c.xp,c.total_gold_earned,c.strength,c.defense,c.agility,c.magic,c.wins,c.losses,c.draws,c.honor,c.profile_pic,c.profile_badges,c.profile_pic_offset,c.active_ring,
                                                  (SELECT COUNT(*) FROM character_achievements ca WHERE ca.char_id = c.id) AS achievements_completed,
-                                                sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo
+                                                sq.id AS squad_id, sq.name AS squad_name, sq.squad_tag AS squad_tag, sq.logo AS squad_logo,
+                                                sm.role AS squad_role, sr.label AS squad_custom_role_label
                                          FROM characters c
                                                   LEFT JOIN squad_members sm ON sm.char_id = c.id
                                                   LEFT JOIN squads sq ON sq.id = sm.squad_id
+                                                  LEFT JOIN squad_roles sr ON sr.squad_id = sm.squad_id AND sr.role_key = sm.role
                                          ORDER BY c.${sort} DESC,c.level DESC LIMIT 2000`, []);
         const defById = new Map(ACHIEVEMENTS.map(a => [a.id, a]));
         res.json(players.map((p,i) => {
@@ -17111,8 +17113,13 @@ router.get('/player/:id', auth, async (req, res) => {
         const equipped = await getEquippedItems(db, player.id);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
 
-        const squadRow = await dbGet(db, `SELECT sq.name AS squad_name, sq.logo AS squad_logo
-                                          FROM squad_members sm JOIN squads sq ON sq.id = sm.squad_id WHERE sm.char_id=? LIMIT 1`, [player.id]);
+        const squadRow = await dbGet(db, `SELECT sq.id AS squad_id, sq.name AS squad_name, sq.logo AS squad_logo,
+                                                  sq.squad_tag AS squad_tag, sq.role_labels AS role_labels,
+                                                  sm.role AS squad_role, sr.label AS squad_custom_role_label
+                                          FROM squad_members sm
+                                          JOIN squads sq ON sq.id = sm.squad_id
+                                          LEFT JOIN squad_roles sr ON sr.squad_id = sm.squad_id AND sr.role_key = sm.role
+                                          WHERE sm.char_id=? LIMIT 1`, [player.id]);
         const battles = await dbAll(db, `SELECT b.*,a.name as attacker_name,d.name as defender_name,w.name as winner_name
                                          FROM battles b JOIN characters a ON b.attacker_id=a.id JOIN characters d ON b.defender_id=d.id LEFT JOIN characters w ON b.winner_id=w.id
                                          WHERE b.attacker_id=? OR b.defender_id=? ORDER BY b.fought_at DESC LIMIT 5`, [player.id, player.id]);
@@ -17151,6 +17158,11 @@ router.get('/player/:id', auth, async (req, res) => {
             })(),
             squad_name: squadRow?.squad_name || null,
             squad_logo: squadRow?.squad_logo || null,
+            squad_id: squadRow?.squad_id || null,
+            squad_tag: squadRow?.squad_tag || null,
+            squad_role: squadRow?.squad_role || null,
+            squad_role_labels: parseSquadRoleLabels(squadRow),
+            squad_custom_role_label: squadRow?.squad_custom_role_label || null,
             active_ring: player.active_ring
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
