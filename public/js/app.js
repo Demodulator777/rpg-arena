@@ -12592,6 +12592,11 @@ function renderSquads() {
     const logoBackdrop = squad.logo
         ? `<div class="sq-header-backdrop" style="background-image:url('${escHtml(squad.logo)}');--sq-backdrop-opacity:0.45"></div>`
         : '';
+    const descText = (squad.description || '').trim();
+    const squadDescHtml = `<div class="sq-desc-strip">
+        <div class="sq-desc-text${descText ? '' : ' sq-desc-empty'}">${descText ? escHtml(descText) : (CURRENT_LANG === 'pt' ? 'Sem descrição. O líder do esquadrão pode adicionar uma.' : 'No description yet. The squad leader can add one.')}</div>
+        ${canChangeLogo ? `<button class="btn-secondary btn-sm sq-desc-edit" ${actionAttrs('openSquadDescEditor')}>✏️ ${CURRENT_LANG === 'pt' ? 'Editar' : 'Edit'}</button>` : ''}
+    </div>`;
     const squadHeader = `<div class="squads-card sq-header-card">
         ${logoBackdrop}
         <div class="squads-card-head">
@@ -12607,6 +12612,7 @@ function renderSquads() {
                 <button class="btn-secondary btn-sm" ${actionAttrs('leaveSquad')}>${CURRENT_LANG === 'pt' ? 'Sair' : 'Leave'}</button>
             </div>
         </div>
+        ${squadDescHtml}
     </div>`;
 
     // Subtab navigation
@@ -13460,6 +13466,7 @@ async function showSquadDetail(squadId) {
             <div style="padding:0 4px 16px">
                 <div class="squads-title" style="font-size:1.4rem;font-weight:700;color:#fff">${escHtml(s.name)}</div>
                 <div class="squads-meta" style="margin-top:4px;font-size:0.85rem;color:var(--text-dim)">${members.length} ${CURRENT_LANG === 'pt' ? (members.length !== 1 ? 'membros' : 'membro') : (members.length !== 1 ? 'members' : 'member')}</div>
+                ${s.description ? `<div class="sd-desc">${escHtml(s.description)}</div>` : ''}
             </div>
             <div class="sd-member-list" style="display:flex;flex-direction:column;gap:0">${membersHtml}</div>
             ${!amMember ? `<div style="margin:14px 4px 0;text-align:center">
@@ -13536,6 +13543,7 @@ async function loadSquadBrowse() {
                 <div class="sq-browse-info">
                     <div class="sq-browse-name">${escHtml(s.name)}${s.tag ? ` <span class="sq-browse-tag">[${escHtml(s.tag)}]</span>` : ''}</div>
                     <div class="sq-browse-sub">${s.member_count} ${CURRENT_LANG === 'pt' ? 'membros' : 'members'}${s.avg_level ? ` · ${CURRENT_LANG === 'pt' ? 'lvl médio' : 'avg lvl'} ${s.avg_level}` : ''}${owner}</div>
+                    ${s.description ? `<div class="sq-browse-desc">${escHtml(s.description)}</div>` : ''}
                 </div>
                 ${btn}
             </div>`;
@@ -13836,6 +13844,54 @@ function openRoleNamesEditor() {
     });
 }
 window.openRoleNamesEditor = openRoleNamesEditor;
+
+function closeSquadDescEditor() {
+    document.getElementById('sq-desc-editor-overlay')?.remove();
+}
+window.closeSquadDescEditor = closeSquadDescEditor;
+
+function openSquadDescEditor() {
+    closeSquadDescEditor();
+    const current = squadsData?.me?.squad?.description || '';
+    const overlay = document.createElement('div');
+    overlay.id = 'sq-desc-editor-overlay';
+    overlay.className = 'modal-overlay sq-role-overlay';
+    overlay.innerHTML = `
+        <div class="modal-box sq-role-editor">
+            <div class="sq-role-editor-head">
+                <div class="sq-role-editor-title">📝 ${CURRENT_LANG === 'pt' ? 'Descrição do Esquadrão' : 'Squad Description'}</div>
+                <button class="sq-role-editor-close" data-desc-editor-close>✕</button>
+            </div>
+            <div class="squads-meta" style="margin-bottom:8px">${CURRENT_LANG === 'pt' ? 'Descreva o esquadrão para quem o está a procurar. Máximo de 300 caracteres.' : 'Describe your squad for anyone browsing. Up to 300 characters.'}</div>
+            <textarea class="input-field sq-desc-textarea" id="sq-desc-input" maxlength="300" rows="4" placeholder="${CURRENT_LANG === 'pt' ? 'Escreva a descrição do esquadrão...' : 'Write the squad description...'}">${escHtml(current)}</textarea>
+            <div class="sq-role-editor-note"><span id="sq-desc-count">${current.length}</span>/300</div>
+            <div class="sq-role-editor-actions">
+                <button class="btn-secondary btn-sm" data-desc-editor-close>${CURRENT_LANG === 'pt' ? 'Cancelar' : 'Cancel'}</button>
+                <button class="btn-primary btn-sm" id="sq-desc-save">💾 ${CURRENT_LANG === 'pt' ? 'Guardar' : 'Save'}</button>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    const input = overlay.querySelector('#sq-desc-input');
+    const count = overlay.querySelector('#sq-desc-count');
+    input.addEventListener('input', () => { count.textContent = String(input.value.length); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSquadDescEditor(); });
+    overlay.querySelectorAll('[data-desc-editor-close]').forEach(b => b.addEventListener('click', closeSquadDescEditor));
+    overlay.querySelector('#sq-desc-save').addEventListener('click', async () => {
+        const btn = overlay.querySelector('#sq-desc-save');
+        btn.disabled = true;
+        try {
+            await api('PUT', '/game/squads/description', { description: input.value });
+            closeSquadDescEditor();
+            await openGameNoticeDialog({ title: '📝 ' + (CURRENT_LANG === 'pt' ? 'Descrição do Esquadrão' : 'Squad Description'), message: CURRENT_LANG === 'pt' ? 'Descrição atualizada.' : 'Description updated.' });
+            await loadSquads();
+        } catch (e) {
+            btn.disabled = false;
+            await openGameNoticeDialog({ title: '📝 ' + (CURRENT_LANG === 'pt' ? 'Descrição do Esquadrão' : 'Squad Description'), message: e.message || String(e) });
+        }
+    });
+    input.focus();
+}
+window.openSquadDescEditor = openSquadDescEditor;
 
 async function kickMember(charId) {
     if (!confirm(CURRENT_LANG === 'pt' ? 'Expulsar este membro do esquadrão?' : 'Kick this member from the squad?')) return;
