@@ -13433,6 +13433,7 @@ async function showSquadDetail(squadId) {
         const roleLabels = {};
         const sdOverrides = res.roleLabels || {};
         Object.keys(BUILTIN_ROLE_META).forEach(k => { roleLabels[k] = squadRoleLabel(k, sdOverrides); });
+        (res.customRoles || []).forEach(r => { roleLabels[r.key] = `🎖️ ${escHtml(r.label)}`; });
         const membersHtml = members.map(m => {
             const splashSrc = `/images/class/${m.class}-st.png`;
             const portraitSrc = `/images/class/${m.class}.png`;
