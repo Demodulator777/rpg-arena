@@ -970,6 +970,7 @@ async function api(method, path, body=null) {
         path.indexOf('/event/finish') === -1 &&
         path.indexOf('/event/combat/act') === -1 &&
         path.indexOf('/squads/logo') === -1 &&
+        path.indexOf('/squads/') === -1 &&
         window.__botDetectionEnabled !== false) {
         var msSinceEvent = Date.now() - (window.__lastTrustedEvent || 0);
         if (msSinceEvent > 3000) {
@@ -15037,6 +15038,7 @@ const NEWS_FEED = [
         id: 'news-story-mode',
         type: 'story', // upgrade, event, story, announcement
         date: '2026-09-19',
+        image: '/images/story/relic_of_the_ancients/1scene-1.png',
         title: { en: "New Story Mode - The Ancient's Story!", pt: 'Novo Modo História - A História dos Antigos!'},
         short: { en: 'Embark on an epic journey with Maren to uncover ancient secrets and earn powerful rewards.', pt: 'Embarque numa jornada épica com Maren para desvendar segredos antigos e ganhar recompensas poderosas.'},
         body: { en: 'The realm is in peril, and a mysterious force stirs from forgotten ruins. Join Maren, the Sage of Eldoria, as you navigate treacherous lands, battle fearsome foes, and piece together the fragments of a prophecy. Complete stages, unlock lore, and claim unique rewards on your path to the Final Seal!', pt: 'O reino está em perigo, e uma força misteriosa se agita em ruínas esquecidas. Junte-se a Maren, o Sábio de Eldoria, enquanto navega por terras traiçoeiras, enfrenta inimigos temíveis e junta os fragmentos de uma profecia. Complete etapas, desbloqueie lendas e reivindique recompensas únicas em seu caminho para o Selo Final!'},
@@ -15046,6 +15048,7 @@ const NEWS_FEED = [
         id: 'news-elemental-companions',
         type: 'upgrade',
         date: '2026-08-22',
+        image: '/images/assets/elemental.png',
         title: { en: 'Elemental Companions are Here!', pt: 'Companheiros Elementais Chegaram!'},
         short: { en: 'Discover powerful spirit beasts, level them up, assign stats, and dominate in battle with your elemental ally!', pt: 'Descubra poderosas feras espirituais, suba de nível, atribua atributos e domine na batalha com seu aliado elemental!'},
         body: { en: 'Elemental companions are unique spirit beasts that fight alongside you. Each elemental has its own stats, levels, and elemental affinity. Feed them materials to gain XP, assign stat points to customize their growth, and even change their element type. They participate in all battles (PvP, missions, tournaments, guardian fights) and offer split damage, making them a crucial part of your combat strategy.', pt: 'Companheiros elementais são feras espirituais únicas que lutam ao seu lado. Cada elemental tem seus próprios atributos, níveis e afinidade elemental. Alimente-os com materiais para ganhar XP, atribua pontos de atributo para personalizar seu crescimento e até mesmo mude seu tipo elemental. Eles participam de todas as batalhas (PvP, missões, torneios, lutas de guardiões) e oferecem dano dividido, tornando-os uma parte crucial de sua estratégia de combate.'}
@@ -15054,6 +15057,7 @@ const NEWS_FEED = [
         id: 'news-trial-of-arcane',
         type: 'event',
         date: '2026-09-19',
+        image: '/images/decals/trial-attack-ultimate.png',
         title: { en: 'Trial of the Arcane - Prove Your Might!', pt: 'Julgamento do Arcano - Prove Seu Poder!'},
         short: { en: 'Enter the Trial of the Arcane, a new challenge featuring champion abilities, energy bursts, and a final skill check!', pt: 'Entre no Julgamento do Arcano, um novo desafio com habilidades de campeão, explosões de energia e um teste de habilidade final!'},
         body: { en: 'The Trial of the Arcane is a dynamic combat challenge where you must strategically use your champion abilities. Generate energy with normal attacks and bursts to unleash powerful ultimate abilities. Master the unique combat flow and prove your might by conquering the final skill check. Great rewards await the worthy!', pt: 'O Julgamento do Arcano é um desafio de combate dinâmico onde você deve usar estrategicamente as habilidades do seu campeão. Gere energia com ataques normais e rajadas para liberar habilidades supremas poderosas. Domine o fluxo de combate único e prove seu poder conquistando o teste de habilidade final. Grandes recompensas aguardam os dignos!'}
@@ -15062,6 +15066,7 @@ const NEWS_FEED = [
         id: 'news-pvp-tournaments',
         type: 'event',
         date: '2026-08-22',
+        image: '/images/banner/eclipsed_seraph.png',
         title: { en: 'PvP Tournaments & Deathmatches!', pt: 'Torneios PvP e Batalhas Mortais!'},
         short: { en: 'Compete in thrilling PvP tournaments, earn unique rewards, and prove yourself as the ultimate champion.', pt: 'Compita em emocionantes torneios PvP, ganhe recompensas exclusivas e prove ser o campeão supremo.'},
         body: { en: 'Step into the arena and face off against other players in intense PvP tournaments. Climb the ranks, earn glory, and claim exclusive rewards only available to the champions. Deathmatches offer a fast-paced, high-stakes combat experience where only the strongest survive.', pt: 'Entre na arena e enfrente outros jogadores em intensos torneios PvP. Suba nas classificações, ganhe glória e reivindique recompensas exclusivas disponíveis apenas para os campeões. As Batalhas Mortais oferecem uma experiência de combate rápida e de alto risco, onde apenas os mais fortes sobrevivem.'}
@@ -15117,6 +15122,7 @@ async function loadNews() {
     if (featuredItem) {
         newsFeaturedEl.innerHTML = `
             <div class="news-item news-item--featured" id="news-item-${featuredItem.id}" ${actionAttrs('toggleNewsItem', featuredItem.id)}>
+                <div class="news-item-art"><img src="${featuredItem.image}" alt="" loading="lazy" decoding="async" data-error-hide="true"><div class="news-item-art-shade"></div></div>
                 <div class="news-item-header">
                     <span class="news-item-badge news-item-badge--${featuredItem.type}">${newsBadgeLabel(featuredItem.type)}</span>
                     <span class="news-item-date">${formatDate(featuredItem.date)}</span>
@@ -15136,6 +15142,7 @@ async function loadNews() {
     if (regularNews.length) {
         newsListEl.innerHTML = regularNews.map(item => `
             <div class="news-item" id="news-item-${item.id}" ${actionAttrs('toggleNewsItem', item.id)}>
+                <div class="news-item-art"><img src="${item.image}" alt="" loading="lazy" decoding="async" data-error-hide="true"><div class="news-item-art-shade"></div></div>
                 <div class="news-item-header">
                     <span class="news-item-badge news-item-badge--${item.type}">${newsBadgeLabel(item.type)}</span>
                     <span class="news-item-date">${formatDate(item.date)}</span>
