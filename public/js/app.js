@@ -13929,9 +13929,8 @@ function buildLeaderboardRow(p, fallbackRank = 1, extraClass = '') {
     const badgeHtml = badges.length
         ? `<div class="lb-badges">${badges.slice(0,3).map(b => `<span class="lb-badge" title="${escHtml(b.name || b.id)}">${badgeIconImg(b.id, b)}</span>`).join('')}</div>`
         : '';
-    const squadRoleText = p.squad_id ? squadRoleDisplay(p.squad_role, null, p.squad_custom_role_label) : '';
     const squadHtml = p.squad_id
-        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:none">` : `<span style="font-size:1rem">🛡️</span>`}<span style="font-size:0.8rem;color:var(--gold)">${p.squad_tag ? `[${escHtml(p.squad_tag)}]` : escHtml(p.squad_name||'')}</span>${squadRoleText ? `<span style="font-size:0.72rem;color:var(--text-dim)">· ${squadRoleText}</span>` : ''}</span>`
+        ? `<span ${actionAttrs('showSquadDetail', p.squad_id)} style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;flex-shrink:0;margin-left:6px">${p.squad_logo ? `<img src="${escHtml(p.squad_logo)}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:none">` : `<span style="font-size:1rem">🛡️</span>`}<span style="font-size:0.8rem;color:var(--gold)">${p.squad_tag ? `[${escHtml(p.squad_tag)}]` : escHtml(p.squad_name||'')}</span></span>`
         : '';
     return `<div class="lb-row ${extraClass}" ${actionAttrs('openProfile', p.id)}>
             <div class="lb-rank ${rc}">${rs}</div>
