@@ -1340,7 +1340,8 @@ try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value
                                                                        name TEXT NOT NULL,
                                                                        invite_code TEXT NOT NULL UNIQUE,
                                                                        owner_char_id INTEGER NOT NULL,
-                                                                       created_at INTEGER NOT NULL
+                                                                       created_at INTEGER NOT NULL,
+                                                                       description TEXT
                                  )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS squad_members (
                                                                               squad_id INTEGER NOT NULL,
@@ -11404,7 +11405,7 @@ router.get('/squads/me', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const membership = await dbGet(db, 'SELECT squad_id, role, joined_at FROM squad_members WHERE char_id=? LIMIT 1', [char.id]);
         if (!membership) return res.json({ squad: null, members: [] });
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at, squad_tag, role_labels FROM squads WHERE id=?', [membership.squad_id]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, owner_char_id, created_at, squad_tag, role_labels, description FROM squads WHERE id=?', [membership.squad_id]);
         const customRoles = await getSquadRoleHelpers(db, membership.squad_id);
         const members = await dbAll(db, `SELECT c.id, c.name, c.class, c.level, c.total_gold_earned, sm.role,
                                                 COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
@@ -11562,7 +11563,7 @@ router.get('/squads/browse', auth, async (req, res) => {
         if (!char) return res.status(404).json({ error: 'No character' });
         const q = String(req.query?.q || '').trim();
         const baseSql = `
-                SELECT s.id, s.name, s.squad_tag, s.logo, s.owner_char_id, s.created_at,
+                SELECT s.id, s.name, s.squad_tag, s.logo, s.description, s.owner_char_id, s.created_at,
                        COUNT(sm.char_id) AS member_count,
                        CAST(AVG(c.level) AS INTEGER) AS avg_level,
                        oc.name AS owner_name, oc.level AS owner_level,
@@ -11593,6 +11594,7 @@ router.get('/squads/browse', auth, async (req, res) => {
             tag: r.squad_tag || null,
             squad_tag: r.squad_tag || null,
             logo: r.logo || null,
+            description: r.description || null,
             owner: r.owner_name ? { name: r.owner_name, level: Number(r.owner_level || 0) } : null,
             member_count: Number(r.member_count || 0),
             avg_level: Number(r.avg_level || 0),
@@ -11852,6 +11854,21 @@ router.delete('/squads/roles/:roleKey', auth, async (req, res) => {
         if (!r || r.changes === 0) return res.status(404).json({ error: 'Custom role not found.' });
         const roles = await getSquadRoleHelpers(db, membership.squad_id);
         res.json({ success: true, roles });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/squads/description', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        if (!char) return res.status(404).json({ error: 'No character' });
+        const membership = await dbGet(db, 'SELECT squad_id, role FROM squad_members WHERE char_id=?', [char.id]);
+        if (!membership) return res.status(403).json({ error: 'You are not in a squad.' });
+        const isLeader = membership.role !== 'leader' && membership.role !== 'co_leader';
+        if (isLeader) return res.status(403).json({ error: 'Only the squad leader and co-leaders can edit the squad description.' });
+        const description = String(req.body?.description || '').trim().replace(/\s+/g, ' ').slice(0, 300);
+        await dbRun(db, 'UPDATE squads SET description=? WHERE id=?', [description === '' ? null : description, membership.squad_id]);
+        res.json({ success: true, description: description === '' ? null : description });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -12411,14 +12428,14 @@ router.get('/squads/:squadId', auth, async (req, res) => {
     try {
         const db = await getDb();
         const squadId = Number(req.params.squadId);
-        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, squad_tag, role_labels FROM squads WHERE id=?', [squadId]);
+        const squad = await dbGet(db, 'SELECT id, name, invite_code, logo, squad_tag, role_labels, description FROM squads WHERE id=?', [squadId]);
         if (!squad) return res.status(404).json({ error: 'Squad not found.' });
         const members = await dbAll(db, `SELECT c.id, c.name, c.level, c.class, c.total_gold_earned, sm.role,
                                                 COALESCE((SELECT SUM(gold) FROM (SELECT gold FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gold FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gold_donated,
                                                 COALESCE((SELECT SUM(gems) FROM (SELECT gems FROM squad_base_donations WHERE char_id=c.id AND squad_id=? UNION ALL SELECT gems FROM squad_donations WHERE char_id=c.id AND squad_id=?)),0) AS gems_donated
                                          FROM squad_members sm JOIN characters c ON c.id = sm.char_id WHERE sm.squad_id=? ORDER BY sm.joined_at ASC`, [squadId, squadId, squadId, squadId, squadId]);
         res.json({
-            squad: { id: Number(squad.id), name: squad.name, logo: squad.logo || null },
+            squad: { id: Number(squad.id), name: squad.name, logo: squad.logo || null, description: squad.description || null },
             roleLabels: parseSquadRoleLabels(squad),
             members: members.map(m => ({
                 id: Number(m.id), name: m.name, level: Number(m.level),
@@ -14934,6 +14951,9 @@ router.get('/inventory', auth, async (req, res) => {
     } catch (e) { /* Column likely already exists */ }
     try {
         await dbRun(db, "ALTER TABLE squads ADD COLUMN role_labels TEXT;");
+    } catch (e) { /* Column likely already exists */ }
+    try {
+        await dbRun(db, "ALTER TABLE squads ADD COLUMN description TEXT;");
     } catch (e) { /* Column likely already exists */ }
 })();
 
