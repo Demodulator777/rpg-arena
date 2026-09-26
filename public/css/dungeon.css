@@ -474,15 +474,31 @@
 
 .dungeon-path-options {
   pointer-events: auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, 60px);
+  grid-template-rows: auto auto;
   gap: 10px;
-  flex-wrap: wrap;
   justify-content: center;
   padding: 12px 12px;
   border-radius: 14px;
-  background: rgba(6, 10, 18, 0.85);
+  /*background: rgba(6, 10, 18, 0.85);
   border: 1px solid rgba(255,255,255,0.08);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);*/
+}
+
+.dungeon-path-btn[data-dir="up"]    { grid-column: 2; grid-row: 1; }
+.dungeon-path-btn[data-dir="left"]  { grid-column: 1; grid-row: 2; }
+.dungeon-path-btn[data-dir="down"]  { grid-column: 2; grid-row: 2; }
+.dungeon-path-btn[data-dir="right"] { grid-column: 3; grid-row: 2; }
+
+.dungeon-path-btn.is-empty {
+  opacity: 0.2;
+  filter: grayscale(1);
+}
+
+.dungeon-path-btn.is-empty .dungeon-path-btn-arrow-img {
+  border-color: rgba(184, 201, 226, 0.08);
+  box-shadow: none;
 }
 
 .dungeon-path-btn {
