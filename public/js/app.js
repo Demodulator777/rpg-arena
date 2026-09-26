@@ -9452,6 +9452,9 @@ function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
+    // The item tooltip is interactive (it carries the Sell/Equip actions), so it must
+    // always be the hit target — never inherit another variant's pointer-transparency.
+    tooltip.style.pointerEvents = 'auto';
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
@@ -9531,7 +9534,16 @@ function showItemTooltip(event, itemId) {
     tooltip.style.top  = Math.max(8, Math.min(top, vh-th2-8))+'px';
 }
 
-function hideItemTooltip() { const t=document.getElementById('item-tooltip'); if(t) t.classList.add('hidden'); }
+function hideItemTooltip() {
+    const t = document.getElementById('item-tooltip');
+    if (!t) return;
+    t.classList.add('hidden');
+    // Some variants (the squad member row) opt into pointer-transparency with an inline
+    // style so they never block the controls underneath. That override is sticky, so it
+    // must be cleared here or it leaks into the next tooltip and clicks pass straight
+    // through it (e.g. inventory item -> the Sell button never receives the click).
+    t.style.pointerEvents = '';
+}
 function closeItemTooltip() { hideItemTooltip(); }
 
 function withCurrentTarget(event, el) {
@@ -9653,6 +9665,9 @@ function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
+    // The item tooltip is interactive (it carries the Sell/Equip actions), so it must
+    // always be the hit target — never inherit another variant's pointer-transparency.
+    tooltip.style.pointerEvents = 'auto';
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
