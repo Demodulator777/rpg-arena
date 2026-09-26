@@ -4006,39 +4006,62 @@ const previewFloors = [0,1,2,3,4].map(offset => {
             <div class="dungeon-travel-bar-wrap dungeon-travel-bar-wrap-hud">
               <div id="dungeon-travel-bar" class="dungeon-travel-bar"></div>
             </div>
-            <div class="dungeon-path-options">
+          <div class="dungeon-path-options">
               ${(() => {
-                // Get all connectable rooms: direct connections + nearby discovered rooms
+                // Always render all four directions in a fixed arrow-key layout so the
+                // player can read their heading at a glance. A direction with no path is
+                // shown grayed out and does nothing when clicked; a direction leading to
+                // an undiscovered room keeps its "?" and stays clickable, so the player can
+                // commit to a heading before knowing what is waiting there.
                 const currentRoom = D.rooms[D.playerPos];
-                const connectable = [...(currentRoom.connections || [])];
-                
-                // Add adjacent discovered rooms that aren't in connections yet
+                const PATH_DIRS = ['up', 'left', 'down', 'right'];
+                const dirTargets = {};
+                const dist = (r) => Math.abs(r.x - currentRoom.x) + Math.abs(r.y - currentRoom.y);
+                const consider = (idx) => {
+                  const r = D.rooms[idx];
+                  if (!r) return;
+                  const dir = getRoomDirectionArrow(D.playerPos, idx);
+                  const held = dirTargets[dir];
+                  if (held == null) { dirTargets[dir] = idx; return; }
+                  // Prefer an already-explaced room, then the nearest one.
+                  const mine = D.exploredRooms.has(idx);
+                  const theirs = D.exploredRooms.has(held);
+                  if ((mine && !theirs) || (mine === theirs && dist(r) < dist(D.rooms[held]))) {
+                    dirTargets[dir] = idx;
+                  }
+                };
+
+                // Direct connections are always travelable, discovered or not.
+                (currentRoom.connections || []).forEach(consider);
+                // Adjacent discovered rooms that aren't listed in connections yet.
                 D.rooms.forEach((r, idx) => {
                   if (idx === D.playerPos) return;
                   if (!D.exploredRooms.has(idx)) return;
-                  if (connectable.includes(idx)) return;
-                  
-                  // Check if adjacent in grid
+                  if ((currentRoom.connections || []).includes(idx)) return;
                   const dx = Math.abs(r.x - currentRoom.x);
                   const dy = Math.abs(r.y - currentRoom.y);
-                  if (dx <= 1 && dy <= 1 && (dx + dy) > 0 && (r.connections || []).includes(D.playerPos)) {
-                    connectable.push(idx);
-                  }
+                  if (dx <= 1 && dy <= 1 && (dx + dy) > 0 && (r.connections || []).includes(D.playerPos)) consider(idx);
                 });
-                
-                return connectable.map(ci => {
+
+                return PATH_DIRS.map(dir => {
+                  const ci = dirTargets[dir];
+                  if (ci == null) {
+                    return `<button class="dungeon-path-btn is-empty" data-dir="${dir}" disabled>
+                      <span class="dungeon-path-btn-icon"><img class="dungeon-path-btn-arrow-img" src="/images/assets/${DIR_IMGS[dir]}" alt="${dir}"></span>
+                      <span class="dungeon-path-btn-text"></span>
+                    </button>`;
+                  }
                   const cr = D.rooms[ci];
                   const explored = D.exploredRooms.has(ci);
-                  const directionArrow = explored ? getRoomDirectionArrow(D.playerPos, ci) : null;
-                  const arrowImg = directionArrow ? DIR_IMGS[directionArrow] : 'question.png';
-                  const monsterAlive = cr.monsters && cr.monsters.length > 0 && cr.monsters.some(m => 
+                  const arrowImg = explored ? DIR_IMGS[dir] : 'question.png';
+                  const monsterAlive = cr.monsters && cr.monsters.length > 0 && cr.monsters.some(m =>
                     !m.lastKilled || elapsed(m.lastKilled, MONSTER_RESPAWN_H)
                   );
                   const text = explored ? `${_pt('Sala ', 'Room ')}${ci+1}` : _pt('Desconhecida', 'Unknown');
                   return `
-                    <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}"
+                    <button class="dungeon-path-btn ${monsterAlive ? 'has-monster' : ''} ${cr.isBoss ? 'is-boss' : ''}" data-dir="${dir}"
                             ${actionAttrs('dungeonTravel', ci)} ${D.isTraveling ? 'disabled' : ''}>
-                      <span class="dungeon-path-btn-icon"><img class="dungeon-path-btn-arrow-img" src="/images/assets/${arrowImg}" alt="${directionArrow || 'unknown'}"></span>
+                      <span class="dungeon-path-btn-icon"><img class="dungeon-path-btn-arrow-img" src="/images/assets/${arrowImg}" alt="${dir}"></span>
                       <span class="dungeon-path-btn-text">${text}</span>
                       ${explored ? `<span class="dungeon-path-btn-roomno">#${ci + 1}</span>` : ''}
                     </button>
