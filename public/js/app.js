@@ -15127,7 +15127,7 @@ const NEWS_FEED = [
         id: 'news-pvp-tournaments',
         type: 'event',
         date: '2026-08-22',
-        image: '/images/banner/eclipsed_seraph.png',
+        image: '/images/banner/pvp_tournament.png',
         title: { en: 'PvP Tournaments & Deathmatches!', pt: 'Torneios PvP e Batalhas Mortais!'},
         short: { en: 'Compete in thrilling PvP tournaments, earn unique rewards, and prove yourself as the ultimate champion.', pt: 'Compita em emocionantes torneios PvP, ganhe recompensas exclusivas e prove ser o campeão supremo.'},
         body: { en: 'Step into the arena and face off against other players in intense PvP tournaments. Climb the ranks, earn glory, and claim exclusive rewards only available to the champions. Deathmatches offer a fast-paced, high-stakes combat experience where only the strongest survive.', pt: 'Entre na arena e enfrente outros jogadores em intensos torneios PvP. Suba nas classificações, ganhe glória e reivindique recompensas exclusivas disponíveis apenas para os campeões. As Batalhas Mortais oferecem uma experiência de combate rápida e de alto risco, onde apenas os mais fortes sobrevivem.'}
