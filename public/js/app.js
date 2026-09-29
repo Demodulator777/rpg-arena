@@ -2504,6 +2504,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     applyStaticLang();
     ensureGoogleLogin();
     hydrateReferralFromUrl();
+    ttInstallGestureGate();
     try {
         const params = new URLSearchParams(window.location.search || '');
         const token = params.get('reset_token');
@@ -9447,14 +9448,62 @@ const CLASS_WARN_HTML = '<div style="color:#e74c3c;font-size:0.72rem;margin-top:
 let _hideTooltipTimer=null;
 function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150); }
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
+
+// ── Tooltip click gating ──────────────────────────────────────────────────────
+// A tooltip renders its action buttons (Sell / Equip / Buy) the instant it opens, and it
+// is normally anchored right under the pointer. Without gating, the very gesture that
+// opened the tooltip can also land on a button that did not exist when the gesture
+// started — so one click on an inventory item fires the sell confirmation.
+//
+// The rule is state-based, never time-based: the buttons accept clicks only if the
+// tooltip was ALREADY open when the current pointer gesture began. An opening gesture is
+// blocked for exactly as long as that gesture lasts, so the tooltip is clickable again on
+// the very next interaction and no timing constant is involved.
+let _ttGestureBlocked = false;
+let _ttGestureRelease = null;
+
+// Deliberately DOM-derived: the flag cannot go stale across the many tooltip variants
+// that share the single #item-tooltip element, and variants without actions (squad row,
+// elemental, stat cost) are simply never gated.
+function ttTooltipActions() {
+    const t = document.getElementById('item-tooltip');
+    return (t && !t.classList.contains('hidden') && t.querySelector('.tt-actions')) ? t : null;
+}
+
+function ttReleaseGesture() {
+    if (_ttGestureRelease) { clearTimeout(_ttGestureRelease); _ttGestureRelease = null; }
+    _ttGestureBlocked = false;
+    const t = document.getElementById('item-tooltip');
+    if (t && !t.classList.contains('hidden') && t.querySelector('.tt-actions')) t.style.pointerEvents = 'auto';
+}
+
+function ttInstallGestureGate() {
+    if (ttInstallGestureGate._done) return;
+    ttInstallGestureGate._done = true;
+    // Capture phase: runs before any handler can open a tooltip, so the open-state we read
+    // is the state at the START of the gesture.
+    document.addEventListener('pointerdown', () => {
+        const t = document.getElementById('item-tooltip');
+        const wasOpen = !!(t && !t.classList.contains('hidden'));
+        _ttGestureBlocked = !wasOpen;
+        // Already open at gesture start → the user is looking at it, let clicks through.
+        if (wasOpen) return;
+        if (ttTooltipActions() && t) t.style.pointerEvents = 'none';
+        // Release once this gesture has resolved. `click` is dispatched in the same task as
+        // `pointerup`, so deferring by one task still covers the opening click, and it also
+        // recovers on a drag where no click follows.
+        _ttGestureRelease = setTimeout(ttReleaseGesture, 0);
+    }, true);
+    document.addEventListener('pointerup', () => {
+        if (_ttGestureBlocked) _ttGestureRelease = setTimeout(ttReleaseGesture, 0);
+    }, true);
+    document.addEventListener('pointercancel', ttReleaseGesture, true);
+}
 // ── Open Loot Box ─────────────────────────────────────────────────────────
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
-    // The item tooltip is interactive (it carries the Sell/Equip actions), so it must
-    // always be the hit target — never inherit another variant's pointer-transparency.
-    tooltip.style.pointerEvents = 'auto';
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
@@ -9665,9 +9714,6 @@ function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
-    // The item tooltip is interactive (it carries the Sell/Equip actions), so it must
-    // always be the hit target — never inherit another variant's pointer-transparency.
-    tooltip.style.pointerEvents = 'auto';
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
@@ -17616,11 +17662,11 @@ function showShopItemTooltip(event, itemJson) {
                 ${gemCost > 0 ? ` + 💎 ${gemCost}` : ''}
             </div>
         </div>
-        <div class="tt-actions">
-            <button class="tt-btn tt-btn-primary" ${actionAttrs('buyItem', item.id)}>
-                ${_pt('Comprar', 'Buy')}
-            </button>
-        </div>
+            <div class="tt-actions">
+                <button class="tt-btn tt-btn-primary" ${actionAttrs('buyItem', item.id)}>
+                    ${_pt('Comprar', 'Buy')}
+                </button>
+            </div>
     `;
 
     tooltip.classList.remove('hidden');
