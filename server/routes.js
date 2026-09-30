@@ -14340,6 +14340,7 @@ async function collectMissionForCharacter(db, characterId) {
                 missionName: mission.mission_name,
                 totalDmgDealt: battle.totalDmgToB,
                 totalDmgTaken: battle.totalDmgToA,
+                isDraw,
                 battleStats
             });
             await dbRun(db, 'INSERT INTO messages (sender_id,receiver_id,subject,body) VALUES (?,?,?,?)', [freshChar.id, freshChar.id, subject, `BATTLE_REPORT:${payload}`]);
@@ -16718,10 +16719,85 @@ router.get('/leaderboard', auth, async (req, res) => {
 });
 
 // ── Weekly Server Battle Statistics (public) ─────────────────────────────
-// Public mirror of the admin weekly view, restricted to the battle/W/L/D
-// fields only. Server-wide totals are the true battle count (PvP battles +
-// mission BATTLE_REPORT messages); per-player rows count each PvP side the
-// same way the admin panel does (attacker + defender).
+// Single source of truth for weekly battle stats, shared by the public Hall of Fame
+// route and the admin panel so the two can never drift apart again.
+//
+// CRITICAL: wins/losses MUST be derived per participant, not per fight. A PvP fight
+// involves two characters, and the only way to attribute an outcome is to count the
+// attacker's side AND the defender's side. Reading outcomes straight off the attacker's
+// row (`winner_id = attacker_id`) silently discards every defender result — a defender
+// who loses gets recorded as nothing, and a defender who wins is counted as an "attacker
+// loss". That is why the public view used to under-report losses so badly.
+async function weeklyBattleRows(db, weekStart, weekEnd) {
+    return dbAll(db, `
+        SELECT char_id,
+               SUM(battles) AS battles,
+               SUM(wins) AS wins,
+               SUM(losses) AS losses,
+               SUM(draws) AS draws,
+               SUM(dmg_dealt) AS dmg_dealt,
+               SUM(dmg_taken) AS dmg_taken
+        FROM (
+                 -- PvP: as attacker
+                 SELECT attacker_id AS char_id,
+                        COUNT(*) AS battles,
+                        SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
+                        SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                        SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                        SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_dealt,
+                        SUM(COALESCE(total_dmg_taken, 0)) AS dmg_taken
+                 FROM battles
+                 WHERE fought_at >= ? AND fought_at < ?
+                 GROUP BY attacker_id
+
+                 UNION ALL
+
+                 -- PvP: as defender (the half that was previously missing)
+                 SELECT defender_id AS char_id,
+                        COUNT(*) AS battles,
+                        SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
+                        SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
+                        SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
+                        SUM(COALESCE(total_dmg_taken, 0)) AS dmg_dealt,
+                        SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_taken
+                 FROM battles
+                 WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
+                 GROUP BY defender_id
+
+                 UNION ALL
+
+                 -- Missions: one BATTLE_REPORT addressed to the player
+                 SELECT receiver_id AS char_id,
+                        COUNT(*) AS battles,
+                        SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
+                        SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
+                            AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
+                        SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws,
+                        SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0)) AS dmg_dealt,
+                        SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgTaken'), 0)) AS dmg_taken
+                 FROM messages
+                 WHERE body LIKE 'BATTLE_REPORT:%'
+                   AND json_extract(substr(body, 15), '$.type') = 'mission'
+                   AND sent_at >= ? AND sent_at < ?
+                 GROUP BY receiver_id
+             )
+        GROUP BY char_id
+    `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
+}
+
+// Server-wide totals = the sum of the per-player rows, i.e. exactly what the admin panel
+// shows. Derived from the same rows so the two figures are identical by construction.
+function sumWeeklyBattleRows(rows) {
+    const t = { battles: 0, wins: 0, losses: 0, draws: 0 };
+    for (const r of rows) {
+        t.battles += Number(r.battles || 0);
+        t.wins += Number(r.wins || 0);
+        t.losses += Number(r.losses || 0);
+        t.draws += Number(r.draws || 0);
+    }
+    return t;
+}
+
 router.get('/leaderboard/weekly/stats', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -16729,70 +16805,14 @@ router.get('/leaderboard/weekly/stats', auth, async (req, res) => {
         const weekStart = getCurrentWeekStart(now);
         const weekEnd = weekStart + 7 * 86400;
 
-        // Server-wide outcome totals (PvP + missions)
-        const pvp = await dbGet(db, `SELECT COUNT(*) AS total,
-                        SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
-                        SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                        SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws
-                      FROM battles WHERE fought_at >= ? AND fought_at < ?`, [weekStart, weekEnd]);
-        const missions = await dbGet(db, `SELECT COUNT(*) AS total,
-                        SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
-                        SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
-                            AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
-                        SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws
-                      FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
-                        AND json_extract(substr(body, 15), '$.type') = 'mission'
-                        AND sent_at >= ? AND sent_at < ?`, [weekStart, weekEnd]);
-        const total_battles = Number(pvp?.total || 0) + Number(missions?.total || 0);
-        const total_wins = Number(pvp?.wins || 0) + Number(missions?.wins || 0);
-        const total_losses = Number(pvp?.losses || 0) + Number(missions?.losses || 0);
-        const total_draws = Number(pvp?.draws || 0) + Number(missions?.draws || 0);
+        const rows = await weeklyBattleRows(db, weekStart, weekEnd);
+        const totals = sumWeeklyBattleRows(rows);
+        const total_battles = totals.battles;
+        const total_wins = totals.wins;
+        const total_losses = totals.losses;
+        const total_draws = totals.draws;
 
-        // Per-player rows — only battles/w/l/d (identity fields for the list UI)
-        const rows = await dbAll(db, `
-            SELECT char_id,
-                   SUM(battles) AS battles,
-                   SUM(wins) AS wins,
-                   SUM(losses) AS losses,
-                   SUM(draws) AS draws
-            FROM (
-                     SELECT attacker_id AS char_id,
-                            COUNT(*) AS battles,
-                            SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
-                            SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws
-                     FROM battles
-                     WHERE fought_at >= ? AND fought_at < ?
-                     GROUP BY attacker_id
-
-                     UNION ALL
-
-                     SELECT defender_id AS char_id,
-                            COUNT(*) AS battles,
-                            SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
-                            SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws
-                     FROM battles
-                     WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                     GROUP BY defender_id
-
-                     UNION ALL
-
-                     SELECT receiver_id AS char_id,
-                            COUNT(*) AS battles,
-                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
-                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
-                                AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
-                            SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws
-                     FROM messages
-                     WHERE body LIKE 'BATTLE_REPORT:%'
-                       AND json_extract(substr(body, 15), '$.type') = 'mission'
-                       AND sent_at >= ? AND sent_at < ?
-                     GROUP BY receiver_id
-                 )
-            GROUP BY char_id
-        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
-
+        // Per-player rows come from the same shared query the totals were summed from.
         const charStatMap = {};
         for (const r of rows) {
             const id = Number(r.char_id);
@@ -19639,69 +19659,24 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
         const weekStart = Number(req.query.week_start) || getCurrentWeekStart();
         const weekEnd = weekStart + 7 * 86400;
 
-        // Total battles on server this week (PvP + missions)
+        // Per-character stats — shared with the public Hall of Fame route so the two views
+        // can never disagree (see weeklyBattleRows).
+        const rows = await weeklyBattleRows(db, weekStart, weekEnd);
+
+        // Server-wide totals = sum of the per-player rows. This counts each character once
+        // per battle they fought in, so wins + losses + draws reconciles with total_battles
+        // and with the per-player list below. A PvP fight legitimately appears twice (once
+        // per participant), which is why this is a participation count, not a fight count.
+        const totals = sumWeeklyBattleRows(rows);
+        const totalBattles = totals.battles;
+
+        // Raw fight count (each PvP fight once) kept for reference/context.
         const totalPvP = await dbGet(db, `SELECT COUNT(*) AS total FROM battles WHERE fought_at >= ? AND fought_at < ?`,
             [weekStart, weekEnd]);
         const totalMissions = await dbGet(db, `SELECT COUNT(*) AS total FROM messages WHERE body LIKE 'BATTLE_REPORT:%'
                                                                                         AND json_extract(substr(body, 15), '$.type') = 'mission' AND sent_at >= ? AND sent_at < ?`,
             [weekStart, weekEnd]);
-        const totalBattles = Number(totalPvP?.total || 0) + Number(totalMissions?.total || 0);
-
-        // Per-character stats — PvP from battles table, missions from messages table (BATTLE_REPORT payloads)
-        const rows = await dbAll(db, `
-            SELECT char_id,
-                   SUM(battles) AS battles,
-                   SUM(wins) AS wins,
-                   SUM(losses) AS losses,
-                   SUM(draws) AS draws,
-                   SUM(dmg_dealt) AS dmg_dealt,
-                   SUM(dmg_taken) AS dmg_taken
-            FROM (
-                     -- As attacker in battles (PvP + any missions that made it to battles table)
-                     SELECT attacker_id AS char_id,
-                            COUNT(*) AS battles,
-                            SUM(CASE WHEN winner_id = attacker_id THEN 1 ELSE 0 END) AS wins,
-                            SUM(CASE WHEN winner_id != attacker_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                            SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_dealt,
-                            SUM(COALESCE(total_dmg_taken, 0)) AS dmg_taken
-                     FROM battles
-                     WHERE fought_at >= ? AND fought_at < ?
-                     GROUP BY attacker_id
-
-                     UNION ALL
-
-                     -- As defender in PvP battles
-                     SELECT defender_id AS char_id,
-                            COUNT(*) AS battles,
-                            SUM(CASE WHEN winner_id = defender_id THEN 1 ELSE 0 END) AS wins,
-                            SUM(CASE WHEN winner_id != defender_id AND winner_id != 0 THEN 1 ELSE 0 END) AS losses,
-                            SUM(CASE WHEN winner_id = 0 THEN 1 ELSE 0 END) AS draws,
-                            SUM(COALESCE(total_dmg_taken, 0)) AS dmg_dealt,
-                            SUM(COALESCE(total_dmg_dealt, 0)) AS dmg_taken
-                     FROM battles
-                     WHERE defender_id > 0 AND fought_at >= ? AND fought_at < ?
-                     GROUP BY defender_id
-
-                     UNION ALL
-
-                     -- Missions from messages table (BATTLE_REPORT payloads)
-                     SELECT receiver_id AS char_id,
-                            COUNT(*) AS battles,
-                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 1 THEN 1 ELSE 0 END) AS wins,
-                            SUM(CASE WHEN json_extract(substr(body, 15), '$.won') = 0
-                                AND (json_extract(substr(body, 15), '$.isDraw') IS NULL OR json_extract(substr(body, 15), '$.isDraw') = 0) THEN 1 ELSE 0 END) AS losses,
-                            SUM(CASE WHEN json_extract(substr(body, 15), '$.isDraw') = 1 THEN 1 ELSE 0 END) AS draws,
-                            SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgDealt'), 0)) AS dmg_dealt,
-                            SUM(COALESCE(json_extract(substr(body, 15), '$.totalDmgTaken'), 0)) AS dmg_taken
-                     FROM messages
-                     WHERE body LIKE 'BATTLE_REPORT:%'
-                       AND json_extract(substr(body, 15), '$.type') = 'mission'
-                       AND sent_at >= ? AND sent_at < ?
-                     GROUP BY receiver_id
-                 )
-            GROUP BY char_id
-        `, [weekStart, weekEnd, weekStart, weekEnd, weekStart, weekEnd]);
+        const totalFights = Number(totalPvP?.total || 0) + Number(totalMissions?.total || 0);
 
         // Build char stat map
         const charStatMap = {};
@@ -19792,7 +19767,16 @@ router.get('/admin/weekly-stats', auth, async (req, res) => {
         }
         squadRollup.sort((a, b) => b.total_wins - a.total_wins || b.total_dmg - a.total_dmg);
 
-        res.json({ week_start: weekStart, total_battles: totalBattles, stats, squads: squadRollup });
+        res.json({
+            week_start: weekStart,
+            total_battles: totalBattles,
+            total_wins: totals.wins,
+            total_losses: totals.losses,
+            total_draws: totals.draws,
+            total_fights: totalFights,
+            stats,
+            squads: squadRollup,
+        });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
