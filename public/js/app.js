@@ -7266,7 +7266,23 @@ async function collectMission() {
         });
         else showMissionModal(msg);
         renderCurrentMap(); renderCharacter();
-    } catch(e) { alert(e.message); }
+    } catch(e) {
+        // The low-HP claim guard returns a structured error so this can be a real
+        // explanation instead of a raw server string — otherwise the player just sees
+        // "Too low HP..." with no hint about what to do.
+        if (e?.data?.code === 'hp_too_low') {
+            const need = Number(e.data.requiredHp || 10);
+            openGameNoticeDialog({
+                title: CURRENT_LANG === 'pt' ? '❤️ HP Muito Baixo' : '❤️ HP Too Low',
+                message: CURRENT_LANG === 'pt'
+                    ? `Você precisa de pelo menos <strong>${need} HP</strong> para concluir esta missão.<br><br>Recupere HP antes de cobrar a recompensa.`
+                    : `You need at least <strong>${need} HP</strong> to claim this mission.<br><br>Heal up before collecting the reward.`,
+                confirmLabel: CURRENT_LANG === 'pt' ? 'Entendi' : 'Got it'
+            });
+            return;
+        }
+        alert(e.message);
+    }
 }
 
 // ── Mission Overlay ───────────────────────────────────────────────────────
