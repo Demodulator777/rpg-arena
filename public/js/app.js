@@ -14054,17 +14054,22 @@ function renderWeeklyStatsBanner() {
         const f = ts => new Date(ts * 1000).toLocaleDateString(CURRENT_LANG === 'pt' ? 'pt-BR' : 'en-US', { day: '2-digit', month: 'short' });
         rangeText = `${_pt('Semana', 'Week')} ${wn} (${y}) · ${f(weekStart)} – ${f(weekStart + 6 * 86400)}`;
     }
-    const statCell = (label, val, color) => `<div style="display:flex;flex-direction:column;align-items:center;padding:6px 4px;border-radius:10px;background:rgba(255,255,255,0.04)">
+    const statCell = (label, val, color, title) => `<div style="display:flex;flex-direction:column;align-items:center;padding:6px 4px;border-radius:10px;background:rgba(255,255,255,0.04)"${title ? ` title="${title}"` : ''}>
         <div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-dim)">${label}</div>
         <div style="font-size:1rem;font-weight:700;color:${color}">${val.toLocaleString()}</div>
     </div>`;
+    // "Battles" counts one entry per character per battle they fought in, so it equals
+    // wins + losses + draws and matches the per-player list below. A PvP fight is counted
+    // for both participants — that is required for every loss to be attributed to someone.
+    const battlesTitle = _pt('Uma entrada por personagem por batalha (uma batalha PvP conta para os dois lados).',
+        'One entry per character per battle they fought (a PvP battle counts for both sides).');
     let html = `<div class="card-compact" style="padding:10px 12px;margin-bottom:10px">
         <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:4px;font-size:13px;font-weight:700;color:var(--gold);margin-bottom:8px">
             <span>📊 ${_pt('Estatísticas Semanais do Servidor', 'Server Weekly Statistics')}</span>
             ${rangeText ? `<span style="font-size:10px;color:var(--text-dim);font-weight:600">${rangeText}</span>` : ''}
         </div>
         <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px">
-            ${statCell(_pt('Batalhas', 'Battles'), battles, '#fff')}
+            ${statCell(_pt('Batalhas', 'Battles'), battles, '#fff', battlesTitle)}
             ${statCell(_pt('Vitórias', 'Wins'), wins, '#60e060')}
             ${statCell(_pt('Derrotas', 'Losses'), losses, '#e06060')}
             ${statCell(_pt('Empates', 'Draws'), draws, '#e0a050')}
