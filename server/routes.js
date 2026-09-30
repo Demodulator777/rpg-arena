@@ -1905,6 +1905,10 @@ const MISSION_SIZES = {
 };
 const AUTO_MISSION_MAX_POTIONS = 10; // Max potions converted into the auto-mission MP pool per session
 const AUTO_MISSION_MAX_HP_POTIONS = 3; // Max HP potions loaded for auto-mission low-HP healing
+// Claiming a mission resolves a battle immediately, so a character on near-zero HP is
+// guaranteed to lose it and burn the mission. Refuse the claim below this much HP and let
+// the player heal first. Applies to manual claims and the auto-mission loop alike.
+const MISSION_CLAIM_MIN_HP = 10;
 const SKILL_DURATION = 5 * 3600;
 const PREMIUM_DURATION = 30 * 24 * 3600; // 30 days
 const HEALTH_POTION_COOLDOWN = 30 * 60;
@@ -13786,6 +13790,22 @@ async function collectMissionForCharacter(db, characterId) {
         const equippedArray = await getEquippedItemsArray(db, freshChar.id);
         const hpMax = calcHpMax(freshChar, equippedArray) + await beastHpBonus(db, freshChar.id);
         const hpCurrent = freshChar.hp_current ?? hpMax;
+
+        // ── Low-HP claim guard ──────────────────────────────────────────────
+        // The mission battle resolves the moment the claim lands. With almost no HP left
+        // the character is a guaranteed loss, which burns the mission and pays out nothing
+        // useful, so hold the claim until the player has healed. `hpCurrent` is read after
+        // applyHpRegen, so resting past the threshold is enough to unblock it.
+        if (Number(hpCurrent) < MISSION_CLAIM_MIN_HP) {
+            return {
+                __error: `Too low HP to claim this mission (needs ${MISSION_CLAIM_MIN_HP} HP)`,
+                __status: 400,
+                __code: 'hp_too_low',
+                __currentHp: Math.max(0, Math.floor(Number(hpCurrent) || 0)),
+                __requiredHp: MISSION_CLAIM_MIN_HP
+            };
+        }
+
         const _beastStats = await beastStatBonus(db, freshChar.id);
         const tempDef = Number(JSON.parse(freshChar.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshChar.temp_stat_buffs || '{}').defense.value || 0 : 0);
         const setBonuses = getEquippedSetBonuses(equippedArray);
@@ -14385,7 +14405,16 @@ router.post('/missions/collect', auth, async (req, res) => {
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
         const result = await collectMissionForCharacter(db, character.id);
-        if (result && result.__error) return res.status(result.__status || 400).json({ error: result.__error });
+        if (result && result.__error) {
+            return res.status(result.__status || 400).json({
+                error: result.__error,
+                // Structured extras (e.g. the low-HP claim guard) so the client can show a
+                // localized message instead of echoing the raw server string.
+                code: result.__code,
+                currentHp: result.__currentHp,
+                requiredHp: result.__requiredHp
+            });
+        }
         res.json(result);
     } catch (e) {
         console.error('Mission collect error:', e);
@@ -14808,6 +14837,15 @@ async function processOneAutoChar(db, state) {
     // Collect any finished mission, then fall through to start the next one.
     if (currentMission) {
         if (now < currentMission.ends_at) return; // still running — wait
+        // Hard low-HP hold, mirroring the manual claim guard. Unconditional because the
+        // optional hp_stop setting above is opt-in, and a finished mission resolved below
+        // the threshold is a guaranteed loss — the loop waits for HP instead.
+        const hpForCollect = Number(fresh.hp_current ?? fresh.hp_max ?? 0);
+        if (hpForCollect < MISSION_CLAIM_MIN_HP) {
+            await dbRun(db, 'UPDATE auto_mission_state SET last_result=?, updated_at=? WHERE char_id=?',
+                [`HP below ${MISSION_CLAIM_MIN_HP} — holding rewards`, now, state.char_id]);
+            return;
+        }
         const result = await collectMissionForCharacter(db, state.char_id);
         const outcome = result && result.__error
             ? `collect: ${result.__error}`
