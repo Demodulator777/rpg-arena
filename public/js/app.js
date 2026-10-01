@@ -960,15 +960,13 @@ async function api(method, path, body=null) {
         !(body instanceof FormData) &&
         path.indexOf('/auth/') === -1 && 
         path.indexOf('/missions/tab-viewed') === -1 &&
-        path.indexOf('/dungeon/lock-refresh') === -1 &&
-        path.indexOf('/dungeon/mp-spent') === -1 &&
-        path.indexOf('/dungeon/progress') === -1 &&
-        path.indexOf('/dungeon/release-room') === -1 &&
-        path.indexOf('/dungeon/room-exit') === -1 &&
-        path.indexOf('/dungeon/crawler') === -1 &&
-        path.indexOf('/dungeon/tokens') === -1 &&
-        path.indexOf('/event/finish') === -1 &&
-        path.indexOf('/event/combat/act') === -1 &&
+        // Dungeon + Trial of the Arcane are fully exempt. These namespaces contain
+        // calls that are never attributable to a click: /dungeon/lock-refresh runs on a
+        // 15s interval, /dungeon/combat/start is a background prefetch fired on entering
+        // a room (before the Fight button even exists), and /dungeon/combat/act follows
+        // multi-round fights. Reporting them was a guaranteed false positive.
+        path.indexOf('/dungeon/') === -1 &&
+        path.indexOf('/event/') === -1 &&
         path.indexOf('/squads/logo') === -1 &&
         path.indexOf('/squads/') === -1 &&
         window.__botDetectionEnabled !== false) {
@@ -15148,7 +15146,7 @@ const NEWS_FEED = [
         id: 'news-pvp-tournaments',
         type: 'event',
         date: '2026-08-22',
-        image: '/images/banner/pvp_tournament.png',
+        image: '/images/tournaments/banner.png',
         title: { en: 'PvP Tournaments & Deathmatches!', pt: 'Torneios PvP e Batalhas Mortais!'},
         short: { en: 'Compete in thrilling PvP tournaments, earn unique rewards, and prove yourself as the ultimate champion.', pt: 'Compita em emocionantes torneios PvP, ganhe recompensas exclusivas e prove ser o campeão supremo.'},
         body: { en: 'Step into the arena and face off against other players in intense PvP tournaments. Climb the ranks, earn glory, and claim exclusive rewards only available to the champions. Deathmatches offer a fast-paced, high-stakes combat experience where only the strongest survive.', pt: 'Entre na arena e enfrente outros jogadores em intensos torneios PvP. Suba nas classificações, ganhe glória e reivindique recompensas exclusivas disponíveis apenas para os campeões. As Batalhas Mortais oferecem uma experiência de combate rápida e de alto risco, onde apenas os mais fortes sobrevivem.'}
