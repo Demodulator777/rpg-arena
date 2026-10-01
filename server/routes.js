@@ -18838,11 +18838,24 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
         // often land >3s after the last trusted click. Squad routes are permission- and
         // rank-gated server-side, so never auto-ban for them.
         if (d.includes('/game/squads') || d.includes('/squads/')) return res.json({ success: true, ignored: true });
-        // Dungeon combat resolves automatically on the server; the follow-up
-        // bookkeeping POSTs legitimately land >3s after the player's last click.
-        if (d.includes('/dungeon/release-room') || d.includes('/dungeon/room-exit') ||
-            d.includes('/dungeon/crawler') || d.includes('/dungeon/tokens') ||
-            d.includes('/event/finish') || d.includes('/event/combat/act')) return res.json({ success: true, ignored: true });
+        // Dungeon + Trial of the Arcane are ENTIRELY exempt, not just a few paths.
+        //
+        // These namespaces are server-authoritative, so a scripted call can never produce
+        // unearned progress: combat is resolved on the server, rooms are gated by server
+        // locks, and progression is keyed to a server-issued floorRunId + token economy.
+        //
+        // They also contain calls that are IMPOSSIBLE to attribute to a click, which is
+        // what made this a false-positive magnet:
+        //   - /dungeon/lock-refresh  — fired on a 15s setInterval (dungeon.js)
+        //   - /dungeon/combat/start — background PREFETCH on entering a room with enemies
+        //                              (prefetchCombatForRoom), before the Fight button exists
+        //   - /dungeon/combat/act   — heartbeat-style follow-ups during a multi-round fight
+        // Any of those can land minutes after the player's last trusted event.
+        //
+        // Previously only a hand-picked subset was exempt (release-room, room-exit, crawler,
+        // tokens, /event/finish, /event/combat/act), so every other dungeon path was a
+        // false-positive waiting to auto-ban a legitimate player. Exempt the whole namespace.
+        if (d.includes('/dungeon/') || d.includes('/event/')) return res.json({ success: true, ignored: true });
         await ensureFlaggedTable(db);
         const reasonType = 'untrusted_api';
         const existing = await dbGet(db, 'SELECT signal_types FROM flagged_characters WHERE char_name=?', [charName]);
