@@ -252,15 +252,23 @@ async function ensureFlaggedTable(db) {
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_enabled INTEGER NOT NULL DEFAULT 1", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_notes TEXT NOT NULL DEFAULT ''", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN scan_started_at INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
-    // Migration: auto-ban escalation tracking for untrusted_api offenses
+    // Migration: untrusted_api offense tracking (review signal only — no auto-ban)
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN untrusted_offenses INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
     try { await db.execute({ sql: "ALTER TABLE flagged_characters ADD COLUMN last_untrusted_at INTEGER NOT NULL DEFAULT 0", args: [] }); } catch {}
 }
 
 const UNTRUSTED_API_DEBOUNCE_S = 300; // 5 min — a burst of reports counts as one offense
-const UNTRUSTED_API_BAN_MINUTES = [60, 720, 1440]; // 1h, 12h, 24h
 
-async function autoBanUntrustedApi(db, userId, charName, detail) {
+// untrusted_api is a WEAK heuristic: it only asks "was a mutating call made >3s after the
+// last click". It has produced repeated false positives (dungeon background prefetch,
+// the 15s /dungeon/lock-refresh interval, native confirm()/prompt() dialogs, iPad
+// long-press-then-tap). Those call sites are now exempt, but the heuristic itself is too
+// blunt to punish on: it escalated to a PERMANENT ban on the 4th offense, which could lock
+// a real player forever off a timing coincidence.
+//
+// Policy: FLAG ONLY. Count the offense for admin visibility and queue the character for
+// manual review. Any ban — of any level — requires an explicit admin action.
+async function flagUntrustedApiForReview(db, userId, charName, detail) {
     try {
         await ensureFlaggedTable(db);
         const now = Math.floor(Date.now() / 1000);
@@ -274,25 +282,12 @@ async function autoBanUntrustedApi(db, userId, charName, detail) {
 
         await db.execute({ sql: 'UPDATE flagged_characters SET untrusted_offenses=?, last_untrusted_at=? WHERE char_name=?', args: [offenses, now, charName] });
 
-        // Determine ban for THIS offense (if it's a new/current offense apply it).
-        const offenseIdx = offenses - 1;
-        let banLevel = 2;
-        let expiresAt = now + UNTRUSTED_API_BAN_MINUTES[Math.min(offenseIdx, UNTRUSTED_API_BAN_MINUTES.length - 1)] * 60;
-        if (offenses >= UNTRUSTED_API_BAN_MINUTES.length + 1) { // 4th offense -> permanent
-            banLevel = 3;
-            expiresAt = null;
-        }
-        const reason = offenses >= UNTRUSTED_API_BAN_MINUTES.length + 1
-            ? 'Auto-Ban: Repeated scripting detected'
-            : `Auto-Ban: Scripting detected (offense #${offenses})`;
-        await dbRun(db, 'UPDATE users SET ban_level=?, ban_expires_at=?, ban_reason=?, banned_by=? WHERE id=?', [banLevel, expiresAt, reason, 0, userId]);
-        await logFlagEvent(db, charName, reason, 'untrusted_api_autoban');
-        if (banLevel === 3) {
-            console.log(`🚫 [AUTO-BAN] ${charName} permanently banned for repeated untrusted API calls (${offenses} offenses)`);
-        } else {
-            console.log(`🔒 [AUTO-BAN] ${charName} locked for ${Math.round(UNTRUSTED_API_BAN_MINUTES[Math.min(offenseIdx, UNTRUSTED_API_BAN_MINUTES.length - 1)] / 60)}h on untrusted API offense #${offenses}`);
-        }
-    } catch (e) { console.error('[autoBanUntrustedApi]', e.message); }
+        // Deliberately NO `UPDATE users SET ban_level=...` here. No automated lock, at any
+        // offense count. The offense counter is a review signal, not a punishment counter.
+        const reason = `Pending admin review: untrusted API call (offense #${offenses}) — no auto-ban applied`;
+        await logFlagEvent(db, charName, reason, 'untrusted_api_review');
+        console.log(`📋 [UNTRUSTED_API] ${charName} flagged for admin review (offense #${offenses}, new=${isNewOffense}): ${String(detail).slice(0, 160)}`);
+    } catch (e) { console.error('[flagUntrustedApiForReview]', e.message); }
 }
 
 async function logFlagEvent(db, charName, reason, signalType) {
@@ -18884,9 +18879,11 @@ router.post('/admin/report-dom-mutation', auth, async (req, res) => {    try {
         // produce unearned progress. Never auto-ban for it (stale cached clients
         // with the old trusted-event tracker are also protected until they update).
         if (d.includes('/upgrade')) return res.json({ success: true });
-        // Admins/moderators are trusted operators — never auto-lock them.
+        // No automated ban at any offense level — the heuristic is too blunt to punish on
+        // (it has locked legitimate players 4 separate times). Record the offense and
+        // queue the character for manual review; an admin performs any ban.
         if (!req.user.isAdmin && !req.user.isModerator) {
-            await autoBanUntrustedApi(db, req.user.userId, charName, String(detail));
+            await flagUntrustedApiForReview(db, req.user.userId, charName, String(detail));
         }
     }
     res.json({ success: true });
