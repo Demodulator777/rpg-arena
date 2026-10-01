@@ -2283,6 +2283,25 @@ document.addEventListener('securitypolicyviolation', (e) => {
     document.addEventListener('pointerup', onTrusted, true);
 })();
 
+// Native confirm()/prompt() are rendered by the OS, so dismissing them fires NO DOM
+// event on this page. Without this, the clock above keeps aging while the player reads
+// the dialog, and the mutating call that immediately follows looks script-driven — a
+// guaranteed false positive. The player physically interacted with the OS to dismiss
+// the dialog, so re-arm the clock on return. Covers every present and future call site.
+(function(){
+    var _confirm = window.confirm, _prompt = window.prompt;
+    window.confirm = function(){
+        var r = _confirm.apply(window, arguments);
+        window.__lastTrustedEvent = Date.now();
+        return r;
+    };
+    window.prompt = function(){
+        var r = _prompt.apply(window, arguments);
+        window.__lastTrustedEvent = Date.now();
+        return r;
+    };
+})();
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach((b,i)=>b.classList.toggle('active',i===(tab==='login'?0:1)));
