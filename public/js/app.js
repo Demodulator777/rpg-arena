@@ -9018,6 +9018,11 @@ function showRaidGearTooltip(event, declJson) {
             const label = statLabelHtml(stat);
             return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv > 0 ? '+' : ''}${nv}</span>${equippedItem && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
         }).join('');
+    // Raid gear has no explicit class field; suitability is derived from the piece's
+    // weaponType (scythe/staff/sword/axe/hammer), which ships through GET /forge/recipes
+    // on every piece. Without this, a player spends raid tokens on a weapon their class
+    // cannot wield and only discovers it in the inventory tooltip.
+    const classWarn = !isWeaponSuitedForClass(piece, character?.class) ? CLASS_WARN_HTML : '';
     tooltip.innerHTML = `
         <div class="tt-preview">${imgSrc ? `<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${piece.emoji||'🎖️'}</span>` : `<span class="tt-preview-emoji">${piece.emoji||'🎖️'}</span>`}</div>
         <div class="tt-body">
@@ -9025,6 +9030,7 @@ function showRaidGearTooltip(event, declJson) {
             <div class="tt-meta">${slotLabelPT(slotLabel||'piece')} · <span style="color:${qColor}">${_pt('lendário', 'legendary')}</span> · Lv.${itemLevel}</div>
             <div class="tt-desc">${getCanonicalItemDesc(piece.desc, piece.name)}</div>
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">' + _pt('Sem atributos', 'No stats') + '</span>'}</div>
+            ${classWarn}
             ${equippedItem ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
             <div style="font-size:0.78rem;margin-top:8px;color:${tokens>=cost?'var(--gold)':'var(--red-light)'}">${_pt('Custo:', 'Cost:')} ${cost} 💎 ${_pt('Fichas de Invasão', 'Raid Tokens')} (${_pt('tem', 'have')} ${tokens.toLocaleString()})</div>
         </div>`;
