@@ -73,12 +73,31 @@ function launchBlockedPayload(gate) {
   return `Server 1 registration opens ${when}. Please try again then.`;
 }
 
+// Known game hosts. A password-reset link must point back at the server the player
+// actually used, and Server 1 (s1.*) is a SEPARATE origin with a separate account DB —
+// sending an s1 player a beta link sends them to a database that doesn't know them.
+//
+// PUBLIC_BASE_URL is loaded from .env.production, which BOTH PM2 apps share, so it can
+// never be the source of truth for which server the link belongs to. The request host is
+// authoritative; PUBLIC_BASE_URL is only a fallback for hosts we don't recognise (which
+// also blocks Host-header injection from redirecting reset links to an attacker's domain).
+const GAME_HOSTS = new Set([
+  'battle-online.com',
+  'www.battle-online.com',
+  's1.battle-online.com',
+  'localhost',
+]);
+
 function getPublicBaseUrl(req) {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0].trim();
+  const rawHost = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  const hostname = rawHost.toLowerCase().replace(/:\d+$/, '');
+  if (rawHost && GAME_HOSTS.has(hostname)) {
+    return `${proto}://${rawHost}`.replace(/\/+$/, '');
+  }
   const configured = String(process.env.PUBLIC_BASE_URL || '').trim();
   if (configured) return configured.replace(/\/+$/, '');
-  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http');
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  return `${proto}://${host}`.replace(/\/+$/, '');
+  return `${proto}://${rawHost}`.replace(/\/+$/, '');
 }
 
 function getSmtpConfig() {
