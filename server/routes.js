@@ -15597,6 +15597,21 @@ router.post('/travel/start', auth, async (req, res) => {
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'Character not found' });
 
+        // Tutorial gate: a gatekeeper fight PERMANENTLY unlocks a zone. Letting a
+        // brand-new character (wins<4) travel meant they could walk into a gatekeeper,
+        // get force-won through it, and unlock zones without earning them. Travel is
+        // blocked until the tutorial is done; `forest` has 12 missions, so the 4
+        // tutorial wins are always reachable without travelling. Skipping the
+        // tutorial (tutorial_skipped=1) lifts this.
+        if (isTutorialCharacter(character)) {
+            const need = Math.max(0, 4 - Number(character.wins || 0));
+            return res.status(403).json({
+                error: `Tutorial: complete ${need} more battle(s) before travelling, or skip the tutorial.`,
+                tutorial: true,
+                winsNeeded: need,
+            });
+        }
+
         const currentMap = character.current_map || 'overworld';
         let zone;
         let travelTime;
@@ -15693,25 +15708,16 @@ router.get('/travel/status', auth, async (req, res) => {
                 const guardian = buildTravelGuardian(targetZone, currentMap, freshChar.level, playerFighter);
 
                 if (guardian) {
-                    // Force win for new characters (first 4 battles)
-                    let forceWinnerId = null;
-                    const isTutorial = isTutorialCharacter(freshChar);
-                    if (isTutorial) {
-                        forceWinnerId = freshChar.id;
-                    }
-
-                    const battle = runBattle(playerFighter, guardian, forceWinnerId);
+                    // NEVER force-win a gatekeeper. The tutorial force-win applies to the
+                    // first 4 MISSIONS only. A gatekeeper permanently unlocks a zone, so
+                    // force-winning it let a brand-new character (wins<4) instantly unlock
+                    // every zone in the game. Gatekeeper wins also never incremented `wins`,
+                    // so the tutorial state never ended and this was repeatable forever.
+                    // /travel/start now blocks travel during the tutorial as well.
+                    const battle = runBattle(playerFighter, guardian, null);
                     let playerWon = battle.winnerId === freshChar.id;
 
-                    // Add tutorial note
-                    if (forceWinnerId && isTutorial) {
-                        if (!battle.log.some(line => line.includes('Tutorial victory'))) {
-                            battle.log.push('✨ Tutorial victory!');
-                        }
-                    }
-
-                    // Tutorial Check: Don't deplete HP for the first 4 battles
-                    const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+                    const newHp = Math.max(0, battle.hpRemainingA);
 
                     const gkNow = Math.floor(Date.now() / 1000);
                     if (playerWon) {
@@ -24419,25 +24425,18 @@ router.post('/travel/abyss/enter', auth, async (req, res) => {
                 return res.status(500).json({ error: 'Abyss gatekeeper missing' });
             }
 
-            let forceWinnerId = null;
-            const isTutorial = isTutorialCharacter(freshChar);
-            if (isTutorial) forceWinnerId = freshChar.id;
-
-            const battle = runBattle(playerFighter, guardian, forceWinnerId);
+            // NEVER force-win a gatekeeper — see the note in /travel/status. This path
+            // also flips current_map to 'abyss', so a forced win would have handed a
+            // brand-new tutorial character permanent access to the whole Abyss map.
+            const battle = runBattle(playerFighter, guardian, null);
             const playerWon = battle.winnerId === freshChar.id;
-
-            if (forceWinnerId && isTutorial) {
-                if (!battle.log.some(line => line.includes('Tutorial victory'))) {
-                    battle.log.push('✨ Tutorial victory!');
-                }
-            }
 
             if (playerFighter._elementalFighter) {
                 await dbRun(db, 'UPDATE elementals SET hp_current=? WHERE char_id=? AND id=?',
                     [battle.elementalHpA, freshChar.id, playerFighter._elementalFighter.id]).catch(() => {});
             }
 
-            const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+            const newHp = Math.max(0, battle.hpRemainingA);
 
             const gkNow = Math.floor(Date.now() / 1000);
             if (!playerWon) {
