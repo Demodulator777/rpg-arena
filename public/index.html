@@ -6,7 +6,7 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-09-24-select-tile-fix"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-09-30-honor-guide"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-09-25-dir-pad"/>
     <link rel="stylesheet" href="/css/epic-ui.css?v=2026-09-25-news-pan1"/>
@@ -406,6 +406,67 @@
                             <li data-pt="Conquistas pagam ouro, gemas, caixas de recompensa, poções e às vezes recompensas premium, então elas importam desde o primeiro dia.">Achievements pay gold, gems, loot boxes, potions, and sometimes premium rewards, so they matter from day one.</li>
                             <li data-pt="Se você quer crescer rápido, missões financiam seu build, artesanato o afia, e masmorra/PvP revelam suas fraquezas.">If you want to grow fast, missions fund your build, crafting sharpens it, and dungeon/PvP reveal its weaknesses.</li>
                         </ul>
+                    </div>
+                </div>
+
+                <div class="game-guide-section">
+                    <h3 data-pt="Honra (PvP)">Honor (PvP)</h3>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Como a Honra Funciona">How Honor Works</div>
+                            <ul>
+                                <li data-pt="A <strong>Honra ⚜️</strong> é uma pontuação exclusiva do PvP. A <strong>única</strong> forma de ganhar ou perder é <strong>atacar outro jogador</strong>.">Honor <strong>⚜️</strong> is a PvP-only score. The <strong>only</strong> way to gain or lose it is to <strong>attack another player</strong>.</li>
+                                <li data-pt="Missões, masmorras, raides, torneios e artesanato <strong>não</strong> dão nem tiram honra.">Missions, dungeons, raids, tournaments, and crafting give <strong>no</strong> honor.</li>
+                                <li data-pt="Somente o <strong>atacante</strong> altera honra: <strong>defender nunca muda a sua</strong>, nem quando você vence a defesa.">Only the <strong>attacker</strong> changes honor: <strong>defending never changes yours</strong>, even when you win the defense.</li>
+                                <li data-pt="O valor depende <strong>apenas da diferença de nível</strong>, não do resultado — você continua ganhando honra mesmo ao <strong>perder</strong> uma luta equilibrada.">The amount depends <strong>only on the level difference</strong>, not on who won — you still earn honor even when you <strong>lose</strong> an even fight.</li>
+                                <li data-pt="A honra <strong>nunca é gasta</strong>, não tem teto e <strong>pode ficar negativa</strong> (exibida em vermelho no perfil e na classificação).">Honor is <strong>never spent</strong>, has no cap, and <strong>can go negative</strong> (shown in red on your profile and leaderboard).</li>
+                            </ul>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle" data-pt="Quanto Você Ganha ou Perde">How Much You Earn or Lose</div>
+                            <p data-pt="A honra de cada ataque é calculada só pela <strong>diferença de nível</strong> entre você e o alvo, e vale para vitória, derrota ou empate.">The honor from each attack is calculated purely from the <strong>level difference</strong> between you and your target, and applies to wins, losses, and draws alike.</p>
+                            <table class="guide-honor-table">
+                                <thead>
+                                    <tr>
+                                        <th data-pt="Alvo em relação ao seu nível">Target vs Your Level</th>
+                                        <th data-pt="Honra">Honor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td data-pt="Alvo 10+ níveis acima">Target 10+ levels above</td><td class="hon-gain">+25</td></tr>
+                                    <tr><td data-pt="Alvo 6-9 níveis acima">Target 6-9 levels above</td><td class="hon-gain">+18</td></tr>
+                                    <tr><td data-pt="Alvo 3-5 níveis acima">Target 3-5 levels above</td><td class="hon-gain">+14</td></tr>
+                                    <tr><td data-pt="Até 2 níveis de diferença (luta equilibrada)">Within 2 levels (even fight)</td><td class="hon-gain">+10</td></tr>
+                                    <tr><td data-pt="Você está 3-5 níveis acima">You are 3-5 levels stronger</td><td class="hon-gain">+5</td></tr>
+                                    <tr><td data-pt="Você está 6-9 níveis acima">You are 6-9 levels stronger</td><td class="hon-zero">0</td></tr>
+                                    <tr><td data-pt="Você está 10-19 níveis acima">You are 10-19 levels stronger</td><td class="hon-loss">-10</td></tr>
+                                    <tr><td data-pt="Você está 20-29 níveis acima">You are 20-29 levels stronger</td><td class="hon-loss">-20</td></tr>
+                                    <tr><td data-pt="Você está 30-39 níveis acima">You are 30-39 levels stronger</td><td class="hon-loss">-30</td></tr>
+                                </tbody>
+                            </table>
+                            <div class="guide-note" data-pt="Valor positivo = você ataca <strong>para cima</strong> (alvo mais forte). Valor negativo = você ataca <strong>para baixo</strong>. Abaixo de -10 a penalidade cai mais 10 a cada 10 níveis completos que você está acima do alvo, <strong>sem limite</strong>.">Positive = you are attacking <strong>up</strong> (stronger target). Negative = you are attacking <strong>down</strong>. Below -10 the penalty drops another 10 for each full 10 levels you are above your target, with <strong>no limit</strong>.</div>
+                        </div>
+                    </div>
+                    <div class="game-guide-grid">
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle guide-good" data-pt="Benefícios">Benefits</div>
+                            <ul>
+                                <li data-pt="<strong>Hall da Fama semanal:</strong> o jogador com maior honra líquida na semana (segunda, 00:00 UTC) ganha <strong>5 💎</strong> na caixa de correio."><strong>Weekly Hall of Fame:</strong> the player with the highest net honor that week (Monday, 00:00 UTC) is mailed <strong>5 💎</strong>.</li>
+                                <li data-pt="<strong>Esquadrão mais honorável:</strong> cada membro do esquadrão campeão da semana também ganha <strong>5 💎</strong>."><strong>Most honorable squad:</strong> every member of the winning squad is also mailed <strong>5 💎</strong>.</li>
+                                <li data-pt="A honra do esquadrão soma apenas os <strong>10 melhores membros com honra positiva</strong>. Quem está negativo <strong>não conta</strong> e não pode rebaixar a pontuação do esquadrão.">Squad honor sums only your <strong>10 best members with positive honor</strong>. Members in the negative <strong>don't count</strong> and cannot drag the squad score down.</li>
+                                <li data-pt="<strong>Ouro de missão:</strong> sua honra dos últimos 7 dias (janela móvel) inclina o pagamento de cada missão em até <strong>±25%</strong>. Honra 0 ou mais tende para <strong>+25%</strong>; honra negativa tende para <strong>-25%</strong>."><strong>Mission gold:</strong> your honor over the last rolling 7 days tilts every mission payout by up to <strong>±25%</strong>. Honor of 0 or more biases the roll toward <strong>+25%</strong>; negative honor biases it toward <strong>-25%</strong>.</li>
+                                <li data-pt="É o seu título de prestígio: aparece no perfil, na lista de classificação e nos títulos semanais de Honra.">It is your prestige stat: it shows on your profile, the leaderboard, and the weekly Honor titles.</li>
+                            </ul>
+                        </div>
+                        <div class="game-guide-card">
+                            <div class="guide-subtitle guide-bad" data-pt="Penalidades">Penalties</div>
+                            <ul>
+                                <li data-pt="<strong>Atacar alvos muito mais fracos custa honra:</strong> -10 quando você está 10-19 níveis acima, -20 aos 20-29, -30 aos 30-39, e assim por diante <strong>sem limite</strong>."><strong>Attacking much weaker targets costs honor:</strong> -10 when you are 10-19 levels above, -20 at 20-29, -30 at 30-39, and so on <strong>without limit</strong>.</li>
+                                <li data-pt="Não há piso: a honra <strong>pode ficar negativa</strong> e continuar caindo.">There is no floor: honor <strong>can go negative</strong> and keep falling.</li>
+                                <li data-pt="Honra negativa reduz o potencial de ouro das missões em até 25% durante os <strong>próximos 7 dias</strong>.">Negative honor cuts your mission gold potential by up to 25% for the <strong>next 7 days</strong>.</li>
+                                <li data-pt="Honra <strong>não é estatística de vitória</strong>: perder uma luta equilibrada ainda rende +10, e derrotar um alvo 20 níveis abaixo ainda custa -20.">Honor is <strong>not a win/loss stat</strong>: losing an even fight still pays +10, while beating a target 20 levels below you still costs -20.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
 
