@@ -17146,6 +17146,12 @@ router.get('/leaderboard/weekly/history', auth, async (req, res) => {
                     tag: r.squad_honor_winner_tag || null,
                     logo: await resolveSquadLogo(db, r.squad_honor_winner_id, r.squad_honor_winner_logo || null),
                     member_count: Number(r.squad_honor_winner_members || 0),
+                    // Squad honor is the sum over a squad's top-10 members, so the
+                    // canonical field for SQUADS is `total_honor` (matches
+                    // current_squad_honor_top / previous_squad_honor_winner).
+                    // `net_honor` is kept as an alias so older cached clients that read
+                    // it don't break.
+                    total_honor: Number(r.squad_honor_net || 0),
                     net_honor: Number(r.squad_honor_net || 0),
                     type: 'honor',
                 });
