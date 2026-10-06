@@ -1118,6 +1118,50 @@ select.auth-lang-select option { background: #1a1a2e; color: #fff; }
     font-size: 0.82rem;
     line-height: 1.55;
 }
+.guide-honor-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 6px 0 8px;
+    font-size: 0.8rem;
+}
+.guide-honor-table th,
+.guide-honor-table td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.guide-honor-table th {
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.45);
+    font-weight: 700;
+}
+.guide-honor-table td {
+    color: rgba(255,255,255,0.82);
+    line-height: 1.5;
+}
+.guide-honor-table tr:last-child td {
+    border-bottom: none;
+}
+.guide-honor-table .hon-gain,
+.guide-honor-table .hon-loss,
+.guide-honor-table .hon-zero {
+    font-weight: 700;
+    white-space: nowrap;
+}
+.guide-honor-table .hon-gain { color: var(--gold-light); }
+.guide-honor-table .hon-loss { color: var(--red-light); }
+.guide-honor-table .hon-zero { color: rgba(255,255,255,0.45); }
+.guide-note {
+    margin-top: 6px;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: rgba(255,255,255,0.55);
+}
+.guide-note strong { color: var(--gold-light); }
+.guide-bad { color: var(--red-light); font-weight: 700; }
+.guide-good { color: var(--gold-light); font-weight: 700; }
 @media (max-width: 760px) {
     .game-guide-modal {
         width: min(96vw, 96vw);
