@@ -14235,7 +14235,7 @@ function renderLeaderboard() {
                 squadHistory.forEach(h => {
                     const wn = getWeekNumber(h.week_start);
                     const y = new Date(h.week_start * 1000).getUTCFullYear();
-                    const val = isHonor ? (Number(h.net_honor) > 0 ? '+' : '') + Number(h.net_honor).toLocaleString() + _pt(' honra', ' honor') : (isDmg ? Number(h.total_dmg).toLocaleString() + _pt(' dano', ' dmg') : Number(h.total_wins).toLocaleString() + _pt(' vitórias', ' wins'));
+                    const val = isHonor ? (Number(h.total_honor ?? h.net_honor) > 0 ? '+' : '') + Number(h.total_honor ?? h.net_honor).toLocaleString() + _pt(' honra', ' honor') : (isDmg ? Number(h.total_dmg).toLocaleString() + _pt(' dano', ' dmg') : Number(h.total_wins).toLocaleString() + _pt(' vitórias', ' wins'));
                     const logoHtml = h.logo
                         ? `<img src="${escHtml(h.logo)}" alt="" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);margin-bottom:4px">`
                         : `<div style="width:40px;height:40px;border-radius:50%;border:2px solid var(--gold);margin:0 auto 4px;background:rgba(255,255,255,0.04);display:flex;align-items:center;justify-content:center;font-size:1.1rem">🛡️</div>`;
@@ -14251,7 +14251,7 @@ function renderLeaderboard() {
             // Previous week squad winner
             if (squadPrev) {
                 const label = isHonor ? _pt('Esquadrão Mais Honorável da Semana Passada', "Last Week's Most Honorable Squad") : (isDmg ? _pt('Esquadrão Rei do Dano da Semana Passada', "Last Week's Squad Damage King") : _pt('Esquadrão Campeão de Vitórias da Semana Passada', "Last Week's Squad Win Champion"));
-                const stat = isHonor ? `${Number(squadPrev.net_honor) > 0 ? '+' : ''}${Number(squadPrev.net_honor).toLocaleString()} ${_pt('honra', 'honor')}` : (isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} ${_pt('dano', 'damage')}` : `${Number(squadPrev.total_wins).toLocaleString()} ${_pt('vitórias', 'wins')}`);
+                const stat = isHonor ? `${Number(squadPrev.total_honor ?? squadPrev.net_honor) > 0 ? '+' : ''}${Number(squadPrev.total_honor ?? squadPrev.net_honor).toLocaleString()} ${_pt('honra', 'honor')}` : (isDmg ? `${Number(squadPrev.total_dmg).toLocaleString()} ${_pt('dano', 'damage')}` : `${Number(squadPrev.total_wins).toLocaleString()} ${_pt('vitórias', 'wins')}`);
                 html += `<div class="card-compact" style="margin-bottom:10px;padding:10px 14px;text-align:center;border-color:var(--gold)">
                     <div style="font-size:13px;font-weight:700;color:var(--gold)">🏆 ${label}</div>
                     <div style="font-size:15px;margin-top:4px">${escHtml(squadPrev.name)}${squadPrev.tag ? ` [${escHtml(squadPrev.tag)}]` : ''} · ${stat}</div>
