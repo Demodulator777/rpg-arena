@@ -82,6 +82,15 @@ getDb().then(async (db) => {
   try { await db.execute({ sql: `ALTER TABLE banner_events ADD COLUMN event_key TEXT` }); } catch {}
   // Ensure event_attempts has the cleared flag (Trial of the Arcane)
   try { await db.execute({ sql: `ALTER TABLE event_attempts ADD COLUMN cleared INTEGER` }); } catch {}
+  // Trial of the Arcane milestone rewards — one row per threshold per character.
+  // PK (character_id, milestone) is what makes a claim one-time and race-safe:
+  // INSERT OR IGNORE reports 0 rowsAffected on a duplicate.
+  try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS trial_milestone_claims (
+    character_id INTEGER NOT NULL,
+    milestone INTEGER NOT NULL,
+    claimed_at INTEGER NOT NULL,
+    PRIMARY KEY (character_id, milestone)
+  )` }); } catch {}
   // Ring columns on characters (rings feature) — idempotent via try/catch
   try { await db.execute({ sql: `ALTER TABLE characters ADD COLUMN unlocked_rings TEXT DEFAULT '[]'` }); } catch {}
   try { await db.execute({ sql: `ALTER TABLE characters ADD COLUMN active_ring TEXT` }); } catch {}
