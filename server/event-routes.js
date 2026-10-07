@@ -527,4 +527,112 @@ router.get('/status', auth, async (req, res) => {
     res.json({ isActive: true, attemptsUsed: Number(attempts?.count || 0), attemptsLimit: null, eventEndsAt: await getEventEndsAt(db) });
 });
 
+// ── Trial milestone rewards ────────────────────────────────────────────────
+// One permanent reward per score threshold. Score is lifetime (the leaderboard
+// row is never cleared), so the claims are once per character, forever.
+const TRIAL_MILESTONES = [
+    { score: 1000, gold: 10000, gems: 10 },
+    { score: 2000, gold: 20000, gems: 20 },
+    { score: 3000, gold: 30000, gems: 30 },
+    { score: 5000, gold: 50000, gems: 50 },
+    { score: 7500, gold: 75000, gems: 75 },
+    { score: 10000, gold: 100000, gems: 100 },
+];
+
+// Best score survives the run: /finish DELETEs event_runs but upserts
+// event_leaderboard, so a claim must read BOTH — the live run for scores earned
+// before finishing, the leaderboard for everything already banked (plus the time
+// bonus, which only exists after /finish).
+async function getTrialMilestoneState(db, charId) {
+    const run = await dbGet(db, 'SELECT score FROM event_runs WHERE character_id = ?', [charId]);
+    const best = await dbGet(db, 'SELECT best_score FROM event_leaderboard WHERE character_id = ?', [charId]);
+    const liveScore = Math.max(0, Number(run?.score || 0));
+    const bestScore = Math.max(0, Number(best?.best_score || 0));
+    const score = Math.max(liveScore, bestScore);
+
+    const rows = await dbAll(db, 'SELECT milestone FROM trial_milestone_claims WHERE character_id = ?', [charId]);
+    const claimed = new Set(rows.map(r => Number(r.milestone)));
+
+    const milestones = TRIAL_MILESTONES.map(m => {
+        const isClaimed = claimed.has(m.score);
+        return { score: m.score, gold: m.gold, gems: m.gems, claimed: isClaimed, claimable: !isClaimed && score >= m.score };
+    });
+    return {
+        score,
+        liveScore,
+        bestScore,
+        milestones,
+        // Smallest unclaimed threshold the score has already reached — this is
+        // the ONLY thing /claim-milestone will ever hand out.
+        nextClaimable: milestones.find(m => m.claimable) || null,
+        // Lowest threshold still out of reach once nothing is claimable.
+        nextGoal: milestones.find(m => !m.claimed && !m.claimable) || null,
+        claimableCount: milestones.filter(m => m.claimable).length,
+        claimedCount: milestones.filter(m => m.claimed).length,
+        total: milestones.length,
+    };
+}
+
+router.get('/milestones', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const activeCharId = await getActiveCharacterId(db, req.user.userId);
+        if (!activeCharId) return res.status(404).json({ error: 'Character not found' });
+        const char = await dbGet(db, 'SELECT id FROM characters WHERE id = ? AND user_id = ?', [activeCharId, req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        res.json(await getTrialMilestoneState(db, char.id));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/claim-milestone', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const activeCharId = await getActiveCharacterId(db, req.user.userId);
+        if (!activeCharId) return res.status(404).json({ error: 'Character not found' });
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ? AND user_id = ?', [activeCharId, req.user.userId]);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        const state = await getTrialMilestoneState(db, char.id);
+        const next = state.nextClaimable;
+        if (!next) {
+            const done = state.claimedCount >= TRIAL_MILESTONES.length;
+            return res.status(400).json({ error: done ? 'All rewards already claimed.' : 'No reward available yet.', state });
+        }
+        // Rewards are handed out smallest-first. A client asking for a later
+        // threshold it hasn't earned the right to claim yet is rejected, so the
+        // stacking order can't be skipped even by a hand-rolled request.
+        const wanted = req.body && req.body.milestone != null ? Number(req.body.milestone) : next.score;
+        if (wanted !== next.score) return res.status(400).json({ error: 'Claim rewards in order.', state });
+
+        // Claim row FIRST, guarded by the PK: a duplicate/concurrent request
+        // gets rowsAffected 0 and is rejected BEFORE any gold or gems move.
+        const insert = await dbRun(
+            db,
+            'INSERT OR IGNORE INTO trial_milestone_claims (character_id, milestone, claimed_at) VALUES (?, ?, ?)',
+            [char.id, next.score, Math.floor(Date.now() / 1000)]
+        );
+        const inserted = insert?.rowsAffected ?? insert?.changes ?? 0;
+        if (!inserted) return res.status(409).json({ error: 'Already claimed.', state });
+
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [next.gold, char.id]);
+        await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?',
+            [next.gems, next.gems, char.id]);
+
+        const fresh = await dbGet(db, 'SELECT gold, gems FROM characters WHERE id = ?', [char.id]);
+        res.json({
+            success: true,
+            milestone: next.score,
+            gold: next.gold,
+            gems: next.gems,
+            goldTotal: Number(fresh?.gold || 0),
+            gemsTotal: Number(fresh?.gems || 0),
+            state: await getTrialMilestoneState(db, char.id),
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 module.exports = router;
