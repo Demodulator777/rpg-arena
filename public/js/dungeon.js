@@ -6889,6 +6889,122 @@ global.debugDungeonDetails = function() {
       }).join('');
   }
 
+  // ── Trial milestone rewards ──────────────────────────────────────────────
+  // One shared panel used by both the event start screen and the result modal:
+  // claimable → a Claim button for the SMALLEST reachable threshold, then the
+  // next claimable, and once nothing is left it falls back to the next goal.
+  function fmtTrialNum(n) { return Number(n || 0).toLocaleString(); }
+
+  function trialMilestoneBoxHTML() {
+      return `<div class="event-lb-box">
+          <div class="event-lb-title">${_pt('🎁 RECOMPENSAS DO TRIAL', '🎁 TRIAL REWARDS')}</div>
+          <div data-trial-ms><div class="event-lb-empty">${_pt('Carregando...', 'Loading...')}</div></div>
+      </div>`;
+  }
+
+  function trialMilestonesHTML(s) {
+      if (!s || s.error) return `<div class="event-lb-empty">${_pt('Não foi possível carregar as recompensas.', 'Could not load rewards.')}</div>`;
+
+      const last = D._trialLastClaim;
+      const confirmLine = last
+          ? `<div style="text-align:center;font-size:0.76rem;color:#86efac;font-weight:700;margin-bottom:8px">✅ ${_pt('Reivindicado', 'Claimed')} ${fmtTrialNum(last.score)} ${_pt('pts', 'pts')} · +${fmtTrialNum(last.gold)} 💰 · +${last.gems} 💎</div>`
+          : '';
+
+      let head = '';
+      if (s.nextClaimable) {
+          head = `
+              <button class="dungeon-btn dungeon-btn-fight" data-trial-claim style="width:100%;margin-bottom:8px;padding:10px 12px;font-size:0.95rem;box-shadow:0 0 18px rgba(34,197,94,0.35)">
+                  🎁 ${_pt('Reivindicar', 'Claim')} ${fmtTrialNum(s.nextClaimable.score)} ${_pt('pts', 'pts')}
+                  <span style="display:block;font-size:0.76rem;font-weight:600;opacity:0.9;margin-top:3px">+${fmtTrialNum(s.nextClaimable.gold)} 💰 · +${s.nextClaimable.gems} 💎</span>
+              </button>
+              <div style="text-align:center;font-size:0.75rem;color:#86efac;margin-bottom:8px">
+                  ${s.claimableCount > 1 ? `${s.claimableCount} ${_pt('recompensas disponíveis', 'rewards available')}` : _pt('Recompensa disponível', 'Reward available')}
+              </div>`;
+      } else if (s.nextGoal) {
+          const pct = Math.max(4, Math.min(100, Math.round((Number(s.score) / Number(s.nextGoal.score)) * 100)));
+          const left = Math.max(0, Number(s.nextGoal.score) - Number(s.score));
+          head = `
+              <div style="text-align:center;font-size:0.78rem;color:rgba(255,255,255,0.65);margin-bottom:6px">
+                  ${_pt('Próxima meta', 'Next goal')}: <strong style="color:#ffd700">${fmtTrialNum(s.nextGoal.score)} ${_pt('pts', 'pts')}</strong>
+                  · ${fmtTrialNum(left)} ${_pt('para alcançar', 'to go')}
+              </div>
+              <div style="height:7px;border-radius:4px;background:rgba(255,255,255,0.08);overflow:hidden;margin-bottom:10px">
+                  <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#a855f7,#ffd700)"></div>
+              </div>`;
+      } else {
+          head = `<div style="text-align:center;font-size:0.84rem;color:#86efac;font-weight:700;margin-bottom:10px">🎉 ${_pt('Todas as recompensas foram reivindicadas!', 'All rewards claimed!')}</div>`;
+      }
+
+      const rows = s.milestones.map(m => {
+          const done = !!m.claimed;
+          const ready = !done && !!m.claimable;
+          const icon = done ? '✅' : (ready ? '🎁' : '🔒');
+          const style = ready
+              ? 'background:rgba(34,197,94,0.14);border:1px solid rgba(34,197,94,0.4);'
+              : (done ? 'background:rgba(255,255,255,0.03);opacity:0.55;' : 'background:rgba(255,255,255,0.04);');
+          return `<div class="event-lb-row" style="${style}">
+              <span style="width:16px;text-align:center">${icon}</span>
+              <span style="flex:1;${ready ? 'color:#86efac;font-weight:700;' : ''}">${fmtTrialNum(m.score)} ${_pt('pts', 'pts')}</span>
+              <span style="color:#ffd700;white-space:nowrap">+${fmtTrialNum(m.gold)} 💰 · +${m.gems} 💎</span>
+          </div>`;
+      }).join('');
+
+      return `${confirmLine}${head}
+          <div class="event-lb-list">${rows}</div>
+          <div style="text-align:center;font-size:0.72rem;color:rgba(255,255,255,0.45);margin-top:8px">
+              ${_pt('Sua pontuação', 'Your score')}: ${fmtTrialNum(s.score)}
+          </div>`;
+  }
+
+  function resolveTrialMsEl(scope) {
+      if (!scope) return document.querySelector('[data-trial-ms]');
+      if (scope.matches && scope.matches('[data-trial-ms]')) return scope;
+      return scope.querySelector ? scope.querySelector('[data-trial-ms]') : null;
+  }
+
+  async function renderTrialMilestonePanel(scope) {
+      const el = resolveTrialMsEl(scope);
+      if (!el) return;
+      try {
+          const s = await apiFetch('GET', '/event/milestones');
+          el.innerHTML = trialMilestonesHTML(s);
+          const btn = el.querySelector('[data-trial-claim]');
+          if (btn) btn.onclick = () => claimTrialMilestone(el);
+      } catch (e) {
+          console.error('Failed to load trial milestones:', e);
+          el.innerHTML = `<div class="event-lb-empty">${_pt('Não foi possível carregar as recompensas.', 'Could not load rewards.')}</div>`;
+      }
+  }
+
+  async function claimTrialMilestone(el) {
+      const panel = resolveTrialMsEl(el);
+      if (!panel || D._trialClaiming) return;
+      D._trialClaiming = true;
+      const btn = panel.querySelector('[data-trial-claim]');
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.6'; }
+      try {
+          const res = await apiFetch('POST', '/event/claim-milestone', {});
+          if (!res || !res.success) throw new Error(res?.error || _pt('Falha ao reivindicar a recompensa.', 'Failed to claim the reward.'));
+          D._trialLastClaim = { score: res.milestone, gold: res.gold, gems: res.gems };
+          if (typeof character !== 'undefined' && character) {
+              if (res.goldTotal != null) character.gold = Number(res.goldTotal);
+              if (res.gemsTotal != null) character.gems = Number(res.gemsTotal);
+              if (typeof renderTopBar === 'function') renderTopBar();
+          }
+          // Re-render in place so the confirmation line shows and the NEXT
+          // claimable reward (or the next goal) takes the button's place.
+          await renderTrialMilestonePanel(panel);
+      } catch (e) {
+          console.error('Failed to claim trial milestone:', e);
+          const msg = e?.message || _pt('Falha ao reivindicar a recompensa.', 'Failed to claim the reward.');
+          if (typeof openGameDialog === 'function') openGameDialog({ title: _pt('Recompensas do Trial', 'Trial Rewards'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+          else alert(msg);
+          if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+      } finally {
+          D._trialClaiming = false;
+      }
+  }
+
   function renderEventStartScreen() {
       const area = document.getElementById('dungeon-main-area');
       if (!area) return;
@@ -6904,12 +7020,15 @@ global.debugDungeonDetails = function() {
                       <div class="event-lb-title">🏆 ${_pt('TOP 10 MELHORES', 'TOP 10 LEADERS')}</div>
                       <div id="event-lb-list" class="event-lb-list"><div class="event-lb-empty">${_pt('Carregando...', 'Loading...')}</div></div>
                   </div>
+                  ${trialMilestoneBoxHTML()}
                   <button id="event-begin-btn" class="dungeon-btn dungeon-btn-fight" style="font-size:1.25rem;padding:16px 44px;border-radius:12px;box-shadow:0 0 24px rgba(168,85,247,0.5)">⚔️ ${_pt('COMEÇAR', 'BEGIN')}</button>
               </div>
           </div>
       `;
       const beginBtn = document.getElementById('event-begin-btn');
       if (beginBtn) beginBtn.onclick = startEventTimer;
+      D._trialLastClaim = null;
+      renderTrialMilestonePanel(area);
       fetchEventLeaderboard().then(rows => {
           const list = document.getElementById('event-lb-list');
           if (list) list.innerHTML = eventLeaderboardHTML(rows);
@@ -7103,11 +7222,14 @@ global.debugDungeonDetails = function() {
                   </div>
                   <div id="event-result-rank" style="margin-top:8px"></div>
               </div>
+              ${trialMilestoneBoxHTML()}
               <button id="event-result-close-btn" class="btn-primary" style="margin-top:12px;width:100%">OK</button>
           </div>`;
       overlay.onclick = (ev) => { if (ev.target === overlay) overlay.classList.add('hidden'); };
       const btn = overlay.querySelector('#event-result-close-btn');
       if (btn) btn.onclick = () => { overlay.classList.add('hidden'); };
+      D._trialLastClaim = null;
+      renderTrialMilestonePanel(overlay);
       fetchEventLeaderboard().then(rows => {
           const el = document.getElementById('event-result-rank');
           if (!el) return;
