@@ -33,6 +33,20 @@ async function getEventEndsAt(db) {
     return banner ? (Number(banner.end_at) || null) : null;
 }
 
+// The trial is open only while its own banner window is live. Returns the 403
+// payload when there is no banner, it hasn't started, or it already ended —
+// otherwise null. Used to block NEW runs on /enter, /start and /combat/start;
+// /combat/act and /finish deliberately stay open so a run already in progress
+// can still be played out and banked.
+async function eventInactiveError(db) {
+    const endsAt = await getEventEndsAt(db);
+    const now = Math.floor(Date.now() / 1000);
+    if (!endsAt || Number(endsAt) <= now) {
+        return { error: 'The Trial of the Arcane is not active right now.', code: 'event_inactive', eventEndsAt: null };
+    }
+    return null;
+}
+
 router.post('/enter', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -40,6 +54,8 @@ router.post('/enter', auth, async (req, res) => {
         if (!activeCharId) return res.status(404).json({ error: 'Character not found' });
         const char = await dbGet(db, "SELECT * FROM characters WHERE id = ? AND user_id = ?", [activeCharId, req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
+        const inactive = await eventInactiveError(db);
+        if (inactive) return res.status(403).json(inactive);
         if (Number(char.dungeon_highest_floor || 0) < 5) {
             return res.status(403).json({ error: 'Reach dungeon floor 5 to unlock the Trial.', eventEndsAt: await getEventEndsAt(db) });
         }
@@ -78,6 +94,8 @@ router.post('/start', auth, async (req, res) => {
         if (!activeCharId) return res.status(404).json({ error: 'Character not found' });
         const char = await dbGet(db, "SELECT * FROM characters WHERE id = ? AND user_id = ?", [activeCharId, req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
+        const inactive = await eventInactiveError(db);
+        if (inactive) return res.status(403).json(inactive);
         const run = await dbGet(db, "SELECT room_index FROM event_runs WHERE character_id = ?", [char.id]);
         if (!run) return res.status(400).json({ error: 'No active event run. Enter the event first.' });
         const now = Date.now();
@@ -102,6 +120,11 @@ router.post('/combat/start', auth, async (req, res) => {
         if (!activeCharId) return res.status(404).json({ error: 'Character not found' });
         const char = await dbGet(db, 'SELECT id, user_id FROM characters WHERE id = ? AND user_id = ?', [activeCharId, req.user.userId]);
         if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        // Room progression is a new-round investment too — once the window closes
+        // a stale event_runs row must not keep granting fights.
+        const inactive = await eventInactiveError(db);
+        if (inactive) return res.status(403).json(inactive);
 
         const run = await dbGet(db, 'SELECT room_index FROM event_runs WHERE character_id = ?', [char.id]);
         if (!run) return res.status(400).json({ error: 'Start the event first from the banner.' });
@@ -524,7 +547,8 @@ router.get('/status', auth, async (req, res) => {
     const activeCharId = await getActiveCharacterId(db, req.user.userId);
     const char = activeCharId ? await dbGet(db, "SELECT * FROM characters WHERE id = ? AND user_id = ?", [activeCharId, req.user.userId]) : null;
     const attempts = char ? await dbGet(db, "SELECT COUNT(*) as count FROM event_attempts WHERE character_id = ?", [char.id]) : null;
-    res.json({ isActive: true, attemptsUsed: Number(attempts?.count || 0), attemptsLimit: null, eventEndsAt: await getEventEndsAt(db) });
+    const endsAt = await getEventEndsAt(db);
+    res.json({ isActive: !!endsAt, attemptsUsed: Number(attempts?.count || 0), attemptsLimit: null, eventEndsAt: endsAt });
 });
 
 // ── Trial milestone rewards ────────────────────────────────────────────────
