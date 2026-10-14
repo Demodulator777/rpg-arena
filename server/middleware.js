@@ -7,6 +7,51 @@ const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'producti
 // Per-user throttle for the log-only IP-change signal (avoids spammy inserts).
 const lastIpChangeLog = new Map(); // userId -> last logged ts
 
+// ── Vacation lock ─────────────────────────────────────────────────────────
+// A vacation freezes the whole account: while `users.vacation_until` is in the
+// future every write request is refused, so simply logging in does NOT shorten
+// the stay (no early cancel, no overnight play). Reads are always allowed, plus
+// a short allowlist of writes that cannot advance the game or its economy.
+const VACATION_WRITE_ALLOWLIST = [
+    /\/vacation\//,                      // status/start (start re-rejects if already away)
+    /\/character\/select$/,              // read-like; needed to land on a character after login
+    /\/auth\/(logout|email)$/,           // sign out / account email
+    /\/game\/settings(\/language)?$/,    // UI preferences + language
+    /\/missions\/(ui-tick|tab-viewed)$/, // anti-bot telemetry, no gameplay effect
+    /\/messages\/\d+\/read$/,            // mark a single message read
+    /\/messages\/read-all$/,             // mark inbox read
+    /\/report-dom-mutation$/,            // admin telemetry
+    /\/admin\//,                         // moderation tools
+];
+
+// Returns true when the response has already been sent (request refused).
+// Fails open on any error so a broken check can never lock the game out.
+async function enforceVacationLock(req, res, db, userId) {
+    try {
+        const method = String(req.method || 'GET').toUpperCase();
+        if (method === 'GET' || method === 'HEAD') return false;
+        const path = String(req.originalUrl || req.url || '').split('?')[0];
+        if (VACATION_WRITE_ALLOWLIST.some((re) => re.test(path))) return false;
+        const now = Math.floor(Date.now() / 1000);
+        const row = await db.execute({
+            sql: 'SELECT vacation_until FROM users WHERE id = ? AND vacation_until > ? LIMIT 1',
+            args: [userId, now]
+        });
+        const vacationUntil = Number(row.rows[0]?.vacation_until || 0);
+        if (!vacationUntil) return false;
+        const iso = new Date(vacationUntil * 1000).toISOString().replace('T', ' ').slice(0, 16);
+        res.status(403).json({
+            error: `This account is on vacation until ${iso} UTC. You must wait for it to end.`,
+            vacation: true,
+            vacation_until: vacationUntil
+        });
+        return true;
+    } catch (e) {
+        console.error('Vacation lock error:', e);
+        return false;
+    }
+}
+
 module.exports = async (req, res, next) => {
     const header = req.headers.authorization;
     let token = header ? header.split(' ')[1] : null;
@@ -49,6 +94,23 @@ module.exports = async (req, res, next) => {
                         sessionId: null,
                         tabSession: null
                     };
+                    // Re-issue a fresh short-lived JWT via the X-Auth-Token response
+                    // header so the client can keep using its Authorization header.
+                    // (This cookie fallback only runs when no header token is present.)
+                    try {
+                        const curIp = String((req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || req.connection?.remoteAddress || '').slice(0, 45);
+                        let sessId = null;
+                        try { sessId = JSON.parse(user.user_session || 'null')?.id || null; } catch {}
+                        const freshJwt = jwt.sign(
+                            { userId: user.id, username: user.username, sessionId: sessId, ip: curIp },
+                            JWT_SECRET,
+                            { expiresIn: '7d' }
+                        );
+                        res.set('X-Auth-Token', freshJwt);
+                    } catch (je) {
+                        console.error('Refresh-token JWT re-issue error:', je);
+                    }
+                    if (await enforceVacationLock(req, res, db, user.id)) return;
                     return next();
                 }
             }
@@ -171,6 +233,8 @@ module.exports = async (req, res, next) => {
         // Update IP address and last_online_at on each request (non-blocking)
         const clientIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.ip || req.connection?.remoteAddress || '';
         db.execute({ sql: 'UPDATE users SET ip_address=?, last_online_at=? WHERE id=? AND (ip_address IS NULL OR ip_address!=? OR last_online_at < ?)', args: [clientIp, now, user.rows[0].id, clientIp, now - 60] }).catch(() => {});
+
+        if (await enforceVacationLock(req, res, db, user.rows[0].id)) return;
 
         next();
     } catch (error) {
