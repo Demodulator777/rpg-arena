@@ -248,6 +248,18 @@ function toggleRememberMe() {
         other.removeItem('rpg_username');
     }
 }
+// Keep the auth-screen checkbox in sync with the stored flag. The HTML default
+// is `checked`, so without this the box would always look ON even when
+// rpg_remember_me is 'false' (sessionStorage → logged out on every browser close).
+function syncRememberMeCheckbox() {
+    const cb = document.getElementById('remember-me');
+    if (cb) cb.checked = localStorage.getItem('rpg_remember_me') !== 'false';
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', syncRememberMeCheckbox);
+} else {
+    syncRememberMeCheckbox();
+}
 // ── State ─────────────────────────────────────────────────────────────────
 let token = (() => { const s = tokenStorage(); return s.getItem('rpg_token'); })();
 let username = (() => { const s = tokenStorage(); return s.getItem('rpg_username'); })();
@@ -1045,8 +1057,50 @@ async function api(method, path, body=null) {
             // If the token is missing/invalid, don't spam alerts; just surface the error.
             // (The UI can navigate to login as needed.)
             if (res.status === 401 && (errMsg === 'No token' || errMsg === 'Invalid token')) {
+                // Dead JWT (expired, or a session the server no longer recognizes) but a
+                // "Keep me logged in" refresh cookie may still be valid: retry ONCE without
+                // the Authorization header so the server's cookie fallback can restore the
+                // session and hand back a fresh JWT in the X-Auth-Token response header.
+                if (storedToken && !opts.__refreshRetried) {
+                    const retryOpts = Object.assign({}, opts, {
+                        __refreshRetried: true,
+                        headers: Object.assign({}, opts.headers)
+                    });
+                    delete retryOpts.headers['Authorization'];
+                    try {
+                        const res2 = await fetch(fullUrl, retryOpts);
+                        const text2 = await res2.text();
+                        if (!res2.ok) {
+                            let msg2, ed2 = null;
+                            try { const p = JSON.parse(text2); msg2 = p.error || ('HTTP ' + res2.status); ed2 = p; }
+                            catch (_) { msg2 = text2.trim() || ('Request failed (' + res2.status + ')'); }
+                            if (res2.status === 401 && msg2 === 'Session expired' && !window.__forcedLogoutShown) {
+                                window.__forcedLogoutShown = true;
+                                logout();
+                                openGameNoticeDialog({ title: 'Logged Out', message: 'Your account was logged in from another device/browser.', confirmLabel: 'OK' });
+                            }
+                            const apiErr2 = new Error(msg2);
+                            apiErr2.status = res2.status;
+                            if (ed2 && typeof ed2 === 'object') apiErr2.data = ed2;
+                            throw apiErr2;
+                        }
+                        const freshToken = res2.headers.get('X-Auth-Token');
+                        if (freshToken) { setToken(freshToken); token = freshToken; }
+                        if (!text2.trim()) return {};
+                        try { return JSON.parse(text2); }
+                        catch (_) { throw new Error('Invalid response from server'); }
+                    } catch (re) {
+                        throw re;
+                    }
+                }
                 if (!window.__auth401Seen) window.__auth401Seen = true;
                 throw new Error(errMsg);
+            }
+
+            // Vacation lock: re-sync the overlay so a stray write (background poll,
+            // stale tab) can never leave the player looking at an unlocked UI.
+            if (errData && errData.vacation && Number(errData.vacation_until || 0) > 0) {
+                try { applyVacationState({ active: true, until: errData.vacation_until }); } catch (_) {}
             }
 
             // Attach the parsed response body to the error so callers can recover
@@ -1057,7 +1111,15 @@ async function api(method, path, body=null) {
             throw apiErr;
         }
         if (!text.trim()) return {};
-        try { const data = JSON.parse(text); return data; }
+        try {
+            const data = JSON.parse(text);
+            // Character payloads carry a `vacation` block — keep the lock screen in
+            // sync with the server every time we reload the character.
+            if (data && data.vacation && typeof applyVacationState === 'function') {
+                try { applyVacationState(data.vacation); } catch (_) {}
+            }
+            return data;
+        }
         catch (pe) { console.error('[API] JSON parse failed:', pe, 'Raw:', text.substring(0, 200)); throw new Error('Invalid response from server'); }
     } catch (err) { console.error('[API FAIL]', method, fullUrl, err); throw err; }
 }
@@ -1306,6 +1368,10 @@ function showTabAndCloseMenu(tabName) {
 }
 
 window.showTabAndCloseMenu = showTabAndCloseMenu;
+window.openVacationModal = openVacationModal;
+window.closeVacationModal = closeVacationModal;
+window.updateVacationSlider = updateVacationSlider;
+window.confirmVacation = confirmVacation;
 window.openStoryDialogue = openStoryDialogue;
 window.closeStoryDialogue = closeStoryDialogue;
 window.storyDialogueNext = storyDialogueNext;
@@ -1342,6 +1408,8 @@ const I18N = {
         'menu.newsMeta': 'Novidades, eventos e atualizações da história',
         'menu.reportProblem': 'Reportar um Problema',
         'menu.logout': 'Sair',
+        'menu.vacation': 'Ir de férias',
+        'menu.vacationMeta': 'Congele sua conta por 7-30 dias',
         'menu.invitePlayers': 'Convidar Jogadores',
         'menu.referralLink': 'Link de Convite',
         'menu.unavailable': 'Indisponível',
@@ -1583,6 +1651,171 @@ function openNews() {
 }
 window.openNews = openNews;
 
+// ── Vacation (account-wide freeze) ────────────────────────────────────────
+// Strict by design: once started the server refuses every non-whitelisted write
+// for the whole window, so logging in does not shorten it and there is no
+// early cancel. The only UI affordance left is a lock screen + Logout.
+const VACATION_MIN_DAYS = 7;
+const VACATION_MAX_DAYS = 30;
+let _vacationTickTimer = null;
+let _vacationSyncing = false;
+
+function formatVacationCountdown(sec) {
+    let s = Math.max(0, Math.floor(Number(sec) || 0));
+    const d = Math.floor(s / 86400); s -= d * 86400;
+    const h = Math.floor(s / 3600);  s -= h * 3600;
+    const m = Math.floor(s / 60);    s -= m * 60;
+    const p = (n) => String(n).padStart(2, '0');
+    return `${d}d ${p(h)}:${p(m)}:${p(s)}`;
+}
+
+function applyVacationState(vac) {
+    const active = !!(vac && vac.active && Number(vac.until) > 0);
+    if (active) {
+        if (character) character.vacation = Object.assign({ active: true, startedAt: 0, until: Number(vac.until), remainingSec: 0, days: 0 }, vac, { active: true, until: Number(vac.until) });
+        showVacationOverlay(vac);
+    } else {
+        if (character && character.vacation) {
+            character.vacation = { active: false, startedAt: 0, until: 0, remainingSec: 0, days: 0 };
+        }
+        hideVacationOverlay();
+    }
+}
+
+function showVacationOverlay(vac) {
+    const ov = document.getElementById('vacation-overlay');
+    if (!ov) return;
+    const until = Number(vac?.until || 0);
+    if (!until) return;
+    ov.dataset.until = String(until);
+    ov.classList.remove('hidden');
+    document.documentElement.classList.add('vacation-active');
+    const startedEl = document.getElementById('vacation-started');
+    const startedAt = Number(vac?.startedAt || 0);
+    if (startedEl) startedEl.textContent = startedAt ? new Date(startedAt * 1000).toLocaleString(CURRENT_LANG) : '—';
+    const returnEl = document.getElementById('vacation-return');
+    if (returnEl) returnEl.textContent = new Date(until * 1000).toLocaleString(CURRENT_LANG);
+    if (_vacationTickTimer) clearInterval(_vacationTickTimer);
+    _vacationTickTimer = setInterval(vacationTick, 1000);
+    vacationTick();
+}
+
+function hideVacationOverlay() {
+    const ov = document.getElementById('vacation-overlay');
+    if (ov) { ov.classList.add('hidden'); delete ov.dataset.until; }
+    document.documentElement.classList.remove('vacation-active');
+    if (_vacationTickTimer) { clearInterval(_vacationTickTimer); _vacationTickTimer = null; }
+    _vacationSyncing = false;
+}
+
+// Local countdown; when it hits zero we confirm with the server and, only then,
+// silently put the player back into the game (no dialog, no reload prompt).
+function vacationTick() {
+    const ov = document.getElementById('vacation-overlay');
+    if (!ov || ov.classList.contains('hidden')) return;
+    const until = Number(ov.dataset.until || 0);
+    const left = until - Math.floor(Date.now() / 1000);
+    const cd = document.getElementById('vacation-countdown');
+    if (left > 0) {
+        if (cd) cd.textContent = formatVacationCountdown(left);
+        return;
+    }
+    if (_vacationSyncing) return;
+    _vacationSyncing = true;
+    api('GET', '/game/vacation/status')
+        .then((st) => {
+            _vacationSyncing = false;
+            if (st && st.active) {
+                const skew = Number(st.until || 0) - Math.floor(Date.now() / 1000);
+                ov.dataset.until = String(Number(st.until || 0));
+                if (cd && skew > 0) cd.textContent = formatVacationCountdown(skew);
+                return;
+            }
+            refreshAfterVacation();
+        })
+        .catch(() => { _vacationSyncing = false; });
+}
+
+async function refreshAfterVacation() {
+    applyVacationState({ active: false });
+    try {
+        const fresh = await api('GET', '/game/character');
+        if (fresh && fresh.id) {
+            character = fresh;
+            renderTopBar();
+            const activeTab = document.querySelector('.game-tab.active');
+            const tabName = activeTab ? activeTab.id.replace(/^tab-/, '') : '';
+            if (tabName) { try { showTab(tabName); } catch (_) {} }
+        }
+    } catch (_) {}
+}
+
+function openVacationModal() {
+    closeTopbarMenu();
+    const modal = document.getElementById('vacation-modal');
+    if (!modal) return;
+    if (character?.vacation?.active) { showVacationOverlay(character.vacation); return; }
+    modal.classList.remove('hidden');
+    const slider = document.getElementById('vacation-days-input');
+    if (slider) {
+        slider.value = String(VACATION_MIN_DAYS);
+        slider.oninput = () => updateVacationSlider();
+    }
+    updateVacationSlider();
+}
+
+function closeVacationModal() {
+    document.getElementById('vacation-modal')?.classList.add('hidden');
+}
+
+function updateVacationSlider() {
+    const slider = document.getElementById('vacation-days-input');
+    if (!slider) return;
+    const days = Math.min(VACATION_MAX_DAYS, Math.max(VACATION_MIN_DAYS, Math.round(Number(slider.value) || VACATION_MIN_DAYS)));
+    const val = document.getElementById('vacation-days-value');
+    if (val) val.textContent = String(days);
+    const pct = ((days - VACATION_MIN_DAYS) / (VACATION_MAX_DAYS - VACATION_MIN_DAYS)) * 100;
+    slider.style.background = `linear-gradient(90deg, var(--gold, #f1c40f) 0%, var(--gold, #f1c40f) ${pct}%, rgba(255,255,255,0.12) ${pct}%)`;
+    const unit = document.getElementById('vacation-days-unit');
+    if (unit) unit.textContent = CURRENT_LANG === 'pt' ? 'dias' : 'days';
+    const ret = document.getElementById('vacation-return-preview');
+    if (ret) ret.textContent = new Date(Date.now() + days * 86400000).toLocaleString(CURRENT_LANG);
+    const btn = document.getElementById('vacation-confirm-btn');
+    if (btn) btn.textContent = _pt(`Confirmar ${days} dias`, `Confirm ${days} days`);
+}
+
+async function confirmVacation() {
+    const slider = document.getElementById('vacation-days-input');
+    const days = Math.min(VACATION_MAX_DAYS, Math.max(VACATION_MIN_DAYS, Math.round(Number(slider?.value) || VACATION_MIN_DAYS)));
+    const ok = await openGameConfirmDialog({
+        title: _pt('Ir de férias?', 'Go on vacation?'),
+        message: _pt(
+            `Todos os seus personagens ficarão congelados por <strong>${days} dias</strong>. Você não poderá jogar, atacar ou ser atacado; o tempo de premium e os pontos de missão param de correr.<br><br><strong>NÃO é possível cancelar antes do prazo.</strong>`,
+            `Every character on your account will be frozen for <strong>${days} days</strong>. You won't be able to play, attack or be attacked, and your premium time and mission points stop counting down.<br><br><strong>You cannot cancel early — you must wait the full ${days} days.</strong>`
+        ),
+        confirmLabel: _pt('Sim, congelar', 'Yes, freeze my account'),
+        cancelLabel: _pt('Não', 'No'),
+        danger: true
+    });
+    if (!ok) return;
+    try {
+        const r = await api('POST', '/game/vacation/start', { days });
+        closeVacationModal();
+        applyVacationState(r?.vacation || { active: true, until: Math.floor(Date.now() / 1000) + days * 86400 });
+        openGameNoticeDialog({
+            title: _pt('Férias iniciadas', 'Vacation started'),
+            message: _pt('A sua conta está congelada. Boas férias!', 'Your account is now frozen. Enjoy your break!'),
+            confirmLabel: 'OK'
+        });
+    } catch (e) {
+        openGameNoticeDialog({
+            title: _pt('Não foi possível iniciar', 'Could not start vacation'),
+            message: escHtml(e.message || 'Unknown error'),
+            confirmLabel: 'OK'
+        });
+    }
+}
+
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
@@ -1624,7 +1857,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">${t('menu.liveStatus', 'Live Status')}</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">${t('menu.activeEvent', 'Active Event')}</div>
-                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:pointer">${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:${character?.active_event ? 'pointer' : 'default'};opacity:${character?.active_event ? '1' : '0.6'}">${escHtml(eventName)}</div>
             </div>
         </div>
         <div class="topbar-menu-section">
@@ -1652,6 +1885,10 @@ function renderTopbarMenu() {
                 </button>
                 <button class="topbar-menu-action" ${actionAttrs('openBugReportFromMenu')}>
                     🚩 ${t('menu.reportProblem', 'Report a Problem')}
+                </button>
+                <button class="topbar-menu-action" ${actionAttrs('openVacationModal')}>
+                    🏖️ ${t('menu.vacation', 'Go on vacation')}
+                    <span class="topbar-menu-meta">${t('menu.vacationMeta', 'Freeze your account for 7–30 days')}</span>
                 </button>
                 <button class="topbar-menu-action topbar-menu-action-danger" ${actionAttrs('logoutFromMenu')}>
                     ${t('menu.logout', 'Logout')}
@@ -1805,6 +2042,15 @@ document.addEventListener('click', (e) => {
     if (bannerEl) {
         e.stopPropagation();
         if (typeof closeTopbarMenu === 'function') closeTopbarMenu();
+        // No banner at all: say so instead of opening the Trial. (A live non-trial
+        // banner still falls through — enterEvent() re-checks /event/status, which
+        // only knows about the trial_arcane window.)
+        if (!character?.active_event) {
+            const msg = t('menu.noEvent', 'No active event right now');
+            if (typeof openGameDialog === 'function') openGameDialog({ title: t('menu.activeEvent', 'Active Event'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
+            else alert(msg);
+            return;
+        }
         if (typeof window.enterEvent === 'function') {
             window.enterEvent();
         } else {
@@ -14561,7 +14807,11 @@ async function skipCooldownAndAttack(id, name, targetClass) {
     try {
         const r = await api('POST', '/game/attack/skip-cooldown', { targetId: id });
         if (r.character) character = r.character;
-    } catch(e) { openGameDialog({ title: 'Error', message: e.message }); return; }
+    } catch(e) {
+        if (e?.data?.vacation_target) { showVacationTargetDialog(name); return; }
+        openGameDialog({ title: 'Error', message: e.message });
+        return;
+    }
     await attack(id, name, targetClass);
 }
 async function skipBattleCdAndAttack(id, name, targetClass, level) {
@@ -14955,6 +15205,19 @@ async function findOpponent(direction='similar') {
             </div>`;
     } catch(e) { if (box) box.innerHTML = `<p class="empty">${e.message}</p>`; }
 }
+// A frozen defender is a normal outcome, not an error — and the server
+// deliberately hides how long is left, so keep the copy vague too.
+function showVacationTargetDialog(targetName) {
+    openGameNoticeDialog({
+        title: _pt('Jogador de férias', 'Player on vacation'),
+        message: _pt(
+            `<strong>${escHtml(targetName || 'Este jogador')}</strong> está de férias e não pode ser atacado agora.<br><br>Tente novamente quando a conta voltar.`,
+            `<strong>${escHtml(targetName || 'This player')}</strong> is on vacation and can't be attacked right now.<br><br>Try again once their account is back.`
+        ),
+        confirmLabel: _pt('Entendi', 'Got it')
+    });
+}
+
 async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
     if ((character?.hp_current??character?.hp_max)<=0){alert('You are out of HP! Wait for regeneration.');return;}
     const blockReason = getMyAttackBlockReason();
@@ -14977,7 +15240,10 @@ async function attack(targetId,targetName,targetClass=null,targetLevel=null) {
 
         showBattleResult(r,targetId,targetName,targetClass,r.opponentLevel ?? targetLevel);
     }
-    catch(e) { alert(e.message); }
+    catch(e) {
+        if (e?.data?.vacation_target) { showVacationTargetDialog(targetName); return; }
+        alert(e.message);
+    }
 }
 function showBattleResult(r, targetId, targetName, targetClass=null, targetLevel=null) {
     const xpSummary = `${r.xpGained >= 0 ? '+' : ''}${r.xpGained} XP`;
