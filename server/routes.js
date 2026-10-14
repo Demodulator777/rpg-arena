@@ -1148,6 +1148,8 @@ const WEEKLY_TASKS = [
                                                                 completed_at INTEGER NOT NULL DEFAULT 0,
                                                                 updated_at INTEGER NOT NULL DEFAULT 0
                 )`,
+            'ALTER TABLE users ADD COLUMN vacation_started_at INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE users ADD COLUMN vacation_until INTEGER NOT NULL DEFAULT 0',
         ];
         try { await dbRun(db, 'ALTER TABLE character_story_progress ADD COLUMN accepted_stage INTEGER NOT NULL DEFAULT -1'); } catch {}
         for (const sql of migrations) {
@@ -6658,10 +6660,62 @@ async function getCurrentCharacter(db, userId, fields = '*') {
     return dbGet(db, `SELECT ${fields} FROM characters WHERE id = ? AND user_id = ?`, [activeCharacterId, userId]);
 }
 
+// ── Vacation (account-wide freeze) ────────────────────────────────────────
+// A vacation is stored on the USERS row so every character on the account is
+// frozen together. `vacation_until` is the single source of truth: it is a unix
+// second timestamp and is treated as ACTIVE only while now < vacation_until.
+// Nothing ever clears the column — expiry is lazy/implicit, so a returning
+// player is silently back to normal with no server-side cleanup job.
+const VACATION_MIN_DAYS = 7;
+const VACATION_MAX_DAYS = 30;
+
+function normalizeVacationRow(row) {
+    const now = Math.floor(Date.now() / 1000);
+    const startedAt = Number(row?.vacation_started_at || 0);
+    const until = Number(row?.vacation_until || 0);
+    const active = until > now;
+    if (!active) return { active: false, startedAt: 0, until: 0, remainingSec: 0, days: 0 };
+    return {
+        active: true,
+        startedAt,
+        until,
+        remainingSec: until - now,
+        days: Math.max(1, Math.ceil((until - startedAt) / 86400)),
+    };
+}
+
+async function getVacationState(db, userId) {
+    if (!userId) return { active: false, startedAt: 0, until: 0, remainingSec: 0, days: 0 };
+    const row = await dbGet(db, 'SELECT vacation_started_at, vacation_until FROM users WHERE id = ?', [userId]);
+    return normalizeVacationRow(row);
+}
+
+// Cheap boolean used by request guards / background loops (one indexed lookup).
+async function isUserOnVacation(db, userId) {
+    if (!userId) return false;
+    const now = Math.floor(Date.now() / 1000);
+    const row = await dbGet(db, 'SELECT 1 AS x FROM users WHERE id = ? AND vacation_until > ? LIMIT 1', [userId, now]);
+    return !!row;
+}
+
+async function isCharOnVacation(db, charId) {
+    if (!charId) return false;
+    const now = Math.floor(Date.now() / 1000);
+    const row = await dbGet(db,
+        'SELECT 1 AS x FROM characters c JOIN users u ON u.id = c.user_id WHERE c.id = ? AND u.vacation_until > ? LIMIT 1',
+        [charId, now]);
+    return !!row;
+}
+
 // ── MP Regen ──────────────────────────────────────────────────────────────
 async function applyMpRegen(db, characterId) {
     const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [characterId]);
     if (!char) return;
+    // Vacation freezes mission points: no regen accrues at all while frozen.
+    // `/vacation/start` already stamps mp_last_regen_at forward to the return
+    // time, so no retroactive MP is granted when the vacation ends either —
+    // this guard just stops the clamp branches below from un-stamping it.
+    if (await isCharOnVacation(db, characterId)) return;
     const now = Math.floor(Date.now() / 1000);
     const currentHourStart = Math.floor(now / 3600) * 3600;
     const lastRegen = char.mp_last_regen_at || 0;
@@ -10471,8 +10525,9 @@ async function buildCharacterResponse(char, db) {
     const equippedObj   = await getEquippedItems(db, char.id);
     const equippedArray = await getEquippedItemsArray(db, char.id);
     const userSettings = char.user_id
-        ? await dbGet(db, 'SELECT username, email, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, inbox_prune_missions, profile_pic FROM users WHERE id = ?', [char.user_id])
+        ? await dbGet(db, 'SELECT username, email, assistant_enabled, skip_battle_animations, pending_referral_gold, pending_referral_gems, referrals_registered, referrals_level5, inbox_badge_messages, inbox_badge_battles, inbox_badge_missions, chat_enabled, inbox_autoread_messages, inbox_autoread_battles, inbox_autoread_missions, inbox_prune_missions, profile_pic, vacation_started_at, vacation_until FROM users WHERE id = ?', [char.user_id])
         : null;
+    const vacationState = normalizeVacationRow(userSettings);
     const pendingReferralGold = Number(userSettings?.pending_referral_gold || 0);
     const pendingReferralGems = Number(userSettings?.pending_referral_gems || 0);
     const setBonuses = getEquippedSetBonuses(equippedArray);
@@ -10643,6 +10698,7 @@ async function buildCharacterResponse(char, db) {
         battle_cooldown_remaining: battleCooldownRemaining,
         battle_cooldown_ends_at:   battleCooldownEndsAt,
         active_event: eventInfo,
+        vacation: vacationState,
         story: await getStoryState(db, char),
         armor_value:  armorValue,
         elem_dmg:     elemDmg,
@@ -10855,6 +10911,66 @@ router.get('/characters', auth, async (req, res) => {
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
+});
+
+// ── Vacation ──────────────────────────────────────────────────────────────
+// Account-wide freeze. Strict by design: while `vacation_until` is in the
+// future the auth middleware rejects every non-whitelisted write request, so
+// logging in does NOT shorten the stay — the only way out is to wait it out.
+router.get('/vacation/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        res.json(await getVacationState(db, req.user.userId));
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.post('/vacation/start', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const userId = req.user.userId;
+        const now = Math.floor(Date.now() / 1000);
+
+        const current = await getVacationState(db, userId);
+        if (current.active) {
+            return res.status(400).json({ error: 'You are already on vacation.', vacation: true, vacation_state: current });
+        }
+
+        const days = Math.round(Number(req.body?.days));
+        if (!Number.isFinite(days) || days < VACATION_MIN_DAYS || days > VACATION_MAX_DAYS) {
+            return res.status(400).json({ error: `Vacation must be between ${VACATION_MIN_DAYS} and ${VACATION_MAX_DAYS} days.` });
+        }
+
+        const char = await getCurrentCharacter(db, userId);
+        if (!char) return res.status(404).json({ error: 'No character' });
+
+        const until = now + days * 86400;
+        await dbRun(db, 'UPDATE users SET vacation_started_at=?, vacation_until=? WHERE id=?', [now, until, userId]);
+
+        // Premium: the stored deadlines are absolute unix timestamps, so freezing
+        // the clock means shifting every STILL-ACTIVE deadline forward by exactly
+        // the vacation length. Expired features are left expired (not revived).
+        const chars = await dbAll(db, 'SELECT id, premium_features FROM characters WHERE user_id = ?', [userId]);
+        for (const c of chars) {
+            let feats = null;
+            try { feats = JSON.parse(c.premium_features || 'null'); } catch { feats = null; }
+            if (!feats || typeof feats !== 'object' || Array.isArray(feats)) continue;
+            let changed = false;
+            for (const key of Object.keys(feats)) {
+                const exp = Number(feats[key] || 0);
+                if (Number.isFinite(exp) && exp > now) { feats[key] = exp + days * 86400; changed = true; }
+            }
+            if (changed) await dbRun(db, 'UPDATE characters SET premium_features=? WHERE id=?', [JSON.stringify(feats), c.id]);
+        }
+
+        // Mission points: stamp the regen baseline forward to the return time so
+        // applyMpRegen sees a "just regenerated this hour" value for the whole
+        // window and grants nothing retroactively on return.
+        await dbRun(db,
+            'UPDATE characters SET mp_last_regen_at=? WHERE user_id=? AND (mp_last_regen_at IS NULL OR mp_last_regen_at < ?)',
+            [until, userId, until]);
+
+        res.json({ success: true, vacation: await getVacationState(db, userId) });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/character/select', auth, async (req, res) => {
@@ -12742,8 +12858,12 @@ async function resolveWarBattle(db, war) {
             ];
         } else {
             // PvP: real all-vs-all between the assigned fighters
-            const aChars = await dbAll(db, `SELECT c.* FROM characters c JOIN clan_war_assignments wa ON wa.char_id=c.id WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='attacker'`, [warId, op.id]);
-            const dChars = await dbAll(db, `SELECT c.* FROM characters c JOIN clan_war_assignments wa ON wa.char_id=c.id WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='defender'`, [warId, op.id]);
+            // PvP: real all-vs-all between the assigned fighters.
+            // Vacationing accounts are skipped on BOTH sides — a frozen character
+            // can neither attack nor be attacked while its owner is away.
+            const warNow = Math.floor(Date.now() / 1000);
+            const aChars = await dbAll(db, `SELECT c.* FROM characters c JOIN clan_war_assignments wa ON wa.char_id=c.id WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='attacker' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id=c.user_id AND u.vacation_until > ?)`, [warId, op.id, warNow]);
+            const dChars = await dbAll(db, `SELECT c.* FROM characters c JOIN clan_war_assignments wa ON wa.char_id=c.id WHERE wa.war_id=? AND wa.outpost_id=? AND wa.side='defender' AND NOT EXISTS (SELECT 1 FROM users u WHERE u.id=c.user_id AND u.vacation_until > ?)`, [warId, op.id, warNow]);
             if (!aChars.length) {
                 winner = 'defender';
                 battleLog = [`🛡️ Outpost ${op.outpost_index + 1} — no attackers were assigned; ${defName} holds it without a fight.`];
@@ -14785,6 +14905,10 @@ async function processOneAutoChar(db, state) {
     const char = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [state.char_id]);
     if (!char) { await shutoff('Character no longer exists'); return; }
 
+    // Account is on vacation — freeze the whole auto-mission loop (no starting
+    // and no collecting) until the vacation window closes.
+    if (await isCharOnVacation(db, state.char_id)) return;
+
     await applyMpRegen(db, state.char_id);
     await applyHpRegen(db, state.char_id);
     const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [state.char_id]);
@@ -16253,7 +16377,8 @@ router.get('/matchmaking', auth, async (req, res) => {
             WHERE c.id != ?
               AND c.user_id != ?
               AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
-        `, [me.id, req.user.userId, now]);
+              AND (u.vacation_until IS NULL OR u.vacation_until < ?)
+        `, [me.id, req.user.userId, now, now]);
 
         candidates = await dbAll(db, `
             SELECT c.*, u.username,
@@ -16263,7 +16388,8 @@ router.get('/matchmaking', auth, async (req, res) => {
               AND c.user_id != ?
               AND (c.global_cooldown_until IS NULL OR c.global_cooldown_until < ?)
               AND (c.hp_current IS NULL OR c.hp_current >= 10)
-        `, [me.id, req.user.userId, now]);
+              AND (u.vacation_until IS NULL OR u.vacation_until < ?)
+        `, [me.id, req.user.userId, now, now]);
 
         // Include each candidate's equipped spirit beast stats in their power
         if (candidates.length) {
@@ -16302,6 +16428,9 @@ router.post('/attack/skip-cooldown', auth, async (req, res) => {
         if (!defender) return res.status(404).json({ error: 'Target not found' });
 
         const now = Math.floor(Date.now() / 1000);
+        const defVac = await dbGet(db, 'SELECT 1 AS x FROM users WHERE id = ? AND vacation_until > ? LIMIT 1', [defender.user_id, now]);
+        if (defVac) return res.status(400).json({ error: `${defender.name} is on vacation and cannot be attacked right now.`, vacation_target: true });
+
         const crystals = attacker.crystals ?? attacker.gems ?? 0;
         if (crystals < 1) return res.status(400).json({ error: 'Need 1 💎 to skip cooldown' });
 
@@ -16341,6 +16470,14 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         if (!defender) return res.status(404).json({ error: 'Target not found' });
         if (String(defender.user_id) === String(req.user.userId)) return res.status(400).json({ error: 'You cannot attack characters on your own account.' });
         const now = Math.floor(Date.now() / 1000);
+        const defVacation = await dbGet(db, 'SELECT 1 AS x FROM users WHERE id = ? AND vacation_until > ? LIMIT 1', [defender.user_id, now]);
+        if (defVacation) {
+            // Never disclose how long the defender is frozen for.
+            return res.status(400).json({
+                error: `${defender.name} is on vacation and cannot be attacked right now.`,
+                vacation_target: true
+            });
+        }
         const atkMission = await dbGet(db, 'SELECT id FROM active_missions WHERE character_id=?', [attacker.id]);
         if (atkMission) return res.status(400).json({ error: 'Cannot attack while on a mission.' });
         if (attacker.travel_target && attacker.travel_end_time > now)
