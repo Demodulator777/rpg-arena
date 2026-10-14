@@ -6847,6 +6847,14 @@ global.debugDungeonDetails = function() {
       global.__eventCdTimer = setInterval(tick, 1000);
   }
 
+  // Shown whenever the trial banner window is closed. The server returns
+  // code 'event_inactive' from /event/enter, /event/start and /event/combat/start;
+  // enterEvent() also pre-checks /event/status with the same copy so the Trial tab
+  // never even opens once the event is over.
+  function eventInactiveMsg() {
+      return _pt('A Provação do Arcano não está ativa agora mesmo. Volte quando o evento estiver ativo.', 'The Trial of the Arcane is not active right now. Come back while the event is running.');
+  }
+
   function showEventErrorDialog(msg) {
       if (typeof openGameDialog !== 'function') { alert(msg); return; }
       stopEventCountdown();
@@ -7045,7 +7053,9 @@ global.debugDungeonDetails = function() {
           renderDungeonTab();
       } catch(e) {
           console.error('Failed to start event timer:', e);
-          const msg = e?.message || _pt('Erro ao começar o Trial.', 'Failed to start the Trial.');
+          const msg = e?.data?.code === 'event_inactive'
+              ? eventInactiveMsg()
+              : (e?.message || _pt('Erro ao começar o Trial.', 'Failed to start the Trial.'));
           if (typeof openGameDialog === 'function') openGameDialog({ title: _pt('Provação do Arcano', 'Trial of the Arcane'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
           else alert(msg);
       }
@@ -7079,6 +7089,17 @@ global.debugDungeonDetails = function() {
           if (typeof openGameDialog === 'function') openGameDialog({ title: _pt('Trial Locked', 'Trial Locked'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
           else alert(msg);
           return;
+      }
+      try {
+          // Authoritative window check BEFORE we spend the /enter call — with no
+          // live banner this must never reach the tab-open branch below.
+          const st = await apiFetch('GET', '/event/status');
+          if (!(Number(st?.eventEndsAt || 0) > 0)) {
+              showEventErrorDialog(eventInactiveMsg());
+              return;
+          }
+      } catch (e) {
+          // Status unavailable — fall through and let /event/enter decide.
       }
       try {
           const res = await apiFetch('POST', '/event/enter');
@@ -7134,7 +7155,9 @@ global.debugDungeonDetails = function() {
           else renderDungeonTab();
       } catch(e) {
           console.error('Failed to enter event:', e);
-          const msg = e?.message || _pt('Erro ao entrar no Trial do Arcano.', 'Failed to enter the Trial of the Arcane.');
+          const msg = e?.data?.code === 'event_inactive'
+              ? eventInactiveMsg()
+              : (e?.message || _pt('Erro ao entrar no Trial do Arcano.', 'Failed to enter the Trial of the Arcane.'));
           showEventErrorDialog(msg);
       }
   }
