@@ -85,11 +85,12 @@ async function loadBanners() {
 async function createBanner() {
     const name = document.getElementById('new-name').value;
     const duration = parseInt(document.getElementById('new-duration').value);
+    const eventKey = document.getElementById('new-event-key').value;
     const start = now();
     const end = start + days(duration);
     
     try {
-        await api('POST', '/create', { name, image: 'spiteforged', start_at: start, end_at: end, loot_table: SPITEFORGED_LOOT });
+        await api('POST', '/create', { name, image: 'spiteforged', start_at: start, end_at: end, loot_table: SPITEFORGED_LOOT, event_key: eventKey });
         showMsg('Created ' + name, false);
         loadBanners();
     } catch (e) {
