@@ -1045,9 +1045,14 @@ function loadWeeklyData() {
         var squads = res.squads || [];
         var totalBattles = res.total_battles || 0;
         var totalPlayers = stats.length;
-        var totalWins = stats.reduce(function(s, r) { return s + r.wins; }, 0);
-        var totalLosses = stats.reduce(function(s, r) { return s + r.losses; }, 0);
-        var totalDraws = stats.reduce(function(s, r) { return s + r.draws; }, 0);
+        // Prefer the server-computed totals: the W/L/D card must reconcile with
+        // total_battles, which the client-side reduce over `stats` did not.
+        var totalWins = typeof res.total_wins === 'number' ? res.total_wins
+            : stats.reduce(function(s, r) { return s + r.wins; }, 0);
+        var totalLosses = typeof res.total_losses === 'number' ? res.total_losses
+            : stats.reduce(function(s, r) { return s + r.losses; }, 0);
+        var totalDraws = typeof res.total_draws === 'number' ? res.total_draws
+            : stats.reduce(function(s, r) { return s + r.draws; }, 0);
 
         summary.innerHTML =
             '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-bottom:14px">' +
