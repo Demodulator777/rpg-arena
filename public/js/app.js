@@ -10710,7 +10710,8 @@ function lootBoxNamePT(name) {
 }
 function lootBoxDescPT(desc) {
     if (CURRENT_LANG !== 'pt' || !desc) return desc;
-    return LOOTBOX_PT[desc]?.desc || GAMEDATA_DESC_PT[desc] || desc;
+    // Exact English description (gamedata), then a box-name fallback.
+    return GAMEDATA_DESC_PT[desc] || LOOTBOX_PT[desc]?.desc || desc;
 }
 
 function getDisplayItemDesc(itemLike) {
@@ -10964,6 +10965,13 @@ const GAMEDATA_NAME_PT = {
 
 // Exact item descriptions from server/gamedata.js (equipment recipes + raid gear).
 const GAMEDATA_DESC_PT = {
+    // Loot boxes (gamedata LOOT_BOXES) — exact English desc → PT (shop, inventory, tooltip, unbox)
+    'Contains 5 items: materials, common gear, or gold. 1% chance for a gem!':'Contém 5 itens: materiais, equipamento comum ou ouro. 1% de chance de uma gema!',
+    'Better loot! Contains 5 items: uncommon materials, occasional rare gear. 3% chance for a gem!':'Saque melhor! Contém 5 itens: materiais incomuns, equipamento raro ocasional. 3% de chance de uma gema!',
+    'Premium loot! Contains 5 items: rare materials, good chance for rare/epic gear. 5% chance for a gem!':'Saque premium! Contém 5 itens: materiais raros, boa chance de equipamento raro/épico. 5% de chance de uma gema!',
+    'Epic loot! Contains 5 items: epic materials, high chance for epic/legendary gear. 10% chance for a gem!':'Saque épico! Contém 5 itens: materiais épicos, alta chance de equipamento épico/lendário. 10% de chance de uma gema!',
+    'Rare loot! High chance for legendary gear, rare materials, and gems.':'Saque raro! Alta chance de equipamento lendário, materiais raros e gemas.',
+    'Mythic loot! Guaranteed crafted item, high chance for legendary gear and rare materials.':'Saque mítico! Item forjado garantido, alta chance de equipamento lendário e materiais raros.',
     'A heavy warhammer that shatters shields and bones alike.':'Um martelo de guerra pesado que estilhaça escudos e ossos igualmente.',
     'Heavy iron plate armour, nearly impenetrable by physical blows.':'Armadura de placas de ferro pesada, quase impenetrável a golpes físicos.',
     'Full-face iron helm with reinforced cheekguards.':'Elmo de ferro de rosto completo com protetores faciais reforçados.',
@@ -12327,13 +12335,12 @@ function renderShop() {
                 const pt=item.priceType||'gold', ci=pt==='gems'?'💎':'💰', cc=pt==='gems'?'#9b59b6':'var(--gold)';
                 const gemCost = item.gemCost || 0;
                 const price = item.price || 0;
-        const isAvail=character.level>=(item.level||1), classOk=!item.classes||item.classes.includes(character.class);
+        const isAvail=character.level>=(item.level||1);
         const hasEnoughGold = pt==='gems' ? (character.gems||0)>=price : character.gold>=price;
         const hasEnoughGems = gemCost === 0 || (character.gems||0) >= gemCost;
         const hasEnough = hasEnoughGold && hasEnoughGems;
         let cardClass='shop-card';
         if(!isAvail)cardClass+=' locked-future';
-        if(!classOk)cardClass+=' class-locked';
         if(item.quality==='legendary')cardClass+=' legendary';
         else if(item.quality==='epic')cardClass+=' epic';
         else if(item.quality==='rare')cardClass+=' rare';
@@ -12368,16 +12375,15 @@ function renderShop() {
                 <span class="shop-card-tier">Lv.${item.level||1}</span>
             </div>
             <div class="shop-card-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>
-            <div class="shop-card-requirements ${isAvail&&classOk?'met':'not-met'}">${!isAvail?`<div>🔒 ${_pt('Requer Nível', 'Required: Level')} ${item.level}</div>`:''} ${item.classes?`<div>📋 Classes: ${item.classes.join('/')}</div>`:''}</div>
+            <div class="shop-card-requirements ${isAvail?'met':'not-met'}">${!isAvail?`<div>🔒 ${_pt('Requer Nível', 'Required: Level')} ${item.level}</div>`:''}</div>
             ${statsHtml||elemHtml?`<div class="shop-card-stats">${statsHtml}${elemHtml}${effectHtml}</div>`:''}
             <div class="shop-card-footer">
                 <div style="display:flex;flex-direction:column;gap:2px">
                     <span class="shop-card-price" style="color:${cc}">${ci} ${price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
-                <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&classOk&&hasEnough&&!item._buying?'':'disabled'}>${
+                <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&hasEnough&&!item._buying?'':'disabled'}>${
             item._buying ? _pt('Comprando...', 'Buying...') :
                 !isAvail ? `${_pt('Nível', 'Level')} ${item.level}` :
-                    !classOk ? _pt('Classe Bloqueada', 'Class Locked') :
                         !hasEnoughGold ? `${_pt('Faltam', 'Need')} ${price - (pt==='gems'?(character.gems||0):character.gold)} ${_pt('mais', 'more')}` :
                             !hasEnoughGems ? `${_pt('Faltam', 'Need')} ${gemCost-(character.gems||0)} 💎` :
                                 _pt('Comprar', 'Buy')
@@ -12392,7 +12398,6 @@ async function buyItem(itemId) {
     const gemCost=item.gemCost||0;
     const staysInShop = !!(item.alwaysAvailable || item.consumable || item.category === 'premium');
     if (character.level<(item.level||1)){showTabAlert(`Requires level ${item.level}!`);return;}
-    if (item.classes&&!item.classes.includes(character.class)){showTabAlert(`Not available for ${capitalize(character.class)}!`);return;}
     if (pt==='gems'&&(character.gems||0)<item.price){showTabAlert('Not enough gems!');return;}
     if (pt!=='gems'&&character.gold<item.price){showTabAlert('Not enough gold!');return;}
     if (gemCost>0&&(character.gems||0)<gemCost){showTabAlert(`This item also costs ${gemCost} 💎 — not enough gems!`);return;}
@@ -14609,6 +14614,10 @@ async function openProfile(id) {
     hideItemTooltip();
     // Move to end of body so it stacks above any open game dialog
     document.body.appendChild(modal);
+    // Lift above the game dialog (#game-dialog-modal, 310000) only when one is open —
+    // otherwise keep base .modal-overlay z-index so it stays under the vacation lock (300000)
+    const gameDlg = document.getElementById('game-dialog-modal');
+    modal.style.zIndex = (gameDlg && !gameDlg.classList.contains('hidden')) ? '320000' : '';
     content.innerHTML=`<p class="loading">${_pt('Carregando perfil...', 'Loading profile...')}</p>`; modal.classList.remove('hidden');
     try {
         character = await api('GET','/game/character');
@@ -14797,7 +14806,7 @@ function miniStat(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val" style="font-size:0.9rem">${val}</span></div>`;
 }
-function closeProfile() { hideItemTooltip(); document.getElementById('profile-modal').classList.add('hidden'); }
+function closeProfile() { hideItemTooltip(); const m = document.getElementById('profile-modal'); m.classList.add('hidden'); m.style.zIndex = ''; }
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
 async function skipCooldownAndAttack(id, name, targetClass) {
     closeProfile();
@@ -14988,7 +14997,7 @@ function translateBattleLogPt(line) {
 
     // Glancing blow (force field absorbed / normal)
     t = t.replace(/^(.+?)\s+glances off\s*[-—-]\s*✨ FORCE FIELD blocks the blow!\s*([^]*)$/, (m, name, rest) => `${name} acerta de raspão — ✨ CAMPO DE FORÇA bloqueia o golpe!${translateNumbered(rest)}`);
-    t = t.replace(/^(.+?)\s+lands a glancing blow([^—-]*?)\s*[-—-]\s*(-?\d+)\s+damage\s*\(([^)]*)\)\s*([^]*)$/, (m, name, tag, dmg, breakdown, rest) => `${name} acerta um golpe de raspão${fmtGlanceTag(tag)} — ${dmg} de dano (${breakdown})${translateNumbered(rest)}`);
+    t = t.replace(/^(.+?)\s+lands a glancing blow([^—-]*?)\s*[-—-]\s*(-?\d+)\s+damage\s*\(([^)]*)\)\s*([^]*)$/, (m, name, tag, dmg, breakdown, rest) => `${name} acerta um golpe de raspão${fmtGlanceTag(tag)} — ${dmg} de dano (${String(breakdown).replace(/physical/gi, 'físico')})${translateNumbered(rest)}`);
 
     // Special use-limited attacks
     t = t.replace(/^(.+?)\s+uses DEATH MARK\s*[-—-]\s*(-?\d+)\s+damage\s*([^]*)$/, (m, name, dmg, rest) => `${name} usa MARCA DA MORTE — ${dmg} de dano${translateNumbered(rest)}`);
@@ -15016,6 +15025,7 @@ function translateBattleLogPt(line) {
 
 function fmtGlanceTag(tag) {
     const tg = String(tag || '')
+        .replace(/backstab!/gi, ' ataque traiçoeiro!')
         .replace(/backstabs/gi, ' de furtividade')
         .replace(/⚡CRIT/gi, ', crítico')
         .trim();
@@ -15029,6 +15039,9 @@ function cleanActor(name) {
         .replace(/\s+RAGING BLOW$/i, '')
         .replace(/\s+⚡CRIT$/,
             '')
+        .replace(/\s+lands a hit$/i, '')
+        .replace(/\s+lands a$/i, '')
+        .replace(/\s+hits$/i, '')
         .trim();
 }
 function translateNumbered(rest) {
@@ -15071,6 +15084,27 @@ function renderBattleLogLine(line, enemyName='Enemy', tintRole='') {
         pillStyle = 'background:linear-gradient(135deg, rgba(231,76,60,0.42), rgba(231,76,60,0.16));border-left:3px solid #e74c3c;color:#ffe5df;box-shadow:0 0 0 1px rgba(231,76,60,0.2), 0 4px 12px rgba(231,76,60,0.18);';
     }
     return `<div class="battle-log-line ${className}"><span class="${pillClass}"${pillStyle ? ` style="${pillStyle}"` : ''}>${escHtml(display)}</span></div>`;
+}
+
+// Translate plain-text system message bodies that embed a raw English battle
+// log (e.g. Guild Raid reports). Only touches lines that are clearly part of a
+// battle report so unrelated messages pass through untouched.
+function translatePlainMessageBodyPt(body) {
+    if (CURRENT_LANG !== 'pt' || !body) return body;
+    const s = String(body);
+    const hasLog = /^Round \d+:/m.test(s);
+    const isRaid = /^Boss:\s/m.test(s) || /^Party size:\s/m.test(s) || /(defeated|crushed the party) on Floor \d+\./m.test(s);
+    if (!hasLog && !isRaid) return body;
+    return s.split('\n').map(line => {
+        if (/^Round \d+:/.test(line)) return translateBattleLogPt(line);
+        let l = line;
+        l = l.replace(/^(.+?) defeated (.+?) on Floor (\d+)\.$/, (m, a, b, f) => `${a} derrotou ${b} no Andar ${f}.`);
+        l = l.replace(/^(.+?) crushed the party on Floor (\d+)\.$/, (m, b, f) => `${b} esmagou o grupo no Andar ${f}.`);
+        l = l.replace(/^Boss:\s*(.+)$/, (m, b) => `Chefe: ${b}`);
+        l = l.replace(/^Floor:\s*(\d+)$/, (m, f) => `Andar: ${f}`);
+        l = l.replace(/^Party size:\s*(\d+)$/, (m, n) => `Tamanho do grupo: ${n}`);
+        return l;
+    }).join('\n');
 }
 
 function updateBattlePlaybackStatus(text, done=false) {
@@ -15633,7 +15667,7 @@ function renderInboxFilter(filter) {
         const isSystem = Number(m.system_message || 0) !== 0;
         const warInfo = window._warPanelCache?.[m.id];
         const isWarMsg = !!warInfo;
-        const displayBody = isWarMsg ? (warInfo._displayText || '') : m.body;
+        const displayBody = isWarMsg ? (warInfo._displayText || '') : translatePlainMessageBodyPt(m.body);
         return `<div class="msg-row ${m.read?'':'unread'}" id="msg-${m.id}">
             <div class="msg-header">
                 <div class="msg-meta">
