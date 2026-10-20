@@ -21282,7 +21282,7 @@ const DUNGEON_MONSTER_POOL = [
     // Mini-bosses can also appear as regular spawns in the current client generator.
     { id:'shadow_stalker', name:'Shadow Stalker', icon:'🐺', image:'/images/dungeon/monsters/shadow_stalker.jpg', hp:400, atk:55, def:25, steal:true,  minFloor:10, isMiniBoss:true, lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
     { id:'crystal_golem',  name:'Crystal Golem',  icon:'💎', image:'/images/dungeon/monsters/crystal_golem.jpg', hp:600, atk:40, def:45, steal:false, minFloor:15, isMiniBoss:true },
-    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', image:'/images/dungeon/monsters/flame_revenant.jpg', hp:350, atk:70, def:20, steal:false, minFloor:20, isMiniBoss:true },
+    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', image:'/images/dungeon/monsters/flame_revenant.jpg', hp:1400, atk:70, def:20, steal:false, minFloor:20, isMiniBoss:true },
     { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', image:'/images/dungeon/monsters/frost_wyrmling.jpg', hp:450, atk:60, def:30, steal:true,  minFloor:25, isMiniBoss:true },
     { id:'void_stalker',   name:'Void Stalker',   icon:'🌑', image:'/images/dungeon/monsters/void_stalker.jpg', hp:500, atk:75, def:28, steal:true,  minFloor:30, isMiniBoss:true },
     { id:'doom_knight',    name:'Doom Knight',    icon:'⚔️', image:'/images/dungeon/monsters/doom_knight.jpg', hp:700, atk:65, def:50, steal:true,  minFloor:35, isMiniBoss:true },
@@ -21291,7 +21291,7 @@ const DUNGEON_MONSTER_POOL = [
 const DUNGEON_MINI_BOSS_POOL = [
     { id:'shadow_stalker', name:'Shadow Stalker', icon:'🐺', baseHp:400, baseAtk:55, baseDef:25, minFloor:5,  image:'/images/dungeon/monsters/shadow_stalker.jpg', lore:'The Shadow Stalker is a tough dog-like creature that attacks from the shadows.' },
     { id:'crystal_golem',  name:'Crystal Golem',  icon:'💎', baseHp:600, baseAtk:40, baseDef:45, minFloor:15, image:'/images/dungeon/monsters/crystal_golem.jpg' },
-    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', baseHp:350, baseAtk:70, baseDef:20, minFloor:20, image:'/images/dungeon/monsters/flame_revenant.jpg' },
+    { id:'flame_revenant', name:'Flame Revenant', icon:'🔥', baseHp:1400, baseAtk:70, baseDef:20, minFloor:20, image:'/images/dungeon/monsters/flame_revenant.jpg' },
     { id:'frost_wyrmling', name:'Frost Wyrmling', icon:'❄️', baseHp:450, baseAtk:60, baseDef:30, minFloor:25, image:'/images/dungeon/monsters/frost_wyrmling.jpg' },
     { id:'void_stalker',   name:'Void Stalker',   icon:'🌑', baseHp:500, baseAtk:75, baseDef:28, minFloor:30, image:'/images/dungeon/monsters/void_stalker.jpg' },
     { id:'doom_knight',    name:'Doom Knight',    icon:'⚔️', baseHp:700, baseAtk:65, baseDef:50, minFloor:35, image:'/images/dungeon/monsters/doom_knight.jpg' },
