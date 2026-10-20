@@ -11,6 +11,28 @@ const fs = require('fs');
 const rateLimit = require('express-rate-limit');
 const multer = require('multer');
 
+// --- Language Helpers --------------------------------------------------------
+async function getUserLanguage(db, userId) {
+    if (!userId) return 'en'; // Default to English if no user
+    try {
+        const row = await db.execute({
+            sql: 'SELECT language FROM users WHERE id = ?',
+            args: [userId]
+        });
+        return row.rows[0]?.language || 'en';
+    } catch (e) {
+        console.error('Error fetching user language:', e);
+        return 'en'; // Fallback to English on error
+    }
+}
+
+// Server-side translation utility (English first, then Portuguese)
+function _spt(enText, ptText, lang) {
+    if (lang === 'pt') return ptText;
+    return enText;
+}
+// -----------------------------------------------------------------------------
+
 const SQUAD_IMG_DIR = path.join(__dirname, '../public/images/squads');
 if (!fs.existsSync(SQUAD_IMG_DIR)) fs.mkdirSync(SQUAD_IMG_DIR, { recursive: true });
 const DECAL_IMG_DIR = path.join(__dirname, '../public/images/decals');
@@ -9223,49 +9245,49 @@ const TRAVEL_GUARDIANS = {
 const TRAVEL_GUARDIAN_TEMPLATES = {
     overworld: {
         swamp: {
-            hp: 260, dmgMin: 18, dmgMax: 26, agility: 28, magic: 18, armor: 18, hit_chance: 72, crit_chance: 10,
+            hp: 1040, dmgMin: 18, dmgMax: 26, agility: 28, magic: 18, armor: 18, hit_chance: 72, crit_chance: 10,
             elem_dmg: { pyro: 8, water: 8, wind: 8, electro: 8 },
             elem_resist: { pyro: 10, water: 10, wind: 10, electro: 10 },
         },
         mountains: {
-            hp: 520, dmgMin: 34, dmgMax: 46, agility: 60, magic: 80, armor: 46, hit_chance: 78, crit_chance: 18,
+            hp: 2080, dmgMin: 34, dmgMax: 46, agility: 60, magic: 80, armor: 46, hit_chance: 78, crit_chance: 18,
             elem_dmg: { pyro: 16, water: 16, wind: 16, electro: 16 },
             elem_resist: { pyro: 18, water: 18, wind: 18, electro: 18 },
         },
         ruins: {
-            hp: 980, dmgMin: 120, dmgMax: 160, agility: 120, magic: 150, armor: 120, hit_chance: 122, crit_chance: 25,
+            hp: 3920, dmgMin: 120, dmgMax: 160, agility: 120, magic: 150, armor: 120, hit_chance: 122, crit_chance: 25,
             elem_dmg: { pyro: 28, water: 28, wind: 28, electro: 28 },
             elem_resist: { pyro: 26, water: 26, wind: 26, electro: 26 },
         },
         dark_city: {
-            hp: 1400, dmgMin: 180, dmgMax: 240, agility: 200, magic: 500, armor: 200, hit_chance: 156, crit_chance: 50,
+            hp: 5600, dmgMin: 180, dmgMax: 240, agility: 200, magic: 500, armor: 200, hit_chance: 156, crit_chance: 50,
             elem_dmg: { pyro: 42, water: 42, wind: 42, electro: 42 },
             elem_resist: { pyro: 34, water: 34, wind: 34, electro: 34 },
         },
     },
     abyss: {
         shadowfen: {
-            hp: 1800, dmgMin: 210, dmgMax: 380, agility: 240, magic: 560, armor: 30, hit_chance: 308, crit_chance: 152,
+            hp: 7200, dmgMin: 210, dmgMax: 380, agility: 240, magic: 560, armor: 30, hit_chance: 308, crit_chance: 152,
             elem_dmg: { pyro: 55, water: 155, wind: 55, electro: 55 },
             elem_resist: { pyro: 68, water: 68, wind: 68, electro: 68 },
         },
         crimson: {
-            hp: 2400, dmgMin: 280, dmgMax: 460, agility: 280, magic: 720, armor: 380, hit_chance: 450, crit_chance: 295,
+            hp: 9600, dmgMin: 280, dmgMax: 460, agility: 280, magic: 720, armor: 380, hit_chance: 450, crit_chance: 295,
             elem_dmg: { pyro: 172, water: 64, wind: 164, electro: 64 },
             elem_resist: { pyro: 75, water: 75, wind: 75, electro: 75 },
         },
         void: {
-            hp: 3200, dmgMin: 360, dmgMax: 660, agility: 320, magic: 900, armor: 430, hit_chance: 592, crit_chance: 408,
+            hp: 12800, dmgMin: 360, dmgMax: 660, agility: 320, magic: 900, armor: 430, hit_chance: 592, crit_chance: 408,
             elem_dmg: { pyro: 74, water: 234, wind: 74, electro: 234 },
             elem_resist: { pyro: 100, water: 100, wind: 100, electro: 100 },
         },
         citadel: {
-            hp: 4200, dmgMin: 470, dmgMax: 800, agility: 380, magic: 1100, armor: 490, hit_chance: 644, crit_chance: 552,
+            hp: 16800, dmgMin: 470, dmgMax: 800, agility: 380, magic: 1100, armor: 490, hit_chance: 644, crit_chance: 552,
             elem_dmg: { pyro: 190, water: 90, wind: 288, electro: 88 },
             elem_resist: { pyro: 122, water: 122, wind: 122, electro: 122 },
         },
         eternal_dark: {
-            hp: 5600, dmgMin: 620, dmgMax: 980, agility: 440, magic: 1350, armor: 660, hit_chance: 755, crit_chance: 700,
+            hp: 22400, dmgMin: 620, dmgMax: 980, agility: 440, magic: 1350, armor: 660, hit_chance: 755, crit_chance: 700,
             elem_dmg: { pyro: 180, water: 180, wind: 180, electro: 310 },
             elem_resist: { pyro: 174, water: 174, wind: 174, electro: 174 },
         },
@@ -9972,10 +9994,6 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
         }
     }
 
-    if (Math.random() < 0.06) {
-        const classes = ['warrior','mage','rogue','paladin'];
-        item.classes = [classes[Math.floor(Math.random() * classes.length)]];
-    }
     return item;
 }
 
