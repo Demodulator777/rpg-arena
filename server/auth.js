@@ -557,8 +557,8 @@ router.post('/password/forgot', async (req, res) => {
       .catch((err) => ({ sent: false, reason: 'smtp_error', err }));
 
     if (!mailResult?.sent) {
-      // Fallback: log to server so you can still test end-to-end.
-      console.log(`[password-reset] (NOT SENT) user=${user.username} email=${user.email} link=${resetLink} reason=${mailResult?.reason || 'unknown'}`);
+      // Reset links are delivered by email only — never log the token/link.
+      console.warn(`[password-reset] email send failed user=${user.username} reason=${mailResult?.reason || 'unknown'}`);
       if (mailResult?.err) console.error('[password-reset] send error:', mailResult.err);
     }
 
