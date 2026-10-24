@@ -9735,54 +9735,68 @@ function scheduleHideTooltip(){ _hideTooltipTimer=setTimeout(hideItemTooltip,150
 function cancelHideTooltip(){ if(_hideTooltipTimer){clearTimeout(_hideTooltipTimer);_hideTooltipTimer=null;} }
 
 // ── Tooltip click gating ──────────────────────────────────────────────────────
-// A tooltip renders its action buttons (Sell / Equip / Buy) the instant it opens, and it
-// is normally anchored right under the pointer. Without gating, the very gesture that
-// opened the tooltip can also land on a button that did not exist when the gesture
-// started — so one click on an inventory item fires the sell confirmation.
+// A tooltip renders its action buttons (Equip / Unequip / Sell) the instant it opens, and
+// it opens under the very finger that will go on to produce this gesture's `click`. Without
+// gating, one tap on an inventory cell opens the tooltip AND fires whichever button appeared
+// inside it — the user presses an item and the item is sold/equipped before they ever saw it.
 //
-// The rule is state-based, never time-based: the buttons accept clicks only if the
-// tooltip was ALREADY open when the current pointer gesture began. An opening gesture is
-// blocked for exactly as long as that gesture lasts, so the tooltip is clickable again on
-// the very next interaction and no timing constant is involved.
-let _ttGestureBlocked = false;
-let _ttGestureRelease = null;
+// The rule is state-based, never time-based: the tooltip accepts pointer input only if it was
+// ALREADY open when the current gesture started. While an opening gesture is in flight the
+// element is `pointer-events: none`, so the browser's hit test skips it entirely and the click
+// lands on the inventory cell (which merely opens the tooltip). The lock lives as a class on
+// the tooltip element, so it survives every innerHTML re-render, and it is dropped as soon as
+// that gesture resolves — the next touch interacts normally, with no timing constant to tune.
+const TT_LOCK_CLASS = 'tt-gesture-lock';
+let _ttGestureLocked = false;
 
-// Deliberately DOM-derived: the flag cannot go stale across the many tooltip variants
-// that share the single #item-tooltip element, and variants without actions (squad row,
-// elemental, stat cost) are simply never gated.
-function ttTooltipActions() {
-    const t = document.getElementById('item-tooltip');
-    return (t && !t.classList.contains('hidden') && t.querySelector('.tt-actions')) ? t : null;
+function ttTooltipEl() { return document.getElementById('item-tooltip'); }
+
+function ttSetGestureLock(locked) {
+    _ttGestureLocked = locked;
+    const t = ttTooltipEl();
+    if (t) t.classList.toggle(TT_LOCK_CLASS, locked);
 }
 
-function ttReleaseGesture() {
-    if (_ttGestureRelease) { clearTimeout(_ttGestureRelease); _ttGestureRelease = null; }
-    _ttGestureBlocked = false;
-    const t = document.getElementById('item-tooltip');
-    if (t && !t.classList.contains('hidden') && t.querySelector('.tt-actions')) t.style.pointerEvents = 'auto';
+// Capture phase: runs before any handler can build the tooltip, so the open-state read here
+// is the state at the START of the gesture. A pointerdown on an already-open tooltip (i.e. the
+// user reaching for Equip/Sell) leaves it fully interactive.
+//
+// A tap that lands OUTSIDE an open tooltip dismisses it here rather than on `click`: the
+// pointer targets the item underneath, so without this the old Equip/Sell button can still
+// receive the tap on the way to the new item. The new tooltip then opens locked, exactly like
+// any other opening gesture.
+function ttBeginGesture(event) {
+    const t = ttTooltipEl();
+    let open = !!(t && !t.classList.contains('hidden'));
+    if (open && event?.target && !t.contains(event.target)) {
+        hideItemTooltip();
+        open = false;
+    }
+    ttSetGestureLock(!open);
 }
 
 function ttInstallGestureGate() {
     if (ttInstallGestureGate._done) return;
     ttInstallGestureGate._done = true;
-    // Capture phase: runs before any handler can open a tooltip, so the open-state we read
-    // is the state at the START of the gesture.
-    document.addEventListener('pointerdown', () => {
-        const t = document.getElementById('item-tooltip');
-        const wasOpen = !!(t && !t.classList.contains('hidden'));
-        _ttGestureBlocked = !wasOpen;
-        // Already open at gesture start → the user is looking at it, let clicks through.
-        if (wasOpen) return;
-        if (ttTooltipActions() && t) t.style.pointerEvents = 'none';
-        // Release once this gesture has resolved. `click` is dispatched in the same task as
-        // `pointerup`, so deferring by one task still covers the opening click, and it also
-        // recovers on a drag where no click follows.
-        _ttGestureRelease = setTimeout(ttReleaseGesture, 0);
+
+    document.addEventListener('pointerdown', ttBeginGesture, true);
+    // Cheap passive fallback for engines that only deliver touch events.
+    document.addEventListener('touchstart', ttBeginGesture, { capture: true, passive: true });
+
+    // The gesture's own `click` already has its target resolved by the time this capture
+    // listener runs, so unlocking here cannot send that same click into a button — it is
+    // purely the "gesture is over" signal. Gestures that never produce a click (drags,
+    // scrolls, cancelled touches) stay locked only until the next pointerdown, which
+    // re-evaluates from scratch and unlocks as soon as the tooltip is visible.
+    document.addEventListener('click', () => {
+        if (_ttGestureLocked) ttSetGestureLock(false);
     }, true);
-    document.addEventListener('pointerup', () => {
-        if (_ttGestureBlocked) _ttGestureRelease = setTimeout(ttReleaseGesture, 0);
+    document.addEventListener('pointercancel', () => {
+        if (_ttGestureLocked) ttSetGestureLock(false);
     }, true);
-    document.addEventListener('pointercancel', ttReleaseGesture, true);
+    document.addEventListener('touchcancel', () => {
+        if (_ttGestureLocked) ttSetGestureLock(false);
+    }, true);
 }
 // ── Open Loot Box ─────────────────────────────────────────────────────────
 function showItemTooltip(event, itemId) {
