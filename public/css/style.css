@@ -4630,6 +4630,10 @@ select.input-field:focus {
     touch-action: pan-y;
 }
 .item-tooltip.hidden { display: none; }
+/* An opening tap must only open the tooltip: while the gesture that revealed it is still
+   in flight the element is skipped by the hit test, so its freshly rendered Equip/Sell
+   buttons cannot receive that same click. Cleared as soon as the gesture resolves. */
+.item-tooltip.tt-gesture-lock { pointer-events: none !important; }
 .tt-preview {
     width: 100%; aspect-ratio: 1/1; display: flex; align-items: center; justify-content: center;
     background: rgba(255,255,255,0.03); border-bottom: 1px solid rgba(255,255,255,0.08); padding: 16px;
