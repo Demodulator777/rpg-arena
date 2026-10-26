@@ -9392,7 +9392,7 @@ function renderGearGrid(el, gear, equipped, offHandUnlocked = false) {
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
                 ${invBulkMode ? `<span style="font-size:0.7rem;color:var(--text-dim)">${sellPrice}g</span>` : `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, equippedSlot || d.slot, isMainEquipped)}>${isMainEquipped ? _pt('Desequipar', 'Unequip') : _pt('Equipar', 'Equip')}</button>`}
                 ${!invBulkMode && canEquipOffHand ? `<button class="btn-sm inv-offhand-btn" style="font-size:0.6rem; padding:2px 6px;" ${isOffHandEquipped ? actionAttrs('unequipSlot', 'off_hand') : actionAttrs('equipOffHand', i.id)}>${isOffHandEquipped ? _pt('Desequipar mão secundária', 'Unequip off-hand') : _pt('Equipar como escudo', 'Equip as shield')}</button>` : ''}
-                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>?? ${_pt('Melhorar', 'Upgrade')}</button>` : ''}
+                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>${_pt('Melhorar', 'Upgrade')}</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
