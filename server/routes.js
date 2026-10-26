@@ -8234,8 +8234,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (offHandDmgPct > 0 && finalDmg > 0) {
         const offHand = Math.floor(finalDmg * offHandDmgPct);
         if (offHand > 0) {
+            const mainDmg = Math.floor(finalDmg - offHand);
             finalDmg += offHand;
-            logLine += ` (+${offHand} off-hand)`;
+            logLine += ` (off-hand ${offHand}/${mainDmg} damage)`;
         }
     }
 
