@@ -1236,10 +1236,19 @@ const SKILL_TREES = {
                     off_hand_training: {
                         id: 'off_hand_training', tier: 3, name: 'Off-Hand Training', emoji: '🤜',
                         type: 'progressive',
-                        desc: 'Equip second weapon in shield slot. Off-hand deals 60% damage.',
-                        effects: [{ type: 'class_modifier', id: 'dual_wield_unlock', off_hand_dmg_pct: 0.60 }],
+                        desc: 'Equip second weapon in shield slot. Off-hand deals 30% damage.',
+                        effects: [{ type: 'class_modifier', id: 'dual_wield_unlock', off_hand_dmg_pct: 0.30 }],
                         requires: ['basic_training'],
                         unlockCondition: 'kills_no_shield',
+                        thresholds: ROGUE_THRESHOLDS.tier3,
+                    },
+                    off_hand_mastery: {
+                        id: 'off_hand_mastery', tier: 3, name: 'Off-Hand Mastery', emoji: '⚔️',
+                        type: 'progressive',
+                        desc: 'Off-hand damage increases to 60%.',
+                        effects: [{ type: 'class_modifier', id: 'dual_wield_unlock', off_hand_dmg_pct: 0.60 }],
+                        requires: ['off_hand_training'],
+                        unlockCondition: 'wins_50',
                         thresholds: ROGUE_THRESHOLDS.tier3,
                     },
                     ambidexterity: {
@@ -1250,7 +1259,7 @@ const SKILL_TREES = {
                             { type: 'class_modifier', id: 'dual_wield_dmg_pct', off_hand_dmg_pct: 0.85 },
                             { type: 'active_combat', id: 'ambidexterity', extra_hits: 1 }
                         ],
-                        requires: ['off_hand_training'],
+                        requires: ['off_hand_mastery'],
                         unlockCondition: 'wins_150',
                         thresholds: ROGUE_THRESHOLDS.tier4,
                     },
