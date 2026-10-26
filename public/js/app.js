@@ -4047,7 +4047,7 @@ const eqSlots=[
 {slot:'shield', icon:'🛡', label: isPT ? 'Escudo' : 'Shield'},
 {slot:'boots',  icon:'👢', label: isPT ? 'Botas' : 'Boots'},
 ];
-    const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
+    const resolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null, shield: eq.shield || eq.off_hand || null };
     const mainEqGrid = eqSlots.map(({slot,icon,label},idx) => {
         const avatarDiv = idx === 3 ? `
         <div class="eq-avatar-center">
@@ -9338,11 +9338,20 @@ function getInventorySellPrice(itemData) {
     return cap > 0 ? Math.min(rawSellPrice, cap) : rawSellPrice;
 }
 
-function renderGearGrid(el, gear, equipped) {
+function renderGearGrid(el, gear, equipped, offHandUnlocked = false) {
+    const equippedSlotById = {};
+    for (const [slot, item] of Object.entries(equipped || {})) {
+        if (item?.inventoryId) equippedSlotById[item.inventoryId] = slot;
+    }
     window._invGearData = {};
     gear.forEach(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
-        window._invGearData[i.id] = { ...i, equippedInSlot: equipped?.[d.slot] };
+        window._invGearData[i.id] = {
+            ...i,
+            equippedInSlot: equipped?.[d.slot],
+            equippedSlot: equippedSlotById[i.id] || null,
+            offHandAvailable: !!offHandUnlocked && d.slot === 'weapon',
+        };
     });
     const equippedIds = Object.values(equipped || {}).map(e => e.inventoryId).filter(Boolean);
 
@@ -9357,7 +9366,11 @@ function renderGearGrid(el, gear, equipped) {
     el.innerHTML += `<div class="inv-hint">${_pt('Passe o mouse/clique para inspecionar &nbsp;·&nbsp; Use os botões para equipar/melhorar', 'Hover/Click to inspect &nbsp;·&nbsp; Use buttons to equip/upgrade')} ${premiumBadge}</div>
     <div class="inv-equipment-grid">${gear.map(i => {
         const d = typeof i.item_data === 'object' ? i.item_data : {};
-        const isEquipped = equippedIds.includes(i.id);
+        const equippedSlot = equippedSlotById[i.id] || null;
+        const isEquipped = !!equippedSlot || equippedIds.includes(i.id);
+        const isMainEquipped = d.slot === 'weapon' ? equippedSlot === 'weapon' : isEquipped;
+        const isOffHandEquipped = equippedSlot === 'off_hand';
+        const canEquipOffHand = offHandUnlocked && d.slot === 'weapon';
         const upgradeLevel = i.upgrade_level || 0;
         const qc = d.quality==='legendary'?'inv-legendary':d.quality==='epic'?'inv-epic':d.quality==='rare'?'inv-rare':'';
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
@@ -9377,8 +9390,9 @@ function renderGearGrid(el, gear, equipped) {
             <div class="inv-item-name-label">${(() => { const full = translateItemNamePT(d.name || ''); return full.split(' ').slice(-1)[0]; })()}</div>
             ${setupBadges ? `<div class="inv-item-setup-badges">${setupBadges}</div>` : ''}
             <div class="inv-item-actions" style="display:flex; gap:4px; margin-top:5px;">
-                ${invBulkMode ? `<span style="font-size:0.7rem;color:var(--text-dim)">${sellPrice}g</span>` : `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, d.slot, isEquipped)}>${isEquipped ? _pt('Desequipar', 'Unequip') : _pt('Equipar', 'Equip')}</button>`}
-                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>⬆️ ${_pt('Melhorar', 'Upgrade')}</button>` : ''}
+                ${invBulkMode ? `<span style="font-size:0.7rem;color:var(--text-dim)">${sellPrice}g</span>` : `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px;" ${actionAttrs('toggleEquipItem', i.id, equippedSlot || d.slot, isMainEquipped)}>${isMainEquipped ? _pt('Desequipar', 'Unequip') : _pt('Equipar', 'Equip')}</button>`}
+                ${!invBulkMode && canEquipOffHand ? `<button class="btn-sm inv-offhand-btn" style="font-size:0.6rem; padding:2px 6px;" ${isOffHandEquipped ? actionAttrs('unequipSlot', 'off_hand') : actionAttrs('equipOffHand', i.id)}>${isOffHandEquipped ? _pt('Desequipar mão secundária', 'Unequip off-hand') : _pt('Equipar como escudo', 'Equip as shield')}</button>` : ''}
+                ${!invBulkMode && upgradeLevel < maxUpgrade ? `<button class="btn-sm" style="font-size:0.6rem; padding:2px 6px; background:rgba(155,89,182,0.2);" ${actionAttrs('openUpgradeModal', i.id)}>?? ${_pt('Melhorar', 'Upgrade')}</button>` : ''}
             </div>
         </div>`;
     }).join('')}</div>
@@ -9488,7 +9502,7 @@ function renderInventory(data) {
         const gear = data.items.filter(i => i.item_type === 'equipment' && slots.includes(getSlot(i)));
         if (!gear.length) { el.innerHTML = bulkBar + `<p class="empty">${emptyMsg}</p>`; return; }
         el.innerHTML = bulkBar;
-        renderGearGrid(el, gear, data.equipped);
+        renderGearGrid(el, gear, data.equipped, !!data.offHandUnlocked);
     };
 
     if (invTab === 'weapons') {
@@ -9806,6 +9820,10 @@ function showItemTooltip(event, itemId) {
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
+    const equippedSlotKey = info.equippedSlot || (isEquipped ? d.slot : null);
+    const isMainEquipped = d.slot === 'weapon' ? equippedSlotKey === 'weapon' : !!isEquipped;
+    const isOffHandEquipped = equippedSlotKey === 'off_hand';
+    const canEquipOffHand = !!info.offHandAvailable;
 
     // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
     let itemSlot = d.slot;
@@ -9848,16 +9866,21 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(isOffHandEquipped ? 'off_hand' : (itemSlot||''))}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}</div>
             ${classWarn}
             ${equippedItem && !isEquipped ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
         </div>
         <div class="tt-actions">
-            ${isEquipped
-        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
+            ${isMainEquipped
+        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', equippedSlotKey || d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
         :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>${_pt('Equipar', 'Equip')}</button>`}
+            ${canEquipOffHand
+        ? (isOffHandEquipped
+            ? `<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', 'off_hand')}>${_pt('Desequipar mão secundária', 'Unequip off-hand')}</button>`
+            : `<button class="tt-btn tt-btn-secondary" ${actionAttrs('equipOffHand', itemId)}>${_pt('Equipar como escudo', 'Equip as shield')}</button>`)
+        : ''}
             <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sp)} ${isEquipped?'disabled':''}>${_pt('Vender', 'Sell')} ${sp}g</button>
         </div>`;
 
@@ -10016,6 +10039,10 @@ function showItemTooltip(event, itemId) {
     const info = window._invGearData?.[itemId];
     if (!info) return;
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
+    const equippedSlotKey = info.equippedSlot || (isEquipped ? d.slot : null);
+    const isMainEquipped = d.slot === 'weapon' ? equippedSlotKey === 'weapon' : !!isEquipped;
+    const isOffHandEquipped = equippedSlotKey === 'off_hand';
+    const canEquipOffHand = !!info.offHandAvailable;
 
     // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
     let itemSlot = d.slot;
@@ -10063,16 +10090,21 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(itemSlot||'')}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(isOffHandEquipped ? 'off_hand' : (itemSlot||''))}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}</div>
             ${classWarn}
             ${equippedItem && !isEquipped ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
         </div>
         <div class="tt-actions">
-            ${isEquipped
-        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
+            ${isMainEquipped
+        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', equippedSlotKey || d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
         :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>${_pt('Equipar', 'Equip')}</button>`}
+            ${canEquipOffHand
+        ? (isOffHandEquipped
+            ? `<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', 'off_hand')}>${_pt('Desequipar mão secundária', 'Unequip off-hand')}</button>`
+            : `<button class="tt-btn tt-btn-secondary" ${actionAttrs('equipOffHand', itemId)}>${_pt('Equipar como escudo', 'Equip as shield')}</button>`)
+        : ''}
             <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sellPrice)} ${isEquipped?'disabled':''}>
                 ${_pt('Vender', 'Sell')} ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
             </button>
@@ -11464,6 +11496,7 @@ const SLOT_LABEL_PT = {
     'accessory':'Acessório','consumable':'Consumível'
 };
 function slotLabelPT(slot) {
+    if (slot === 'off_hand') return CURRENT_LANG === 'pt' ? 'Mão secundária' : 'Off-hand';
     if (CURRENT_LANG !== 'pt') return capitalize(slot || '');
     return SLOT_LABEL_PT[slot] || capitalize(slot || '');
 }
@@ -11839,6 +11872,19 @@ async function equipItem(invId) {
         showMsg('inv-msg', 'Equipped!');
     } catch(e) {
         console.error('Equip error:', e);
+        showMsg('inv-msg', e.message, true);
+    }
+}
+async function equipOffHand(invId) {
+    hideItemTooltip();
+    try {
+        await api('POST', `/game/equip/${invId}`, { target: 'off_hand' });
+        await loadInventory();
+        character = await api('GET', '/game/character');
+        renderCharacter();
+        showMsg('inv-msg', _pt('Equipado como escudo!', 'Equipped as shield!'));
+    } catch (e) {
+        console.error('Off-hand equip error:', e);
         showMsg('inv-msg', e.message, true);
     }
 }
@@ -14681,7 +14727,7 @@ async function openProfile(id) {
         const classTheme = normalizeClassTheme(p.class);
         const classBackground = getClassThemeBackground(p.class);
 
-        const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null };
+        const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null, shield: eq.shield || eq.off_hand || null };
         const profileSlots=[
             {slot:'helmet', icon:'⛑️', col:1, row:1},
             {slot:'armor',  icon:'🛡️', col:1, row:2},
