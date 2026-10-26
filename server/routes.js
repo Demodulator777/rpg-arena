@@ -6869,7 +6869,11 @@ async function runHourlyHpRegen(db) {
             const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [r.id]);
             if (!char) continue;
             const equipped = await getEquippedItemsArray(db, r.id);
-            const trueHpMax = calcHpMax(char, equipped);
+            // `let`, not `const`: the equipped spirit beast's contribution below is
+            // added to this value. With `const` every char with an equipped
+            // elemental whose def >= str threw "Assignment to constant variable"
+            // and skipped HP regen entirely.
+            let trueHpMax = calcHpMax(char, equipped);
             // Include the equipped spirit beast's HP contribution (defense/heal role),
             // matching what buildCharacterResponse reports as the boosted max HP.
             const elemRow = await dbGet(db, 'SELECT * FROM elementals WHERE char_id = ? AND is_equipped = 1', [r.id]).catch(() => null);
