@@ -10172,18 +10172,19 @@ function withUpgradeCosts(char, squadDiscountPct = 0) {
     return { ...char, upgradeCosts: costs };
 }
 
+async function hasOffHandTraining(db, charId) {
+    const row = await dbGet(db,
+        `SELECT 1 FROM character_skill_tree WHERE char_id=? AND skill_id='off_hand_training'`, [charId]);
+    return !!row;
+}
+
 async function getEquippedItems(db, charId) {
     const char = await dbGet(db, 'SELECT class FROM characters WHERE id=?', [charId]);
     const eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id = ?', [charId]);
     if (!eq) return {};
 
     // Check if rogue has dual-wield unlocked
-    let dualWield = false;
-    if (char?.class === 'rogue') {
-        const dwRow = await dbGet(db,
-            `SELECT 1 FROM character_skill_tree WHERE char_id=? AND skill_id='off_hand_training'`, [charId]);
-        dualWield = !!dwRow;
-    }
+    const dualWield = char?.class === 'rogue' && await hasOffHandTraining(db, charId);
 
     const slots = {};
     for (const slot of EQUIPMENT_SLOTS) {
@@ -15122,11 +15123,12 @@ router.post('/battle/recover', auth, async (req, res) => {
 router.get('/inventory', auth, async (req, res) => {
     try {
         const db = await getDb();
-        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, class');
         if (!char) return res.status(404).json({ error: 'No character' });
         const items = await dbAll(db, 'SELECT * FROM inventory WHERE char_id = ? ORDER BY item_type, acquired_at DESC', [char.id]);
         const equipped = await getEquippedItems(db, char.id);
         const equippedIds = Object.values(equipped).map(e => e.inventoryId).filter(Boolean);
+        const offHandUnlocked = char.class === 'rogue' && await hasOffHandTraining(db, char.id);
         // Build invId → setup names map
         const setupRows = await dbAll(db, "SELECT name, data FROM character_setups WHERE char_id=? AND data IS NOT NULL AND data!='{}'", [char.id]);
         const itemSetups = {};
@@ -15141,7 +15143,7 @@ router.get('/inventory', auth, async (req, res) => {
                 const data = JSON.parse(i.item_data);
                 if (i.weapon_type) data.weaponType = data.weaponType || i.weapon_type;
                 return { ...i, item_data: data, equipped: equippedIds.includes(i.id), setups: itemSetups[i.id] || [] };
-            }), equipped });
+            }), equipped, offHandUnlocked });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -15705,8 +15707,16 @@ router.post('/equip/:inventoryId', auth, async (req, res) => {
         if (!item || item.item_type !== 'equipment') return res.status(400).json({ error: 'Item not found' });
         const data = JSON.parse(item.item_data);
         if (!EQUIPMENT_SLOTS.includes(data.slot)) return res.status(400).json({ error: `Invalid slot: ${data.slot}` });
+        const equipOffHand = req.body?.target === 'off_hand';
+        if (equipOffHand) {
+            if (data.slot !== 'weapon') return res.status(400).json({ error: 'Only weapons can be equipped as off-hand.' });
+            if (char.class !== 'rogue') return res.status(400).json({ error: 'Only rogues can dual wield.' });
+            if (!(await hasOffHandTraining(db, char.id))) {
+                return res.status(400).json({ error: 'Train Off-Hand Training to equip a second weapon.' });
+            }
+        }
         // Rogue offhand dagger: only rogues can equip it in the shield slot
-        if (data.slot === 'shield' && data.rogueOffhand && char.class !== 'rogue') {
+        if (!equipOffHand && data.slot === 'shield' && data.rogueOffhand && char.class !== 'rogue') {
             return res.status(400).json({ error: 'Only rogues can wield this offhand dagger.' });
         }
         let eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
@@ -15714,8 +15724,21 @@ router.post('/equip/:inventoryId', auth, async (req, res) => {
             await dbRun(db, 'INSERT INTO equipment (char_id) VALUES (?)', [char.id]);
             eq = await dbGet(db, 'SELECT * FROM equipment WHERE char_id=?', [char.id]);
         }
-        await dbRun(db, `UPDATE equipment SET ${data.slot}_id=? WHERE char_id=?`, [item.id, char.id]);
-        // Ring and amulet share one jewelry slot — clear the other column
+        if (equipOffHand) {
+            // A weapon can be in the main hand or the off-hand, never both.
+            await dbRun(db, `UPDATE equipment SET weapon_id = CASE WHEN weapon_id=? THEN NULL ELSE weapon_id END,
+                             shield_id=? WHERE char_id=?`, [item.id, item.id, char.id]);
+            return res.json({ message: `Equipped ${data.name} as off-hand!` });
+        }
+        if (data.slot === 'weapon') {
+            // Moving the same weapon back to the main hand clears the off-hand copy.
+            await dbRun(db, `UPDATE equipment SET weapon_id=?,
+                             shield_id = CASE WHEN shield_id=? THEN NULL ELSE shield_id END WHERE char_id=?`,
+                [item.id, item.id, char.id]);
+        } else {
+            await dbRun(db, `UPDATE equipment SET ${data.slot}_id=? WHERE char_id=?`, [item.id, char.id]);
+        }
+        // Ring and amulet share one jewelry slot �?" clear the other column
         if (data.slot === 'ring') {
             await dbRun(db, 'UPDATE equipment SET amulet_id=NULL WHERE char_id=?', [char.id]);
         } else if (data.slot === 'amulet') {
@@ -15730,7 +15753,7 @@ router.post('/unequip/:slot', auth, async (req, res) => {
         const db = await getDb();
         const char = await getCurrentCharacter(db, req.user.userId, 'id');
         if (!char) return res.status(404).json({ error: 'No character' });
-        const slot = req.params.slot;
+        const slot = req.params.slot === 'off_hand' ? 'shield' : req.params.slot;
         if (!EQUIPMENT_SLOTS.includes(slot)) return res.status(400).json({ error: 'Invalid slot' });
         await dbRun(db, `UPDATE equipment SET ${slot}_id=NULL WHERE char_id=?`, [char.id]);
         res.json({ message:`Unequipped ${slot}.` });
