@@ -3994,29 +3994,8 @@ function renderCharacter() {
     const baseDmgMax = baseDmgMin + 4;
     const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
     const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
-    // Calculate weapon skill progress from equipped weapon's wp_level (0-5 scale)
-    // skill_progress represents the weapon upgrade progress as a percentage (0-100)
-    let skill_progress = 0;
-    const mainWeapon = resolvedEq.weapon;
-    if (mainWeapon?.wp_level != null) {
-        // wp_level is 1-5, convert to 0-100 progress percentage
-        // Level 1 = 0%, Level 2 = 25%, Level 3 = 50%, Level 4 = 75%, Level 5 = 100%
-        skill_progress = ((mainWeapon.wp_level - 1) / 4) * 100;
-    }
-
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
-    if (skill_progress > 0) {
-        const pct = skill_progress / 100;
-        const mid = (finalDmgMin + finalDmgMax) / 2;
-        const spread = (finalDmgMax - finalDmgMin) / 2;
-        finalDmgMin = Math.floor(mid - spread * (1 - pct));
-        finalDmgMax = Math.ceil(mid + spread * (1 - pct));
-        if (finalDmgMin < 1) finalDmgMin = 1;
-        if (finalDmgMax < 1) finalDmgMax = 1;
-        finalDmgMin = Math.floor(finalDmgMin);
-        finalDmgMax = Math.ceil(finalDmgMax);
-    }
 
     if (c.class === 'warrior') {
         const strBonus = Math.floor(totalStr / 10);
@@ -4024,8 +4003,6 @@ function renderCharacter() {
         finalDmgMax += strBonus;
     }
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (FOR ${totalStr}x0.5) + Equipamento: +${gearDmgMin}-${gearDmgMax}`;
-    const dmgMinDisplay = finalDmgMin;
-    const dmgMaxDisplay = finalDmgMax;
     const baseArmor = Math.floor(totalDef / 2);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
@@ -4133,7 +4110,7 @@ const eqSlots=[
           ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥', isPT ? 'Crítico' : 'Crit Chance', c.class), isPT ? 'Crítico' : 'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
             <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
-              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${dmgMinDisplay}–${dmgMaxDisplay}</strong> ${finalDmgMin !== finalDmgMax ? `(range ${finalDmgMin}–${finalDmgMax})` : ''}
+              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
             </span>
             <span class="char-combat-summary-item">🛡 ${isPT ? 'Armadura' : 'Armor'}: <strong style="color:#5dade2">${armorVal}</strong></span>
             ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ '+(isPT? '+10% PV/h' : '+10% HP/hr')+'</span>':''}
@@ -14734,28 +14711,8 @@ async function openProfile(id) {
         const baseDmgMax = baseDmgMin + 4;
         const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
         const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
-        // Calculate weapon skill progress from equipped weapon's wp_level (1-5 scale)
-        let skill_progress = 0;
-        const profileMainWeapon = profileResolvedEq.weapon;
-        if (profileMainWeapon?.wp_level != null) {
-            // wp_level is 1-5, convert to 0-100 progress percentage
-            // Level 1 = 0%, Level 2 = 25%, Level 3 = 50%, Level 4 = 75%, Level 5 = 100%
-            skill_progress = ((profileMainWeapon.wp_level - 1) / 4) * 100;
-        }
-
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
-        if (skill_progress > 0) {
-            const pct = skill_progress / 100;
-            const mid = (finalDmgMin + finalDmgMax) / 2;
-            const spread = (finalDmgMax - finalDmgMin) / 2;
-            finalDmgMin = Math.floor(mid - spread * (1 - pct));
-            finalDmgMax = Math.ceil(mid + spread * (1 - pct));
-            if (finalDmgMin < 1) finalDmgMin = 1;
-            if (finalDmgMax < 1) finalDmgMax = 1;
-            finalDmgMin = Math.floor(finalDmgMin);
-            finalDmgMax = Math.ceil(finalDmgMax);
-        }
 
     if (p.class === 'warrior') {
             const strBonus = Math.floor(totalStr / 10);
@@ -14771,7 +14728,6 @@ async function openProfile(id) {
         const classBackground = getClassThemeBackground(p.class);
 
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null, shield: eq.shield || eq.off_hand || null };
-        const profileOffHand = eq.off_hand || null;
         const profileSlots=[
             {slot:'helmet', icon:'⛑️', col:1, row:1},
             {slot:'armor',  icon:'🛡️', col:1, row:2},
@@ -14864,10 +14820,6 @@ async function openProfile(id) {
             <div class="eq-stage profile-eq-stage">
               <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
               <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}</div>
-            ${buildProfileOffHandSlotHtml()}
-            ${buildProfileOffHandSlotHtml()}
-            ${buildProfileOffHandSlotHtml()}
-            ${buildProfileOffHandSlotHtml()}
             </div>
           </div>`:''}
           ${!isMe ? (() => {
@@ -14891,7 +14843,8 @@ async function openProfile(id) {
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ ${_pt('Mensagem','Message')}</button></div>`;
         })() : ''}
           <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:16px 0 0">
-            ${renderDetailSlot('DMG', _pt('Dano','Damage'), `${dmgMinDisplay}–${dmgMaxDisplay}`, 'var(--text-bright)')}, _pt('Armadura','Armor'), profileArmor, '#5dade2')}
+            ${renderDetailSlot('DMG', _pt('Dano','Damage'), `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
+            ${renderDetailSlot('ARM', _pt('Armadura','Armor'), profileArmor, '#5dade2')}
             ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
               ${renderDetailSlot('🔥', _pt('Dano Pírico','Pyro Dmg'), `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
               ${renderDetailSlot('🌊', _pt('Dano Hídrico','Water Dmg'), `+${p.elem_dmg.water||0}`, '#f1c40f')}
@@ -14913,75 +14866,7 @@ function miniStat(icon,label,val,max,cls) {
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val" style="font-size:0.9rem">${val}</span></div>`;
 }
-function buildProfileOffHandSlotHtml() {
-    if (!profileOffHand) return '';
-    const offHandStats = profileOffHand.stats || {};
-    const offHandWpStats = profileOffHand.wp_stats || {};
-    const offHandDmgMin = (offHandStats.dmg_min || 0) + (offHandWpStats.dmg_min || 0);
-    const offHandDmgMax = (offHandStats.dmg_max || 0) + (offHandWpStats.dmg_max || 0);
-    // Calculate off-hand contribution based on dual_wield_dmg_pct from skill tree
-    // The dual_wield_dmg_pct is a skill tree effect that determines how much off-hand damage contributes
-    // For visual display, we show the reduced values and the total damage including off-hand
-    // Get the actual dual_wield_dmg_pct from the character's skill tree effects if available
-    let dualWieldPct = 0.5; // Default 50%
-    if (p.skillEffects) {
-        for (const eff of p.skillEffects) {
-            if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct' && eff.off_hand_dmg_pct != null) {
-                dualWieldPct = eff.off_hand_dmg_pct;
-                break;
-            }
-        }
-    }
-    const reducedDmgMin = Math.floor(offHandDmgMin * dualWieldPct);
-    const reducedDmgMax = Math.floor(offHandDmgMax * dualWieldPct);
-    // Total damage = main hand damage + reduced off-hand damage (using the same finalDmgMin/Max which already include gear)
-    const totalDmgMin = finalDmgMin + reducedDmgMin;
-    const totalDmgMax = finalDmgMax + reducedDmgMax;
-    // The displayed damage in the profile modal should show the total including off-hand contribution
-    // But we also want to show the main hand + off-hand breakdown visually
-    return `<div class="profile-offhand-slot" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.15)">
-        <span style="font-size:0.7rem;color:var(--text-dim)">${_pt('Mão Secundária','Off-Hand')}</span>
-        <span style="font-size:0.85rem">${itemIcon(profileOffHand, '1.5rem')}</span>
-        <span style="font-size:0.75rem;color:var(--text-dim)">${reducedDmgMin}-${reducedDmgMax}</span>
-        <span style="font-size:0.7rem;color:var(--gold)">+${reducedDmgMin}</span>
-        <span style="font-size:0.7rem;color:var(--text-bright);font-weight:600">→ ${totalDmgMin}-${totalDmgMax} total</span>
-    </div>`;
-}
 function closeProfile() { hideItemTooltip(); const m = document.getElementById('profile-modal'); m.classList.add('hidden'); m.style.zIndex = ''; }
-function buildProfileOffHandSlotHtml() {
-    if (!profileOffHand) return '';
-    const offHandStats = profileOffHand.stats || {};
-    const offHandWpStats = profileOffHand.wp_stats || {};
-    const offHandDmgMin = (offHandStats.dmg_min || 0) + (offHandWpStats.dmg_min || 0);
-    const offHandDmgMax = (offHandStats.dmg_max || 0) + (offHandWpStats.dmg_max || 0);
-    // Calculate off-hand contribution based on dual_wield_dmg_pct from skill tree
-    // The dual_wield_dmg_pct is a skill tree effect that determines how much off-hand damage contributes
-    // For visual display, we show the reduced values and the total damage including off-hand
-    // Get the actual dual_wield_dmg_pct from the character's skill tree effects if available
-    let dualWieldPct = 0.5; // Default 50%
-    if (p.skillEffects) {
-        for (const eff of p.skillEffects) {
-            if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct' && eff.off_hand_dmg_pct != null) {
-                dualWieldPct = eff.off_hand_dmg_pct;
-                break;
-            }
-        }
-    }
-    const reducedDmgMin = Math.floor(offHandDmgMin * dualWieldPct);
-    const reducedDmgMax = Math.floor(offHandDmgMax * dualWieldPct);
-    // Total damage = main hand damage + reduced off-hand damage (using the same finalDmgMin/Max which already include gear)
-    const totalDmgMin = finalDmgMin + reducedDmgMin;
-    const totalDmgMax = finalDmgMax + reducedDmgMax;
-    // The displayed damage in the profile modal should show the total including off-hand contribution
-    // But we also want to show the main hand + off-hand breakdown visually
-    return `<div class="profile-offhand-slot" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.15)">
-        <span style="font-size:0.7rem;color:var(--text-dim)">${_pt('Mão Secundária','Off-Hand')}</span>
-        <span style="font-size:0.85rem">${itemIcon(profileOffHand, '1.5rem')}</span>
-        <span style="font-size:0.75rem;color:var(--text-dim)">${reducedDmgMin}-${reducedDmgMax}</span>
-        <span style="font-size:0.7rem;color:var(--gold)">+${reducedDmgMin}</span>
-        <span style="font-size:0.7rem;color:var(--text-bright);font-weight:600">→ ${totalDmgMin}-${totalDmgMax} total</span>
-    </div>`;
-}
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
 async function skipCooldownAndAttack(id, name, targetClass) {
     closeProfile();
@@ -15206,7 +15091,8 @@ function fmtGlanceTag(tag) {
         .trim();
     return tg ? ` ${tg}` : '';
 }
-function cleanActor(name) {    return String(name || '')
+function cleanActor(name) {
+    return String(name || '')
         .replace(/\s+s backstabs$/i, '')
         .replace(/\s+backstabs$/i, '')
         .replace(/\s+BLOCK PENETRATION$/i, '')
@@ -15235,8 +15121,7 @@ function translateNumbered(rest) {
     r = r.replace(/🌿\s*(-?\d+)\s+reflected/, (m, d) => ` 🌿 ${d} refletido`);
     r = r.replace(/[-—-]\s*COUNTERED for\s+(-?\d+)/, (m, d) => ` — Contra-atacado por ${d}`);
     r = r.replace(/👻\s+(.+?)\s+phantom counters for\s+(-?\d+)/, (m, name, d) => ` 👻 ${name} contra-ataca de forma fantasma por ${d}`);
-    r = r.replace(/\(off-hand (\d+)\/(\d+) damage\)/, (m, offHand, main) => { const isPT = CURRENT_LANG === 'pt'; const offHandN = Number(offHand), mainN = Number(main) || 0; if (offHandN === 0 || mainN === 0) { return isPT ? ` (mão secundária 0 dano)` : ` (+0 off-hand damage)`; } return isPT ? ` (mão secundária +${offHandN} dano · ${mainN}/${mainN + offHandN} no total)` : ` (+${offHandN} off-hand damage · ${mainN}/${mainN + offHandN} total)`; });
-    r = r.replace(/\(\+((-?\d+))\s+off-hand\)/, (m, d) => { const isPT = CURRENT_LANG === 'pt'; return isPT ? ` (+${d} dano extra na mão secundária)` : ` (+${d} off-hand damage)`; });
+    r = r.replace(/\(\+(-?\d+)\s+off-hand\)/, (m, d) => ` (+${d} mão secundária)`);
     r = r.replace(/(\d+)\s+gets through/, (m, d) => ` ${d} atravessa`);
     return r;
 }
@@ -15487,18 +15372,23 @@ function renderBattleStatsPanel(battleStats, enemyName) {
     const you = battleStats.you || {};
     const enemy = battleStats.enemy || {};
     const rows = [
-        [CURRENT_LANG === 'pt' ? 'Dano' : 'Damage', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
+        [CURRENT_LANG === 'pt' ? 'Dano (Fís+Elem)' : 'Damage (Phys+Elem)', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
         [CURRENT_LANG === 'pt' ? 'Armadura' : 'Armor', Number(you.armor ?? 0).toLocaleString(), Number(enemy.armor ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Magia' : 'Magic', Number(you.magic ?? 0).toLocaleString(), Number(enemy.magic ?? 0).toLocaleString()],
         ['HP', Number(you.hp ?? 0).toLocaleString(), Number(enemy.hp ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Agilidade' : 'Agility', Number(you.agility ?? 0).toLocaleString(), Number(enemy.agility ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Chance de Acerto' : 'Hit Chance', Number(you.hitChance ?? 0).toLocaleString(), Number(enemy.hitChance ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Chance de Crítico' : 'Crit Chance', Number(you.critChance ?? 0).toLocaleString(), Number(enemy.critChance ?? 0).toLocaleString()],
-    ];    return `<div class="battle-stats-grid">${rows.map(([k, vYou, vEnemy]) => `
+    ];
+    return `
+        <div class="battle-stats-grid">
+            ${rows.map(([k, vYou, vEnemy]) => `
                 <div class="battle-stats-v battle-stats-v-left">${escHtml(String(vYou))}</div>
                 <div class="battle-stats-k battle-stats-k-mid">${escHtml(k)}</div>
                 <div class="battle-stats-v battle-stats-v-right">${escHtml(String(vEnemy))}</div>
-            `).join('')}</div>`;
+            `).join('')}
+        </div>
+    `;
 }
 
 function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = {}) {
