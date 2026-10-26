@@ -1245,10 +1245,10 @@ const SKILL_TREES = {
                     ambidexterity: {
                         id: 'ambidexterity', tier: 4, name: 'Ambidexterity', emoji: '🤝',
                         type: 'progressive',
-                        desc: 'Off-hand damage increases to 85%. +10% Attack Speed.',
+                        desc: 'Off-hand damage increases to 85%. +1 extra hit per battle (attacks beyond the 10th round).',
                         effects: [
                             { type: 'class_modifier', id: 'dual_wield_dmg_pct', off_hand_dmg_pct: 0.85 },
-                            { type: 'passive_pct', stat: 'attack_speed', value: 0.10 }
+                            { type: 'active_combat', id: 'ambidexterity', extra_hits: 1 }
                         ],
                         requires: ['off_hand_training'],
                         unlockCondition: 'wins_150',
