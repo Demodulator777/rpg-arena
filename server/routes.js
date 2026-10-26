@@ -7186,12 +7186,14 @@ function describePrefixSet(setId, count, scale) {
 }
 
 // Return total bonus "extra hits" from the fighter's equipped set bonus (5/5),
-// any quickness skill effect, and equipped weapon skill that grants additional
-// attacks beyond round 10.
+// any skill effect that grants them (quickness, ambidexterity, ...), and the
+// equipped weapon skill that grants additional attacks beyond round 10.
 function getFighterExtraHits(fighter) {
     let extra = Number(fighter?.extra_hits || 0);
-    const q = getActiveCombatEffect(fighter, 'quickness');
-    if (q && Number(q.extra_hits) > 0) extra += Number(q.extra_hits);
+    const effects = Array.isArray(fighter?.skillEffects) ? fighter.skillEffects : [];
+    for (const eff of effects) {
+        if (eff && Number(eff.extra_hits) > 0) extra += Number(eff.extra_hits);
+    }
     const ws = weaponSkillRamp(fighter, 1);
     if (Number(ws.extraHits) > 0) extra += Number(ws.extraHits);
     return Math.max(0, extra || 0);
