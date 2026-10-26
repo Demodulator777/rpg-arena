@@ -505,6 +505,7 @@ function stEffectParts(effects) {
         else if (eff.type === 'passive_pct' && eff.value > 0) parts.push('+' + Math.round(eff.value * 100) + '% ' + String(eff.stat).replace(/_/g, ' '));
         else if (eff.type === 'passive_pct' && eff.value < 0) parts.push(Math.round(eff.value * 100) + '% ' + String(eff.stat).replace(/_/g, ' '));
         else if (eff.type === 'resist_bonus') parts.push('+' + eff.value + (CURRENT_LANG === 'pt' ? ' todas as resistências' : ' all resists'));
+        else if (eff.type === 'active_combat' && Number(eff.extra_hits) > 0) parts.push('+' + eff.extra_hits + (CURRENT_LANG === 'pt' ? (eff.extra_hits > 1 ? ' golpes extras por batalha' : ' golpe extra por batalha') : ' extra hit' + (eff.extra_hits > 1 ? 's' : '') + ' per battle'));
         else if (eff.type === 'active_combat') parts.push('⚡ ' + String(eff.id).replace(/_/g, ' '));
         else if (eff.type === 'class_modifier') parts.push('🔧 ' + String(eff.id).replace(/_/g, ' '));
     }
@@ -753,7 +754,7 @@ function stEffectSummary(effects) {
         } else if (eff.type === 'resist_bonus') {
             parts.push(`+${eff.value} ${CURRENT_LANG === 'pt' ? 'todas as resistências' : 'all resists'}`);
         } else if (eff.type === 'active_combat') {
-            parts.push(`⚡ ${eff.id.replace(/_/g,' ')}`);
+            parts.push(Number(eff.extra_hits) > 0 ? `+${eff.extra_hits} ${CURRENT_LANG === 'pt' ? (eff.extra_hits > 1 ? 'golpes extras por batalha' : 'golpe extra por batalha') : 'extra hit' + (eff.extra_hits > 1 ? 's' : '') + ' per battle'}` : `⚡ ${eff.id.replace(/_/g,' ')}`);
         } else if (eff.type === 'class_modifier') {
             parts.push(`🔧 ${eff.id.replace(/_/g,' ')}`);
         }
