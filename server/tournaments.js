@@ -64,39 +64,64 @@ function formatDate(d) {
   return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:00`;
 }
 
+// DAILY_HOUR:DAILY_MINUTE is a WALL-CLOCK target in the server's timezone, so it
+// must not be driven by a 24h setInterval: timers count elapsed real time, and a
+// DST change moves the wall clock underneath them. After a fall-back a 24h
+// interval lands at 20:30 instead of 21:30 — one hour BEFORE the brackets'
+// scheduled_at — so nothing is due and that evening's tournament silently never
+// starts, and every later tick stays an hour early so the day's bracket is
+// always skipped (only yesterday's leftover runs, a day late). That is exactly
+// what happened on the 2026-10-25 fall-back. Instead tick every minute and let
+// startTournament() decide from scheduled_at, re-evaluated against the current
+// wall clock on every pass: DST, a restart, a paused container or a dropped tick
+// can then only delay a bracket until the next tick, never skip a whole day.
+const SCHEDULER_TICK_MS = 60 * 1000;
+
 function scheduleDailyTournamentStart() {
-  const now = Date.now();
-  const next = new Date();
-  next.setHours(DAILY_HOUR, DAILY_MINUTE, 0, 0);
-  if (next <= now) next.setDate(next.getDate() + 1);
-  const msUntil = next - now;
-  setTimeout(async () => {
-    try { await startTournament(); } catch (e) { console.error('Tournament start error:', e); }
-    setInterval(async () => {
-      try { await startTournament(); } catch (e) { console.error('Tournament start error:', e); }
-    }, 24 * 60 * 60 * 1000);
-  }, msUntil);
-  console.log(`⏰ Next tournament scheduled at ${next.toLocaleString()}`);
+  setInterval(() => {
+    startTournament().catch(e => console.error('Tournament start error:', e));
+  }, SCHEDULER_TICK_MS);
+  const hh = String(DAILY_HOUR).padStart(2, '0');
+  const mm = String(DAILY_MINUTE).padStart(2, '0');
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  console.log(`⏰ Tournament scheduler: tick every ${SCHEDULER_TICK_MS / 1000}s, daily start ${hh}:${mm} server time (${tz})`);
 }
 
+// The minute tick must never start the same bracket twice while a previous pass
+// is still awaiting between its pending SELECT and the status='active' write.
+let _startTournamentBusy = false;
+
 async function startTournament() {
-  const db = await getDb();
-  const now = new Date();
-  const nowStr = formatDate(now);
-  const pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND (scheduled_at IS NULL OR scheduled_at <= ?) ORDER BY id", [nowStr]);
-  await Promise.all(pending.map(async (t) => {
-    try {
-      const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
-      const realCount = participants.filter(p => !p.is_npc).length;
-      if (realCount < MIN_REAL_PLAYERS) {
-        await abortTournament(db, t, realCount);
-        return;
+  if (_startTournamentBusy) return;
+  _startTournamentBusy = true;
+  try {
+    const db = await getDb();
+    const now = new Date();
+    const nowStr = formatDate(now);
+    const pending = await dbAll_t(db, "SELECT * FROM tournaments WHERE status = 'pending' AND (scheduled_at IS NULL OR scheduled_at <= ?) ORDER BY id", [nowStr]);
+    await Promise.all(pending.map(async (t) => {
+      try {
+        // Loud when a bracket is well past its slot: that means a tick was missed
+        // (restart, pause, DST) and is the signal worth checking in the logs.
+        const dueAt = t.scheduled_at ? new Date(String(t.scheduled_at).replace(' ', 'T')) : null;
+        const lateMin = dueAt && !isNaN(dueAt) ? Math.round((now - dueAt) / 60000) : 0;
+        if (lateMin >= 15) {
+          console.warn(`⏰ Tournament #${t.id} (${t.level_group}) is ${lateMin} min late — scheduled ${t.scheduled_at}, starting ${nowStr}`);
+        }
+        const participants = await dbAll_t(db, 'SELECT * FROM tournament_participants WHERE tournament_id = ?', [t.id]);
+        const realCount = participants.filter(p => !p.is_npc).length;
+        if (realCount < MIN_REAL_PLAYERS) {
+          await abortTournament(db, t, realCount);
+          return;
+        }
+        await runTournament(db, t, true);
+      } catch (e) {
+        console.error(`❌ Tournament #${t.id} (${t.level_group}) failed:`, e);
       }
-      await runTournament(db, t, true);
-    } catch (e) {
-      console.error(`❌ Tournament #${t.id} (${t.level_group}) failed:`, e);
-    }
-  }));
+    }));
+  } finally {
+    _startTournamentBusy = false;
+  }
 }
 
 async function abortTournament(db, t, realCount) {
