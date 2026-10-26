@@ -4360,6 +4360,14 @@ select.input-field:focus {
 .inv-item-actions .btn-sm:last-child:hover:not(:disabled) {
     background: rgba(155,89,182,0.3) !important;
 }
+.inv-item-actions .btn-sm.inv-offhand-btn {
+    background: rgba(52,152,219,0.2) !important;
+    border-color: rgba(93,173,226,0.35);
+    color: #bfe3ff;
+}
+.inv-item-actions .btn-sm.inv-offhand-btn:hover:not(:disabled) {
+    background: rgba(52,152,219,0.32) !important;
+}
 @media (max-width: 700px) {
     .inv-equipment-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -4659,13 +4667,14 @@ select.input-field:focus {
 .tt-vs { font-size: 0.66rem; color: var(--text-dim); border-top: 1px solid var(--border); padding-top: 6px; margin-bottom: 8px; overflow-wrap: anywhere; word-break: break-word; }
 .tt-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 5px;
     border-top: 1px solid rgba(255,255,255,0.08);
     padding: 10px 14px;
     flex-shrink: 0;
     background: rgba(8,12,22,0.97);
 }
-.tt-btn { flex: 1; padding: 7px 4px; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid; transition: background 0.12s; }
+.tt-btn { flex: 1; min-width: 70px; padding: 7px 4px; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; border: 1px solid; transition: background 0.12s; }
 .tt-btn-primary  { background: var(--blue-dim); border-color: rgba(52,152,219,0.35); color: var(--blue); }
 .tt-btn-primary:hover { background: rgba(52,152,219,0.25); }
 .tt-btn-secondary { background: rgba(255,255,255,0.04); border-color: var(--border-mid); color: var(--text); }
