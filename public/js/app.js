@@ -9866,14 +9866,40 @@ function showItemTooltip(event, itemId) {
     const displayDesc = getDisplayItemDesc(d);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
 
+    // Get the dual_wield_dmg_pct for off-hand display
+    let dualWieldPct = 0.5; // Default 50%
+    if (character?.skillEffects) {
+        for (const eff of character.skillEffects) {
+            if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct' && eff.off_hand_dmg_pct != null) {
+                dualWieldPct = eff.off_hand_dmg_pct;
+                break;
+            }
+        }
+    }
+
     let statsHtml = '';
     for (const stat of allKeys) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
-        const nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0), ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0), diff = nv - ov;
+        // For off-hand equipped weapons, show reduced damage values
+        let nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0);
+        let ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0);
+        // Apply dual-wield reduction for off-hand weapon damage display
+        if (isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max')) {
+            nv = Math.floor(nv * dualWieldPct);
+            // For comparison, show what's currently equipped (also reduced)
+            if (equippedItem) {
+                ov = Math.floor(((equippedItem?.stats?.[stat]||0) + (equippedItem?.wp_stats?.[stat]||0)) * dualWieldPct);
+            }
+        }
+        const diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+        // Add note for off-hand weapons showing the reduction
+        const offHandNote = isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max') 
+            ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(dualWieldPct*100)}% mão secundária)</span>` 
+            : '';
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${offHandNote}${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
     const classWarn = !isWeaponSuitedForClass(d, character?.class) ? CLASS_WARN_HTML : '';
@@ -10083,17 +10109,29 @@ function showItemTooltip(event, itemId) {
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getCanonicalItemDesc(d.desc, d.name);
-    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
-
-    let statsHtml = '';
+    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);    let statsHtml = '';
     for (const stat of allKeys) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
-        const nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0), ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0), diff = nv - ov;
+        // For off-hand equipped weapons, show reduced damage values
+        let nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0);
+        let ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0);
+        // Apply dual-wield reduction for off-hand weapon damage display
+        if (isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max')) {
+            nv = Math.floor(nv * dualWieldPct);
+            if (equippedItem) {
+                ov = Math.floor(((equippedItem?.stats?.[stat]||0) + (equippedItem?.wp_stats?.[stat]||0)) * dualWieldPct);
+            }
+        }
+        const diff = nv - ov;
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+        const offHandNote = isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max') 
+            ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(dualWieldPct*100)}%)</span>` 
+            : '';
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${offHandNote}${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
+
 
     const classWarn = !isWeaponSuitedForClass(d, character?.class) ? CLASS_WARN_HTML : '';
     // Calculate sell price with premium discounts
