@@ -3996,6 +3996,17 @@ function renderCharacter() {
     const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
+    if (skill_progress) {
+        const pct = skill_progress / 100;
+        const mid = (finalDmgMin + finalDmgMax) / 2;
+        const spread = (finalDmgMax - finalDmgMin) / 2;
+        finalDmgMin = Math.floor(mid - spread * (1 - pct));
+        finalDmgMax = Math.ceil(mid + spread * (1 - pct));
+        if (finalDmgMin < 1) finalDmgMin = 1;
+        if (finalDmgMax < 1) finalDmgMax = 1;
+        finalDmgMin = Math.floor(finalDmgMin);
+        finalDmgMax = Math.ceil(finalDmgMax);
+    }
 
     if (c.class === 'warrior') {
         const strBonus = Math.floor(totalStr / 10);
@@ -4003,6 +4014,8 @@ function renderCharacter() {
         finalDmgMax += strBonus;
     }
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (FOR ${totalStr}x0.5) + Equipamento: +${gearDmgMin}-${gearDmgMax}`;
+    const dmgMinDisplay = finalDmgMin;
+    const dmgMaxDisplay = finalDmgMax;
     const baseArmor = Math.floor(totalDef / 2);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
@@ -4110,7 +4123,7 @@ const eqSlots=[
           ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥', isPT ? 'Crítico' : 'Crit Chance', c.class), isPT ? 'Crítico' : 'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
             <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
-              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
+              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${dmgMinDisplay}–${dmgMaxDisplay}</strong> ${finalDmgMin !== finalDmgMax ? `(range ${finalDmgMin}–${finalDmgMax})` : ''}
             </span>
             <span class="char-combat-summary-item">🛡 ${isPT ? 'Armadura' : 'Armor'}: <strong style="color:#5dade2">${armorVal}</strong></span>
             ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ '+(isPT? '+10% PV/h' : '+10% HP/hr')+'</span>':''}
@@ -14713,6 +14726,17 @@ async function openProfile(id) {
         const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
+        if (skill_progress) {
+            const pct = skill_progress / 100;
+            const mid = (finalDmgMin + finalDmgMax) / 2;
+            const spread = (finalDmgMax - finalDmgMin) / 2;
+            finalDmgMin = Math.floor(mid - spread * (1 - pct));
+            finalDmgMax = Math.ceil(mid + spread * (1 - pct));
+            if (finalDmgMin < 1) finalDmgMin = 1;
+            if (finalDmgMax < 1) finalDmgMax = 1;
+            finalDmgMin = Math.floor(finalDmgMin);
+            finalDmgMax = Math.ceil(finalDmgMax);
+        }
 
     if (p.class === 'warrior') {
             const strBonus = Math.floor(totalStr / 10);
@@ -14843,8 +14867,7 @@ async function openProfile(id) {
             return `<div class="profile-actions">${atkBtn}<button class="btn-secondary" ${actionAttrs('composeFromProfile', id, name)}>✉️ ${_pt('Mensagem','Message')}</button></div>`;
         })() : ''}
           <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:6px;padding:16px 0 0">
-            ${renderDetailSlot('DMG', _pt('Dano','Damage'), `${finalDmgMin}–${finalDmgMax}`, 'var(--text-bright)')}
-            ${renderDetailSlot('ARM', _pt('Armadura','Armor'), profileArmor, '#5dade2')}
+            ${renderDetailSlot('DMG', _pt('Dano','Damage'), `${dmgMinDisplay}–${dmgMaxDisplay}`, 'var(--text-bright)')}, _pt('Armadura','Armor'), profileArmor, '#5dade2')}
             ${p.elem_dmg && (p.elem_dmg.pyro||p.elem_dmg.water||p.elem_dmg.wind||p.elem_dmg.electro) ? `
               ${renderDetailSlot('🔥', _pt('Dano Pírico','Pyro Dmg'), `+${p.elem_dmg.pyro||0}`, '#f1c40f')}
               ${renderDetailSlot('🌊', _pt('Dano Hídrico','Water Dmg'), `+${p.elem_dmg.water||0}`, '#f1c40f')}
@@ -15091,8 +15114,7 @@ function fmtGlanceTag(tag) {
         .trim();
     return tg ? ` ${tg}` : '';
 }
-function cleanActor(name) {
-    return String(name || '')
+function cleanActor(name) {    return String(name || '')
         .replace(/\s+s backstabs$/i, '')
         .replace(/\s+backstabs$/i, '')
         .replace(/\s+BLOCK PENETRATION$/i, '')
@@ -15121,7 +15143,8 @@ function translateNumbered(rest) {
     r = r.replace(/🌿\s*(-?\d+)\s+reflected/, (m, d) => ` 🌿 ${d} refletido`);
     r = r.replace(/[-—-]\s*COUNTERED for\s+(-?\d+)/, (m, d) => ` — Contra-atacado por ${d}`);
     r = r.replace(/👻\s+(.+?)\s+phantom counters for\s+(-?\d+)/, (m, name, d) => ` 👻 ${name} contra-ataca de forma fantasma por ${d}`);
-    r = r.replace(/\(\+(-?\d+)\s+off-hand\)/, (m, d) => ` (+${d} mão secundária)`);
+    r = r.replace(/\(off-hand (\d+)\/(\d+) damage\)/, (m, offHand, main) => { const isPT = CURRENT_LANG === 'pt'; const offHandN = Number(offHand), mainN = Number(main) || 0; if (offHandN === 0 || mainN === 0) { return isPT ? ` (mão secundária 0 dano)` : ` (+0 off-hand damage)`; } return isPT ? ` (mão secundária +${offHandN} dano · ${mainN}/${mainN + offHandN} no total)` : ` (+${offHandN} off-hand damage · ${mainN}/${mainN + offHandN} total)`; });
+    r = r.replace(/\(\+((-?\d+))\s+off-hand\)/, (m, d) => { const isPT = CURRENT_LANG === 'pt'; return isPT ? ` (+${d} dano extra na mão secundária)` : ` (+${d} off-hand damage)`; });
     r = r.replace(/(\d+)\s+gets through/, (m, d) => ` ${d} atravessa`);
     return r;
 }
@@ -15372,23 +15395,18 @@ function renderBattleStatsPanel(battleStats, enemyName) {
     const you = battleStats.you || {};
     const enemy = battleStats.enemy || {};
     const rows = [
-        [CURRENT_LANG === 'pt' ? 'Dano (Fís+Elem)' : 'Damage (Phys+Elem)', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
+        [CURRENT_LANG === 'pt' ? 'Dano' : 'Damage', formatBattleDamageStat(you), formatBattleDamageStat(enemy)],
         [CURRENT_LANG === 'pt' ? 'Armadura' : 'Armor', Number(you.armor ?? 0).toLocaleString(), Number(enemy.armor ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Magia' : 'Magic', Number(you.magic ?? 0).toLocaleString(), Number(enemy.magic ?? 0).toLocaleString()],
         ['HP', Number(you.hp ?? 0).toLocaleString(), Number(enemy.hp ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Agilidade' : 'Agility', Number(you.agility ?? 0).toLocaleString(), Number(enemy.agility ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Chance de Acerto' : 'Hit Chance', Number(you.hitChance ?? 0).toLocaleString(), Number(enemy.hitChance ?? 0).toLocaleString()],
         [CURRENT_LANG === 'pt' ? 'Chance de Crítico' : 'Crit Chance', Number(you.critChance ?? 0).toLocaleString(), Number(enemy.critChance ?? 0).toLocaleString()],
-    ];
-    return `
-        <div class="battle-stats-grid">
-            ${rows.map(([k, vYou, vEnemy]) => `
+    ];    return `<div class="battle-stats-grid">${rows.map(([k, vYou, vEnemy]) => `
                 <div class="battle-stats-v battle-stats-v-left">${escHtml(String(vYou))}</div>
                 <div class="battle-stats-k battle-stats-k-mid">${escHtml(k)}</div>
                 <div class="battle-stats-v battle-stats-v-right">${escHtml(String(vEnemy))}</div>
-            `).join('')}
-        </div>
-    `;
+            `).join('')}</div>`;
 }
 
 function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = {}) {
