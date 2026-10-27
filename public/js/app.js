@@ -3994,30 +3994,8 @@ function renderCharacter() {
     const baseDmgMax = baseDmgMin + 4;
     const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
     const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
-    // Calculate weapon skill progress from equipped weapon's wp_level (0-5 scale)
-    // skill_progress represents the weapon upgrade progress as a percentage (0-100)
-    // Note: resolvedEq is defined later, so we use eq.weapon directly here
-    let skill_progress = 0;
-    const mainWeapon = eq.weapon;
-    if (mainWeapon?.wp_level != null) {
-        // wp_level is 1-5, convert to 0-100 progress percentage
-        // Level 1 = 0%, Level 2 = 25%, Level 3 = 50%, Level 4 = 75%, Level 5 = 100%
-        skill_progress = ((mainWeapon.wp_level - 1) / 4) * 100;
-    }
-
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
-    if (skill_progress > 0) {
-        const pct = skill_progress / 100;
-        const mid = (finalDmgMin + finalDmgMax) / 2;
-        const spread = (finalDmgMax - finalDmgMin) / 2;
-        finalDmgMin = Math.floor(mid - spread * (1 - pct));
-        finalDmgMax = Math.ceil(mid + spread * (1 - pct));
-        if (finalDmgMin < 1) finalDmgMin = 1;
-        if (finalDmgMax < 1) finalDmgMax = 1;
-        finalDmgMin = Math.floor(finalDmgMin);
-        finalDmgMax = Math.ceil(finalDmgMax);
-    }
 
     if (c.class === 'warrior') {
         const strBonus = Math.floor(totalStr / 10);
@@ -14787,29 +14765,8 @@ async function openProfile(id) {
         const baseDmgMax = baseDmgMin + 4;
         const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
         const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
-        // Calculate weapon skill progress from equipped weapon's wp_level (1-5 scale)
-        // Note: profileResolvedEq is defined later, so we use eq.weapon directly here
-        let skill_progress = 0;
-        const profileMainWeapon = eq.weapon;
-        if (profileMainWeapon?.wp_level != null) {
-            // wp_level is 1-5, convert to 0-100 progress percentage
-            // Level 1 = 0%, Level 2 = 25%, Level 3 = 50%, Level 4 = 75%, Level 5 = 100%
-            skill_progress = ((profileMainWeapon.wp_level - 1) / 4) * 100;
-        }
-
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
-        if (skill_progress > 0) {
-            const pct = skill_progress / 100;
-            const mid = (finalDmgMin + finalDmgMax) / 2;
-            const spread = (finalDmgMax - finalDmgMin) / 2;
-            finalDmgMin = Math.floor(mid - spread * (1 - pct));
-            finalDmgMax = Math.ceil(mid + spread * (1 - pct));
-            if (finalDmgMin < 1) finalDmgMin = 1;
-            if (finalDmgMax < 1) finalDmgMax = 1;
-            finalDmgMin = Math.floor(finalDmgMin);
-            finalDmgMax = Math.ceil(finalDmgMax);
-        }
 
     if (p.class === 'warrior') {
             const strBonus = Math.floor(totalStr / 10);
