@@ -7294,7 +7294,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         const dualWield = hasClassModifier(attacker, 'dual_wield_unlock');
         const dualWieldDmg = hasClassModifier(attacker, 'dual_wield_dmg_pct');
         if (dualWield) {
-            offHandDmgPct = dualWieldDmg ? dualWieldDmg.off_hand_dmg_pct : dualWield.off_hand_dmg_pct;
+            offHandDmgPct = Math.max(dualWield?.off_hand_dmg_pct || 0, dualWieldDmg?.off_hand_dmg_pct || 0);
         } else {
             const exempt = isWpn('dagger') || isWpn('bow') || isWpn('scythe');
             if (!exempt && weapon) rogueWeaponPenalty = 0.60;
@@ -10597,7 +10597,8 @@ async function buildCharacterResponse(char, db) {
     const now = Math.floor(Date.now() / 1000);
 
     // Effective off-hand damage share for dual-wield rogues (mirrors simulateRound):
-    // dual_wield_dmg_pct (Ambidexterity) wins over dual_wield_unlock (training/mastery).
+    // Use the best off-hand damage share: dual_wield_unlock (Training/Mastery) provides
+    // the baseline; dual_wield_dmg_pct (Ambidexterity) improves upon it as progress increases.
     let offHandDmgPct = 0;
     if (char.class === 'rogue' && char.id && equippedObj?.off_hand) {
         try {
@@ -10605,7 +10606,9 @@ async function buildCharacterResponse(char, db) {
             const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedRows.map(r => r.skill_id), char.id);
             const dwDmg = hasClassModifier({ skillMods }, 'dual_wield_dmg_pct');
             const dwUnlock = hasClassModifier({ skillMods }, 'dual_wield_unlock');
-            const pct = Number(dwDmg ? dwDmg.off_hand_dmg_pct : (dwUnlock ? dwUnlock.off_hand_dmg_pct : 0)) || 0;
+            const unlockPct = dwUnlock?.off_hand_dmg_pct || 0;
+            const dmgPct = dwDmg?.off_hand_dmg_pct || 0;
+            const pct = Math.max(unlockPct, dmgPct);
             if (pct > 0) offHandDmgPct = pct;
         } catch (e) { offHandDmgPct = 0; }
     }
