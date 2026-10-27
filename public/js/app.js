@@ -4025,8 +4025,6 @@ function renderCharacter() {
         finalDmgMax += strBonus;
     }
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (FOR ${totalStr}x0.5) + Equipamento: +${gearDmgMin}-${gearDmgMax}`;
-    const dmgMinDisplay = finalDmgMin;
-    const dmgMaxDisplay = finalDmgMax;
     const baseArmor = Math.floor(totalDef / 2);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
 
@@ -4134,7 +4132,7 @@ const eqSlots=[
           ${baseCrit>0||bonusCrit?statRowBreakdown(renderStatIcon('critical','💥', isPT ? 'Crítico' : 'Crit Chance', c.class), isPT ? 'Crítico' : 'Crit Chance',baseCrit, bonusCrit, maxStat,'crit', c.upgradeCosts?.crit_chance, 'crit_chance'):''}
           <div class="char-combat-summary">
             <span class="char-combat-summary-item" title="${escHtml(dmgTooltip)}" style="cursor:help">
-              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${dmgMinDisplay}–${dmgMaxDisplay}</strong> ${finalDmgMin !== finalDmgMax ? `(range ${finalDmgMin}–${finalDmgMax})` : ''}
+              ⚔️ ${isPT ? 'DANO' : 'DMG'}: <strong style="color:var(--text-bright)">${finalDmgMin}–${finalDmgMax}</strong>
             </span>
             <span class="char-combat-summary-item">🛡 ${isPT ? 'Armadura' : 'Armor'}: <strong style="color:#5dade2">${armorVal}</strong></span>
             ${hpCur<c.hp_max?'<span class="char-combat-summary-note">⏳ '+(isPT? '+10% PV/h' : '+10% HP/hr')+'</span>':''}
@@ -14811,7 +14809,6 @@ async function openProfile(id) {
         const classBackground = getClassThemeBackground(p.class);
 
         const profileResolvedEq = { ...eq, amulet: eq.amulet || eq.ring || null, shield: eq.shield || eq.off_hand || null };
-        const profileOffHand = eq.off_hand || null;
         const profileSlots=[
             {slot:'helmet', icon:'⛑️', col:1, row:1},
             {slot:'armor',  icon:'🛡️', col:1, row:2},
@@ -14904,7 +14901,6 @@ async function openProfile(id) {
             <div class="eq-stage profile-eq-stage">
               <div class="eq-grid profile-eq-grid">${profileEqHtml}</div>
               <div class="eq-accessory-row profile-eq-accessory-row">${buildEqSlotSmall('accessory', eq, '🔮', 'Accessory')}</div>
-            ${buildProfileOffHandSlotHtml(p, profileOffHand, finalDmgMin, finalDmgMax)}
             </div>
           </div>`:''}
           ${!isMe ? (() => {
@@ -14950,40 +14946,6 @@ function miniStat(icon,label,val,max,cls) {
     return `<div class="stat-row" style="padding:5px 0"><span class="stat-icon" style="font-size:0.9rem">${icon}</span><span class="stat-label" style="font-size:0.78rem">${label}</span>
     <div class="stat-bar-wrap"><div class="stat-bar"><div class="stat-fill ${cls}-fill" style="width:${Math.round(val/Math.max(max,1)*100)}%"></div></div></div>
     <span class="stat-val" style="font-size:0.9rem">${val}</span></div>`;
-}
-function buildProfileOffHandSlotHtml(p, profileOffHand, finalDmgMin, finalDmgMax) {
-    if (!profileOffHand) return '';
-    const offHandStats = profileOffHand.stats || {};
-    const offHandWpStats = profileOffHand.wp_stats || {};
-    const offHandDmgMin = (offHandStats.dmg_min || 0) + (offHandWpStats.dmg_min || 0);
-    const offHandDmgMax = (offHandStats.dmg_max || 0) + (offHandWpStats.dmg_max || 0);
-    // Calculate off-hand contribution based on dual_wield_dmg_pct from skill tree
-    // The dual_wield_dmg_pct is a skill tree effect that determines how much off-hand damage contributes
-    // For visual display, we show the reduced values and the total damage including off-hand
-    // Get the actual dual_wield_dmg_pct from the character's skill tree effects if available
-    let dualWieldPct = 0.5; // Default 50%
-    if (p.skillEffects) {
-        for (const eff of p.skillEffects) {
-            if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct' && eff.off_hand_dmg_pct != null) {
-                dualWieldPct = eff.off_hand_dmg_pct;
-                break;
-            }
-        }
-    }
-    const reducedDmgMin = Math.floor(offHandDmgMin * dualWieldPct);
-    const reducedDmgMax = Math.floor(offHandDmgMax * dualWieldPct);
-    // Total damage = main hand damage + reduced off-hand damage (using the same finalDmgMin/Max which already include gear)
-    const totalDmgMin = finalDmgMin + reducedDmgMin;
-    const totalDmgMax = finalDmgMax + reducedDmgMax;
-    // The displayed damage in the profile modal should show the total including off-hand contribution
-    // But we also want to show the main hand + off-hand breakdown visually
-    return `<div class="profile-offhand-slot" style="display:inline-flex;align-items:center;gap:8px;padding:6px 10px;margin-top:8px;border-radius:8px;background:rgba(255,255,255,0.05);border:1px dashed rgba(255,255,255,0.15)">
-        <span style="font-size:0.7rem;color:var(--text-dim)">${_pt('Mão Secundária','Off-Hand')}</span>
-        <span style="font-size:0.85rem">${itemIcon(profileOffHand, '1.5rem')}</span>
-        <span style="font-size:0.75rem;color:var(--text-dim)">${reducedDmgMin}-${reducedDmgMax}</span>
-        <span style="font-size:0.7rem;color:var(--gold)">+${reducedDmgMin}</span>
-        <span style="font-size:0.7rem;color:var(--text-bright);font-weight:600">→ ${totalDmgMin}-${totalDmgMax} total</span>
-    </div>`;
 }
 function closeProfile() { hideItemTooltip(); const m = document.getElementById('profile-modal'); m.classList.add('hidden'); m.style.zIndex = ''; }
 async function attackFromProfile(id,name,targetClass) { closeProfile(); await attack(id,name,targetClass); }
