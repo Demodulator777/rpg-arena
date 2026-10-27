@@ -10596,6 +10596,20 @@ async function buildCharacterResponse(char, db) {
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
 
+    // Effective off-hand damage share for dual-wield rogues (mirrors simulateRound):
+    // dual_wield_dmg_pct (Ambidexterity) wins over dual_wield_unlock (training/mastery).
+    let offHandDmgPct = 0;
+    if (char.class === 'rogue' && char.id && equippedObj?.off_hand) {
+        try {
+            const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+            const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedRows.map(r => r.skill_id), char.id);
+            const dwDmg = hasClassModifier({ skillMods }, 'dual_wield_dmg_pct');
+            const dwUnlock = hasClassModifier({ skillMods }, 'dual_wield_unlock');
+            const pct = Number(dwDmg ? dwDmg.off_hand_dmg_pct : (dwUnlock ? dwUnlock.off_hand_dmg_pct : 0)) || 0;
+            if (pct > 0) offHandDmgPct = pct;
+        } catch (e) { offHandDmgPct = 0; }
+    }
+
     // Check if the character is currently learning a skill (new skill-training system).
     let activeSkillTraining = false;
     try {
@@ -10734,6 +10748,7 @@ async function buildCharacterResponse(char, db) {
         premium_ultimate:  ultimateActive,
         upgrade_discount:  upgradeDiscount,
         no_shield_agi_bonus: noShieldAgiBonus,
+        off_hand_dmg_pct: offHandDmgPct,
         equipped_set_counts: setCounts,
         equipped_set_bonuses: setBonuses,
         equipped_set_details: setDetails,
