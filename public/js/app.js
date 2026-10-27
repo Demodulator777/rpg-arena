@@ -4089,7 +4089,9 @@ const eqSlots=[
             <span class="eq-slot-icon">${icon}</span>
             <span class="eq-slot-label">${label}</span>
         </div>`;
-        const itemData = escHtml(JSON.stringify(item));
+        // A weapon in the shield slot is the off-hand: show its reduced (actual) damage in the tooltip.
+        const isOffHandSlot = slot === 'shield' && !eq.shield && !!eq.off_hand;
+        const itemData = escHtml(JSON.stringify(isOffHandSlot ? { ...item, _offHand: true } : item));
         return avatarDiv + `
         <div class="eq-slot eq-slot--${slot} filled"
             data-hover-action="hoverEqTooltip"
@@ -9835,6 +9837,13 @@ function ttInstallGestureGate() {
     }, true);
 }
 // ── Open Loot Box ─────────────────────────────────────────────────────────
+// How much of an off-hand weapon's damage actually applies (rogue dual-wield).
+// character.off_hand_dmg_pct is computed server-side and mirrors the battle engine
+// (dual_wield_dmg_pct wins over dual_wield_unlock); 1 = full damage (no reduction).
+function getOffHandDmgPct() {
+    const pct = Number(character?.off_hand_dmg_pct);
+    return Number.isFinite(pct) && pct > 0 && pct <= 1 ? pct : 1;
+}
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
@@ -10108,7 +10117,9 @@ function showItemTooltip(event, itemId) {
     const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getCanonicalItemDesc(d.desc, d.name);
-    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);    let statsHtml = '';
+    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
+    const dualWieldPct = getOffHandDmgPct();
+    let statsHtml = '';
     for (const stat of allKeys) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
         // For off-hand equipped weapons, show reduced damage values
@@ -10125,8 +10136,8 @@ function showItemTooltip(event, itemId) {
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
-        const offHandNote = isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max') 
-            ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(dualWieldPct*100)}%)</span>` 
+        const offHandNote = isOffHandEquipped && dualWieldPct < 1 && (stat === 'dmg_min' || stat === 'dmg_max')
+            ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(dualWieldPct*100)}% ${_pt('mão secundária','off-hand')})</span>`
             : '';
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${offHandNote}${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
@@ -10188,6 +10199,8 @@ function showEqTooltip(event, itemJson) {
     const displayDesc = getDisplayItemDesc(item);
 
     const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
+    // Weapons equipped in the off-hand slot only deal a share of their listed damage.
+    const offHandPct = item && item._offHand ? getOffHandDmgPct() : 1;
     const statKeys = new Set([...Object.keys(item.stats||{}), ...Object.keys(item.wp_stats||{})]);
     let statsHtml = [...statKeys]
         .filter(k => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
@@ -10195,7 +10208,10 @@ function showEqTooltip(event, itemJson) {
             const total = (Number(item.stats?.[k]) || 0) + (Number(item.wp_stats?.[k]) || 0);
             if (typeof total !== 'number' || total === 0) return '';
             const label = statLabelHtml(k);
-            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${total>0?'#2ecc71':'#e74c3c'}">${total>0?'+':''}${total}</span></div>`;
+            const isDmg = k === 'dmg_min' || k === 'dmg_max';
+            const actual = isDmg && offHandPct < 1 ? Math.floor(total * offHandPct) : total;
+            const note = isDmg && actual !== total ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(offHandPct*100)}% ${_pt('mão secundária','off-hand')})</span>` : '';
+            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${actual>0?'#2ecc71':'#e74c3c'}">${actual>0?'+':''}${actual}</span>${note}</div>`;
         }).filter(Boolean).join('');
 
     tooltip.innerHTML = `
@@ -14830,7 +14846,9 @@ async function openProfile(id) {
                 </div>` : '';
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot" style="pointer-events:none"><span class="eq-slot-icon">${icon}</span></div>`;
-            const itemData = escHtml(JSON.stringify(item));
+            // Own profile only: the viewer's dual-wield share is the one that applies to this character.
+            const isOffHandSlot = isMe && slot === 'shield' && !eq.shield && !!eq.off_hand;
+            const itemData = escHtml(JSON.stringify(isOffHandSlot ? { ...item, _offHand: true } : item));
             return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                 data-item="${itemData}"
                 data-hover-action="hoverEqTooltip"
