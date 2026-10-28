@@ -3992,8 +3992,8 @@ function renderCharacter() {
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
-    const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
+    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min');
+    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max');
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
 
@@ -9822,6 +9822,25 @@ function getOffHandDmgPct() {
     const pct = Number(character?.off_hand_dmg_pct);
     return Number.isFinite(pct) && pct > 0 && pct <= 1 ? pct : 1;
 }
+// Sum a damage stat over all equipped items, replacing the off-hand weapon's full
+// contribution with its reduced share (see getOffHandDmgPct). The off-hand weapon
+// lives in `eq.shield` (rogueOffhand) or in the dedicated `eq.off_hand` slot.
+// `pctOverride` lets profile views pass the viewed player's off_hand_dmg_pct.
+function gearDamageAfterOffHandReduction(eq, statKey, pctOverride) {
+    const sum = Object.values(eq || {}).reduce((acc, item) => acc + (item?.stats?.[statKey] || 0) + (item?.wp_stats?.[statKey] || 0), 0);
+    if (!sum) return 0;
+    const offHandItem = (eq?.shield && eq.shield.rogueOffhand === true) ? eq.shield : eq?.off_hand;
+    if (!offHandItem) return sum;
+    const fullOff = (offHandItem.stats?.[statKey] || 0) + (offHandItem.wp_stats?.[statKey] || 0);
+    if (fullOff <= 0) return sum;
+    let pct;
+    if (pctOverride != null && Number.isFinite(Number(pctOverride))) {
+        pct = Math.max(0, Math.min(1, Number(pctOverride)));
+    } else {
+        pct = getOffHandDmgPct();
+    }
+    return sum - fullOff + Math.floor(fullOff * pct);
+}
 function showItemTooltip(event, itemId) {
     cancelHideTooltip();
     const tooltip = document.getElementById('item-tooltip');
@@ -14763,8 +14782,8 @@ async function openProfile(id) {
         const totalDef = def + (itemBonus.defense || 0) + (setBonus.defense || 0) + (beastBonus.def || 0);
         const baseDmgMin = Math.floor(totalStr * 0.5);
         const baseDmgMax = baseDmgMin + 4;
-        const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
-        const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
+        const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', p.off_hand_dmg_pct);
+        const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', p.off_hand_dmg_pct);
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
 
@@ -15176,8 +15195,8 @@ function translateNumbered(rest) {
     r = r.replace(/🌿\s*(-?\d+)\s+reflected/, (m, d) => ` 🌿 ${d} refletido`);
     r = r.replace(/[-—-]\s*COUNTERED for\s+(-?\d+)/, (m, d) => ` — Contra-atacado por ${d}`);
     r = r.replace(/👻\s+(.+?)\s+phantom counters for\s+(-?\d+)/, (m, name, d) => ` 👻 ${name} contra-ataca de forma fantasma por ${d}`);
-    r = r.replace(/\(off-hand (\d+)\/(\d+) damage\)/, (m, offHand, main) => { const isPT = CURRENT_LANG === 'pt'; const offHandN = Number(offHand), mainN = Number(main) || 0; if (offHandN === 0 || mainN === 0) { return isPT ? ` (mão secundária 0 dano)` : ` (+0 off-hand damage)`; } return isPT ? ` (mão secundária +${offHandN} dano · ${mainN}/${mainN + offHandN} no total)` : ` (+${offHandN} off-hand damage · ${mainN}/${mainN + offHandN} total)`; });
-    r = r.replace(/\(\+((-?\d+))\s+off-hand\)/, (m, d) => { const isPT = CURRENT_LANG === 'pt'; return isPT ? ` (+${d} dano extra na mão secundária)` : ` (+${d} off-hand damage)`; });
+    r = r.replace(/\s*\(off-hand[^)]*\)/gi, '');
+    r = r.replace(/\(\+(-?\d+)\s+off-hand[^)]*\)/gi, '');
     r = r.replace(/(\d+)\s+gets through/, (m, d) => ` ${d} atravessa`);
     return r;
 }
