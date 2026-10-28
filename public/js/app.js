@@ -9887,11 +9887,10 @@ function showItemTooltip(event, itemId) {
         if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
         // For off-hand equipped weapons, show reduced damage values
         let nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0);
-        let ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0);
+        let ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat]||0));
         // Apply dual-wield reduction for off-hand weapon damage display
         if (isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max')) {
             nv = Math.floor(nv * dualWieldPct);
-            // For comparison, show what's currently equipped (also reduced)
             if (equippedItem) {
                 ov = Math.floor(((equippedItem?.stats?.[stat]||0) + (equippedItem?.wp_stats?.[stat]||0)) * dualWieldPct);
             }
@@ -9900,11 +9899,7 @@ function showItemTooltip(event, itemId) {
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
-        // Add note for off-hand weapons showing the reduction
-        const offHandNote = isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max') 
-            ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(dualWieldPct*100)}% mão secundária)</span>` 
-            : '';
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${offHandNote}${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
     const classWarn = !isWeaponSuitedForClass(d, character?.class) ? CLASS_WARN_HTML : '';
@@ -10133,9 +10128,7 @@ function showItemTooltip(event, itemId) {
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
-        const offHandNote = isOffHandEquipped && dualWieldPct < 1 && (stat === 'dmg_min' || stat === 'dmg_max')
-            ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(dualWieldPct*100)}% ${_pt('mão secundária','off-hand')})</span>`
-            : '';
+        // off-hand percentage note removed from inventory tooltip per request
         statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${offHandNote}${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
@@ -10207,8 +10200,7 @@ function showEqTooltip(event, itemJson) {
             const label = statLabelHtml(k);
             const isDmg = k === 'dmg_min' || k === 'dmg_max';
             const actual = isDmg && offHandPct < 1 ? Math.floor(total * offHandPct) : total;
-            const note = isDmg && actual !== total ? `<span style="font-size:0.62rem;color:var(--text-dim);margin-left:4px">(${Math.round(offHandPct*100)}% ${_pt('mão secundária','off-hand')})</span>` : '';
-            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${actual>0?'#2ecc71':'#e74c3c'}">${actual>0?'+':''}${actual}</span>${note}</div>`;
+            return `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val" style="color:${actual>0?'#2ecc71':'#e74c3c'}">${actual>0?'+':''}${actual}</span></div>`;
         }).filter(Boolean).join('');
 
     tooltip.innerHTML = `
