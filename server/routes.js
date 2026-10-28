@@ -6848,6 +6848,22 @@ function mergeActiveSkills(baseSkills, skillEffects) {
     }
     return result;
 }
+// Effective off-hand damage share for dual-wield rogues. duel_wield_unlock
+// (Off-Hand Training/Mastery) provides the baseline; the better of it and
+// dual_wield_dmg_pct (Ambidexterity, scaled by its progress) wins.
+async function computeOffHandDmgPct(db, char, equippedObj) {
+    if (!char || char.class !== 'rogue' || !char.id || !equippedObj?.off_hand) return 0;
+    try {
+        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
+        const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedRows.map(r => r.skill_id), char.id);
+        const dwDmg = hasClassModifier({ skillMods }, 'dual_wield_dmg_pct');
+        const dwUnlock = hasClassModifier({ skillMods }, 'dual_wield_unlock');
+        const unlockPct = dwUnlock?.off_hand_dmg_pct || 0;
+        const dmgPct = dwDmg?.off_hand_dmg_pct || 0;
+        const pct = Math.max(unlockPct, dmgPct);
+        return pct > 0 ? pct : 0;
+    } catch (e) { return 0; }
+}
 // Legacy weapon ids are stored with a `_<timestamp>_<random>` suffix (e.g.
 // `first_scream_weapon_...`). Never compare with strict equality; match by prefix.
 function isLegacyWeapon(weapon, baseId) {
@@ -8230,13 +8246,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (defender.rageHits >= 3) defender.rageReady = true;
     }
 
-    // Off-hand damage from dual wield
+    // Off-hand damage from dual wield - included in the total damage of the same hit
     if (offHandDmgPct > 0 && finalDmg > 0) {
         const offHand = Math.floor(finalDmg * offHandDmgPct);
         if (offHand > 0) {
-            const mainDmg = Math.floor(finalDmg - offHand);
             finalDmg += offHand;
-            logLine += ` (off-hand ${offHand}/${mainDmg} damage)`;
         }
     }
 
@@ -10596,22 +10610,8 @@ async function buildCharacterResponse(char, db) {
     const withTrain = withTrainingStatus(withCosts);
     const now = Math.floor(Date.now() / 1000);
 
-    // Effective off-hand damage share for dual-wield rogues (mirrors simulateRound):
-    // Use the best off-hand damage share: dual_wield_unlock (Training/Mastery) provides
-    // the baseline; dual_wield_dmg_pct (Ambidexterity) improves upon it as progress increases.
-    let offHandDmgPct = 0;
-    if (char.class === 'rogue' && char.id && equippedObj?.off_hand) {
-        try {
-            const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
-            const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedRows.map(r => r.skill_id), char.id);
-            const dwDmg = hasClassModifier({ skillMods }, 'dual_wield_dmg_pct');
-            const dwUnlock = hasClassModifier({ skillMods }, 'dual_wield_unlock');
-            const unlockPct = dwUnlock?.off_hand_dmg_pct || 0;
-            const dmgPct = dwDmg?.off_hand_dmg_pct || 0;
-            const pct = Math.max(unlockPct, dmgPct);
-            if (pct > 0) offHandDmgPct = pct;
-        } catch (e) { offHandDmgPct = 0; }
-    }
+    // Effective off-hand damage share for dual-wield rogues (see computeOffHandDmgPct).
+    const offHandDmgPct = await computeOffHandDmgPct(db, char, equippedObj);
 
     // Check if the character is currently learning a skill (new skill-training system).
     let activeSkillTraining = false;
@@ -17402,6 +17402,7 @@ router.get('/player/:id', auth, async (req, res) => {
         const hpLow = (player.hp_current ?? hpMax) < 10;
 
         const equipped = await getEquippedItems(db, player.id);
+        const profileOffHandDmgPct = await computeOffHandDmgPct(db, player, equipped);
         const achievementCountRow = await dbGet(db, 'SELECT COUNT(*) AS count FROM character_achievements WHERE char_id = ?', [player.id]);
 
         const squadRow = await dbGet(db, `SELECT sq.id AS squad_id, sq.name AS squad_name, sq.logo AS squad_logo,
@@ -17439,6 +17440,7 @@ router.get('/player/:id', auth, async (req, res) => {
             })(),
             globalCooldown, perTargetCooldown, hpLow, equipped,
             armor_value: profileArmor,
+            off_hand_dmg_pct: profileOffHandDmgPct,
             equipped_set_bonuses: profileSetBonuses,
             recentBattles: battles.map(b => ({ ...b, log: JSON.parse(b.log) })),
             elemental: await (async () => {
