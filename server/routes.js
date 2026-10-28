@@ -16646,13 +16646,29 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const setBonusesA = getEquippedSetBonuses(equippedA);
         const weaponA = getEquippedWeaponData(equippedA);
         const shieldA = getEquippedShieldData(equippedA);
+        let finalDmgMinA = dmgMinA;
+        let finalDmgMaxA = dmgMaxA;
+        try {
+            const eqObjA = await getEquippedItems(db, freshA.id);
+            const offHandPctA = await computeOffHandDmgPct(db, freshA, eqObjA);
+            if (offHandPctA > 0 && eqObjA?.off_hand) {
+                const oh = eqObjA.off_hand;
+                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+                if (ohMin > 0 || ohMax > 0) {
+                    finalDmgMinA = finalDmgMinA - ohMin + Math.floor(ohMin * offHandPctA);
+                    finalDmgMaxA = finalDmgMaxA - ohMax + Math.floor(ohMax * offHandPctA);
+                    if (finalDmgMaxA < finalDmgMinA) finalDmgMaxA = finalDmgMinA;
+                }
+            }
+        } catch {}
         const fighterA = {
             id: freshA.id, name: freshA.name, class: freshA.class, level: freshA.level, weapon: weaponA,
             shield: shieldA,
             hp: hpA,
             hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
-            dmgMin: dmgMinA + skillPassiveBonus(dmgMinA, skillPassivesA.dmg_min),
-            dmgMax: dmgMaxA + skillPassiveBonus(dmgMaxA, skillPassivesA.dmg_max),
+            dmgMin: finalDmgMinA + skillPassiveBonus(finalDmgMinA, skillPassivesA.dmg_min),
+            dmgMax: finalDmgMaxA + skillPassiveBonus(finalDmgMaxA, skillPassivesA.dmg_max),
             strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + skillPassiveBonus(freshA.strength || 0, skillPassivesA.strength) + getEquippedStatTotal(equippedA, 'strength') + _beastStatsA.str,
             agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + skillPassiveBonus(freshA.agility || 0, skillPassivesA.agility) + noShieldAgiBonusA + getEquippedStatTotal(equippedA, 'agility'),
             magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + skillPassiveBonus(freshA.magic || 0, skillPassivesA.magic) + getEquippedStatTotal(equippedA, 'magic') + _beastStatsA.mag,
@@ -16687,13 +16703,29 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const setBonusesD = getEquippedSetBonuses(equippedD);
         const weaponD = getEquippedWeaponData(equippedD);
         const shieldD = getEquippedShieldData(equippedD);
+        let finalDmgMinD = dmgMinD;
+        let finalDmgMaxD = dmgMaxD;
+        try {
+            const eqObjD = await getEquippedItems(db, freshD.id);
+            const offHandPctD = await computeOffHandDmgPct(db, freshD, eqObjD);
+            if (offHandPctD > 0 && eqObjD?.off_hand) {
+                const oh = eqObjD.off_hand;
+                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+                if (ohMin > 0 || ohMax > 0) {
+                    finalDmgMinD = finalDmgMinD - ohMin + Math.floor(ohMin * offHandPctD);
+                    finalDmgMaxD = finalDmgMaxD - ohMax + Math.floor(ohMax * offHandPctD);
+                    if (finalDmgMaxD < finalDmgMinD) finalDmgMaxD = finalDmgMinD;
+                }
+            }
+        } catch {}
         const fighterB = {
             id: freshD.id, name: freshD.name, class: freshD.class, level: freshD.level, weapon: weaponD,
             shield: shieldD,
             hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
-            dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
-            dmgMax: dmgMaxD + skillPassiveBonus(dmgMaxD, skillPassivesD.dmg_max),
+            dmgMin: finalDmgMinD + skillPassiveBonus(finalDmgMinD, skillPassivesD.dmg_min),
+            dmgMax: finalDmgMaxD + skillPassiveBonus(finalDmgMaxD, skillPassivesD.dmg_max),
             strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + skillPassiveBonus(freshD.strength || 0, skillPassivesD.strength) + getEquippedStatTotal(equippedD, 'strength') + _beastStatsD.str,
             agility: ((freshD.agility || 0) + (setBonusesD.agility || 0) + skillPassiveBonus(freshD.agility || 0, skillPassivesD.agility) + noShieldAgiBonusD + getEquippedStatTotal(equippedD, 'agility')) * (hasPremium(premD, 'iron_fortress') ? 1.10 : 1.0),
             magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + skillPassiveBonus(freshD.magic || 0, skillPassivesD.magic) + getEquippedStatTotal(equippedD, 'magic') + _beastStatsD.mag,
