@@ -14007,6 +14007,22 @@ async function collectMissionForCharacter(db, characterId) {
         }
         const playerWeapon = getEquippedWeaponData(equippedArray);
         const playerShield = getEquippedShieldData(equippedArray);
+        let finalMissionDmgMin = dmgMin;
+        let finalMissionDmgMax = dmgMax;
+        try {
+            const eqObjM = await getEquippedItems(db, freshChar.id);
+            const offHandPctM = await computeOffHandDmgPct(db, freshChar, eqObjM);
+            if (offHandPctM > 0 && eqObjM?.off_hand) {
+                const oh = eqObjM.off_hand;
+                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+                if (ohMin > 0 || ohMax > 0) {
+                    finalMissionDmgMin = finalMissionDmgMin - ohMin + Math.floor(ohMin * offHandPctM);
+                    finalMissionDmgMax = finalMissionDmgMax - ohMax + Math.floor(ohMax * offHandPctM);
+                    if (finalMissionDmgMax < finalMissionDmgMin) finalMissionDmgMax = finalMissionDmgMin;
+                }
+            }
+        } catch {}
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
@@ -14016,8 +14032,8 @@ async function collectMissionForCharacter(db, characterId) {
             shield: playerShield,
             hp: hpCurrent,
             hpMax: hpMax + (skillPassiveBonus(freshChar.vitality || 0, skillPassives.vitality) * 25),
-            dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
-            dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
+            dmgMin: finalMissionDmgMin + skillPassiveBonus(finalMissionDmgMin, skillPassives.dmg_min),
+            dmgMax: finalMissionDmgMax + skillPassiveBonus(finalMissionDmgMax, skillPassives.dmg_max),
             strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(freshChar.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength') + _beastStats.str,
             agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(freshChar.agility || 0, skillPassives.agility) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
             magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(freshChar.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic') + _beastStats.mag,
