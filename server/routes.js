@@ -9151,6 +9151,23 @@ async function buildCombatFighter(db, char) {
     const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
 
+    // Apply off-hand weapon damage reduction for dual-wield rogues so battle stats
+    // match the character sheet (off-hand contributes only its reduced share).
+    try {
+        const equippedObjForOh = await getEquippedItems(db, char.id);
+        const offHandPct = await computeOffHandDmgPct(db, char, equippedObjForOh);
+        if (offHandPct > 0 && equippedObjForOh?.off_hand) {
+            const oh = equippedObjForOh.off_hand;
+            const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+            const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+            if (ohMin > 0 || ohMax > 0) {
+                dmgMin = dmgMin - ohMin + Math.floor(ohMin * offHandPct);
+                dmgMax = dmgMax - ohMax + Math.floor(ohMax * offHandPct);
+                if (dmgMax < dmgMin) dmgMax = dmgMin;
+            }
+        }
+    } catch {}
+
     const now = Math.floor(Date.now() / 1000);
     let tempStatBuffs = {};
     if (typeof char.temp_stat_buffs === 'string') {
