@@ -4070,7 +4070,7 @@ const eqSlots=[
             <span class="eq-slot-label">${label}</span>
         </div>`;
         // A weapon in the shield slot is the off-hand: show its reduced (actual) damage in the tooltip.
-        const isOffHandSlot = slot === 'shield' && !eq.shield && !!eq.off_hand;
+        const isOffHandSlot = slot === 'shield' && (eq.shield ? isOffHandItem(eq.shield) : isOffHandItem(eq.off_hand));
         const itemData = escHtml(JSON.stringify(isOffHandSlot ? { ...item, _offHand: true } : item));
         return avatarDiv + `
         <div class="eq-slot eq-slot--${slot} filled"
@@ -9820,6 +9820,20 @@ function ttInstallGestureGate() {
 // How much of an off-hand weapon's damage actually applies (rogue dual-wield).
 // character.off_hand_dmg_pct is computed server-side and mirrors the battle engine
 // (dual_wield_dmg_pct wins over dual_wield_unlock); 1 = full damage (no reduction).
+// A rogue's off-hand weapon is real gear with `slot:'shield'` + `rogueOffhand:true`
+// (that's what the server stores and what the battle engine reads); the legacy
+// `off_hand` slot and the `_offHand` render flag are also accepted.
+function isOffHandItem(item) {
+    if (!item) return false;
+    if (item._offHand === true) return true;
+    if (item.slot === 'off_hand') return true;
+    return item.slot === 'shield' && item.rogueOffhand === true;
+}
+// Is the character wearing an off-hand weapon at all (either storage shape)?
+function hasEquippedOffHand(eq) {
+    const e = eq || character?.equipped || {};
+    return isOffHandItem(e.off_hand) || isOffHandItem(e.shield);
+}
 function getOffHandDmgPct() {
     const pct = Number(character?.off_hand_dmg_pct);
     if (Number.isFinite(pct) && pct > 0 && pct <= 1) return pct;
@@ -9833,7 +9847,9 @@ function getOffHandDmgPct() {
 // character's dual-wield modifiers so off-hand item tooltips still show the real
 // damage. No-op as soon as the server sends the field itself.
 function warmOffHandDmgPct() {
-    if (!character?.id || character.off_hand_dmg_pct != null || !character?.equipped?.off_hand) return;
+    // A positive server value is authoritative; 0/absent means the server build may not
+    // know about rogue off-hand weapons yet, so look it up from the skill tree instead.
+    if (!character?.id || Number(character.off_hand_dmg_pct) > 0 || !hasEquippedOffHand()) return;
     if (window._offHandPctWarm === character.id) return;
     window._offHandPctWarm = character.id;
     api('GET', '/skills/tree').then(d => {
@@ -10002,7 +10018,7 @@ function showItemTooltip(event, itemId) {
     const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
     const equippedSlotKey = info.equippedSlot || (isEquipped ? d.slot : null);
     const isMainEquipped = d.slot === 'weapon' ? equippedSlotKey === 'weapon' : !!isEquipped;
-    const isOffHandEquipped = equippedSlotKey === 'off_hand';
+    const isOffHandEquipped = equippedSlotKey === 'off_hand' || (!!isEquipped && isOffHandItem(d));
     const canEquipOffHand = !!info.offHandAvailable;
 
     // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
@@ -14726,7 +14742,7 @@ async function openProfile(id) {
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot" style="pointer-events:none"><span class="eq-slot-icon">${icon}</span></div>`;
             // Own profile only: the viewer's dual-wield share is the one that applies to this character.
-            const isOffHandSlot = isMe && slot === 'shield' && !eq.shield && !!eq.off_hand;
+            const isOffHandSlot = isMe && slot === 'shield' && (eq.shield ? isOffHandItem(eq.shield) : isOffHandItem(eq.off_hand));
             const itemData = escHtml(JSON.stringify(isOffHandSlot ? { ...item, _offHand: true } : item));
             return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                 data-item="${itemData}"
