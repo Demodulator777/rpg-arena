@@ -3943,7 +3943,9 @@ function renderTempStatBuffs(buffs) {
 }
 
 function renderCharacter() {
-    if (!character) return;    const c = getLiveCharacterSnapshot(character);
+    if (!character) return;
+    warmOffHandDmgPct();
+    const c = getLiveCharacterSnapshot(character);
     const isPT = CURRENT_LANG === 'pt';
     const eq = c.equipped||{};
     const lxp = c.level*25;
@@ -3992,8 +3994,8 @@ function renderCharacter() {
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min');
-    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max');
+    const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
+    const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
 
@@ -9820,139 +9822,30 @@ function ttInstallGestureGate() {
 // (dual_wield_dmg_pct wins over dual_wield_unlock); 1 = full damage (no reduction).
 function getOffHandDmgPct() {
     const pct = Number(character?.off_hand_dmg_pct);
-    return Number.isFinite(pct) && pct > 0 && pct <= 1 ? pct : 1;
+    if (Number.isFinite(pct) && pct > 0 && pct <= 1) return pct;
+    // Older server builds omit off_hand_dmg_pct; use the value warmOffHandDmgPct()
+    // already fetched from the skill tree for this character, when there is one.
+    const cached = window._offHandDmgPct;
+    if (cached && cached.id === character?.id && Number.isFinite(cached.pct) && cached.pct > 0 && cached.pct <= 1) return cached.pct;
+    return 1;
 }
-// Sum a damage stat over all equipped items, replacing the off-hand weapon's full
-// contribution with its reduced share (see getOffHandDmgPct). The off-hand weapon
-// lives in `eq.shield` (rogueOffhand) or in the dedicated `eq.off_hand` slot.
-// `pctOverride` lets profile views pass the viewed player's off_hand_dmg_pct.
-function gearDamageAfterOffHandReduction(eq, statKey, pctOverride) {
-    const sum = Object.values(eq || {}).reduce((acc, item) => acc + (item?.stats?.[statKey] || 0) + (item?.wp_stats?.[statKey] || 0), 0);
-    if (!sum) return 0;
-    const offHandItem = (eq?.shield && eq.shield.rogueOffhand === true) ? eq.shield : eq?.off_hand;
-    if (!offHandItem) return sum;
-    const fullOff = (offHandItem.stats?.[statKey] || 0) + (offHandItem.wp_stats?.[statKey] || 0);
-    if (fullOff <= 0) return sum;
-    let pct;
-    if (pctOverride != null && Number.isFinite(Number(pctOverride))) {
-        pct = Math.max(0, Math.min(1, Number(pctOverride)));
-    } else {
-        pct = getOffHandDmgPct();
-    }
-    return sum - fullOff + Math.floor(fullOff * pct);
+// One-shot fallback: when the server build predates off_hand_dmg_pct, read this
+// character's dual-wield modifiers so off-hand item tooltips still show the real
+// damage. No-op as soon as the server sends the field itself.
+function warmOffHandDmgPct() {
+    if (!character?.id || character.off_hand_dmg_pct != null || !character?.equipped?.off_hand) return;
+    if (window._offHandPctWarm === character.id) return;
+    window._offHandPctWarm = character.id;
+    api('GET', '/skills/tree').then(d => {
+        if (!character || character.id !== window._offHandPctWarm) return;
+        const best = (d?.classModifiers || []).reduce((m, e) => {
+            if (e?.id !== 'dual_wield_unlock' && e?.id !== 'dual_wield_dmg_pct') return m;
+            return Math.max(m, Number(e.off_hand_dmg_pct) || 0);
+        }, 0);
+        if (best > 0) window._offHandDmgPct = { id: character.id, pct: Math.min(1, best) };
+    }).catch(() => {});
 }
-function showItemTooltip(event, itemId) {
-    cancelHideTooltip();
-    const tooltip = document.getElementById('item-tooltip');
-    if (!tooltip) return;
-    const info = window._invGearData?.[itemId];
-    if (!info) return;
-    const d = info.item_data, eq = info.equippedInSlot, isEquipped = info.equipped;
-    const equippedSlotKey = info.equippedSlot || (isEquipped ? d.slot : null);
-    const isMainEquipped = d.slot === 'weapon' ? equippedSlotKey === 'weapon' : !!isEquipped;
-    const isOffHandEquipped = equippedSlotKey === 'off_hand';
-    const canEquipOffHand = !!info.offHandAvailable;
 
-    // NORMALIZE JEWELRY SLOT - rings and amulets are the same slot
-    let itemSlot = d.slot;
-    let equippedItem = eq;
-
-    if (itemSlot === 'ring' || itemSlot === 'amulet') {
-        itemSlot = 'jewelry';
-        // For equipped comparison, check both ring and amulet slots
-        if (!equippedItem && character?.equipped) {
-            equippedItem = character.equipped.ring || character.equipped.amulet;
-        }
-    }
-
-    const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...(Array.isArray(d.upgradedStats) ? d.upgradedStats : Object.keys(d.upgradedStats||{}))].filter(k=>!k.includes('type')));
-    const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
-    const displayName = getDisplayItemName(d, info.upgrade_level || 0);
-    const displayDesc = getDisplayItemDesc(d);
-    const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
-
-    // Get the dual_wield_dmg_pct for off-hand display
-    let dualWieldPct = 0.5; // Default 50%
-    if (character?.skillEffects) {
-        for (const eff of character.skillEffects) {
-            if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct' && eff.off_hand_dmg_pct != null) {
-                dualWieldPct = eff.off_hand_dmg_pct;
-                break;
-            }
-        }
-    }
-
-    let statsHtml = '';
-    for (const stat of allKeys) {
-        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
-        // For off-hand equipped weapons, show reduced damage values
-        let nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0);
-        let ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat]||0));
-        // Apply dual-wield reduction for off-hand weapon damage display
-        if (isOffHandEquipped && (stat === 'dmg_min' || stat === 'dmg_max')) {
-            nv = Math.floor(nv * dualWieldPct);
-            if (equippedItem) {
-                ov = Math.floor(((equippedItem?.stats?.[stat]||0) + (equippedItem?.wp_stats?.[stat]||0)) * dualWieldPct);
-            }
-        }
-        const diff = nv - ov;
-        const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
-        const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
-        const label = statLabelHtml(stat);
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
-    }
-
-    const classWarn = !isWeaponSuitedForClass(d, character?.class) ? CLASS_WARN_HTML : '';
-    const sp = getInventorySellPrice(d);
-    const sn = (d.name||'').replace(/'/g,"\\'");
-
-    tooltip.innerHTML = `
-        <div class="tt-preview">
-            <button class="tt-close" id="tt-close-btn" ${actionAttrs('closeItemTooltip')}>✕</button>
-            ${imgSrc
-        ?`<img src="${imgSrc}" data-error-hide="true" data-error-next-display="block"><span class="tt-preview-emoji" style="display:none">${d.emoji||'📦'}</span>`
-        :`<span class="tt-preview-emoji">${d.emoji||'📦'}</span>`}
-        </div>
-        <div class="tt-body">
-            <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(isOffHandEquipped ? 'off_hand' : (itemSlot||''))}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
-            ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
-            <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}</div>
-            ${classWarn}
-            ${equippedItem && !isEquipped ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
-        </div>
-        <div class="tt-actions">
-            ${isMainEquipped
-        ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', equippedSlotKey || d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
-        :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>${_pt('Equipar', 'Equip')}</button>`}
-            ${canEquipOffHand
-        ? (isOffHandEquipped
-            ? `<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', 'off_hand')}>${_pt('Desequipar mão secundária', 'Unequip off-hand')}</button>`
-            : `<button class="tt-btn tt-btn-secondary" ${actionAttrs('equipOffHand', itemId)}>${_pt('Equipar como escudo', 'Equip as shield')}</button>`)
-        : ''}
-            <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sp)} ${isEquipped?'disabled':''}>${_pt('Vender', 'Sell')} ${sp}g</button>
-        </div>`;
-
-    tooltip.classList.remove('hidden');
-    const r = event.currentTarget.getBoundingClientRect();
-    tooltip.style.left = '-9999px'; tooltip.style.top = '-9999px';
-
-    // Always give the tooltip a definite height (clamped to the viewport).
-    // With only max-height, some browsers won't size grid `1fr` rows correctly and the footer can get clipped.
-    tooltip.style.height = '';
-    const tw = tooltip.offsetWidth||220, th = tooltip.offsetHeight||340;
-    const maxH = Math.max(220, window.innerHeight - 16);
-    const finalH = Math.min(Math.max(220, th), maxH);
-    tooltip.style.height = finalH + 'px';
-    const th2 = tooltip.offsetHeight || finalH;
-    const zf = uiZoomFactor();
-    const vw = window.innerWidth/zf, vh = window.innerHeight/zf; // root-local viewport under PC root zoom
-    let left = r.right/zf+12, top = r.top/zf;
-    if (left+tw>vw-8) left = r.left/zf-tw-12;
-    if (top+th2>vh-8) top = vh-th2-8;
-    tooltip.style.left = Math.max(8, Math.min(left, vw-tw-8))+'px';
-    tooltip.style.top  = Math.max(8, Math.min(top, vh-th2-8))+'px';
-}
 
 function hideItemTooltip() {
     const t = document.getElementById('item-tooltip');
@@ -10128,8 +10021,7 @@ function showItemTooltip(event, itemId) {
         const dc = diff>0?'#2ecc71':diff<0?'#e74c3c':'rgba(255,255,255,0.3)';
         const ds = diff>0?'▲'+diff:diff<0?'▼'+Math.abs(diff):'';
         const label = statLabelHtml(stat);
-        // off-hand percentage note removed from inventory tooltip per request
-        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${offHandNote}${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
+        statsHtml += `<div class="tt-stat"><span class="tt-stat-name">${label}</span><span class="tt-stat-val">${nv}</span>${equippedItem && !isEquipped && ds ? `<span style="font-size:0.68rem;color:${dc}">${ds}</span>` : ''}</div>`;
     }
 
 
@@ -14774,8 +14666,8 @@ async function openProfile(id) {
         const totalDef = def + (itemBonus.defense || 0) + (setBonus.defense || 0) + (beastBonus.def || 0);
         const baseDmgMin = Math.floor(totalStr * 0.5);
         const baseDmgMax = baseDmgMin + 4;
-        const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', p.off_hand_dmg_pct);
-        const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', p.off_hand_dmg_pct);
+        const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
+        const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
 
