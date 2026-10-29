@@ -4070,7 +4070,7 @@ const eqSlots=[
             <span class="eq-slot-label">${label}</span>
         </div>`;
         // A weapon in the shield slot is the off-hand: show its reduced (actual) damage in the tooltip.
-        const isOffHandSlot = slot === 'shield' && (eq.shield ? isOffHandItem(eq.shield) : isOffHandItem(eq.off_hand));
+        const isOffHandSlot = slot === 'shield' && (eq.shield ? isOffHandItem(eq.shield) : !!eq.off_hand);
         const itemData = escHtml(JSON.stringify(isOffHandSlot ? { ...item, _offHand: true } : item));
         return avatarDiv + `
         <div class="eq-slot eq-slot--${slot} filled"
@@ -9827,12 +9827,15 @@ function isOffHandItem(item) {
     if (!item) return false;
     if (item._offHand === true) return true;
     if (item.slot === 'off_hand') return true;
-    return item.slot === 'shield' && item.rogueOffhand === true;
+    if (item.slot !== 'shield') return false;
+    if (item.rogueOffhand === true) return true;
+    // Rogue off-hand weapons are shield-slot items; a real shield deals no damage.
+    return Number(item.stats?.dmg_min || 0) > 0 || Number(item.stats?.dmg_max || 0) > 0;
 }
 // Is the character wearing an off-hand weapon at all (either storage shape)?
 function hasEquippedOffHand(eq) {
     const e = eq || character?.equipped || {};
-    return isOffHandItem(e.off_hand) || isOffHandItem(e.shield);
+    return !!e.off_hand || isOffHandItem(e.shield);
 }
 function getOffHandDmgPct() {
     const pct = Number(character?.off_hand_dmg_pct);
@@ -9868,7 +9871,7 @@ function warmOffHandDmgPct() {
 function gearDamageAfterOffHandReduction(eq, statKey, pctOverride) {
     const sum = Object.values(eq || {}).reduce((acc, item) => acc + (item?.stats?.[statKey] || 0) + (item?.wp_stats?.[statKey] || 0), 0);
     if (!sum) return 0;
-    const offHandItem = (eq?.shield && eq.shield.rogueOffhand === true) ? eq.shield : eq?.off_hand;
+    const offHandItem = eq?.off_hand || (isOffHandItem(eq?.shield) ? eq.shield : null);
     if (!offHandItem) return sum;
     const fullOff = (offHandItem.stats?.[statKey] || 0) + (offHandItem.wp_stats?.[statKey] || 0);
     if (fullOff <= 0) return sum;
@@ -10117,7 +10120,11 @@ function showEqTooltip(event, itemJson) {
 
     const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
     // Weapons equipped in the off-hand slot only deal a share of their listed damage.
-    const offHandPct = item && item._offHand ? getOffHandDmgPct() : 1;
+    // Profiles of other players carry that player's share as _offHandPct.
+    const carriedPct = Number(item?._offHandPct);
+    const offHandPct = item && item._offHand
+        ? (Number.isFinite(carriedPct) && carriedPct > 0 && carriedPct <= 1 ? carriedPct : getOffHandDmgPct())
+        : 1;
     const statKeys = new Set([...Object.keys(item.stats||{}), ...Object.keys(item.wp_stats||{})]);
     let statsHtml = [...statKeys]
         .filter(k => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
@@ -14741,9 +14748,13 @@ async function openProfile(id) {
                 </div>` : '';
             const item = profileResolvedEq[slot];
             if (!item) return avatarDiv + `<div class="eq-slot eq-slot--${slot} empty profile-eq-slot" style="pointer-events:none"><span class="eq-slot-icon">${icon}</span></div>`;
-            // Own profile only: the viewer's dual-wield share is the one that applies to this character.
-            const isOffHandSlot = isMe && slot === 'shield' && (eq.shield ? isOffHandItem(eq.shield) : isOffHandItem(eq.off_hand));
-            const itemData = escHtml(JSON.stringify(isOffHandSlot ? { ...item, _offHand: true } : item));
+            // The shield slot holds the off-hand weapon for dual-wielders. When we are looking at
+            // someone else, carry THEIR dual-wield share (the viewer's is irrelevant).
+            const isOffHandSlot = slot === 'shield' && (eq.shield ? isOffHandItem(eq.shield) : !!eq.off_hand);
+            const ownerPct = isMe ? 0 : Number(p.off_hand_dmg_pct);
+            const itemData = escHtml(JSON.stringify(isOffHandSlot
+                ? { ...item, _offHand: true, ...(ownerPct > 0 && ownerPct <= 1 ? { _offHandPct: ownerPct } : {}) }
+                : item));
             return avatarDiv + `<div class="eq-slot eq-slot--${slot} filled profile-eq-slot"
                 data-item="${itemData}"
                 data-hover-action="hoverEqTooltip"
