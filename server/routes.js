@@ -7310,9 +7310,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const isWpn = (name) => weapon && (weapon.name?.toLowerCase().includes(name) || weapon.type === name || weapon.weaponType === name);
 
     let rogueWeaponPenalty = 1.0;
+    let offHandDmgPct = 0;
     if (attacker.class === 'rogue') {
         const dualWield = hasClassModifier(attacker, 'dual_wield_unlock');
-        if (!dualWield) {
+        const dualWieldDmg = hasClassModifier(attacker, 'dual_wield_dmg_pct');
+        if (dualWield) {
+            offHandDmgPct = Math.max(dualWield?.off_hand_dmg_pct || 0, dualWieldDmg?.off_hand_dmg_pct || 0);
+        } else {
             const exempt = isWpn('dagger') || isWpn('bow') || isWpn('scythe');
             if (!exempt && weapon) rogueWeaponPenalty = 0.60;
         }
@@ -8247,8 +8251,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (defender.rageHits >= 3) defender.rageReady = true;
     }
 
-    // Off-hand weapon damage is already folded into fighter.dmgMin/dmgMax (reduced),
-    // so no separate off-hand addition is applied here.
+    // Off-hand damage from dual wield (combined into the total hit)
+    if (offHandDmgPct > 0 && finalDmg > 0) {
+        const offHand = Math.floor(finalDmg * offHandDmgPct);
+        if (offHand > 0) {
+            finalDmg += offHand;
+        }
+    }
 
     // Force field regenerates each turn (independent of hit/miss/block).
     if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && defenderShield.remaining < defenderShield.value) {
@@ -9146,23 +9155,6 @@ async function buildCombatFighter(db, char) {
 
     const elemDmg = calcElemDmg(equippedArray);
     const elemResist = calcElemResist(char, equippedArray);
-
-    // Apply off-hand weapon damage reduction for dual-wield rogues so battle stats
-    // match the character sheet (off-hand contributes only its reduced share).
-    try {
-        const equippedObjForOh = await getEquippedItems(db, char.id);
-        const offHandPct = await computeOffHandDmgPct(db, char, equippedObjForOh);
-        if (offHandPct > 0 && equippedObjForOh?.off_hand) {
-            const oh = equippedObjForOh.off_hand;
-            const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
-            const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
-            if (ohMin > 0 || ohMax > 0) {
-                dmgMin = dmgMin - ohMin + Math.floor(ohMin * offHandPct);
-                dmgMax = dmgMax - ohMax + Math.floor(ohMax * offHandPct);
-                if (dmgMax < dmgMin) dmgMax = dmgMin;
-            }
-        }
-    } catch {}
 
     const now = Math.floor(Date.now() / 1000);
     let tempStatBuffs = {};
@@ -14003,22 +13995,6 @@ async function collectMissionForCharacter(db, characterId) {
         }
         const playerWeapon = getEquippedWeaponData(equippedArray);
         const playerShield = getEquippedShieldData(equippedArray);
-        let finalMissionDmgMin = dmgMin;
-        let finalMissionDmgMax = dmgMax;
-        try {
-            const eqObjM = await getEquippedItems(db, freshChar.id);
-            const offHandPctM = await computeOffHandDmgPct(db, freshChar, eqObjM);
-            if (offHandPctM > 0 && eqObjM?.off_hand) {
-                const oh = eqObjM.off_hand;
-                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
-                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
-                if (ohMin > 0 || ohMax > 0) {
-                    finalMissionDmgMin = finalMissionDmgMin - ohMin + Math.floor(ohMin * offHandPctM);
-                    finalMissionDmgMax = finalMissionDmgMax - ohMax + Math.floor(ohMax * offHandPctM);
-                    if (finalMissionDmgMax < finalMissionDmgMin) finalMissionDmgMax = finalMissionDmgMin;
-                }
-            }
-        } catch {}
         const playerFighter = {
             id: freshChar.id,
             name: freshChar.name,
@@ -14028,8 +14004,8 @@ async function collectMissionForCharacter(db, characterId) {
             shield: playerShield,
             hp: hpCurrent,
             hpMax: hpMax + (skillPassiveBonus(freshChar.vitality || 0, skillPassives.vitality) * 25),
-            dmgMin: finalMissionDmgMin + skillPassiveBonus(finalMissionDmgMin, skillPassives.dmg_min),
-            dmgMax: finalMissionDmgMax + skillPassiveBonus(finalMissionDmgMax, skillPassives.dmg_max),
+            dmgMin: dmgMin + skillPassiveBonus(dmgMin, skillPassives.dmg_min),
+            dmgMax: dmgMax + skillPassiveBonus(dmgMax, skillPassives.dmg_max),
             strength: (freshChar.strength || 0) + (setBonuses.strength || 0) + skillPassiveBonus(freshChar.strength || 0, skillPassives.strength) + getEquippedStatTotal(equippedArray, 'strength') + _beastStats.str,
             agility: (freshChar.agility || 0) + (setBonuses.agility || 0) + skillPassiveBonus(freshChar.agility || 0, skillPassives.agility) + noShieldAgiBonus + getEquippedStatTotal(equippedArray, 'agility'),
             magic: (freshChar.magic || 0) + (setBonuses.magic || 0) + skillPassiveBonus(freshChar.magic || 0, skillPassives.magic) + getEquippedStatTotal(equippedArray, 'magic') + _beastStats.mag,
@@ -16658,29 +16634,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const setBonusesA = getEquippedSetBonuses(equippedA);
         const weaponA = getEquippedWeaponData(equippedA);
         const shieldA = getEquippedShieldData(equippedA);
-        let finalDmgMinA = dmgMinA;
-        let finalDmgMaxA = dmgMaxA;
-        try {
-            const eqObjA = await getEquippedItems(db, freshA.id);
-            const offHandPctA = await computeOffHandDmgPct(db, freshA, eqObjA);
-            if (offHandPctA > 0 && eqObjA?.off_hand) {
-                const oh = eqObjA.off_hand;
-                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
-                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
-                if (ohMin > 0 || ohMax > 0) {
-                    finalDmgMinA = finalDmgMinA - ohMin + Math.floor(ohMin * offHandPctA);
-                    finalDmgMaxA = finalDmgMaxA - ohMax + Math.floor(ohMax * offHandPctA);
-                    if (finalDmgMaxA < finalDmgMinA) finalDmgMaxA = finalDmgMinA;
-                }
-            }
-        } catch {}
         const fighterA = {
             id: freshA.id, name: freshA.name, class: freshA.class, level: freshA.level, weapon: weaponA,
             shield: shieldA,
             hp: hpA,
             hpMax: hpMaxA + (skillPassiveBonus(freshA.vitality || 0, skillPassivesA.vitality) * 25),
-            dmgMin: finalDmgMinA + skillPassiveBonus(finalDmgMinA, skillPassivesA.dmg_min),
-            dmgMax: finalDmgMaxA + skillPassiveBonus(finalDmgMaxA, skillPassivesA.dmg_max),
+            dmgMin: dmgMinA + skillPassiveBonus(dmgMinA, skillPassivesA.dmg_min),
+            dmgMax: dmgMaxA + skillPassiveBonus(dmgMaxA, skillPassivesA.dmg_max),
             strength: (freshA.strength || 0) + (setBonusesA.strength || 0) + skillPassiveBonus(freshA.strength || 0, skillPassivesA.strength) + getEquippedStatTotal(equippedA, 'strength') + _beastStatsA.str,
             agility: (freshA.agility || 0) + (setBonusesA.agility || 0) + skillPassiveBonus(freshA.agility || 0, skillPassivesA.agility) + noShieldAgiBonusA + getEquippedStatTotal(equippedA, 'agility'),
             magic: (freshA.magic || 0) + (setBonusesA.magic || 0) + skillPassiveBonus(freshA.magic || 0, skillPassivesA.magic) + getEquippedStatTotal(equippedA, 'magic') + _beastStatsA.mag,
@@ -16715,29 +16675,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const setBonusesD = getEquippedSetBonuses(equippedD);
         const weaponD = getEquippedWeaponData(equippedD);
         const shieldD = getEquippedShieldData(equippedD);
-        let finalDmgMinD = dmgMinD;
-        let finalDmgMaxD = dmgMaxD;
-        try {
-            const eqObjD = await getEquippedItems(db, freshD.id);
-            const offHandPctD = await computeOffHandDmgPct(db, freshD, eqObjD);
-            if (offHandPctD > 0 && eqObjD?.off_hand) {
-                const oh = eqObjD.off_hand;
-                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
-                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
-                if (ohMin > 0 || ohMax > 0) {
-                    finalDmgMinD = finalDmgMinD - ohMin + Math.floor(ohMin * offHandPctD);
-                    finalDmgMaxD = finalDmgMaxD - ohMax + Math.floor(ohMax * offHandPctD);
-                    if (finalDmgMaxD < finalDmgMinD) finalDmgMaxD = finalDmgMinD;
-                }
-            }
-        } catch {}
         const fighterB = {
             id: freshD.id, name: freshD.name, class: freshD.class, level: freshD.level, weapon: weaponD,
             shield: shieldD,
             hp: freshD.hp_current ?? hpMaxD,
             hpMax: hpMaxD + (skillPassiveBonus(freshD.vitality || 0, skillPassivesD.vitality) * 25),
-            dmgMin: finalDmgMinD + skillPassiveBonus(finalDmgMinD, skillPassivesD.dmg_min),
-            dmgMax: finalDmgMaxD + skillPassiveBonus(finalDmgMaxD, skillPassivesD.dmg_max),
+            dmgMin: dmgMinD + skillPassiveBonus(dmgMinD, skillPassivesD.dmg_min),
+            dmgMax: dmgMaxD + skillPassiveBonus(dmgMaxD, skillPassivesD.dmg_max),
             strength: (freshD.strength || 0) + (setBonusesD.strength || 0) + skillPassiveBonus(freshD.strength || 0, skillPassivesD.strength) + getEquippedStatTotal(equippedD, 'strength') + _beastStatsD.str,
             agility: ((freshD.agility || 0) + (setBonusesD.agility || 0) + skillPassiveBonus(freshD.agility || 0, skillPassivesD.agility) + noShieldAgiBonusD + getEquippedStatTotal(equippedD, 'agility')) * (hasPremium(premD, 'iron_fortress') ? 1.10 : 1.0),
             magic: (freshD.magic || 0) + (setBonusesD.magic || 0) + skillPassiveBonus(freshD.magic || 0, skillPassivesD.magic) + getEquippedStatTotal(equippedD, 'magic') + _beastStatsD.mag,
