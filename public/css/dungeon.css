@@ -1267,9 +1267,9 @@ body.combat-lock #tab-content-area {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 40px;
   z-index: 20005;
-  background: linear-gradient(to top, rgba(8,8,18,0.97) 62%, rgba(8,8,18,0));
+  background: none;
   padding: 18px 14px calc(10px + env(safe-area-inset-bottom, 0px));
   margin-top: auto;
   display: flex;
