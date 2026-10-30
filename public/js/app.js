@@ -3994,8 +3994,8 @@ function renderCharacter() {
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
-    const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
+    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', c.off_hand_dmg_pct);
+    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', c.off_hand_dmg_pct);
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
 
@@ -14708,8 +14708,8 @@ async function openProfile(id) {
         const totalDef = def + (itemBonus.defense || 0) + (setBonus.defense || 0) + (beastBonus.def || 0);
         const baseDmgMin = Math.floor(totalStr * 0.5);
         const baseDmgMax = baseDmgMin + 4;
-        const gearDmgMin = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_min || 0) + (item?.wp_stats?.dmg_min || 0), 0);
-        const gearDmgMax = Object.values(eq).reduce((sum, item) => sum + (item?.stats?.dmg_max || 0) + (item?.wp_stats?.dmg_max || 0), 0);
+        const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', p.off_hand_dmg_pct);
+        const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', p.off_hand_dmg_pct);
         let finalDmgMin = baseDmgMin + gearDmgMin;
         let finalDmgMax = baseDmgMax + gearDmgMax;
 
