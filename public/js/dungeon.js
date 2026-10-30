@@ -4739,6 +4739,7 @@ function renderTrialCombatPanel() {
 
     const escapeReady = !!D.combat.escapeReady;
     const isBusy = !!D.combat.resolving;
+    const allMonstersDead = (D.combat.monsters || []).length > 0 && (D.combat.monsters || []).every(m => (m.currentHp ?? m.hp ?? 0) <= 0);
 
     const scoreVal = Number(D.eventRun?.score ?? 0);
     const roomIdx = Number(D.combat?.roomIdx ?? 0);
@@ -4786,7 +4787,7 @@ function renderTrialCombatPanel() {
                    <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ ${_pt('Continuar Lutando', 'Keep Fighting')}</button>`
                 : `<div class="trial-ability-row">${abilityRowHtml}</div>
                    <div class="trial-flee-row">
-                       <button class="dungeon-btn dungeon-btn-run trial-flee-btn" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 ${_pt('Fugir', 'Flee')}</button>
+                       <button class="dungeon-btn dungeon-btn-run trial-flee-btn" ${isBusy || allMonstersDead ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 ${_pt('Fugir', 'Flee')}</button>
                    </div>`}
         </div>
     `;
@@ -4967,6 +4968,7 @@ function queueTrialDeathShatters(prev, next) {
 
     const escapeReady = !!D.combat.escapeReady;
     const isBusy = !!D.combat.resolving;
+    const allMonstersDead = (D.combat.monsters || []).length > 0 && (D.combat.monsters || []).every(m => (m.currentHp ?? m.hp ?? 0) <= 0);
 
     overlay.innerHTML = `
         <div class="dungeon-overlay-backdrop"></div>
@@ -5013,22 +5015,22 @@ function queueTrialDeathShatters(prev, next) {
                          <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ ${_pt('Continuar Lutando', 'Keep Fighting')}</button>
                        `
                      : `
-                        <div class="trial-ability-row" style="display:flex;gap:8px;justify-content:center;flex-wrap:nowrap;align-items:center">                          <button class="trial-ability-btn trial-atk-attack ${isBusy ? 'trial-ability-locked' : ''} ${!(isBusy) ? 'trial-ability-ready' : ''}" style="width:88px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')} title="${_pt('Ataque normal', 'Strike')}">
+                        <div class="trial-ability-row" style="display:flex;gap:0px;justify-content:center;flex-wrap:nowrap;align-items:center">                          <button class="trial-ability-btn trial-atk-attack ${isBusy || allMonstersDead ? 'trial-ability-locked' : ''} ${!(isBusy || allMonstersDead) ? 'trial-ability-ready' : ''}" style="width:88px" ${isBusy || allMonstersDead ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')} title="${_pt('Ataque normal', 'Strike')}">
                             <span class="trial-decal-wrap" style="width:62px;height:62px">
                               <img class="trial-decal-img" src="/images/decals/trial-attack-normal.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
                             </span>
                           </button>
-                          <button class="trial-ability-btn trial-atk-burst ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'trial-ability-locked' : ''} ${!(isBusy || (D.combat.manaPoints ?? 0) < 60) ? 'trial-ability-ready' : ''}" style="width:88px" ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')} title="${_pt('Rajada (60 mana)', 'Burst (60 mana)')}">
+                          <button class="trial-ability-btn trial-atk-burst ${isBusy || allMonstersDead || (D.combat.manaPoints ?? 0) < 60 ? 'trial-ability-locked' : ''} ${!(isBusy || allMonstersDead || (D.combat.manaPoints ?? 0) < 60) ? 'trial-ability-ready' : ''}" style="width:88px" ${isBusy || allMonstersDead || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')} title="${_pt('Rajada (60 mana)', 'Burst (60 mana)')}">
                             <span class="trial-decal-wrap" style="width:62px;height:62px">
                               <img class="trial-decal-img" src="/images/decals/trial-attack-burst.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
                             </span>
                           </button>
-                          <button class="trial-ability-btn trial-atk-ultimate ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'trial-ability-locked' : ''} ${!(isBusy || (D.combat.manaPoints ?? 0) < 100) ? 'trial-ability-ready' : ''}" ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')} title="${_pt('Supremo (100 mana)', 'Ultimate (100 mana)')}">
+                          <button class="trial-ability-btn trial-atk-ultimate ${isBusy || allMonstersDead || (D.combat.manaPoints ?? 0) < 100 ? 'trial-ability-locked' : ''} ${!(isBusy || allMonstersDead || (D.combat.manaPoints ?? 0) < 100) ? 'trial-ability-ready' : ''}" ${isBusy || allMonstersDead || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')} title="${_pt('Supremo (100 mana)', 'Ultimate (100 mana)')}">
                             <span class="trial-decal-wrap">
                               <img class="trial-decal-img" src="/images/decals/trial-attack-ultimate.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
                             </span>
                           </button>
-                          <button class="trial-ability-btn trial-atk-skip" style="width:88px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')} title="${_pt('Fugir (75%)', 'Flee (75%)')}">
+                          <button class="trial-ability-btn trial-atk-skip" style="width:88px" ${isBusy || allMonstersDead ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')} title="${_pt('Fugir (75%)', 'Flee (75%)')}">
                             <span class="trial-decal-wrap" style="width:62px;height:62px">
                               <img class="trial-decal-img" src="/images/decals/trial-attack-skip.png" alt="" data-error-hide="true">
                             </span>
