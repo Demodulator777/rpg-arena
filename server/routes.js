@@ -6852,7 +6852,12 @@ function mergeActiveSkills(baseSkills, skillEffects) {
 // (Off-Hand Training/Mastery) provides the baseline; the better of it and
 // dual_wield_dmg_pct (Ambidexterity, scaled by its progress) wins.
 async function computeOffHandDmgPct(db, char, equippedObj) {
-    if (!char || char.class !== 'rogue' || !char.id || !equippedObj?.off_hand) return 0;
+    // The off-hand weapon lives in the shield slot flagged `rogueOffhand` (that is the
+    // shape the battle engine reads); the dedicated `off_hand` slot is also accepted.
+    const offHandItem = (equippedObj?.shield && equippedObj.shield.rogueOffhand === true)
+        ? equippedObj.shield
+        : equippedObj?.off_hand;
+    if (!char || char.class !== 'rogue' || !char.id || !offHandItem) return 0;
     try {
         const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
         const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedRows.map(r => r.skill_id), char.id);
@@ -7305,13 +7310,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const isWpn = (name) => weapon && (weapon.name?.toLowerCase().includes(name) || weapon.type === name || weapon.weaponType === name);
 
     let rogueWeaponPenalty = 1.0;
-    let offHandDmgPct = 0;
     if (attacker.class === 'rogue') {
         const dualWield = hasClassModifier(attacker, 'dual_wield_unlock');
-        const dualWieldDmg = hasClassModifier(attacker, 'dual_wield_dmg_pct');
-        if (dualWield) {
-            offHandDmgPct = Math.max(dualWield?.off_hand_dmg_pct || 0, dualWieldDmg?.off_hand_dmg_pct || 0);
-        } else {
+        if (!dualWield) {
             const exempt = isWpn('dagger') || isWpn('bow') || isWpn('scythe');
             if (!exempt && weapon) rogueWeaponPenalty = 0.60;
         }
@@ -8246,13 +8247,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (defender.rageHits >= 3) defender.rageReady = true;
     }
 
-    // Off-hand damage from dual wield - included in the total damage of the same hit
-    if (offHandDmgPct > 0 && finalDmg > 0) {
-        const offHand = Math.floor(finalDmg * offHandDmgPct);
-        if (offHand > 0) {
-            finalDmg += offHand;
-        }
-    }
+    // Off-hand weapon damage is already folded into fighter.dmgMin/dmgMax (reduced),
+    // so no separate off-hand addition is applied here.
 
     // Force field regenerates each turn (independent of hit/miss/block).
     if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && defenderShield.remaining < defenderShield.value) {
@@ -25797,6 +25793,7 @@ module.exports = {
     getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
     getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
+    computeOffHandDmgPct,
     getFighterExtraHits,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
