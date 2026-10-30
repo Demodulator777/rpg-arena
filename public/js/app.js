@@ -3994,8 +3994,8 @@ function renderCharacter() {
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', p.off_hand_dmg_pct);
-    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', p.off_hand_dmg_pct);
+    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', c.off_hand_dmg_pct);
+    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', c.off_hand_dmg_pct);
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
 
