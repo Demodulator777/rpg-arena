@@ -5013,15 +5013,27 @@ function queueTrialDeathShatters(prev, next) {
                          <button class="dungeon-btn dungeon-btn-fight" ${actionAttrs('dungeonEscapeCancel')}>⚔️ ${_pt('Continuar Lutando', 'Keep Fighting')}</button>
                        `
                      : `
-                         <div style="display:flex;gap:4px;justify-content:center;flex-wrap:wrap">
-                           <button class="dungeon-btn ${D.combat.attackType === 'regular' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')}>⚔️ ${_pt('Atacar', 'Strike')}</button>
-                           <button class="dungeon-btn ${D.combat.attackType === 'burst' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')}>💥 ${_pt('Rajada (60)', 'Burst (60)')}</button>
-                           <button class="dungeon-btn ${D.combat.attackType === 'ultimate' ? 'dungeon-btn-fight' : 'dungeon-btn-run'}" style="font-size:0.75rem;padding:6px 10px" ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')}>⚡ ${_pt('Supremo (100)', 'Ultimate (100)')}</button>
-                         </div>
-                         <div style="display:flex;gap:4px;justify-content:center;margin-top:4px">
-                           <button class="dungeon-btn dungeon-btn-fight" style="font-size:0.85rem;padding:8px 20px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonAttack')}>⚔️ ${_pt('Atacar', 'Attack')}</button>
-                           <button class="dungeon-btn dungeon-btn-run" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')}>💨 ${_pt('Fugir (75%)', 'Flee (75%)')}</button>
-                         </div>
+                        <div class="trial-ability-row" style="display:flex;gap:8px;justify-content:center;flex-wrap:nowrap;align-items:center">                          <button class="trial-ability-btn trial-atk-attack ${isBusy ? 'trial-ability-locked' : ''} ${!(isBusy) ? 'trial-ability-ready' : ''}" style="width:88px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'regular')} title="${_pt('Ataque normal', 'Strike')}">
+                            <span class="trial-decal-wrap" style="width:62px;height:62px">
+                              <img class="trial-decal-img" src="/images/decals/trial-attack-normal.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
+                            </span>
+                          </button>
+                          <button class="trial-ability-btn trial-atk-burst ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'trial-ability-locked' : ''} ${!(isBusy || (D.combat.manaPoints ?? 0) < 60) ? 'trial-ability-ready' : ''}" style="width:88px" ${isBusy || (D.combat.manaPoints ?? 0) < 60 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'burst')} title="${_pt('Rajada (60 mana)', 'Burst (60 mana)')}">
+                            <span class="trial-decal-wrap" style="width:62px;height:62px">
+                              <img class="trial-decal-img" src="/images/decals/trial-attack-burst.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
+                            </span>
+                          </button>
+                          <button class="trial-ability-btn trial-atk-ultimate ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'trial-ability-locked' : ''} ${!(isBusy || (D.combat.manaPoints ?? 0) < 100) ? 'trial-ability-ready' : ''}" ${isBusy || (D.combat.manaPoints ?? 0) < 100 ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('selectAttack', 'ultimate')} title="${_pt('Supremo (100 mana)', 'Ultimate (100 mana)')}">
+                            <span class="trial-decal-wrap">
+                              <img class="trial-decal-img" src="/images/decals/trial-attack-ultimate.png?v=2026-09-18-burstgen" alt="" data-error-hide="true">
+                            </span>
+                          </button>
+                          <button class="trial-ability-btn trial-atk-skip" style="width:88px" ${isBusy ? 'disabled aria-disabled="true"' : ''} ${actionAttrs('dungeonRunCombat')} title="${_pt('Fugir (75%)', 'Flee (75%)')}">
+                            <span class="trial-decal-wrap" style="width:62px;height:62px">
+                              <img class="trial-decal-img" src="/images/decals/trial-attack-skip.png" alt="" data-error-hide="true">
+                            </span>
+                          </button>
+                        </div>
                        `}
              </div>
          </div>
@@ -5889,8 +5901,10 @@ function selectMonster(idx) {
 
 function selectAttack(type) {
   if (!D.combat) return;
+  if (D.combat.resolving) return;
   D.combat.attackType = type;
-  renderCombatPanel();
+  // Trial-style: selecting an attack immediately performs it (no separate Attack button).
+  fightRound();
 }
 
 // Skill check mini-game — dual presentation:
