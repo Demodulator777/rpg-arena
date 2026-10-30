@@ -3994,8 +3994,8 @@ function renderCharacter() {
 
     const baseDmgMin = Math.floor(totalStr * 0.5);
     const baseDmgMax = baseDmgMin + 4;
-    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min');
-    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max');
+    const gearDmgMin = gearDamageAfterOffHandReduction(eq, 'dmg_min', p.off_hand_dmg_pct);
+    const gearDmgMax = gearDamageAfterOffHandReduction(eq, 'dmg_max', p.off_hand_dmg_pct);
     let finalDmgMin = baseDmgMin + gearDmgMin;
     let finalDmgMax = baseDmgMax + gearDmgMax;
 
@@ -4004,6 +4004,8 @@ function renderCharacter() {
         finalDmgMin += strBonus;
         finalDmgMax += strBonus;
     }
+    if (setBonus.dmg_min) finalDmgMin += setBonus.dmg_min;
+    if (setBonus.dmg_max) finalDmgMax += setBonus.dmg_max;
     const dmgTooltip = `Base: ${baseDmgMin}-${baseDmgMax} (FOR ${totalStr}x0.5) + Equipamento: +${gearDmgMin}-${gearDmgMax}`;
     const baseArmor = Math.floor(totalDef / 2);
     const armorVal  = baseArmor + (itemBonus.armor || 0) + (setBonus.armor || 0);
@@ -14718,6 +14720,8 @@ async function openProfile(id) {
             finalDmgMin += strBonus;
             finalDmgMax += strBonus;
         }
+        if (setBonus.dmg_min) finalDmgMin += setBonus.dmg_min;
+        if (setBonus.dmg_max) finalDmgMax += setBonus.dmg_max;
         const profileArmor = p.armor_value ?? (Math.floor(totalDef / 2) + (itemBonus.armor || 0) + (setBonus.armor || 0));
         const profileElemDmg = p.elem_dmg || {};
         const profileElemRes = p.elem_resist || {};
