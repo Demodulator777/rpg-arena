@@ -7310,13 +7310,9 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     const isWpn = (name) => weapon && (weapon.name?.toLowerCase().includes(name) || weapon.type === name || weapon.weaponType === name);
 
     let rogueWeaponPenalty = 1.0;
-    let offHandDmgPct = 0;
     if (attacker.class === 'rogue') {
         const dualWield = hasClassModifier(attacker, 'dual_wield_unlock');
-        const dualWieldDmg = hasClassModifier(attacker, 'dual_wield_dmg_pct');
-        if (dualWield) {
-            offHandDmgPct = Math.max(dualWield?.off_hand_dmg_pct || 0, dualWieldDmg?.off_hand_dmg_pct || 0);
-        } else {
+        if (!dualWield) {
             const exempt = isWpn('dagger') || isWpn('bow') || isWpn('scythe');
             if (!exempt && weapon) rogueWeaponPenalty = 0.60;
         }
@@ -8251,13 +8247,8 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (defender.rageHits >= 3) defender.rageReady = true;
     }
 
-    // Off-hand damage from dual wield (combined into the total hit)
-    if (offHandDmgPct > 0 && finalDmg > 0) {
-        const offHand = Math.floor(finalDmg * offHandDmgPct);
-        if (offHand > 0) {
-            finalDmg += offHand;
-        }
-    }
+    // Off-hand weapon damage is already folded into fighter.dmgMin/dmgMax (reduced),
+    // so no separate off-hand addition is applied here.
 
     // Force field regenerates each turn (independent of hit/miss/block).
     if (defenderShield && defenderShield.active && defenderShield.remaining > 0 && defenderShield.remaining < defenderShield.value) {
@@ -9117,7 +9108,23 @@ async function buildCombatFighter(db, char) {
 
     let _beastStats = { str: 0, def: 0, mag: 0, vit: 0 };
     _beastStats = await beastStatBonus(db, char.id);
-    const { dmgMin, dmgMax } = calcBaseDamage(char, equippedArray);
+    const { dmgMin: rawDmgMin, dmgMax: rawDmgMax } = calcBaseDamage({ ...char, strength: (char.strength || 0) + (_beastStats.str || 0) }, equippedArray);
+    let dmgMin = rawDmgMin, dmgMax = rawDmgMax;
+    try {
+        const equippedObjForOh = await getEquippedItems(db, char.id);
+        const offHandPct = await computeOffHandDmgPct(db, char, equippedObjForOh);
+        if (offHandPct > 0 && equippedObjForOh?.off_hand) {
+            const oh = equippedObjForOh.off_hand;
+            const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+            const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+            if (ohMin > 0 || ohMax > 0) {
+                dmgMin = dmgMin - ohMin + Math.floor(ohMin * offHandPct);
+                dmgMax = dmgMax - ohMax + Math.floor(ohMax * offHandPct);
+                if (dmgMax < dmgMin) dmgMax = dmgMin;
+            }
+        }
+    } catch {}
+
     const charActiveSkills = getActiveSkills(char);
     const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
     const learnedIds = learnedRows.map(r => r.skill_id);
@@ -13973,7 +13980,22 @@ async function collectMissionForCharacter(db, characterId) {
         const _beastStats = await beastStatBonus(db, freshChar.id);
         const tempDef = Number(JSON.parse(freshChar.temp_stat_buffs || '{}')?.defense?.exp > now ? JSON.parse(freshChar.temp_stat_buffs || '{}').defense.value || 0 : 0);
         const setBonuses = getEquippedSetBonuses(equippedArray);
-        const { dmgMin, dmgMax } = calcBaseDamage(freshChar, equippedArray);
+        const { dmgMin: rawDmgMin, dmgMax: rawDmgMax } = calcBaseDamage({ ...freshChar, strength: (freshChar.strength || 0) + (_beastStats.str || 0) }, equippedArray);
+        let dmgMin = rawDmgMin, dmgMax = rawDmgMax;
+        try {
+            const eqObjM = await getEquippedItems(db, freshChar.id);
+            const offHandPctM = await computeOffHandDmgPct(db, freshChar, eqObjM);
+            if (offHandPctM > 0 && eqObjM?.off_hand) {
+                const oh = eqObjM.off_hand;
+                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+                if (ohMin > 0 || ohMax > 0) {
+                    dmgMin = dmgMin - ohMin + Math.floor(ohMin * offHandPctM);
+                    dmgMax = dmgMax - ohMax + Math.floor(ohMax * offHandPctM);
+                    if (dmgMax < dmgMin) dmgMax = dmgMin;
+                }
+            }
+        } catch {}
         const charActiveSkills = getActiveSkills(freshChar);
 
         // ── Skill tree passive bonuses ──────────────────────────────────────
@@ -16582,12 +16604,42 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         if (hpD < 10) return res.status(400).json({ error: `${freshD.name} has too little HP. Let them recover first.` });
         const equippedA = await getEquippedItemsArray(db, freshA.id);
         const equippedD = await getEquippedItemsArray(db, freshD.id);
-        const { dmgMin:dmgMinA, dmgMax:dmgMaxA } = calcBaseDamage(freshA, equippedA);
-        const { dmgMin:dmgMinD, dmgMax:dmgMaxD } = calcBaseDamage(freshD, equippedD);
-        const hpMaxA = calcHpMax(freshA, equippedA) + await beastHpBonus(db, freshA.id);
-        const hpMaxD = calcHpMax(freshD, equippedD) + await beastHpBonus(db, freshD.id);
         const _beastStatsA = await beastStatBonus(db, freshA.id);
         const _beastStatsD = await beastStatBonus(db, freshD.id);
+        const { dmgMin: rawDmgMinA, dmgMax: rawDmgMaxA } = calcBaseDamage({ ...freshA, strength: (freshA.strength || 0) + (_beastStatsA.str || 0) }, equippedA);
+        const { dmgMin: rawDmgMinD, dmgMax: rawDmgMaxD } = calcBaseDamage({ ...freshD, strength: (freshD.strength || 0) + (_beastStatsD.str || 0) }, equippedD);
+        let dmgMinA = rawDmgMinA, dmgMaxA = rawDmgMaxA;
+        let dmgMinD = rawDmgMinD, dmgMaxD = rawDmgMaxD;
+        try {
+            const eqObjA = await getEquippedItems(db, freshA.id);
+            const offHandPctA = await computeOffHandDmgPct(db, freshA, eqObjA);
+            if (offHandPctA > 0 && eqObjA?.off_hand) {
+                const oh = eqObjA.off_hand;
+                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+                if (ohMin > 0 || ohMax > 0) {
+                    dmgMinA = dmgMinA - ohMin + Math.floor(ohMin * offHandPctA);
+                    dmgMaxA = dmgMaxA - ohMax + Math.floor(ohMax * offHandPctA);
+                    if (dmgMaxA < dmgMinA) dmgMaxA = dmgMinA;
+                }
+            }
+        } catch {}
+        try {
+            const eqObjD = await getEquippedItems(db, freshD.id);
+            const offHandPctD = await computeOffHandDmgPct(db, freshD, eqObjD);
+            if (offHandPctD > 0 && eqObjD?.off_hand) {
+                const oh = eqObjD.off_hand;
+                const ohMin = (oh.stats?.dmg_min || 0) + (oh.wp_stats?.dmg_min || 0);
+                const ohMax = (oh.stats?.dmg_max || 0) + (oh.wp_stats?.dmg_max || 0);
+                if (ohMin > 0 || ohMax > 0) {
+                    dmgMinD = dmgMinD - ohMin + Math.floor(ohMin * offHandPctD);
+                    dmgMaxD = dmgMaxD - ohMax + Math.floor(ohMax * offHandPctD);
+                    if (dmgMaxD < dmgMinD) dmgMaxD = dmgMinD;
+                }
+            }
+        } catch {}
+        const hpMaxA = calcHpMax(freshA, equippedA) + await beastHpBonus(db, freshA.id);
+        const hpMaxD = calcHpMax(freshD, equippedD) + await beastHpBonus(db, freshD.id);
         const premA = getActivePremium(freshA);
         const premD = getActivePremium(freshD);
         const veteranA = hasPremium(premA, 'warlord') && hasPremium(premA, 'iron_fortress');
