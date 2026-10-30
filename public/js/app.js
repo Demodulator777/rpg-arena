@@ -9881,6 +9881,7 @@ function gearDamageAfterOffHandReduction(eq, statKey, pctOverride) {
     } else {
         pct = getOffHandDmgPct();
     }
+    if (pct <= 0 || pct >= 1) return sum;
     return sum - fullOff + Math.floor(fullOff * pct);
 }
 
