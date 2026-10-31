@@ -1769,7 +1769,7 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
             const progress = Number(progressMap[skId] || 0);
             const learned = progress >= 100 || !!learnedMap[skId];
             const started = progress > 0;
-            const prereqsMet = sk.requires.every(r => Number(progressMap[r] || 0) >= 100 || !!learnedMap[r]);
+            const prereqsMet = sk.requires.every(r => Number(progressMap[r] || 0) >= 100);
             const condMet = meetsUnlockCondition(char, sk.unlockCondition, extraStats);
 
             // Always show skills unless they're completely hidden (prereqs not met AND level not met AND no progress)
@@ -2035,7 +2035,7 @@ async function loadCharWithSkills(db, userId) {
         const progress = Number(row.progress || 0);
         progressMap[row.skill_id] = progress;
         startedMap[row.skill_id] = progress > 0 || Number(row.learned_at || 0) > 0;
-        if (progress >= 100 || Number(row.learned_at || 0) > 0) learned.push(row.skill_id);
+        if (progress >= 100) learned.push(row.skill_id);
     }
     const learnedMap = Object.fromEntries(learned.map(s => [s, true]));
     return { char: c, learned, learnedMap, progressMap, startedMap };
@@ -2651,7 +2651,7 @@ router.post('/train/start', async (req, res) => {
             return res.status(400).json({ error: 'Skill already fully learned' });
         }
 
-        const prereqsMet = (sk.requires || []).every(r => Number(progressMap[r] || 0) >= 100 || !!learnedMap[r]);
+        const prereqsMet = (sk.requires || []).every(r => Number(progressMap[r] || 0) >= 100);
         if (!prereqsMet) return res.status(400).json({ error: `Requires previous skill to be fully learned` });
 
         const extraStats = {
@@ -2931,7 +2931,23 @@ async function computeClassModifiersWithProgress(db, className, learnedSkillIds,
             }
         }
     }
-    return mods;
+    // When multiple skills contribute the same class_modifier (e.g. off-hand training
+    // mastery stacking), keep the one with the highest effective off_hand_dmg_pct so
+    // that starting a new skill does not zero out the previous skill's damage.
+    const deduped = [];
+    const seen = new Map();
+    for (const m of mods) {
+        if (m.id === 'dual_wield_unlock' || m.id === 'dual_wield_dmg_pct') {
+            const prev = seen.get(m.id);
+            if (prev == null || (m.off_hand_dmg_pct || 0) > (prev.off_hand_dmg_pct || 0)) {
+                seen.set(m.id, m);
+            }
+        } else {
+            deduped.push(m);
+        }
+    }
+    for (const m of seen.values()) deduped.push(m);
+    return deduped;
 }
 
 module.exports = {
