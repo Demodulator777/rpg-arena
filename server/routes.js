@@ -6852,21 +6852,24 @@ function mergeActiveSkills(baseSkills, skillEffects) {
 // (Off-Hand Training/Mastery) provides the baseline; the better of it and
 // dual_wield_dmg_pct (Ambidexterity, scaled by its progress) wins.
 async function computeOffHandDmgPct(db, char, equippedObj) {
-    // The off-hand weapon lives in the shield slot flagged `rogueOffhand` (that is the
-    // shape the battle engine reads); the dedicated `off_hand` slot is also accepted.
     const offHandItem = (equippedObj?.shield && equippedObj.shield.rogueOffhand === true)
         ? equippedObj.shield
         : equippedObj?.off_hand;
     if (!char || char.class !== 'rogue' || !char.id || !offHandItem) return 0;
     try {
-        const learnedRows = await dbAll(db, 'SELECT skill_id FROM character_skill_tree WHERE char_id=?', [char.id]);
-        const skillMods = await computeClassModifiersWithProgress(db, char.class, learnedRows.map(r => r.skill_id), char.id);
-        const dwDmg = hasClassModifier({ skillMods }, 'dual_wield_dmg_pct');
-        const dwUnlock = hasClassModifier({ skillMods }, 'dual_wield_unlock');
-        const unlockPct = dwUnlock?.off_hand_dmg_pct || 0;
-        const dmgPct = dwDmg?.off_hand_dmg_pct || 0;
-        const pct = Math.max(unlockPct, dmgPct);
-        return pct > 0 ? pct : 0;
+        const progressMap = {};
+        const rows = await dbAll(db, 'SELECT skill_id, progress FROM character_skill_tree WHERE char_id=?', [char.id]);
+        for (const r of rows) progressMap[r.skill_id] = Number(r.progress || 0);
+        const prog = (id) => Math.min(1, (progressMap[id] || 0) / 100);
+        // Cumulative scaling: training 0->30%, mastery adds 0->30%, ambidexterity adds 0->25%.
+        let pct = 0.30 * prog('off_hand_training');
+        if (prog('off_hand_training') > 0 || progressMap['off_hand_training']) {
+            // mastery builds on top of a completed (or in-progress) training
+            pct += 0.30 * prog('off_hand_mastery');
+            pct += 0.25 * prog('ambidexterity');
+        }
+        if (pct > 0.85) pct = 0.85;
+        return pct;
     } catch (e) { return 0; }
 }
 // Legacy weapon ids are stored with a `_<timestamp>_<random>` suffix (e.g.
