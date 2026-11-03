@@ -1832,8 +1832,8 @@ function getVisibleSkillTree(className, char, learnedMap = {}, progressMap = {},
 function getSkillThresholds(skillId, className) {
     const tree = SKILL_TREES[className];
     for (const branch of Object.values(tree.branches)) {
-        if (branch.skills[skillId]) {
-            return branch.skills[skillId].thresholds || {};
+        if (branch.skills[skillId] || Object.values(branch.skills).find(s => s.id === skillId)) {
+            const _sk = branch.skills[skillId] || Object.values(branch.skills).find(s => s.id === skillId); return (_sk && _sk.thresholds) || {};
         }
     }
     return {};
@@ -2323,7 +2323,7 @@ router.post('/train', async (req, res) => {
         const branch = tree.branches[branchId];
         if (!branch) return res.status(400).json({ error: 'Branch not found' });
 
-        const sk = branch.skills[skillId];
+        const sk = branch.skills[skillId] || Object.values(branch.skills).find(s => s.id === skillId);
         if (!sk) return res.status(400).json({ error: 'Skill not found' });
 
         if (learnedMap[skillId]) return res.status(400).json({ error: 'Already learned this skill' });
