@@ -908,7 +908,7 @@ const SKILL_TREES = {
                         unlockCondition: 'level_20',
                         thresholds: MAGE_THRESHOLDS.tier3,
                     },
-                    shadow_step: {
+                    shadow_step_mage: {
                         id: 'shadow_step_mage', tier: 4, name: 'Shadow Step', emoji: '👻',
                         type: 'progressive',
                         desc: 'Teleport to avoid the first attack each battle. +15% dodge chance.',
@@ -930,7 +930,7 @@ const SKILL_TREES = {
                             { type: 'active_combat', id: 'life_drain', pct: 0.10 },
                             { type: 'class_modifier', id: 'ignore_resist_shadow' }
                         ],
-                        requires: ['shadow_step'],
+                        requires: ['shadow_step_mage'],
                         unlockCondition: 'level_50',
                         thresholds: MAGE_THRESHOLDS.tier5,
                     },
