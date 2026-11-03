@@ -1755,12 +1755,15 @@ try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value
                                  )`, args: [] });
         await db.execute({ sql: `CREATE TABLE IF NOT EXISTS maps (
                                                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                                                     level INTEGER NOT NULL UNIQUE,
+                                                                     level INTEGER NOT NULL,
+                                                                     version INTEGER NOT NULL DEFAULT 1,
+                                                                     UNIQUE(level, version),
                                                                      name TEXT NOT NULL DEFAULT '',
                                                                      data TEXT NOT NULL DEFAULT '{}',
                                                                      created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
                 updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
                 )`, args: [] });
+        try { await db.execute({ sql: 'ALTER TABLE maps ADD COLUMN version INTEGER NOT NULL DEFAULT 1', args: [] }); } catch {}
         // Add phase deadline columns to clan_wars
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN scout_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN attack_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
@@ -25290,7 +25293,7 @@ router.post('/elemental/assign-stats', auth, async (req, res) => {
 router.get('/maps', async (req, res) => {
     try {
         const db = await getDb();
-        const rows = await dbAll(db, 'SELECT id, level, name, data, updated_at FROM maps ORDER BY level ASC', []);
+        const rows = await dbAll(db, 'SELECT id, level, version, name, data, updated_at FROM maps WHERE id IN (SELECT MAX(id) FROM maps GROUP BY level) ORDER BY level ASC', []);
         for (const r of rows) {
             try { r.data = JSON.parse(r.data); } catch { r.data = {}; }
         }
@@ -25298,10 +25301,21 @@ router.get('/maps', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.get('/maps/:level/versions', async (req, res) => {
+    try {
+        const db = await getDb();
+        const rows = await dbAll(db, 'SELECT id, level, version, name, created_at, updated_at FROM maps WHERE level=? ORDER BY version DESC', [Number(req.params.level)]);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 router.get('/maps/:level', async (req, res) => {
     try {
         const db = await getDb();
-        const row = await dbGet(db, 'SELECT * FROM maps WHERE level=?', [Number(req.params.level)]);
+        const ver = req.query.version ? Number(req.query.version) : null;
+        const row = ver
+            ? await dbGet(db, 'SELECT * FROM maps WHERE level=? AND version=?', [Number(req.params.level), ver])
+            : await dbGet(db, 'SELECT * FROM maps WHERE level=? ORDER BY version DESC, id DESC LIMIT 1', [Number(req.params.level)]);
         if (!row) return res.status(404).json({ error: 'Map not found' });
         try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
         res.json(row);
@@ -25315,10 +25329,11 @@ router.post('/maps', async (req, res) => {
         if (!level || !data) return res.status(400).json({ error: 'level and data required' });
         const now = Math.floor(Date.now() / 1000);
         const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
-        await dbRun(db, `INSERT INTO maps (level, name, data, created_at, updated_at) VALUES (?,?,?,?,?)
-                    ON CONFLICT(level) DO UPDATE SET name=excluded.name, data=excluded.data, updated_at=excluded.updated_at`,
-            [Number(level), name || '', jsonData, now, now]);
-        const row = await dbGet(db, 'SELECT * FROM maps WHERE level=?', [Number(level)]);
+        const last = await dbGet(db, 'SELECT MAX(version) AS v FROM maps WHERE level=?', [Number(level)]);
+        const version = (last?.v || 0) + 1;
+        await dbRun(db, `INSERT INTO maps (level, version, name, data, created_at, updated_at) VALUES (?,?,?,?,?,?)`,
+            [Number(level), version, name || '', jsonData, now, now]);
+        const row = await dbGet(db, 'SELECT * FROM maps WHERE level=? AND version=?', [Number(level), version]);
         try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
         res.json(row);
     } catch (e) { res.status(500).json({ error: e.message }); }
