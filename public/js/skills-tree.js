@@ -507,6 +507,7 @@ function stEffectParts(effects) {
         else if (eff.type === 'resist_bonus') parts.push('+' + eff.value + (CURRENT_LANG === 'pt' ? ' todas as resistências' : ' all resists'));
         else if (eff.type === 'active_combat' && Number(eff.extra_hits) > 0) parts.push('+' + eff.extra_hits + (CURRENT_LANG === 'pt' ? (eff.extra_hits > 1 ? ' golpes extras por batalha' : ' golpe extra por batalha') : ' extra hit' + (eff.extra_hits > 1 ? 's' : '') + ' per battle'));
         else if (eff.type === 'active_combat') parts.push('⚡ ' + String(eff.id).replace(/_/g, ' '));
+        else if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct') parts.push('⚔️ ' + Math.round((eff.off_hand_dmg_pct || 0) * 100) + '% ' + (CURRENT_LANG === 'pt' ? 'dano na mão secundária' : 'off-hand damage'));
         else if (eff.type === 'class_modifier') parts.push('🔧 ' + String(eff.id).replace(/_/g, ' '));
     }
     return parts;
@@ -755,6 +756,9 @@ function stEffectSummary(effects) {
             parts.push(`+${eff.value} ${CURRENT_LANG === 'pt' ? 'todas as resistências' : 'all resists'}`);
         } else if (eff.type === 'active_combat') {
             parts.push(Number(eff.extra_hits) > 0 ? `+${eff.extra_hits} ${CURRENT_LANG === 'pt' ? (eff.extra_hits > 1 ? 'golpes extras por batalha' : 'golpe extra por batalha') : 'extra hit' + (eff.extra_hits > 1 ? 's' : '') + ' per battle'}` : `⚡ ${eff.id.replace(/_/g,' ')}`);
+        } else if (eff.type === 'class_modifier' && eff.id === 'dual_wield_dmg_pct') {
+            const pct = Math.round((eff.off_hand_dmg_pct || 0) * 100);
+            parts.push(`\u2694 +${pct}% off-hand damage`);
         } else if (eff.type === 'class_modifier') {
             parts.push(`🔧 ${eff.id.replace(/_/g,' ')}`);
         }
@@ -901,7 +905,7 @@ function stWireHourDropdowns(root) {
 async function stStartTrain(skillId, branchId, doubleSpeed = false) {
     if (!_stData) return;
     const branch = _stData.tree?.branches?.[branchId];
-    const sk = branch?.skills?.[skillId];
+    const sk = branch?.skills?.[skillId] || Object.values(branch?.skills || {}).find(s => s.id === skillId);
     if (!sk) return;
     
     const hoursSelect = document.getElementById(`train-hours-${skillId}`);
