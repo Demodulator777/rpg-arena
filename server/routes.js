@@ -1757,6 +1757,7 @@ try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value
                                                                      id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                                      level INTEGER NOT NULL,
                                                                      version INTEGER NOT NULL DEFAULT 1,
+                                                                     verified INTEGER NOT NULL DEFAULT 0,
                                                                      UNIQUE(level, version),
                                                                      name TEXT NOT NULL DEFAULT '',
                                                                      data TEXT NOT NULL DEFAULT '{}',
@@ -1764,6 +1765,7 @@ try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value
                 updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
                 )`, args: [] });
         try { await db.execute({ sql: 'ALTER TABLE maps ADD COLUMN version INTEGER NOT NULL DEFAULT 1', args: [] }); } catch {}
+        try { await db.execute({ sql: 'ALTER TABLE maps ADD COLUMN verified INTEGER NOT NULL DEFAULT 0', args: [] }); } catch {}
         // Add phase deadline columns to clan_wars
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN scout_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
         try { await db.execute({ sql: `ALTER TABLE clan_wars ADD COLUMN attack_ends_at INTEGER NOT NULL DEFAULT 0`, args: [] }); } catch {}
@@ -7849,7 +7851,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const elemMult = tpEff?.elem_mult || 2.0;
                     let totalTpDmg = 0;
                     for (const elem of ELEMENTS) {
-                        let ed = (attacker.elem_dmg || {})[elem] || 0;
+                        let ed = ((attacker.elem_dmg || {})[elem] || 0) + magicFlatBonus;
                         if (ed <= 0) continue;
                         ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
                         ed = Math.floor(ed * elemMult * magicElemMult);
@@ -7877,7 +7879,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 const magicMult = bzEff?.magic_mult || 1.5;
                 let totalBzDmg = 0;
                 for (const elem of ELEMENTS) {
-                    let ed = (attacker.elem_dmg || {})[elem] || 0;
+                    let ed = ((attacker.elem_dmg || {})[elem] || 0) + magicFlatBonus;
                     if (ed <= 0) continue;
                     ed = Math.floor(ed * weaponElementDamageMultiplier(attacker, elem, roundNum, attackerWeaponRamp));
                     ed = Math.floor(ed * magicMult * magicElemMult);
@@ -25340,6 +25342,13 @@ router.post('/maps', async (req, res) => {
         if (!level || !data) return res.status(400).json({ error: 'level and data required' });
         const now = Math.floor(Date.now() / 1000);
         const jsonData = typeof data === 'string' ? data : JSON.stringify(data);
+        // Block editing if the latest version is verified/locked
+        try {
+            const latest = await dbGet(db, 'SELECT verified FROM maps WHERE level=? ORDER BY version DESC, id DESC LIMIT 1', [Number(level)]);
+            if (latest && Number(latest.verified) === 1 && !req.body.force) {
+                return res.status(403).json({ error: 'Map is verified/locked. Unverify first to edit.' });
+            }
+        } catch {}
         let version = 1;
         let row = null;
         try {
@@ -25357,6 +25366,17 @@ router.post('/maps', async (req, res) => {
         }
         try { row.data = JSON.parse(row.data); } catch { row.data = {}; }
         res.json(row);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.put('/maps/:level/verify', async (req, res) => {
+    try {
+        const db = await getDb();
+        const verified = req.body.verified ? 1 : 0;
+        const latest = await dbGet(db, 'SELECT id FROM maps WHERE level=? ORDER BY version DESC, id DESC LIMIT 1', [Number(req.params.level)]);
+        if (!latest) return res.status(404).json({ error: 'Map not found' });
+        await dbRun(db, 'UPDATE maps SET verified=? WHERE id=?', [verified, latest.id]);
+        res.json({ level: Number(req.params.level), verified });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
