@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:3009';
+const BASE = 'http://localhost:' + (process.env.PORT || 3009);
 const TOKEN_FILE = './.bot2_tokens.json';
 const MEMORY_FILE = './.bot2_memory.json';
 const fs = require('fs');
