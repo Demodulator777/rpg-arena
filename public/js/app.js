@@ -12837,6 +12837,7 @@ async function loadLeaderboard() {
             api('GET', '/game/leaderboard/weekly/history?limit=20').catch(() => ({ history_dmg: [], history_win: [] })),
             api('GET', '/game/leaderboard/weekly/stats').catch(() => ({ week_start: 0, total_battles: 0, total_wins: 0, total_losses: 0, total_draws: 0, stats: [] })),
         ]);
+        try { window._lbRecords = await api('GET', '/game/leaderboard/records').catch(() => ({ topDamage: [], topWins: [], topHonor: [], topSingle: [] })); } catch (e) { window._lbRecords = { topDamage: [], topWins: [], topHonor: [], topSingle: [] }; }
         character = freshCharacter;
         lbData = leaderboard;
         lbSquadData = squadLb;
@@ -14440,6 +14441,23 @@ function renderWeeklyStatsBanner() {
     html += '</div>';
     return html;
 }
+function renderAllTimeRecords() {
+    if ((window._lbTab || 'board') !== 'hof') return '';
+    const r = window._lbRecords;
+    if (!r) return '';
+    const card = (label, p, val) => p ? `<div class="card-compact" style="flex:1;min-width:120px;text-align:center;border:1px solid var(--accent,#6c9);border-radius:8px;padding:6px;position:relative;overflow:hidden;"><img src="/images/class/${p.class}-st.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;z-index:0" onerror="this.style.display='none'"><div style="position:relative;z-index:1"><div style="font-size:0.65rem;opacity:.7">${label}</div><div style="font-weight:700;font-size:0.85rem;margin:2px 0">${escHtml(p.name)}</div><div style="color:var(--gold);font-weight:700">${Number(val).toLocaleString()}</div><div style="font-size:0.6rem;opacity:.6">Lv.${p.level} ${p.class}</div></div></div>` : '';
+    let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">';
+    if (r.topDamage && r.topDamage[0]) html += card('Top Damage Dealt', r.topDamage[0], r.topDamage[0].damage_dealt);
+    if (r.topSingle && r.topSingle[0]) html += card('Top Single Hit', r.topSingle[0], r.topSingle[0].top_damage_dealt);
+    if (r.topWins && r.topWins[0]) html += card('Most Wins', r.topWins[0], r.topWins[0].wins);
+    if (r.topHonor && r.topHonor[0]) html += card('Highest Honor', r.topHonor[0], r.topHonor[0].honor);
+    html += '</div>';
+    if (html === '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>') return '';
+    return html;
+}
+function renderLbBanners() {
+    return renderWeeklyStatsBanner() + renderAllTimeRecords();
+}
 function toggleWeeklyStats() {
     window._weeklyStatsOpen = !window._weeklyStatsOpen;
     renderLeaderboard();
@@ -14597,7 +14615,7 @@ function renderLeaderboard() {
                 });
             }
         }
-        document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + html;
+        document.getElementById('leaderboard-list').innerHTML = renderLbBanners() + html;
         return;
     }
 
@@ -14607,7 +14625,7 @@ function renderLeaderboard() {
     </div>`;
     if (lbMode === 'squads') {
         const filtered = lbSquadData || [];
-        document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + modeToggle + (
+        document.getElementById('leaderboard-list').innerHTML = renderLbBanners() + modeToggle + (
             filtered.length === 0
                 ? `<p class="empty">${_pt('Nenhum esquadrão encontrado.', 'No squads found.')}</p>`
                 : '<div class="lb-row lb-header-row"><div></div><div></div><div></div><div class="lb-stats" style="grid-template-columns:1fr"><div class="lb-stat"><div class="lb-stat-lbl">💰 ' + _pt('TOTAL GANHO', 'TOTAL EARNED') + '</div></div></div></div>' +
@@ -14625,7 +14643,7 @@ function renderLeaderboard() {
             : `<p class="empty" style="padding:10px">${_pt('Seu personagem ainda não está classificado.', 'Your character is not ranked yet.')}</p>`;
     }
     if (!filtered.length){
-        document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + modeToggle + `<p class="empty">${_pt('Nenhum jogador encontrado.', 'No players found.')}</p>`;
+        document.getElementById('leaderboard-list').innerHTML = renderLbBanners() + modeToggle + `<p class="empty">${_pt('Nenhum jogador encontrado.', 'No players found.')}</p>`;
         return;
     }
     const totalPages = Math.ceil(filtered.length / LB_PAGE_SIZE);
@@ -14639,7 +14657,7 @@ function renderLeaderboard() {
             ? '<div style="display:flex;justify-content:center;padding:4px 0">' + buildLbPageNav(lbPage, totalPages, false) + '</div>'
             : '<div style="position:absolute;left:50%;transform:translateX(-50%);pointer-events:none">' + pageNavCompact.replace(/<button /g, '<button style="pointer-events:auto" ') + '</div>')
         : '';
-    document.getElementById('leaderboard-list').innerHTML = renderWeeklyStatsBanner() + modeToggle +
+    document.getElementById('leaderboard-list').innerHTML = renderLbBanners() + modeToggle +
         (isMobile ? topNavHtml : '') +
         '<div class="lb-row lb-header-row" style="display:flex;align-items:center;padding:2px 14px;position:relative;background:transparent;border-color:transparent;transform:none' + (isMobile ? ';justify-content:center' : '') + '"><div style="display:flex;align-items:center;gap:12px' + (isMobile ? ';display:none' : '') + '"><div></div><div></div><div></div></div><div class="lb-stats" style="' + (isMobile ? 'margin-left:0;width:100%;grid-template-columns:1fr 1fr 1fr' : 'margin-left:auto') + '"><div class="lb-stat"><div class="lb-stat-lbl">⚔️ ' + _pt('VITÓRIAS', 'WON') + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">💀 ' + _pt('DERROTAS', 'LOST') + '</div></div><div class="lb-stat"><div class="lb-stat-lbl">💰 ' + _pt('GANHOS', 'EARNED') + '</div></div></div>' + (!isMobile ? topNavHtml : '') + '</div>' +
         pageItems.map((p,i)=>buildLeaderboardRow(p, lbPage * LB_PAGE_SIZE + i + 1)).join('') +
