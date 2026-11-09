@@ -1,4 +1,4 @@
-const BASE = 'http://localhost:3009';
+const BASE = 'http://localhost:' + (process.env.PORT || 3009);
 const TOKEN_FILE = './.bot_tokens.json';
 const MEMORY_FILE = './.bot_memory.json';
 const fs = require('fs');
@@ -1158,7 +1158,13 @@ class BotAccount {
         const result = await this._doDungeonCombat(bossStart.combatId, bossStart.turnNonce);
         if (result.outcome === 'boss_defeated') {
           log(this.name, `Boss defeated on floor ${floor}!`);
-          if (result.newFloor) log(this.name, `Advancing to floor ${result.newFloor}`);
+          // The floor's boss never respawns; advancing now happens explicitly via /dungeon/descend.
+          try {
+            const descend = await api('POST', '/game/dungeon/descend', { floor }, this.token);
+            if (descend.success) log(this.name, `Descending to floor ${descend.newFloor}`);
+          } catch (e) {
+            log(this.name, `Descend failed: ${e.message}`);
+          }
         } else if (result.outcome === 'player_dead') {
           log(this.name, `Died on boss floor ${floor}`);
           await this._handleDungeonDeath();
