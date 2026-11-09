@@ -275,8 +275,10 @@ class BotAccount {
 
   // ── Missions ────────────────────────────────────────────────────────────
   getMissionSpot() {
-    const spots = { easy: 'city_outskirts', medium: 'city_cathedral', hard: 'city_palace' };
-    return spots;
+    const lvl = this.character?.level || 1;
+    if (lvl < 10) return { zone: 'forest', spot: 'forest_camp', size: 'small', mp: 20 };
+    if (lvl < 20) return { zone: 'swamp', spot: 'swamp_heart', size: 'small', mp: 20 };
+    return { zone: 'dark_city', spot: 'city_outskirts', size: 'small', mp: 20 };
   }
 
   async ensureTravelTarget(zoneKey) {
@@ -291,7 +293,7 @@ class BotAccount {
         if (status && status.travelEnd && status.travelEnd > now) return false;
       }
       // Try target zone first; if blocked by gatekeeper, step backward through the chain
-      const zonePath = ['swamp', 'mountains', 'ruins', 'dark_city'];
+      const zonePath = ['forest', 'swamp', 'mountains', 'ruins', 'dark_city'];
       const candidates = [zoneKey, ...zonePath.slice(0, zonePath.indexOf(zoneKey)).reverse()];
       for (const z of candidates) {
         if (z === loc) continue;
@@ -319,15 +321,14 @@ class BotAccount {
       const now = Math.floor(Date.now() / 1000);
       if (now < this.missionEnd) return false;
 
-      const spots = this.getMissionSpot();
-      const spotId = spots.hard;
-      const zoneKey = 'dark_city';
+      const info = this.getMissionSpot();
+      const zoneKey = info.zone;
+      const spotId = info.spot;
+      const size = info.size;
+      const mpCost = info.mp;
 
-      // Travel to dark_city if not there
+      // Travel to zone if not there
       if (!(await this.ensureTravelTarget(zoneKey))) return false;
-
-      const mpCost = 20;
-      const size = 'small';
 
       const result = await api('POST', '/game/missions/start', { zoneId: zoneKey, spotId, size }, this.token);
       this.missionEnd = now + 600;
