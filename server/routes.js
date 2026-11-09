@@ -16958,6 +16958,18 @@ router.post('/attack/:targetId', auth, async (req, res) => {
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
+// ── All-time records (Hall of Fame) ──────────────────────────────────────
+router.get('/leaderboard/records', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const topDamage = await dbAll(db, "SELECT id, name, class, level, damage_dealt, top_damage_dealt FROM characters WHERE damage_dealt > 0 ORDER BY damage_dealt DESC LIMIT 10", []);
+        const topWins = await dbAll(db, "SELECT id, name, class, level, wins FROM characters WHERE wins > 0 ORDER BY wins DESC LIMIT 10", []);
+        const topHonor = await dbAll(db, "SELECT id, name, class, level, honor FROM characters WHERE honor > 0 ORDER BY honor DESC LIMIT 10", []);
+        const topSingle = await dbAll(db, "SELECT id, name, class, level, top_damage_dealt FROM characters WHERE top_damage_dealt > 0 ORDER BY top_damage_dealt DESC LIMIT 10", []);
+        res.json({ topDamage, topWins, topHonor, topSingle });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Leaderboard ───────────────────────────────────────────────────────────
 router.get('/leaderboard', auth, async (req, res) => {
     try {
