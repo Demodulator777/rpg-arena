@@ -14447,7 +14447,9 @@ function renderAllTimeRecords() {
     if (!r) return '';
     const card = (label, p, val) => p ? `<div class="card-compact" style="flex:1;min-width:120px;text-align:center;border:1px solid var(--accent,#6c9);border-radius:8px;padding:6px;position:relative;overflow:hidden;"><img src="/images/class/${p.class}-st.png" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.35;z-index:0" onerror="this.style.display='none'"><div style="position:relative;z-index:1"><div style="font-size:0.65rem;opacity:.7">${label}</div><div style="font-weight:700;font-size:0.85rem;margin:2px 0">${escHtml(p.name)}</div><div style="color:var(--gold);font-weight:700">${Number(val).toLocaleString()}</div><div style="font-size:0.6rem;opacity:.6">Lv.${p.level} ${p.class}</div></div></div>` : '';
     let html = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">';
-    if (r.topDamage && r.topDamage[0]) html += card('Top Damage Dealt', r.topDamage[0], r.topDamage[0].damage_dealt);
+    const wlb = window._weeklyLbData;
+    const wkTop = (wlb && Array.isArray(wlb.current_dmg_top) && wlb.current_dmg_top[0]) ? wlb.current_dmg_top[0] : null;
+    if (wkTop) html += card('Top Weekly Damage', wkTop, wkTop.total_dmg);
     if (r.topSingle && r.topSingle[0]) html += card('Top Battle Damage', r.topSingle[0], r.topSingle[0].top_damage_dealt);
     if (r.topWins && r.topWins[0]) html += card('Most Wins', r.topWins[0], r.topWins[0].wins);
     if (r.topHonor && r.topHonor[0]) html += card('Highest Honor', r.topHonor[0], r.topHonor[0].honor);
