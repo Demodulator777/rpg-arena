@@ -68,7 +68,7 @@ const ZONES = {
         ],
         payoutBase:{ easy:[800,1200], medium:[1000,1500], hard:[1200,2200] },
         xpBase:{ easy:[0,5], medium:[5,10], hard:[10,15] },
-        rawMats:['void_shard','arcane_dust','demon_core','shadow_essence','legendary_fragment'], matDropChance:0.88, matDropCount:[2,5],
+        rawMats:['void_shard','arcane_dust','demon_core','shadow_essence'], matDropChance:0.88, matDropCount:[2,5],
     },
 };
 
@@ -262,6 +262,247 @@ const ABYSS_ROUTES = {
 const ABYSS_ENTRY = {
     dark_city: { shadowfen: 120 }  // Travel from Dark City to Shadowfen Depths
 };
+
+// ── The Celestial ─────────────────────────────────────────────────────────
+// A late-game map gated purely by HONOR, not level. The map itself is hidden
+// from characters below 1,000 Honor, and each gate demands 1,000 more than the
+// previous one (zone 1 = 1,000 … zone 5 = 5,000). Gatekeepers here never fight:
+// they inspect your Honor and either open the gate or turn you away.
+const CELESTIAL_MIN_HONOR = 1000;
+const CELESTIAL_HONOR_STEP = 1000;
+
+const CELESTIAL_ZONES = {
+    celestial_1: {
+        name: 'Celestial Threshold', emoji: '🌟', minLevel: 1, honorRequired: 1000,
+        mapImg: '/images/zones/celestial/celestial-threshold.jpeg', bgImg: '/images/zones/celestial/celestial-bg.jpeg',
+        pos: { x: 50, y: 86 },
+        travelTime: 180,
+        description: 'The first stair beyond the mortal world. Only those who earned 1,000 Honor may climb it.',
+        spots: [
+            { id: 'celestial_1_gate', name: 'Gate of First Light', difficulty: 'easy', img: '/images/spots/celestial/gates.jpeg',
+                description: 'The lower gate, kept by a silent warden of light.', missionDuration: 900, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Present Your Honor', img: '/images/missions/abyss/breach.jpg' },
+                    { name: 'Patrol the First Stair', img: '/images/missions/abyss/navigate.jpg' },
+                    { name: 'Gather Starlight Dew', img: '/images/missions/abyss/energy.jpg' }
+                ] },
+            { id: 'celestial_1_hall', name: 'Hall of Ascension', difficulty: 'medium', img: '/images/spots/abyss/halls.jpg',
+                description: 'A hall of names, where ascended champions are recorded.', missionDuration: 1200, payoutMultiplier: 1.8,
+                missions: [
+                    { name: 'Silence the Fallen Warden', img: '/images/missions/abyss/gatekeepers.jpg' },
+                    { name: 'Recover the Ascension Ledger', img: '/images/missions/abyss/relic.jpg' },
+                    { name: 'Cleanse the Broken Seal', img: '/images/missions/abyss/purify.jpg' }
+                ] },
+            { id: 'celestial_1_star', name: 'The Sunken Star', difficulty: 'hard', img: '/images/spots/abyss/heart.jpg',
+                description: 'A dead star lies half-buried here, humming with old power.', missionDuration: 1800, payoutMultiplier: 3.0,
+                missions: [
+                    { name: 'Restore the Dying Star', img: '/images/missions/abyss/restore_light.jpg' },
+                    { name: 'Slay the Star Wraith', img: '/images/missions/abyss/primordial.jpg' },
+                    { name: 'Take the First Shard', img: '/images/missions/abyss/crystal.jpg' }
+                ] }
+        ],
+        payoutBase: { easy: [1000, 1500], medium: [1200, 1750], hard: [1500, 2550] },
+        rawMats: ['void_shard', 'arcane_dust', 'abyss_crystal', 'wood', 'wolf_pelt', 'herbs', 'iron_ore'],
+        matDropChance: 0.92, matDropCount: [4, 8]
+    },
+    celestial_2: {
+        name: 'Silvered Terraces', emoji: '⚔️', minLevel: 1, honorRequired: 2000,
+        mapImg: '/images/zones/abyss/void.jpg', bgImg: '/images/zones/abyss/void-bg.jpg',
+        pos: { x: 26, y: 66 },
+        travelTime: 240,
+        description: 'Terraces of polished silver where celestial armaments are forged and broken.',
+        spots: [
+            { id: 'celestial_2_steps', name: 'Silver Steps', difficulty: 'easy', img: '/images/spots/abyss/outpost.jpg',
+                description: 'The lowest terrace, warm from the forge below.', missionDuration: 900, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Mind the Silver Gate', img: '/images/missions/abyss/gatekeepers.jpg' },
+                    { name: 'Quench the Wandering Blades', img: '/images/missions/abyss/quench.jpg' },
+                    { name: 'Collect Silver Filings', img: '/images/missions/abyss/crystals.jpg' }
+                ] },
+            { id: 'celestial_2_garden', name: 'Blade Garden', difficulty: 'medium', img: '/images/spots/abyss/forge.jpg',
+                description: 'Swords grow from the soil here like reeds.', missionDuration: 1200, payoutMultiplier: 1.8,
+                missions: [
+                    { name: 'Harvest the Living Blades', img: '/images/missions/abyss/claim.jpg' },
+                    { name: 'Defeat the Blade Smith', img: '/images/missions/abyss/flame_keeper.jpg' },
+                    { name: 'Freeze the Molten Core', img: '/images/missions/abyss/core.jpg' }
+                ] },
+            { id: 'celestial_2_severed', name: 'The Severed Blade', difficulty: 'hard', img: '/images/spots/abyss/peak.jpg',
+                description: 'A blade the size of a tower, snapped in half by something greater.', missionDuration: 1800, payoutMultiplier: 3.0,
+                missions: [
+                    { name: 'Climb the Broken Edge', img: '/images/missions/abyss/ascend.jpg' },
+                    { name: 'Awaken the Weapon Spirit', img: '/images/missions/abyss/behemoth.jpg' },
+                    { name: 'Claim the Severed Hilt', img: '/images/missions/abyss/claim.jpg' }
+                ] }
+        ],
+        payoutBase: { easy: [1000, 1600], medium: [1200, 1850], hard: [1500, 2650] },
+        rawMats: ['mithril_ore', 'demon_core', 'shadowsteel', 'poison_gland', 'swamp_crystal'],
+        matDropChance: 0.93, matDropCount: [4, 8]
+    },
+    celestial_3: {
+        name: 'Aurora Sanctum', emoji: '🛡️', minLevel: 1, honorRequired: 3000,
+        mapImg: '/images/zones/abyss/crimson.jpg', bgImg: '/images/zones/abyss/crimson-bg.jpg',
+        pos: { x: 74, y: 62 },
+        travelTime: 300,
+        description: 'A sanctum wrapped in living aurora, where armour is grown rather than made.',
+        spots: [
+            { id: 'celestial_3_court', name: 'Aurora Courtyard', difficulty: 'easy', img: '/images/spots/abyss/camp.jpg',
+                description: 'Light pools in the courtyard like water.', missionDuration: 900, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Tend the Aurora Lamps', img: '/images/missions/abyss/energy.jpg' },
+                    { name: 'Drive Off the Light Eaters', img: '/images/missions/abyss/sentinels.jpg' },
+                    { name: 'Bottle the Dawn', img: '/images/missions/abyss/stabilize.jpg' }
+                ] },
+            { id: 'celestial_3_mirror', name: 'Mirror of Dawn', difficulty: 'medium', img: '/images/spots/abyss/temple.jpg',
+                description: 'A mirror that shows the champion you failed to become.', missionDuration: 1200, payoutMultiplier: 1.8,
+                missions: [
+                    { name: 'Shatter the False Reflection', img: '/images/missions/abyss/seal.jpg' },
+                    { name: 'Recover the Sanctum Plate', img: '/images/missions/abyss/relic.jpg' },
+                    { name: 'Purge the Mirror Wraith', img: '/images/missions/abyss/priest.jpg' }
+                ] },
+            { id: 'celestial_3_heart', name: 'Heart of the Sanctum', difficulty: 'hard', img: '/images/spots/abyss/void_heart.jpg',
+                description: 'The armoury at the centre of the aurora, sealed for ages.', missionDuration: 1800, payoutMultiplier: 3.0,
+                missions: [
+                    { name: 'Break the Auric Seal', img: '/images/missions/abyss/seal_rift.jpg' },
+                    { name: 'Slay the Sanctum Keeper', img: '/images/missions/abyss/soul_weaver.jpg' },
+                    { name: 'Claim the Living Carapace', img: '/images/missions/abyss/claim.jpg' }
+                ] }
+        ],
+        payoutBase: { easy: [1100, 1600], medium: [1200, 1950], hard: [1600, 2650] },
+        rawMats: ['shadow_essence', 'soul_essence', 'primordial_shard', 'frost_essence', 'dragon_scale_shard'],
+        matDropChance: 0.94, matDropCount: [5, 9]
+    },
+    celestial_4: {
+        name: 'Zenith Halls', emoji: '👑', minLevel: 1, honorRequired: 4000,
+        mapImg: '/images/zones/abyss/eternal.jpg', bgImg: '/images/zones/abyss/eternal-bg.jpg',
+        pos: { x: 74, y: 30 },
+        travelTime: 360,
+        description: 'The highest halls of the Celestial, lined with the crowns of forgotten kings.',
+        spots: [
+            { id: 'celestial_4_landing', name: 'Zenith Landing', difficulty: 'easy', img: '/images/spots/abyss/path.jpg',
+                description: 'The wind up here carries voices from below.', missionDuration: 900, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Hold the Zenith Landing', img: '/images/missions/abyss/breach.jpg' },
+                    { name: 'Silence the Whispering Wind', img: '/images/missions/abyss/energy.jpg' },
+                    { name: 'Map the Upper Halls', img: '/images/missions/abyss/navigate.jpg' }
+                ] },
+            { id: 'celestial_4_vault', name: 'Vault of Crowns', difficulty: 'medium', img: '/images/spots/abyss/throne.jpg',
+                description: 'A vault of crowns, each one still remembered by its wearer.', missionDuration: 1200, payoutMultiplier: 1.8,
+                missions: [
+                    { name: 'Quiet the Crown Choir', img: '/images/missions/abyss/souls.jpg' },
+                    { name: 'Recover the Hollow Diadem', img: '/images/missions/abyss/crown.jpg' },
+                    { name: 'Seal the Crown Vault', img: '/images/missions/abyss/seal_abyss.jpg' }
+                ] },
+            { id: 'celestial_4_seat', name: 'The Highest Seat', difficulty: 'hard', img: '/images/spots/abyss/throne_night.jpg',
+                description: 'The seat at the top of the Celestial. It is not empty.', missionDuration: 1800, payoutMultiplier: 3.0,
+                missions: [
+                    { name: 'Challenge the Seated King', img: '/images/missions/abyss/shadow_king.jpg' },
+                    { name: 'Break the Night Crown', img: '/images/missions/abyss/crown_night.jpg' },
+                    { name: 'Take the Highest Seat', img: '/images/missions/abyss/ascend.jpg' }
+                ] }
+        ],
+        payoutBase: { easy: [1150, 1650], medium: [1200, 2050], hard: [1450, 2850] },
+        rawMats: ['primordial_shard', 'eternal_core', 'shadow_essence', 'mithril_ore', 'rune_fragment'],
+        matDropChance: 0.95, matDropCount: [5, 10]
+    },
+    celestial_5: {
+        name: 'Throne of Dawn', emoji: '🌅', minLevel: 1, honorRequired: 5000,
+        mapImg: '/images/zones/abyss_gate.jpg', bgImg: '/images/zones/abyss/citadel-bg.jpg',
+        pos: { x: 40, y: 18 },
+        travelTime: 420,
+        description: 'The last gate. Beyond it, dawn never ends — and the Celestial keeps its treasures.',
+        spots: [
+            { id: 'celestial_5_threshold', name: 'Threshold of Dawn', difficulty: 'easy', img: '/images/spots/abyss/gates.jpg',
+                description: 'The final threshold, warm as held breath.', missionDuration: 900, payoutMultiplier: 1.0,
+                missions: [
+                    { name: 'Stand Before Dawn', img: '/images/missions/abyss/restore_light.jpg' },
+                    { name: 'Clear the Dawn Wardens', img: '/images/missions/abyss/sentinels.jpg' },
+                    { name: 'Gather the First Ray', img: '/images/missions/abyss/dark_essence.jpg' }
+                ] },
+            { id: 'celestial_5_suns', name: 'Ring of Suns', difficulty: 'medium', img: '/images/spots/abyss/void_edge.jpg',
+                description: 'Seven small suns orbit here, bound to rings of gold.', missionDuration: 1200, payoutMultiplier: 1.8,
+                missions: [
+                    { name: 'Steady the Orbiting Suns', img: '/images/missions/abyss/stabilize.jpg' },
+                    { name: 'Cut the Ring of Suns', img: '/images/missions/abyss/rift.jpg' },
+                    { name: 'Bind a Sun to a Band', img: '/images/missions/abyss/claim.jpg' }
+                ] },
+            { id: 'celestial_5_last', name: 'The Last Light', difficulty: 'hard', img: '/images/spots/abyss/rift.jpg',
+                description: 'The source of the Celestial light, and the thing guarding it.', missionDuration: 1800, payoutMultiplier: 3.0,
+                missions: [
+                    { name: 'Face the Dawn Sovereign', img: '/images/missions/abyss/primordial.jpg' },
+                    { name: 'Bank the Last Light', img: '/images/missions/abyss/seal_dark.jpg' },
+                    { name: 'Claim the Dawn Regalia', img: '/images/missions/abyss/crown.jpg' }
+                ] }
+        ],
+        payoutBase: { easy: [1150, 1650], medium: [1200, 2050], hard: [1250, 3500] },
+        rawMats: ['dark_essence', 'eternal_core', 'demon_core', 'arcane_dust', 'void_shard'],
+        matDropChance: 0.96, matDropCount: [6, 12]
+    }
+};
+
+const CELESTIAL_ROUTES = {
+    celestial_1: { celestial_2: 240 },
+    celestial_2: { celestial_1: 240, celestial_3: 300 },
+    celestial_3: { celestial_2: 300, celestial_4: 360 },
+    celestial_4: { celestial_3: 360, celestial_5: 420 },
+    celestial_5: { celestial_4: 420 }
+};
+
+// Entry point: the Celestial Gate stands in Dark City (the deepest Overworld zone).
+const CELESTIAL_ENTRY = {
+    fromZone: 'dark_city', toZone: 'celestial_1', travelTime: 180
+};
+
+// Celestial missions use fixed combat templates with a small linear character-
+// level adjustment and no random variance. Each zone up is 22% stronger.
+const CELESTIAL_MONSTER_BASE = {
+    hp: 6500, dmgMin: 150, dmgMax: 240, agility: 200, magic: 520, armor: 260,
+    hit_chance: 170, crit_chance: 220, elemDmg: 45, elemResist: 40
+};
+const CELESTIAL_MONSTER_DIFFICULTY = { easy: 0.62, medium: 0.82, hard: 1.0 };
+// Global tuning against live-server character damage.
+const CELESTIAL_MONSTER_POWER_MULT = 2.2;
+const CELESTIAL_MONSTER_LEVEL_MULT = 0.005;
+// Battles are capped at ~10 exchanges, so the per-zone step has to stay modest:
+// a 1.22 step makes the fifth zone ~2.2x the first, which is still a wall while
+// leaving every gate beatable by a geared character.
+const CELESTIAL_ZONE_STEP_MULT = 1.22;
+
+function celestialZoneTier(zoneId) {
+    const zone = CELESTIAL_ZONES[zoneId];
+    if (!zone) return 0;
+    return Math.max(0, Math.round(Number(zone.honorRequired || CELESTIAL_MIN_HONOR) / CELESTIAL_HONOR_STEP) - 1);
+}
+
+function buildCelestialMonster(zoneId, difficulty, characterLevel = 0) {
+    const zone = CELESTIAL_ZONES[zoneId];
+    if (!zone) return null;
+    const zoneMult = Math.pow(CELESTIAL_ZONE_STEP_MULT, celestialZoneTier(zoneId));
+    const diffMult = CELESTIAL_MONSTER_DIFFICULTY[difficulty] ?? CELESTIAL_MONSTER_DIFFICULTY.medium;
+    const levelMult = 1 + Math.max(0, Number(characterLevel) || 0) * CELESTIAL_MONSTER_LEVEL_MULT;
+    const scale = (v, floor = 1) => Math.max(floor, Math.round(Number(v) * CELESTIAL_MONSTER_POWER_MULT * zoneMult * diffMult * levelMult));
+    return {
+        hp: scale(CELESTIAL_MONSTER_BASE.hp),
+        dmgMin: scale(CELESTIAL_MONSTER_BASE.dmgMin),
+        dmgMax: Math.max(scale(CELESTIAL_MONSTER_BASE.dmgMin) + 1, scale(CELESTIAL_MONSTER_BASE.dmgMax)),
+        agility: scale(CELESTIAL_MONSTER_BASE.agility),
+        magic: scale(CELESTIAL_MONSTER_BASE.magic),
+        armor: scale(CELESTIAL_MONSTER_BASE.armor),
+        hit_chance: scale(CELESTIAL_MONSTER_BASE.hit_chance),
+        crit_chance: scale(CELESTIAL_MONSTER_BASE.crit_chance),
+        elem_dmg: {
+            pyro: scale(CELESTIAL_MONSTER_BASE.elemDmg),
+            water: scale(CELESTIAL_MONSTER_BASE.elemDmg),
+            wind: scale(CELESTIAL_MONSTER_BASE.elemDmg),
+            electro: scale(CELESTIAL_MONSTER_BASE.elemDmg)
+        },
+        elem_resist: {
+            pyro: scale(CELESTIAL_MONSTER_BASE.elemResist),
+            water: scale(CELESTIAL_MONSTER_BASE.elemResist),
+            wind: scale(CELESTIAL_MONSTER_BASE.elemResist),
+            electro: scale(CELESTIAL_MONSTER_BASE.elemResist)
+        }
+    };
+}
 
 // ── Raw materials (your originals) ────────────────────────────────────────
 const RAW_MATERIALS = {
@@ -1238,7 +1479,7 @@ function buildZoneLocalMaterialPool(zone) {
 function buildBonusMaterialPool(zone) {
     const localSet = new Set(zone.rawMats || []);
     return Object.entries(RAW_MATERIALS)
-        .filter(([id, def]) => !localSet.has(id) && def.rarity !== 'common')
+        .filter(([id, def]) => !localSet.has(id) && def.rarity !== 'common' && id !== 'legendary_fragment')
         .map(([id, def]) => ({
             id,
             weight: {
@@ -1486,6 +1727,7 @@ weapon: { name: "Colossus' Void Maul",      emoji: '🗿', weaponType: 'hammer',
 const STORY_NPC = {
     name: 'Maren',
     title: 'The Wandering Sage',
+    title_pt: 'O Sábio Andarilho',
     icon: '🧙',
 };
 
@@ -1497,22 +1739,32 @@ const STORY_QUESTS = [
         // the FINAL stage (The Final Seal) grants gems because it completes the story.
         id: 'the_ancients_story',
         name: 'The Ancients Story',
+        name_pt: 'A História dos Antigos',
         icon: '📜',
         isFinal: true, // finishing the last stage completes the whole story
         stages: [
             {
                 id: 'relic_of_the_ancients',
                 name: 'Relic of the Ancients',
+                name_pt: 'Relíquia dos Antigos',
                 icon: '🗿',
                 zone: 'forest',
                 spot: 'forest_bandits',
                 objective: 'Drive the bandits out of the Whispering Forest and recover the Relic of the Ancients.',
+                objective_pt: 'Expulse os bandidos da Floresta Sussurrante e recupere a Relíquia dos Antigos.',
                 hint: 'The bandits who robbed Maren are hiding at the Bandit Hideout.',
+                hint_pt: 'Os bandidos que assaltaram Maren estão escondidos no Esconderijo dos Bandidos.',
                 dialogue: [
                     'Ah, a fresh face in these wilds! I am Maren, keeper of tales long forgotten.',
                     'I was robbed, you see. Bandits set upon me in the Whispering Forest and made off with the Relic of the Ancients.',
                     'It is an old thing — older than the Dark City itself. I was a fool to carry it so openly.',
                     'The bandits lurk at their hideout in the deep woods. Find them, recover my relic, and perhaps I shall tell you what it truly is.',
+                ],
+                dialogue_pt: [
+                    'Ah, um rosto novo nestas terras selvagens! Sou Maren, guardião de contos há muito esquecidos.',
+                    'Fui assaltado, sabe. Bandidos me atacaram na Floresta Sussurrante e levaram a Relíquia dos Antigos.',
+                    'É uma coisa antiga — mais antiga que a própria Cidade Sombria. Foi tolice minha carregá-la tão abertamente.',
+                    'Os bandidos se escondem no esconderijo no fundo da floresta. Encontre-os, recupere minha relíquia, e talvez eu lhe conte o que ela realmente é.',
                 ],
                 // One cutscene scene per dialogue line. Set `bg` to your module-wide
                 // background image path (one image per scene). Missing images fall
@@ -1524,22 +1776,32 @@ const STORY_QUESTS = [
                     { bg: '/images/story/relic_of_the_ancients/scene-4.png' },
                 ],
                 loreUnlock: 'Maren recounts how the first empire of mages raised these very forests from ash — and how they fell from within.',
+                loreUnlock_pt: 'Maren conta como o primeiro império de magos ergueu estas florestas das cinzas — e como caiu por dentro.',
                 reward: { gold: 3000 },
                 boostedReward: { gold: 6000 },
             },
             {
                 id: 'amulet_of_the_fallen',
                 name: 'Amulet of the Fallen',
+                name_pt: 'Amuleto dos Caídos',
                 icon: '📿',
                 zone: 'swamp',
                 spot: 'swamp_heart',
                 objective: 'Recover the Amulet of the Fallen from the heart of the Rotting Swamp.',
+                objective_pt: 'Recupere o Amuleto dos Caídos no coração do Pântano Podre.',
                 hint: 'The amulet lies where the swamp grows deepest — the Swamp Heart.',
+                hint_pt: 'O amuleto está onde o pântano é mais fundo — o Coração do Pântano.',
                 dialogue: [
                     'You returned — and with my relic! I knew you had the spark, friend.',
                     'But that relic was only a fragment. The true power rests in the Amulet of the Fallen.',
                     'It was lost in the Rotting Swamp, dropped by a king who fled the Dark City centuries ago.',
                     'The swamp\'s heart is treacherous — poison, mire, and things that whisper your name. But you are tougher now than when we met.',
+                ],
+                dialogue_pt: [
+                    'Você voltou — e com minha relíquia! Sabia que tinha a centelha, amigo.',
+                    'Mas aquela relíquia era apenas um fragmento. O verdadeiro poder repousa no Amuleto dos Caídos.',
+                    'Foi perdido no Pântano Podre, deixado por um rei que fugiu da Cidade Sombria há séculos.',
+                    'O coração do pântano é traiçoeiro — veneno, lama e coisas que sussurram seu nome. Mas você está mais forte agora do que quando nos conhecemos.',
                 ],
                 cutscene: [
                     { bg: '/images/story/amulet_of_the_fallen/scene-1.png' },
@@ -1548,22 +1810,32 @@ const STORY_QUESTS = [
                     { bg: '/images/story/amulet_of_the_fallen/scene-4.png' },
                 ],
                 loreUnlock: 'Maren reveals the fleeing king was not fleeing an enemy — he was fleeing the thing the Dark City was becoming.',
+                loreUnlock_pt: 'Maren revela que o rei em fuga não fugia de um inimigo — fugia daquilo que a Cidade Sombria estava se tornando.',
                 reward: { gold: 5000 },
                 boostedReward: { gold: 10000 },
             },
             {
                 id: 'crown_of_the_frost_king',
                 name: 'Crown of the Frost King',
+                name_pt: 'Coroa do Rei do Gelo',
                 icon: '👑',
                 zone: 'mountains',
                 spot: 'ice_cavern',
                 objective: 'Claim the Crown of the Frost King from the deepest ice cavern.',
+                objective_pt: 'Conquiste a Coroa do Rei do Gelo na caverna de gelo mais profunda.',
                 hint: 'The crown rests where the cold has never thawed — the Ice Cavern.',
+                hint_pt: 'A coroa repousa onde o frio nunca derreteu — a Caverna de Gelo.',
                 dialogue: [
                     'The Crown of the Frost King... it holds the memory of a civilization frozen forever in time.',
                     'I have spent decades hunting these artifacts. The relic, the amulet, the crown — all threads of one tapestry.',
                     'The crown lies deep within the ice caverns, guarded by the cold itself. It will test you as nothing has yet.',
                     'Bring it to me, and you will see the pattern that connects them all.',
+                ],
+                dialogue_pt: [
+                    'A Coroa do Rei do Gelo... ela guarda a memória de uma civilização congelada para sempre no tempo.',
+                    'Passei décadas caçando esses artefatos. A relíquia, o amuleto, a coroa — fios de uma mesma tapeçaria.',
+                    'A coroa jaz no fundo das cavernas de gelo, guardada pelo próprio frio. Ela vai testá-lo como nada ainda testou.',
+                    'Traga-a para mim, e você verá o padrão que conecta todos eles.',
                 ],
                 cutscene: [
                     { bg: '/images/story/crown_of_the_frost_king/scene-1.png' },
@@ -1572,22 +1844,32 @@ const STORY_QUESTS = [
                     { bg: '/images/story/crown_of_the_frost_king/scene-4.png' },
                 ],
                 loreUnlock: 'The Frost King was the last ruler to resist the Dark City. His crown is the key to understanding its fall.',
+                loreUnlock_pt: 'O Rei do Gelo foi o último governante a resistir à Cidade Sombria. Sua coroa é a chave para entender sua queda.',
                 reward: { gold: 10000 },
                 boostedReward: { gold: 20000 },
             },
             {
                 id: 'the_final_seal',
                 name: 'The Final Seal',
+                name_pt: 'O Selo Final',
                 icon: '🔐',
                 zone: 'ruins',
                 spot: 'ruins_crypt',
                 objective: 'Shatter the Final Seal in the ancient crypt beneath the ruins.',
+                objective_pt: 'Destrua o Selo Final na cripta antiga sob as ruínas.',
                 hint: 'The seal waits where the dead rest eternal — the Ancient Crypt.',
+                hint_pt: 'O selo espera onde os mortos repousam eternamente — a Cripta Antiga.',
                 dialogue: [
                     'You have come so far, friend. Only the Final Seal remains.',
                     'Deep in the crypts beneath the Ancient Ruins, the last seal of the old world waits unbroken.',
                     'It was shattered when the Dark City fell — but the pieces still call to those who listen.',
                     'Recover it, and I will at last tell you the whole truth. The real story. Not the one they tell in taverns.',
+                ],
+                dialogue_pt: [
+                    'Você chegou tão longe, amigo. Resta apenas o Selo Final.',
+                    'No fundo das criptas sob as Ruínas Antigas, o último selo do velho mundo espera intacto.',
+                    'Ele foi despedaçado quando a Cidade Sombria caiu — mas os fragmentos ainda chamam aqueles que ouvem.',
+                    'Recupere-o, e finalmente lhe contarei toda a verdade. A história real. Não aquela que contam nas tavernas.',
                 ],
                 cutscene: [
                     { bg: '/images/story/the_final_seal/scene-1.png' },
@@ -1596,6 +1878,7 @@ const STORY_QUESTS = [
                     { bg: '/images/story/the_final_seal/scene-4.png' },
                 ],
                 loreUnlock: 'Maren finally tells you the truth: the Dark City was once a beacon of light, corrupted from within. The artifacts you recovered are the only keys left to undo that corruption — and the road ahead begins where the old world ended.',
+                loreUnlock_pt: 'Maren finalmente conta a verdade: a Cidade Sombria já foi um farol de luz, corrompida por dentro. Os artefatos que você recuperou são as únicas chaves restantes para desfazer essa corrupção — e a estrada à frente começa onde o velho mundo terminou.',
                 reward: { gold: 15000, gems: 15 },
                 boostedReward: { gold: 30000, gems: 30, premium: { id: 'apprentice', days: 30 }, lootbox: { id: 'lootbox_legendary', qty: 3 } },
             },
@@ -1605,6 +1888,8 @@ const STORY_QUESTS = [
 
 module.exports = {
     ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS,
+    CELESTIAL_ZONES, CELESTIAL_ROUTES, CELESTIAL_ENTRY, CELESTIAL_MIN_HONOR, CELESTIAL_HONOR_STEP,
+    buildCelestialMonster,
     RAID_BOSS_GEAR,
     generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES,
     STORY_QUESTS, STORY_NPC,
