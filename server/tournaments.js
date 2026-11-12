@@ -10,8 +10,9 @@ const {
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
   getFighterExtraHits,
   getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
+  computeOffHandDmgPct,
   DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-  applyWeaponSkill, ensureElemental
+  applyWeaponSkill, ensureElemental, getCurrentWeekStart
 } = require('./routes');
 const {
   computePassiveBonusesWithProgress,
@@ -21,6 +22,8 @@ const {
 } = require('./skills');
 
 const TOURNAMENT_COST = 500;
+const TOURNAMENT_MATCH_HONOR = 5;
+const TOURNAMENT_WIN_HONOR = 10;
 const MIN_PLAYERS = 8;
 const MIN_REAL_PLAYERS = 4;
 const ROUND_INTERVAL_MS = 60_000;
@@ -28,6 +31,18 @@ const DAILY_HOUR = 21;
 const DAILY_MINUTE = 30;
 const NORMAL_ROUNDS = 10;
 const MODE_BY_DAY = ['all_vs_all', 'normal', 'damage', 'least_damage', 'elimination', 'deathmatch', 'no_equip'];
+
+async function recordTournamentHonor(db, charId, delta) {
+  const now = Math.floor(Date.now() / 1000);
+  await dbRun_t(db, 'INSERT INTO honor_changes (char_id, delta, created_at) VALUES (?, ?, ?)', [charId, delta, now]);
+  await dbRun_t(db, `INSERT INTO character_weekly_performance
+      (char_id, week_start, damage_dealt, wins, losses, battles_fought, honor, honor_claims)
+      VALUES (?, ?, 0, 0, 0, 0, ?, 1)
+      ON CONFLICT(char_id, week_start) DO UPDATE SET
+        honor = honor + excluded.honor,
+        honor_claims = honor_claims + 1`,
+    [charId, getCurrentWeekStart(), delta]);
+}
 
 function todayMode(date = new Date()) {
   return MODE_BY_DAY[date.getDay()] || 'deathmatch';
@@ -130,6 +145,7 @@ async function abortTournament(db, t, realCount) {
   const realParts = await dbAll_t(db, "SELECT char_id FROM tournament_participants WHERE tournament_id = ? AND is_npc = 0 AND char_id IS NOT NULL", [t.id]);
   for (const p of realParts) {
     await dbRun_t(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [TOURNAMENT_COST, p.char_id]).catch(() => {});
+    await dbRun_t(db, 'INSERT INTO tournament_refunds (tournament_id, char_id, amount) VALUES (?,?,?)', [t.id, p.char_id, TOURNAMENT_COST]).catch(() => {});
   }
   await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
   console.log(`❌ Tournament #${t.id} (${t.level_group}) cancelled — ${reason}; refunded ${TOURNAMENT_COST} gold to ${realParts.length} players`);
@@ -277,7 +293,8 @@ async function runElimination(db, t, participants, fast, startRound) {
         await dbRun_t(db, 'UPDATE tournament_participants SET eliminated = 1, losses = losses + 1 WHERE id = ?', [loserPid]);
         const winnerPart = participants.find(p => p.id === winnerPid);
         if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
-          await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
+          await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500, honor = COALESCE(honor, 0) + ? WHERE id = ?', [TOURNAMENT_MATCH_HONOR, winnerPart.char_id]);
+          await recordTournamentHonor(db, winnerPart.char_id, TOURNAMENT_MATCH_HONOR);
         }
         survivors.push(winnerPid);
       }
@@ -372,7 +389,7 @@ async function runAllVsAll(db, t, participants, fast, startRound) {
         const eliminator = dead._lastAttacker;
         const payload = JSON.stringify({
           log, won: false, isDraw: false,
-          goldEarned: 0, gemsEarned: 0, goldLost: 0,
+          goldEarned: 0, gemsEarned: 0, honorChanged: 0, goldLost: 0,
           type: 'tournament',
           opponentName: eliminator ? eliminator.name : 'the arena',
           opponentClass: eliminator && eliminator._participant ? eliminator._participant.class : null,
@@ -407,10 +424,11 @@ async function runAllVsAll(db, t, participants, fast, startRound) {
     const winnerPart = winner._participant;
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winner._pid]);
     if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
-      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
+      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500, honor = COALESCE(honor, 0) + ? WHERE id = ?', [TOURNAMENT_MATCH_HONOR, winnerPart.char_id]);
+      await recordTournamentHonor(db, winnerPart.char_id, TOURNAMENT_MATCH_HONOR);
       const payload = JSON.stringify({
         log, won: true, isDraw: false,
-        goldEarned: 500, gemsEarned: 1, goldLost: 0,
+        goldEarned: 500, gemsEarned: 1, honorChanged: TOURNAMENT_MATCH_HONOR, goldLost: 0,
         type: 'tournament',
         opponentName: '', opponentClass: null, opponentLevel: null,
         totalDmgDealt: winner._dmgDealt, totalDmgTaken: winner._dmgTaken,
@@ -1142,7 +1160,8 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
     await dbRun_t(db, 'UPDATE tournament_participants SET points = points + 3, wins = wins + 1 WHERE id = ?', [winnerPid]);
     await dbRun_t(db, 'UPDATE tournament_participants SET losses = losses + 1 WHERE id = ?', [loserPid]);
     if (winnerPart && !winnerPart.is_npc && winnerPart.char_id) {
-      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500 WHERE id = ?', [winnerPart.char_id]);
+      await dbRun_t(db, 'UPDATE characters SET gems = COALESCE(gems, 0) + 1, gold = COALESCE(gold, 0) + 500, honor = COALESCE(honor, 0) + ? WHERE id = ?', [TOURNAMENT_MATCH_HONOR, winnerPart.char_id]);
+      await recordTournamentHonor(db, winnerPart.char_id, TOURNAMENT_MATCH_HONOR);
     }
   }
   // Track damage totals for damage-based modes
@@ -1182,8 +1201,9 @@ async function sendMatchReport(db, mm, participants, pid) {
   const dmgTaken = pid === mm.participant1_id ? (mm.dmg_to_p1 || 0) : (mm.dmg_to_p2 || 0);
   const goldEarned = won ? 500 : 0;
   const gemsEarned = won ? 1 : 0;
+  const honorChanged = won ? TOURNAMENT_MATCH_HONOR : 0;
   const payload = JSON.stringify({
-    log, won, isDraw: !!isDraw, goldEarned, gemsEarned, goldLost: 0,
+    log, won, isDraw: !!isDraw, goldEarned, gemsEarned, honorChanged, goldLost: 0,
     type: 'tournament',
     opponentName: opponent?.name || 'Unknown',
     opponentClass: opponent?.class || null,
@@ -1279,7 +1299,8 @@ async function finalizeTournament(db, tournamentId) {
   await dbRun_t(db, 'UPDATE tournaments SET status = ?, ended_at = datetime(\'now\'), winner_char_id = ?, winner_is_npc = ? WHERE id = ?',
     ['complete', winner.char_id, winnerIsNpc ? 1 : 0, tournamentId]);
   if (!winnerIsNpc && winner.char_id) {
-    await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10, gold = COALESCE(gold, 0) + 5000 WHERE id = ?', [winner.char_id]);
+    await dbRun_t(db, 'UPDATE characters SET tournament_wins = COALESCE(tournament_wins, 0) + 1, gems = COALESCE(gems, 0) + 10, gold = COALESCE(gold, 0) + 5000, honor = COALESCE(honor, 0) + ? WHERE id = ?', [TOURNAMENT_WIN_HONOR, winner.char_id]);
+    await recordTournamentHonor(db, winner.char_id, TOURNAMENT_WIN_HONOR);
   }
   const matches = await dbAll_t(db, 'SELECT * FROM tournament_matches WHERE tournament_id = ? ORDER BY round_index, id', [tournamentId]);
   let rank = 0;
@@ -1314,7 +1335,7 @@ async function finalizeTournament(db, tournamentId) {
     
     let rewardLine = '';
     if (rank === 1 && !winnerIsNpc) {
-      rewardLine = ' 🏆 Prize: 5000g + 10💎';
+      rewardLine = ` 🏆 Prize: 5000g + 10💎 + ${TOURNAMENT_WIN_HONOR}⚜️ Honor`;
     }
     const subject = `🏟️ Tournament #${tournamentId} — You placed #${rank} of ${totalNonDsq}!${rewardLine}`;
     const body = `You fought ${matchStr}. ${statLine.charAt(0).toUpperCase() + statLine.slice(1)}.`;
@@ -1572,6 +1593,13 @@ async function initTournamentTables() {
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN total_damage_taken INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN hp_start INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_matches ADD COLUMN eliminated_id INTEGER"); } catch {}
+  await dbRun_t(db, `CREATE TABLE IF NOT EXISTS tournament_refunds (
+     id INTEGER PRIMARY KEY AUTOINCREMENT,
+     tournament_id INTEGER NOT NULL,
+     char_id INTEGER NOT NULL,
+     amount INTEGER NOT NULL DEFAULT 0,
+     refunded_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+   )`);
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated INTEGER DEFAULT 0"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN eliminated_round INTEGER"); } catch {}
   try { await dbRun_t(db, "ALTER TABLE tournament_participants ADD COLUMN dsq INTEGER DEFAULT 0"); } catch {}
@@ -1628,9 +1656,23 @@ router.post('/tournaments/cancel/:id', auth, async (req, res) => {
     const db = await getDb();
     const t = await dbGet_t(db, 'SELECT * FROM tournaments WHERE id = ?', [req.params.id]);
     if (!t) return res.status(404).json({ error: 'Tournament not found' });
+    const realParts = await dbAll_t(db, "SELECT char_id FROM tournament_participants WHERE tournament_id = ? AND is_npc = 0 AND char_id IS NOT NULL", [t.id]);
+    for (const p of realParts) {
+      await dbRun_t(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [TOURNAMENT_COST, p.char_id]).catch(() => {});
+      await dbRun_t(db, 'INSERT INTO tournament_refunds (tournament_id, char_id, amount) VALUES (?,?,?)', [t.id, p.char_id, TOURNAMENT_COST]).catch(() => {});
+    }
     await dbRun_t(db, "UPDATE tournaments SET status = 'cancelled' WHERE id = ?", [t.id]);
-    res.json({ message: `Tournament #${t.id} cancelled` });
+    res.json({ message: `Tournament #${t.id} cancelled; refunded ${realParts.length} players` });
   } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+router.get('/tournaments/:id/refunds', auth, async (req, res) => {
+    try {
+        if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin only' });
+        const db = await getDb();
+        const rows = await dbAll_t(db, 'SELECT tr.*, c.name AS char_name FROM tournament_refunds tr LEFT JOIN characters c ON c.id = tr.char_id WHERE tr.tournament_id = ? ORDER BY tr.refunded_at DESC', [req.params.id]);
+        res.json(rows);
+    } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 router.post('/tournaments/restart/:id', auth, async (req, res) => {
