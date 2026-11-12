@@ -5017,6 +5017,39 @@ select.input-field:focus {
     transition: background 0.2s;
     box-shadow: 0 4px 12px rgba(0,0,0,0.3);
 }
+.news-item--unread {
+    border-color: rgba(241, 196, 15, 0.55);
+    box-shadow: 0 0 0 1px rgba(241, 196, 15, 0.25), 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.news-item--unread .news-item-title { color: #f1c40f; }
+.news-new-badge {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+    color: #fff;
+    font-size: 0.62rem;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.04em;
+}
+.news-unread-badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: #e74c3c;
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px rgba(0,0,0,0.35);
+}
+.topbar-menu-action { position: relative; }
+
 .news-item-cta-btn:hover {
     background: linear-gradient(135deg, #e87a19, #c74d00);
     transform: translateY(-1px);
