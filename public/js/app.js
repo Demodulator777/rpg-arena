@@ -293,8 +293,10 @@ let playerTravelEndTime = 0;
 let playerTravelStartTime = 0;
 let unlockedTravelZones = new Set(['forest']);
 let unlockedAbyssZones = new Set();
+let unlockedCelestialZones = new Set();
 const FREE_CANCEL_WINDOW = 300;
 let abyssData = null;
+let celestialData = null;
 let trainingInterval = null;
 let trainingOverlayInterval = null;
 let accountCharacters = [];
@@ -310,7 +312,6 @@ let chatExpanded = false;
 let chatActiveView = 'global';
 let chatSquadId = null;
 let chatActivePmThread = '';
-let chatUnreadPmIds = new Set();
 let chatSeenGlobalId = 0;
 let chatSeenSquadId = 0;
 let chatSeenPmThreadIds = {};
@@ -329,6 +330,11 @@ let chatMentionSuggestions = [];
 let chatSuggestionTimer = null;
 let chatSuggestionRequestId = 0;
 let chatMentionRange = null;
+let chatDraft = '';
+let chatDraftSelectionStart = 0;
+let chatDraftSelectionEnd = 0;
+let chatDraftScrollLeft = 0;
+let chatPollInFlight = false;
 const CHAT_STATE_VERSION = 1;
 function bustStaleChatState() {
     const ver = parseInt(localStorage.getItem('rpg_chat_state_version') || '0', 10);
@@ -359,6 +365,46 @@ async function loadAbyssData() {
         console.error('Failed to load Abyss data:', e);
         abyssData = null;
     }
+}
+
+async function loadCelestialData() {
+    try {
+        celestialData = await api('GET', '/game/celestial/data');
+    } catch (e) {
+        console.error('Failed to load Celestial data:', e);
+        celestialData = null;
+    }
+}
+
+// ── Map zone resolution ───────────────────────────────────────────────────
+// Three maps ship different zone tables: Overworld is baked into ZONES, while
+// the Abyss and the Celestial both come from the server.
+function activeMapType(mapType) {
+    return mapType
+        || (typeof character !== 'undefined' && character ? character.current_map : null)
+        || 'overworld';
+}
+function mapZoneTable(mapType) {
+    const m = activeMapType(mapType);
+    if (m === 'abyss') return (abyssData && abyssData.zones) || {};
+    if (m === 'celestial') return (celestialData && celestialData.zones) || {};
+    return ZONES;
+}
+function mapZoneRoutes(mapType) {
+    const m = activeMapType(mapType);
+    if (m === 'abyss') return (abyssData && abyssData.routes) || {};
+    if (m === 'celestial') return (celestialData && celestialData.routes) || {};
+    return ZONE_ROUTES;
+}
+function mapZoneById(zoneId, mapType) {
+    return mapZoneTable(mapType)[zoneId] || null;
+}
+function currentHonor() {
+    return Number(typeof character !== 'undefined' && character ? (character.honor || 0) : 0);
+}
+function celestialGateOpen(zone) {
+    if (!zone) return false;
+    return currentHonor() >= Number(zone.honorRequired || 1000);
 }
 
 // ── Stat display labels ───────────────────────────────────────────────────
@@ -581,6 +627,11 @@ const ZONE_NAME_PT = {
     'Abyssal Void': 'Vazio Abissal',
     'The Dark Citadel': 'A Cidadela das Sombras',
     'Eternal Darkness': 'Escuridão Eterna',
+    'Celestial Threshold': 'Limiar Celestial',
+    'Silvered Terraces': 'Terraços Prateados',
+    'Aurora Sanctum': 'Santuário da Aurora',
+    'Zenith Halls': 'Salões do Zénite',
+    'Throne of Dawn': 'Trono do Amanhecer',
 };
 
 const ZONE_DESC_PT = {
@@ -589,6 +640,11 @@ const ZONE_DESC_PT = {
     'Snow-capped peaks with treacherous paths.': 'Picos cobertos de neve com caminhos traiçoeiros.',
     'Remains of an ancient civilization, now haunted.': 'Restos de uma civilização antiga, agora assombrada.',
     'A corrupted city ruled by dark forces.': 'Uma cidade corrompida governada por forças das sombras.',
+    'The first stair beyond the mortal world. Only those who earned 1,000 Honor may climb it.': 'O primeiro degrau além do mundo mortal. Apenas quem conquistou 1.000 de Honra pode subir.',
+    'Terraces of polished silver where celestial armaments are forged and broken.': 'Terraços de prata polida onde armamentos celestiais são forjados e quebrados.',
+    'A sanctum wrapped in living aurora, where armour is grown rather than made.': 'Um santuário envolto em aurora viva, onde a armadura cresce em vez de ser feita.',
+    'The highest halls of the Celestial, lined with the crowns of forgotten kings.': 'Os salões mais altos do Celestial, forrados com as coroas de reis esquecidos.',
+    'The last gate. Beyond it, dawn never ends — and the Celestial keeps its treasures.': 'O último portal. Além dele o amanhecer nunca termina — e o Celestial guarda seus tesouros.',
 };
 
 const SPOT_NAME_PT = {
@@ -607,6 +663,21 @@ const SPOT_NAME_PT = {
     'City Outskirts': 'Arredores da Cidade',
     'Dark Cathedral': 'Catedral das Sombras',
     'Shadow Palace': 'Palácio das Sombras',
+    'Gate of First Light': 'Portal da Primeira Luz',
+    'Hall of Ascension': 'Salão da Ascensão',
+    'The Sunken Star': 'A Estrela Submersa',
+    'Silver Steps': 'Degraus de Prata',
+    'Blade Garden': 'Jardim de Lâminas',
+    'The Severed Blade': 'A Lâmina Partida',
+    'Aurora Courtyard': 'Pátio da Aurora',
+    'Mirror of Dawn': 'Espelho do Amanhecer',
+    'Heart of the Sanctum': 'Coração do Santuário',
+    'Zenith Landing': 'Patamar do Zénite',
+    'Vault of Crowns': 'Cofre das Coroas',
+    'The Highest Seat': 'O Assento Mais Alto',
+    'Threshold of Dawn': 'Limiar do Amanhecer',
+    'Ring of Suns': 'Anel de Sóis',
+    'The Last Light': 'A Última Luz',
 };
 
 const MISSION_NAME_PT = {
@@ -670,6 +741,51 @@ const MISSION_NAME_PT = {
     'Seal the Void Rift': 'Selar a Fenda do Vazio',
     'Claim the Demon Crown': 'Reivindicar a Coroa Demoníaca',
     'Purge the City Forever': 'Purificar a Cidade para Sempre',
+    'Present Your Honor': 'Apresente sua Honra',
+    'Patrol the First Stair': 'Patrulhar o Primeiro Degrau',
+    'Gather Starlight Dew': 'Colher Orvalho Estelar',
+    'Silence the Fallen Warden': 'Silenciar o Guardião Caído',
+    'Recover the Ascension Ledger': 'Recuperar o Registro da Ascensão',
+    'Cleanse the Broken Seal': 'Purificar o Selo Quebrado',
+    'Restore the Dying Star': 'Restaurar a Estrela Moribunda',
+    'Slay the Star Wraith': 'Matar o Espectro Estelar',
+    'Take the First Shard': 'Pegar o Primeiro Fragmento',
+    'Mind the Silver Gate': 'Guardar o Portal de Prata',
+    'Quench the Wandering Blades': 'Temperar as Lâminas Errantes',
+    'Collect Silver Filings': 'Coletar Limalhas de Prata',
+    'Harvest the Living Blades': 'Colher as Lâminas Vivas',
+    'Defeat the Blade Smith': 'Derrotar o Ferreiro de Lâminas',
+    'Freeze the Molten Core': 'Congelar o Núcleo Derretido',
+    'Climb the Broken Edge': 'Escalar a Lâmina Partida',
+    'Awaken the Weapon Spirit': 'Despertar o Espírito da Arma',
+    'Claim the Severed Hilt': 'Reivindicar o Punho Partido',
+    'Tend the Aurora Lamps': 'Cuidar das Lâmpadas da Aurora',
+    'Drive Off the Light Eaters': 'Expulsar os Devoradores de Luz',
+    'Bottle the Dawn': 'Engarrafar o Amanhecer',
+    'Shatter the False Reflection': 'Quebrar o Reflexo Falso',
+    'Recover the Sanctum Plate': 'Recuperar a Placa do Santuário',
+    'Purge the Mirror Wraith': 'Purificar o Espectro do Espelho',
+    'Break the Auric Seal': 'Romper o Selo Áureo',
+    'Slay the Sanctum Keeper': 'Matar o Guardião do Santuário',
+    'Claim the Living Carapace': 'Reivindicar a Carapaça Viva',
+    'Hold the Zenith Landing': 'Segurar o Patamar do Zénite',
+    'Silence the Whispering Wind': 'Silenciar o Vento Sussurrante',
+    'Map the Upper Halls': 'Mapear os Salões Superiores',
+    'Quiet the Crown Choir': 'Silenciar o Coro das Coroas',
+    'Recover the Hollow Diadem': 'Recuperar a Coroa Vazia',
+    'Seal the Crown Vault': 'Selar o Cofre das Coroas',
+    'Challenge the Seated King': 'Desafiar o Rei Entronizado',
+    'Break the Night Crown': 'Quebrar a Coroa da Noite',
+    'Take the Highest Seat': 'Tomar o Assento Mais Alto',
+    'Stand Before Dawn': 'Permanecer Diante do Amanhecer',
+    'Clear the Dawn Wardens': 'Eliminar os Guardiões do Amanhecer',
+    'Gather the First Ray': 'Reunir o Primeiro Raio',
+    'Steady the Orbiting Suns': 'Estabilizar os Sóis Orbitais',
+    'Cut the Ring of Suns': 'Cortar o Anel de Sóis',
+    'Bind a Sun to a Band': 'Prender um Sol a um Anel',
+    'Face the Dawn Sovereign': 'Enfrentar o Soberano do Amanhecer',
+    'Bank the Last Light': 'Guardar a Última Luz',
+    'Claim the Dawn Regalia': 'Reivindicar as Insígnias do Amanhecer',
 };
 
 function zName(zone) {
@@ -1648,6 +1764,7 @@ function startDomI18n() {
 function openNews() {
     closeTopbarMenu();
     showTab('news');
+    try { setTimeout(updateNewsBadge, 0); } catch {}
 }
 window.openNews = openNews;
 
@@ -1863,7 +1980,7 @@ function renderTopbarMenu() {
         <div class="topbar-menu-section">
             <div class="topbar-menu-label">${t('menu.quickActions', 'Quick Actions')}</div>
             <div class="topbar-menu-grid">
-                <button class="topbar-menu-action" ${actionAttrs('openNews')}>
+                <button class="topbar-menu-action ${getUnreadNewsCount() > 0 ? 'claimable-highlight' : ''}" ${actionAttrs('openNews')}>
                     📰 ${t('menu.news', 'News')}
                     <span class="topbar-menu-meta">${t('menu.newsMeta', 'Latest upgrades, events and story updates')}</span>
                 </button>
@@ -2232,6 +2349,12 @@ async function selectCharacter(characterId) {
         chatClosedPmThreads = new Set();
         chatReadStateLoadedFromStorage = false;
         chatReadStateForCharId = 0;
+        chatDraft = '';
+        chatDraftSelectionStart = 0;
+        chatDraftSelectionEnd = 0;
+        chatDraftScrollLeft = 0;
+        const chatInput = document.getElementById('chat-message-input');
+        if (chatInput) chatInput.value = '';
         await loadChatHistory();
         const activeTab = TAB_ORDER.find(name => document.getElementById(`tab-${name}`)?.classList.contains('active')) || 'character';
         showTab(activeTab);
@@ -2837,7 +2960,7 @@ function logout() {
 
     token=null; username=null; character=null;
     accountCharacters=[]; activeCharacterId=null;
-    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatSquadId=null; chatActivePmThread=''; chatUnreadPmIds = new Set(); chatSeenGlobalId = 0; chatSeenSquadId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null;
+    chatMessages=[]; chatLatestId=0; chatPmTarget=''; chatExpanded=false; chatActiveView='global'; chatSquadId=null; chatActivePmThread=''; chatSeenGlobalId = 0; chatSeenSquadId = 0; chatSeenPmThreadIds = {}; chatHighlightedGlobalIds = new Set(); chatHighlightedPmIds = new Set(); chatReadStateForCharId = 0; chatReadStateLoadedFromStorage = false; chatClosedPmThreads = new Set(); chatStatusText=''; chatStatusIsError=false; chatRecipientSuggestions=[]; chatMentionSuggestions=[]; chatMentionRange=null; chatDraft=''; chatDraftSelectionStart=0; chatDraftSelectionEnd=0; chatDraftScrollLeft=0;
     // Reset one-shot ban/warning modal flags so the modal re-shows after any re-login
     // or subsequent banned request instead of only on the first 403 after load.
     window.__banLockShown = false;
@@ -3259,6 +3382,7 @@ function showTab(name) {
 
     // Update assistant highlight after tab change
     updateAssistantUI();
+    try { updateNewsBadge(); } catch {}
 
     // Show tab-specific help message
     loadTabHelp(name);
@@ -3285,7 +3409,7 @@ function showTab(name) {
     if (name === 'raids')       window.renderRaidsTab?.();
     if (name === 'tournament')  { if (typeof loadTournamentTab === 'function') loadTournamentTab(); }
     if (name === 'event')       loadBannerEvent();
-    if (name === 'news')        loadNews();
+    if (name === 'news')        { loadNews(); try { setTimeout(updateNewsBadge, 0); } catch {} }
 }
 
 // CSS root zoom (PC scale-up) makes getBoundingClientRect() return VISUAL px,
@@ -3712,12 +3836,15 @@ function renderTopBar() {
         el.title = c.name;
     });
 
-    // Highlight menu button if weekly tasks are claimable
+        // Highlight menu button if weekly tasks are claimable or news is unread
     const menuBtn = document.getElementById('topbar-menu-btn');
     if (menuBtn) {
-        if (c.weekly_claimable_count > 0) {
+        const unreadNews = getUnreadNewsCount();
+        if ((character && character.weekly_claimable_count > 0) || unreadNews > 0) {
             menuBtn.classList.add('menu-highlight');
-            menuBtn.title = `You have ${c.weekly_claimable_count} weekly tasks ready to claim!`;
+            menuBtn.title = (character && character.weekly_claimable_count > 0)
+                ? ('You have ' + character.weekly_claimable_count + ' weekly tasks ready to claim!')
+                : ('You have ' + unreadNews + ' unread news item' + (unreadNews === 1 ? '' : 's') + '!');
         } else {
             menuBtn.classList.remove('menu-highlight');
             menuBtn.title = 'Open Menu';
@@ -3733,7 +3860,7 @@ function renderTopBar() {
     }
     renderTopbarMenu();
     updatePotionBadge();
-    renderChatWidget();
+    syncTopbarChatAlert();
 }
 
 // ── Polling ───────────────────────────────────────────────────────────────
@@ -6543,9 +6670,16 @@ async function loadMissions() {
         if (!abyssData) {
             await loadAbyssData();
         }
+        // The Celestial is hidden below 1,000 Honor — but it still has to load if
+        // the character is already standing inside it.
+        if (!celestialData && (currentHonor() >= 1000 || character.current_map === 'celestial')) {
+            await loadCelestialData();
+        }
 
         if (character.current_map === 'abyss' && abyssData) {
             renderAbyssMap();
+        } else if (character.current_map === 'celestial' && celestialData) {
+            renderCelestialMap();
         } else {
             renderWorldMap();
         }
@@ -6618,6 +6752,20 @@ function renderWorldMap() {
         `;
     }
 
+    // Add the Celestial Gate — it only exists for characters with 1,000+ Honor.
+    if (!playerTravelTarget && currentHonor() >= 1000) {
+        pinsHtml += `
+            <div style="position:absolute;left:12%;top:88%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;"
+                 ${actionAttrs('onMapNodeClick', 'celestial_gate')} title="${CURRENT_LANG === 'pt' ? 'Portal Celestial' : 'Celestial Gate'}">
+                <div style="position:relative;display:inline-block">
+                    <img style="width:72px;height:72px;border-radius:50%;border:3px solid #f1c40f;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 15px rgba(241,196,15,0.55);animation:pulse 2s infinite;"
+                         src="/images/zones/celestial_gate.jpeg" alt="${CURRENT_LANG === 'pt' ? 'Portal Celestial' : 'Celestial Gate'}" data-error-background="#2c3e50">
+                </div>
+                <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#f1c40f;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${CURRENT_LANG === 'pt' ? 'Portal Celestial' : 'Celestial Gate'}</div>
+                <div style="font-size:10px;color:rgba(241,196,15,0.85);text-align:center">${_pt('Honra 1.000+', 'Honor 1,000+')}</div>
+            </div>`;
+    }
+
     layer.innerHTML=svgLines+pinsHtml;
     // Restore overworld map background
     const bgImg = document.getElementById('world-map-bg');
@@ -6630,17 +6778,12 @@ function onMapNodeClick(zoneId) {
         enterAbyssGate();
         return;
     }
-
-    // Determine which map we're on
-    const currentMap = character?.current_map || 'overworld';
-    let zone;
-
-    if (currentMap === 'abyss' && abyssData) {
-        zone = abyssData.zones[zoneId];
-    } else {
-        zone = ZONES[zoneId];
+    if (zoneId === 'celestial_gate') {
+        enterCelestialGate();
+        return;
     }
 
+    const zone = mapZoneById(zoneId);
     if (!zone) return;
     openLocationModal(zoneId);
 }
@@ -6736,16 +6879,67 @@ async function enterAbyssGate() {
     }
 }
 
+async function enterCelestialGate() {
+    const pt = CURRENT_LANG === 'pt';
+    if (currentHonor() < 1000) {
+        await openGameDialog({
+            title: pt ? '🌟 Portal Celestial' : '🌟 Celestial Gate',
+            message: pt
+                ? `<p>O guardião deste portal não luta — ele lê sua <strong>Honra</strong>.</p><p>É preciso <strong>1.000 de Honra</strong> para abrir o Portal Celestial. Você tem <strong>${currentHonor()}</strong>.</p>`
+                : `<p>This gatekeeper does not fight — it reads your <strong>Honor</strong>.</p><p>You need <strong>1,000 Honor</strong> to open the Celestial Gate. You have <strong>${currentHonor()}</strong>.</p>`,
+            confirmLabel: pt ? 'Entendi' : 'Understood',
+            showCancel: false
+        });
+        return;
+    }
+    const proceed = await openGameDialog({
+        title: pt ? '🌟 Portal Celestial' : '🌟 Celestial Gate',
+        message: pt
+            ? `<p>O guardião verifica sua Honra: <strong>${currentHonor()}</strong>. O portal se abre.</p><p>Dentro do Celestial, cada portal seguinte exige mais 1.000 de Honra (até 5.000 na quinta zona).</p><p>Deseja subir?</p>`
+            : `<p>The warden reads your Honor: <strong>${currentHonor()}</strong>. The gate opens.</p><p>Inside the Celestial each further gate demands another 1,000 Honor (up to 5,000 at the fifth zone).</p><p>Climb?</p>`,
+        confirmLabel: pt ? 'Subir' : 'Climb',
+        cancelLabel: pt ? 'Cancelar' : 'Cancel',
+        showCancel: true
+    });
+    if (!proceed) return;
+    try {
+        const res = await api('POST', '/game/travel/celestial/enter', {});
+        if (res && res.success) {
+            character.location = res.location;
+            character.current_map = 'celestial';
+            await checkTravelStatus();
+            if (!celestialData) await loadCelestialData();
+            renderCurrentMap();
+            showMsg('missions-msg', res.message || (pt ? 'O Celestial se abre diante de você...' : 'The Celestial opens before you...'));
+        }
+    } catch (e) {
+        showMsg('missions-msg', e.message, true);
+    }
+}
+
+async function exitCelestial() {
+    const pt = CURRENT_LANG === 'pt';
+    try {
+        const result = await api('POST', '/game/travel/celestial/exit', {});
+        if (result.success) {
+            character.location = result.location;
+            character.current_map = 'overworld';
+            await checkTravelStatus();
+            renderCurrentMap();
+            showMsg('missions-msg', result.message || (pt ? 'Você desce do Celestial.' : 'You descend from the Celestial.'));
+        }
+    } catch (e) {
+        showMsg('missions-msg', e.message, true);
+    }
+}
+// Delegated data-action handlers resolve through globalThis, so these must be exported.
+window.enterCelestialGate = enterCelestialGate;
+window.exitCelestial = exitCelestial;
+
 function openLocationModal(zoneId) {
     // Determine which map we're on
     const currentMap = character?.current_map || 'overworld';
-    let zone;
-
-    if (currentMap === 'abyss' && abyssData) {
-        zone = abyssData.zones[zoneId];
-    } else {
-        zone = ZONES[zoneId];
-    }
+    const zone = mapZoneById(zoneId, currentMap);
 
     if (!zone) {
         console.error('Zone not found:', zoneId);
@@ -6764,19 +6958,27 @@ function openLocationModal(zoneId) {
     const hasActiveMission = !!window.activeMission;
     const actionBlocked = isTraveling || hasActiveMission;
 
-    const isUnlocked = currentMap === 'abyss'
-        ? (unlockedAbyssZones.has(zoneId) || isCurrent)
-        : (unlockedTravelZones.has(zoneId) || isCurrent);
-    const prereq = currentMap === 'abyss' ? null : getTravelGatekeeperPrereq(zoneId, 'overworld');
-    const prereqMet = currentMap === 'abyss' ? true : (!prereq || unlockedTravelZones.has(prereq.unlockZone) || currentZone === prereq.unlockZone);
+    const isCelestial = currentMap === 'celestial';
+    const isUnlocked = isCelestial
+        ? (isCurrent || celestialGateOpen(zone))
+        : currentMap === 'abyss'
+            ? (unlockedAbyssZones.has(zoneId) || isCurrent)
+            : (unlockedTravelZones.has(zoneId) || isCurrent);
+    const prereq = (currentMap === 'abyss' || isCelestial) ? null : getTravelGatekeeperPrereq(zoneId, 'overworld');
+    const prereqMet = (currentMap === 'abyss' || isCelestial) ? true : (!prereq || unlockedTravelZones.has(prereq.unlockZone) || currentZone === prereq.unlockZone);
     const canChallengeThisGatekeeper = isUnlocked || prereqMet;
+    const gateHonor = Number(zone.honorRequired || 0);
     let travelInfo = '';
     if (!isCurrent) {
-        travelInfo = !canChallengeThisGatekeeper
-            ? (CURRENT_LANG === 'pt' ? `Desafie ${prereq.guardianName} primeiro` : `Please challenge ${prereq.guardianName} first`)
-            : isUnlocked
+        travelInfo = isCelestial
+            ? (isUnlocked
                 ? (CURRENT_LANG === 'pt' ? `Viagem necessária para chegar a ${zName(zone)}` : `Travel required to reach ${zName(zone)}`)
-                : (CURRENT_LANG === 'pt' ? `Derrote o guardião para desbloquear ${zName(zone)}` : `Defeat the gatekeeper to unlock ${zName(zone)}`);
+                : (CURRENT_LANG === 'pt' ? `Requer ${gateHonor} de Honra` : `Requires ${gateHonor} Honor`))
+            : !canChallengeThisGatekeeper
+                ? (CURRENT_LANG === 'pt' ? `Desafie ${prereq.guardianName} primeiro` : `Please challenge ${prereq.guardianName} first`)
+                : isUnlocked
+                    ? (CURRENT_LANG === 'pt' ? `Viagem necessária para chegar a ${zName(zone)}` : `Travel required to reach ${zName(zone)}`)
+                    : (CURRENT_LANG === 'pt' ? `Derrote o guardião para desbloquear ${zName(zone)}` : `Defeat the gatekeeper to unlock ${zName(zone)}`);
     }
 
     const dc = { easy: '#2ecc71', medium: '#f39c12', hard: '#e74c3c', normal: '#3498db', nightmare: '#9b59b6' };
@@ -6791,7 +6993,11 @@ function openLocationModal(zoneId) {
                     ${isCurrent
         ? `<span class="mz-here-badge">📍 ${CURRENT_LANG === 'pt' ? 'Você está aqui' : 'You are here'}</span>`
         : `<button class="mz-travel-btn" ${actionAttrs('travelToZone', zoneId)} ${actionBlocked || !canChallengeThisGatekeeper ? 'disabled' : ''}>
-                            ${isUnlocked ? (CURRENT_LANG === 'pt' ? '🚶 Viajar aqui' : '🚶 Travel here') : (CURRENT_LANG === 'pt' ? '⚔️ Desafiar pela entrada' : '⚔️ Challenge for entry')}${travelInfo ? ' · ' + travelInfo : ''}
+                            ${isUnlocked
+        ? (CURRENT_LANG === 'pt' ? '🚶 Viajar aqui' : '🚶 Travel here')
+        : isCelestial
+            ? (CURRENT_LANG === 'pt' ? '🔒 Honra insuficiente' : '🔒 Not enough Honor')
+            : (CURRENT_LANG === 'pt' ? '⚔️ Desafiar pela entrada' : '⚔️ Challenge for entry')}${travelInfo ? ' · ' + travelInfo : ''}
                           </button>`
     }
                 </div>
@@ -6837,13 +7043,7 @@ function openLocationModal(zoneId) {
 
 function openSpotMissions(zoneId, spotId) {
     const currentMap = character?.current_map || 'overworld';
-    let zone;
-
-    if (currentMap === 'abyss' && abyssData) {
-        zone = abyssData.zones[zoneId];
-    } else {
-        zone = ZONES[zoneId];
-    }
+    const zone = mapZoneById(zoneId, currentMap);
 
     if (!zone) return;
 
@@ -6949,13 +7149,7 @@ function pickMissionSize(zoneId, spotId, sizeKey) {
     api('POST', '/game/missions/ui-tick', {}).catch(() => {});
 
     const currentMap = character?.current_map || 'overworld';
-    let zone;
-
-    if (currentMap === 'abyss' && abyssData) {
-        zone = abyssData.zones[zoneId];
-    } else {
-        zone = ZONES[zoneId];
-    }
+    const zone = mapZoneById(zoneId, currentMap);
 
     if (!zone) return;
 
@@ -7019,7 +7213,7 @@ async function renderAutoCompletePanel(zoneId, spotId) {
     const panel = document.getElementById('auto-complete-panel');
     if (!panel) return;
     const currentMap = character?.current_map || 'overworld';
-    const zone = currentMap === 'abyss' && abyssData ? abyssData.zones[zoneId] : ZONES[zoneId];
+    const zone = mapZoneById(zoneId, currentMap);
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!zone || !spot) { panel.innerHTML = ''; return; }
 
@@ -7388,13 +7582,7 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
     _missionStarting = true;
 
     const currentMap = character?.current_map || 'overworld';
-    let zone;
-
-    if (currentMap === 'abyss' && abyssData) {
-        zone = abyssData.zones[zoneId];
-    } else {
-        zone = ZONES[zoneId];
-    }
+    const zone = mapZoneById(zoneId, currentMap);
 
     const spot = zone?.spots.find(s => s.id === spotId);
     if (!spot) { _missionStarting = false; return; }
@@ -7415,7 +7603,7 @@ async function doStartMission(zoneId, spotId, missionIdx, size = 'small') {
         const confirmedName = zMissionName(result?.mission?.missionName || result?.mission?.mission_name) || zMissionName(missionName) || (CURRENT_LANG === 'pt' ? 'Missão' : 'Mission');
         const endsAt = result?.mission?.ends_at || (Math.floor(Date.now() / 1000) + (result?.mission?.duration || 600));
         showMissionOverlay({ id: result?.mission?.id || 1, zone: zoneId, ends_at: endsAt }, confirmedName);
-        renderWorldMap(); // or renderCurrentMap?
+        renderCurrentMap();
         setTimeout(() => checkAndShowMissionOverlay(), 1000);
     } catch(e) {
         showMsg('missions-msg', e.message, true);
@@ -7442,9 +7630,20 @@ async function travelToZone(zoneId) {
         const currentMap = character?.current_map || 'overworld';
         const prereq = getTravelGatekeeperPrereq(zoneId, currentMap);
         const currentZone = character?.location || 'forest';
-        const zoneAlreadyUnlocked = currentMap === 'abyss'
-            ? unlockedAbyssZones.has(zoneId)
-            : unlockedTravelZones.has(zoneId);
+        const zoneAlreadyUnlocked = currentMap === 'celestial'
+            ? (unlockedCelestialZones.has(zoneId) || celestialGateOpen(mapZoneById(zoneId, currentMap)))
+            : currentMap === 'abyss'
+                ? unlockedAbyssZones.has(zoneId)
+                : unlockedTravelZones.has(zoneId);
+        if (currentMap === 'celestial' && !zoneAlreadyUnlocked) {
+            const gateZone = mapZoneById(zoneId, currentMap);
+            const need = Number(gateZone?.honorRequired || 1000);
+            showMsg('missions-msg', CURRENT_LANG === 'pt'
+                ? `O portal exige ${need} de Honra (você tem ${currentHonor()}).`
+                : `This gate requires ${need} Honor (you have ${currentHonor()}).`, true);
+            closeMissionModal2();
+            return;
+        }
         if (prereq && !unlockedTravelZones.has(prereq.unlockZone) && currentZone !== prereq.unlockZone) {
             showMsg('missions-msg', CURRENT_LANG === 'pt' ? `Desafie "${prereq.guardianName}" primeiro.` : `Please challenge "${prereq.guardianName}" first.`, true);
             return;
@@ -8155,12 +8354,7 @@ function stopAutoOverlayPoll() {
 function resolveMissionOverlayImg(active) {
     if (!active || typeof active !== 'object') return '';
     const currentMap = active.map_type || character?.current_map || 'overworld';
-    let zone;
-    if (currentMap === 'abyss') {
-        zone = (abyssData && abyssData.zones && abyssData.zones[active.zone]) || null;
-    } else {
-        zone = ZONES[active.zone] || null;
-    }
+    const zone = mapZoneById(active.zone, currentMap);
     const spot = zone && zone.spots ? zone.spots.find(s => s.id === active.spot) : null;
     if (!spot || !Array.isArray(spot.missions)) return '';
     const rawName = active.mission_name || active.missionName || '';
@@ -8173,12 +8367,7 @@ function resolveSummonOverlayImg(auto) {
     const zoneId = (auto && auto.zone) || _autoPickerZone;
     const spotId = (auto && auto.spot) || _autoPickerSpot;
     const currentMap = (auto && auto.currentMap) || character?.current_map || 'overworld';
-    let zone;
-    if (currentMap === 'abyss') {
-        zone = (abyssData && abyssData.zones && abyssData.zones[zoneId]) || null;
-    } else {
-        zone = ZONES[zoneId] || null;
-    }
+    const zone = mapZoneById(zoneId, currentMap);
     const spot = zone && zone.spots ? zone.spots.find(s => s.id === spotId) : null;
     if (!spot || !Array.isArray(spot.missions)) return '';
     const idx = Number(auto && auto.missionIdx);
@@ -8210,7 +8399,7 @@ function showMissionOverlay(active, displayName) {
     if (collectBtn) collectBtn.classList.toggle('hidden', !!_autoEnabledCache);
     if (badgeEl) badgeEl.textContent = CURRENT_LANG === 'pt' ? '⚔️ EM MISSÃO' : '⚔️ ON MISSION';
     if (nameEl) nameEl.textContent=displayName;
-    if (zoneEl) zoneEl.textContent='📍 '+(zName(ZONES[active.zone])||active.zone||'');
+    if (zoneEl) zoneEl.textContent='📍 '+(zName(mapZoneById(active.zone, active.map_type))||active.zone||'');
     const totalDuration=active.ends_at-(active.started_at||(active.ends_at-600));
     function tick() {
         const now=Math.floor(Date.now()/1000), left=Math.max(0,active.ends_at-now);
@@ -8253,7 +8442,7 @@ function showAutoSummonOverlay(auto) {
     const collectBtn=document.getElementById('overlay-collect-btn');
     if (badgeEl) badgeEl.textContent = CURRENT_LANG === 'pt' ? '🔮 AUTO-CONCLUIR' : '🔮 AUTO-COMPLETE';
     if (nameEl) nameEl.textContent='Arcane Reservoir';
-    if (zoneEl) zoneEl.textContent='📍 '+(zName(ZONES[auto?.zone]) || zName(ZONES[_autoPickerZone]) || '');
+    if (zoneEl) zoneEl.textContent='📍 '+(zName(mapZoneById(auto?.zone, auto?.currentMap)) || zName(mapZoneById(_autoPickerZone)) || '');
     if (timerEl) { timerEl.textContent = CURRENT_LANG === 'pt' ? 'Invocando…' : 'Summoning…'; timerEl.className='mission-overlay-timer summon'; }
     if (subtextEl) subtextEl.textContent = CURRENT_LANG === 'pt' ? 'Seu fluxo arcano acende — a primeira missão começa em breve.' : 'Your arcane flow ignites — the first mission begins shortly.';
     if (fillEl) { fillEl.style.width='0%'; fillEl.className='mission-overlay-progress-fill'; }
@@ -8410,8 +8599,8 @@ function showTravelOverlay() {
     const timerEl=document.getElementById('travel-overlay-timer');
     const fillEl=document.getElementById('travel-overlay-fill');
     const cancelBtn=document.getElementById('travel-cancel-btn');
-    if (nameEl) nameEl.textContent=ZONES[playerTravelTarget]?.name||playerTravelTarget;
-    if (fromEl) fromEl.textContent=(CURRENT_LANG === 'pt' ? 'De ' : 'From ')+(ZONES[playerLocation]?.name||playerLocation);
+    if (nameEl) nameEl.textContent=zName(mapZoneById(playerTravelTarget))||playerTravelTarget;
+    if (fromEl) fromEl.textContent=(CURRENT_LANG === 'pt' ? 'De ' : 'From ')+(zName(mapZoneById(playerLocation))||playerLocation);
     const totalDuration=playerTravelEndTime-playerTravelStartTime||60;
     function tick() {
         const now=Math.floor(Date.now()/1000), left=Math.max(0,playerTravelEndTime-now);
@@ -8504,14 +8693,14 @@ async function checkTravelStatus() {
         playerTravelStartTime=status.travelStartTime||0;
         unlockedTravelZones = new Set(status.unlockedZones || ['forest']);
         unlockedAbyssZones = new Set(status.unlockedAbyssZones || []);
+        unlockedCelestialZones = new Set(status.unlockedCelestialZones || []);
 
         if (playerTravelTarget) showTravelOverlay(); else hideTravelOverlay();
 
         if (status.encounterResult) {
             const result = status.encounterResult;
             const currentMap = status.currentMap || character?.current_map || 'overworld';
-            const zoneMap = currentMap === 'abyss' ? ABYSS_ZONES : ZONES;
-            const zoneDef = zoneMap[result.targetZone];
+            const zoneDef = mapZoneById(result.targetZone, currentMap);
             const currentLangPt = CURRENT_LANG === 'pt';
             const zoneLabel = zoneDef ? zName(zoneDef) : (result.targetZone || (currentLangPt ? 'a zona' : 'the zone'));
 
@@ -14452,10 +14641,10 @@ function renderAllTimeRecords() {
     let bestWk = null;
     for (const h of histDmg) { if (!bestWk || Number(h.total_dmg || 0) > Number(bestWk.total_dmg || 0)) bestWk = h; }
     if (curDmgTop && (!bestWk || Number(curDmgTop.total_dmg || 0) > Number(bestWk.total_dmg || 0))) bestWk = curDmgTop;
-    if (bestWk) html += card('Top Weekly Damage', bestWk, bestWk.total_dmg);
-    if (r.topSingle && r.topSingle[0]) html += card('Top Battle Damage', r.topSingle[0], r.topSingle[0].top_damage_dealt);
-    if (r.topWins && r.topWins[0]) html += card('Most Wins', r.topWins[0], r.topWins[0].wins);
-    if (r.topHonor && r.topHonor[0]) html += card('Highest Honor', r.topHonor[0], r.topHonor[0].honor);
+    if (bestWk) html += card(_pt('Top Dano Semanal','Top Weekly Damage'), bestWk, bestWk.total_dmg);
+    if (r.topSingle && r.topSingle[0]) html += card(_pt('Top Dano em Batalha','Top Battle Damage'), r.topSingle[0], r.topSingle[0].top_damage_dealt);
+    if (r.topWins && r.topWins[0]) html += card(_pt('Mais Vitórias','Most Wins'), r.topWins[0], r.topWins[0].wins);
+    if (r.topHonor && r.topHonor[0]) html += card(_pt('Maior Honra','Highest Honor'), r.topHonor[0], r.topHonor[0].honor);
     html += '</div>';
     if (html === '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>') return '';
     return html;
@@ -14973,7 +15162,7 @@ function findMissionVisualByName(missionName) {
         }
         return null;
     };
-    return searchZones(ZONES) || (abyssData ? searchZones(abyssData.zones) : null);
+    return searchZones(ZONES) || (abyssData ? searchZones(abyssData.zones) : null) || (celestialData ? searchZones(celestialData.zones) : null);
 }
 
 function buildBattleShowcaseCard({ name, className, level, splash = false, fallback = '⚔️', side = 'left', imageSrc = null, metaText = '' }) {
@@ -15559,10 +15748,47 @@ const NEWS_FEED = [
         title: { en: 'PvP Tournaments & Deathmatches!', pt: 'Torneios PvP e Batalhas Mortais!'},
         short: { en: 'Compete in thrilling PvP tournaments, earn unique rewards, and prove yourself as the ultimate champion.', pt: 'Compita em emocionantes torneios PvP, ganhe recompensas exclusivas e prove ser o campeão supremo.'},
         body: { en: 'Step into the arena and face off against other players in intense PvP tournaments. Climb the ranks, earn glory, and claim exclusive rewards only available to the champions. Deathmatches offer a fast-paced, high-stakes combat experience where only the strongest survive.', pt: 'Entre na arena e enfrente outros jogadores em intensos torneios PvP. Suba nas classificações, ganhe glória e reivindique recompensas exclusivas disponíveis apenas para os campeões. As Batalhas Mortais oferecem uma experiência de combate rápida e de alto risco, onde apenas os mais fortes sobrevivem.'}
+    },
+    {
+        id: 'news-tournament-honor',
+        type: 'event',
+        date: '2026-11-12',
+        image: '/images/tournaments/banner.png',
+        title: { en: 'Tournaments Now Award Honor!', pt: 'Torneios Agora Concedem Honra!'},
+        short: { en: 'Win tournament battles and titles to climb the Honor Hall of Fame.', pt: 'Vença batalhas e títulos de torneio para subir no Hall da Fama da Honra.'},
+        body: { en: 'Tournament victories now grant fixed Honor rewards: +5 Honor for every tournament battle won and an additional +10 Honor for winning the tournament title. These rewards count toward individual and squad Hall of Fame rankings, as well as weekly Honor performance. Keep fighting, keep climbing!', pt: 'As vitórias em torneios agora concedem recompensas fixas de Honra: +5 de Honra por cada batalha vencida e +10 de Honra adicionais ao vencer o título do torneio. Essas recompensas contam para as classificações do Hall da Fama individual e de esquadrão, além do desempenho semanal de Honra. Continue lutando e subindo!'}
+    },
+    {
+        id: 'news-celestial-map',
+        type: 'announcement',
+        date: '2026-11-12',
+        image: '/images/celestial-map.jpeg',
+        title: { en: 'The Celestial Has Opened!', pt: 'O Celestial Se Abriu!'},
+        short: { en: 'A new Honor-gated map with five zones, fixed bosses, high rewards, and exclusive shop bonuses.', pt: 'Um novo mapa bloqueado por Honra, com cinco zonas, chefes fixos, recompensas altas e bônus exclusivos na loja.'},
+        body: { en: 'The Celestial is a five-zone map beyond Dark City, accessible only through Honor. Each zone demands another 1,000 Honor, up to 5,000 for the fifth. Battles use fixed, powerful monsters scaled by zone and a small character-level adjustment, while mission payouts match Abyss rewards and drops are now more varied. Shop boosts in each zone also grant 3 extra stat slots, making Celestial gear truly unique.', pt: 'O Celestial é um mapa de cinco zonas além da Cidade das Sombras, acessível apenas por Honra. Cada zona exige mais 1.000 de Honra, até 5.000 na quinta. As batalhas usam monstros fixos e poderosos, escalados por zona e com um pequeno ajuste por nível do personagem, enquanto as recompensas de missão igualam as do Abismo e as drops ficaram mais variadas. Os bônus da loja em cada zona também concedem 3 slots extras de atributos, tornando o equipamento do Celestial verdadeiramente único.'}
     }
 ];
+const NEWS_READ_KEY = 'rpg_read_news_ids';
+function getReadNewsIds() { try { return JSON.parse(localStorage.getItem(NEWS_READ_KEY) || '[]'); } catch { return []; } }
+function setReadNewsIds(ids) { try { localStorage.setItem(NEWS_READ_KEY, JSON.stringify(Array.from(new Set(ids)))); } catch {} }
+function isNewsRead(id) { return getReadNewsIds().includes(id); }
+function markNewsRead(id) { const ids = getReadNewsIds(); if (!ids.includes(id)) { ids.push(id); setReadNewsIds(ids); } updateNewsBadge(); const menuBtn = document.getElementById('topbar-menu-btn'); if (menuBtn) { if (getUnreadNewsCount() > 0 || (typeof character !== 'undefined' && character && character.weekly_claimable_count > 0)) menuBtn.classList.add('menu-highlight'); else menuBtn.classList.remove('menu-highlight'); } }
+function markAllNewsRead() { setReadNewsIds(NEWS_FEED.map(item => item.id)); updateNewsBadge(); }
+function getUnreadNewsCount() { const read = getReadNewsIds(); return NEWS_FEED.filter(item => !read.includes(item.id)).length; }
+function updateNewsBadge() {
+    const count = getUnreadNewsCount();
+    const btn = document.querySelector('[data-action="openNews"]');
+    if (!btn) return;
+    btn.classList.toggle('claimable-highlight', count > 0);
+}
+if (localStorage.getItem(NEWS_READ_KEY) === null) {
+    setReadNewsIds(NEWS_FEED.map(item => item.id).filter(id => id !== 'news-tournament-honor' && id !== 'news-celestial-map'));
+}
+
 
 async function newsStoryCta() {
+    const featuredItem = NEWS_FEED.find(item => item.cta === 'story');
+    if (featuredItem) markNewsRead(featuredItem.id);
     if (!character?.story) {
         await loadStoryPanel(); // Ensure story data is loaded
     }
@@ -15579,6 +15805,11 @@ function toggleNewsItem(id) {
     const item = document.getElementById(`news-item-${id}`);
     if (item) {
         item.classList.toggle('open');
+        if (!isNewsRead(id)) {
+            markNewsRead(id);
+            item.classList.remove('news-item--unread');
+            item.querySelector('.news-new-badge')?.remove();
+        }
     }
 }
 window.toggleNewsItem = toggleNewsItem;
@@ -15606,46 +15837,31 @@ async function loadNews() {
         return new Date(dateString).toLocaleDateString(CURRENT_LANG, options);
     };
 
-    // Featured news (the story mode one)
-    const featuredItem = NEWS_FEED.find(item => item.cta === 'story');
-    if (featuredItem) {
-        newsFeaturedEl.innerHTML = `
-            <div class="news-item news-item--featured" id="news-item-${featuredItem.id}" ${actionAttrs('toggleNewsItem', featuredItem.id)}>
-                <div class="news-item-art"><img src="${featuredItem.image}" alt="" loading="lazy" decoding="async" data-error-hide="true"><div class="news-item-art-shade"></div></div>
-                <div class="news-item-header">
-                    <span class="news-item-badge news-item-badge--${featuredItem.type}">${newsBadgeLabel(featuredItem.type)}</span>
-                    <span class="news-item-date">${formatDate(featuredItem.date)}</span>
-                </div>
-                <h3 class="news-item-title">${_pt(featuredItem.title.pt, featuredItem.title.en)}</h3>
-                <p class="news-item-short">${_pt(featuredItem.short.pt, featuredItem.short.en)}</p>
-                <div class="news-item-body"><p>${_pt(featuredItem.body.pt, featuredItem.body.en)}</p></div>
-                ${featuredItem.cta === 'story' ? `<button class="news-item-cta-btn" ${actionAttrs('newsStoryCta')}>${_pt('Abrir Modo História', 'Open Story Mode')}</button>` : ''}
-            </div>
-        `;
-    }
-
-    // Regular news list (excluding featured), newest first
-    const regularNews = NEWS_FEED
-        .filter(item => item.cta !== 'story')
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-    if (regularNews.length) {
-        newsListEl.innerHTML = regularNews.map(item => `
-            <div class="news-item" id="news-item-${item.id}" ${actionAttrs('toggleNewsItem', item.id)}>
+    // All news in one list, newest first. Story items keep their CTA button but are
+// not pinned above newer updates.
+    newsFeaturedEl.innerHTML = '';
+    const sortedNews = NEWS_FEED.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    if (sortedNews.length) {
+        newsListEl.innerHTML = sortedNews.map(item => {
+            const unread = !isNewsRead(item.id);
+            return `
+            <div class="news-item ${item.cta === 'story' ? 'news-item--featured' : ''} ${unread ? 'news-item--unread' : ''}" id="news-item-${item.id}" ${actionAttrs('toggleNewsItem', item.id)}>
                 <div class="news-item-art"><img src="${item.image}" alt="" loading="lazy" decoding="async" data-error-hide="true"><div class="news-item-art-shade"></div></div>
                 <div class="news-item-header">
                     <span class="news-item-badge news-item-badge--${item.type}">${newsBadgeLabel(item.type)}</span>
+                    ${unread ? `<span class="news-new-badge">${_pt('NOVO', 'NEW')}</span>` : ''}
                     <span class="news-item-date">${formatDate(item.date)}</span>
                 </div>
                 <h3 class="news-item-title">${_pt(item.title.pt, item.title.en)}</h3>
                 <p class="news-item-short">${_pt(item.short.pt, item.short.en)}</p>
                 <div class="news-item-body"><p>${_pt(item.body.pt, item.body.en)}</p></div>
+                ${item.cta === 'story' ? `<button class="news-item-cta-btn" ${actionAttrs('newsStoryCta')}>${_pt('Abrir Modo História', 'Open Story Mode')}</button>` : ''}
             </div>
-        `).join('');
-    }
-
-    if (!featuredItem && !regularNews.length) {
+        `; }).join('');
+    } else {
         newsListEl.innerHTML = `<p class="loading">${_pt('Nenhuma notícia disponível ainda.', 'No news available yet.')}</p>`;
     }
+    updateNewsBadge();
 }
 window.loadNews = loadNews;
 
@@ -15982,6 +16198,14 @@ function formatChatTime(ts) {
     });
 }
 
+function updateChatStatusDOM() {
+    const status = document.getElementById('chat-widget-status');
+    if (!status) return;
+    status.textContent = chatStatusText;
+    status.classList.toggle('error', !!chatStatusText && chatStatusIsError);
+    status.classList.toggle('success', !!chatStatusText && !chatStatusIsError);
+}
+
 function setChatWidgetStatus(message = '', isError = false) {
     chatStatusText = String(message || '');
     chatStatusIsError = !!isError;
@@ -15990,37 +16214,10 @@ function setChatWidgetStatus(message = '', isError = false) {
         chatStatusTimer = setTimeout(() => {
             chatStatusText = '';
             chatStatusIsError = false;
-            renderChatWidget();
+            updateChatStatusDOM();
         }, 3200);
     }
-    renderChatWidget();
-}
-
-function syncChatRecipientUi() {
-    const recipientInput = document.getElementById('chat-recipient-input');
-    const clearBtn = document.querySelector('.chat-widget-target-clear');
-    const subtitle = document.querySelector('.chat-widget-subtitle');
-    const messageInput = document.getElementById('chat-message-input');
-    const recipientDraft = String(recipientInput?.value || chatPmTarget || '').trim();
-    chatPmTarget = recipientDraft;
-    if (chatActiveView === 'private' && recipientDraft) {
-        chatActivePmThread = recipientDraft;
-    }
-    const canSendPm = recipientDraft.trim().length > 0;
-    if (clearBtn) {
-        clearBtn.textContent = canSendPm ? 'Clear PM' : 'Clear';
-        clearBtn.classList.toggle('active', canSendPm);
-    }
-    if (subtitle) {
-        subtitle.textContent = chatActiveView === 'private'
-            ? (canSendPm ? `Private with ${recipientDraft}` : 'Choose a private thread')
-            : 'World channel';
-    }
-    if (messageInput) {
-        messageInput.placeholder = chatActiveView === 'private'
-            ? (canSendPm ? 'Send private message…' : 'Choose or enter a character name…')
-            : 'Send global message…';
-    }
+    updateChatStatusDOM();
 }
 
 function isChatWidgetAvailable() {
@@ -16325,50 +16522,115 @@ function appendChatMessages(messages = []) {
     }
 }
 
+function chatMessageHtml(msg) {
+    const privateLabel = msg.is_private
+        ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM')
+        : (msg.squad_id ? 'Squad' : 'Global');
+    const isOwn = !!msg.is_outgoing;
+    const isUnreadHighlight = !isOwn && (
+        (!msg.is_private && !msg.squad_id && chatHighlightedGlobalIds.has(Number(msg.id || 0))) ||
+        (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0)))
+    );
+    const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
+    const actionBtns = [];
+    if (!isOwn) {
+        actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
+        actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
+    } else {
+        actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
+        actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
+    }
+    return `
+        <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${isOwn ? 'outgoing' : 'incoming'} ${isUnreadHighlight ? 'unread-highlight' : ''}">
+            <div class="chat-line-meta">
+                <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
+                <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
+                <span class="chat-line-channel">${privateLabel}</span>
+                ${actionBtns.length ? `<div class="chat-line-actions">${actionBtns.join('')}</div>` : ''}
+            </div>
+            <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
+        </div>`;
+}
+
+function chatPrivateThreadTabsHtml(privateThreads, activePrivateTarget) {
+    if (!privateThreads.length) return '<div class="chat-thread-empty">No private conversations yet.</div>';
+    return privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
+        <button class="chat-thread-tab-main" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
+            <span>${escHtml(thread.key)}</span>
+            ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
+        </button>
+        <button class="chat-thread-tab-close" ${actionAttrs('closePrivateChatThread', thread.key)} data-no-action-lock="true" title="Close private chat">X</button>
+    </div>`).join('');
+}
+
 function updateChatMessagesDOM() {
     const container = document.getElementById('chat-widget-messages');
     if (!container) return;
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    const shouldStickToBottom = distanceFromBottom <= 48 || !chatExpanded;
     const visibleMessages = getVisibleChatMessages();
-    const expanded = chatExpanded;
-    const messagesHtml = visibleMessages.map(msg => {
-        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
-        const isOwn = msg.is_outgoing;
-        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
-        return `
-            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
-                <div class="chat-line-meta">
-                    <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
-                    <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
-                    <span class="chat-line-channel">${privateLabel}</span>
-                    ${(() => {
-            const btns = [];
-            if (!isOwn) {
-                btns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">✉</button>`);
-                btns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">↩</button>`);
-            }
-            if (isOwn) {
-                btns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">✏️</button>`);
-                btns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">🗑️</button>`);
-            }
-            return btns.length ? `<div class="chat-line-actions">${btns.join('')}</div>` : '';
-        })()}
-                </div>
-                <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
-            </div>
-        `;
-    }).join('');
-    const emptyHtml = '<div class="chat-empty">No messages yet. Say hello.</div>';
-    container.innerHTML = messagesHtml || emptyHtml;
-    container.scrollTop = container.scrollHeight;
+    container.innerHTML = visibleMessages.length
+        ? visibleMessages.map(chatMessageHtml).join('')
+        : '<div class="chat-empty">No messages yet. Say hello.</div>';
+    if (shouldStickToBottom) container.scrollTop = container.scrollHeight;
+
+    const filteredMessages = getFilteredChatMessages();
+    const more = document.getElementById('chat-widget-more');
+    if (more) {
+        const hiddenCount = Math.max(0, filteredMessages.length - visibleMessages.length);
+        more.classList.toggle('hidden', filteredMessages.length <= 8);
+        const button = more.querySelector('.chat-widget-more-btn');
+        if (button) button.textContent = chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`;
+    }
+}
+
+function updateChatViewTab(view, label, count, unread) {
+    const tab = document.querySelector(`[data-chat-view-tab="${view}"]`);
+    if (!tab) return;
+    tab.innerHTML = `${label} (${count})${unread ? ' <span class="chat-thread-tab-alert">!</span>' : ''}`;
+}
+
+function updateChatWidgetLive() {
+    syncTopbarChatAlert();
+    if (chatWidgetCollapsed) return;
+    const root = document.getElementById('chat-widget-root');
+    if (!root || !document.getElementById('chat-widget-messages')) {
+        renderChatWidget();
+        return;
+    }
+
+    const hasSquadTab = !!root.querySelector('[data-chat-view-tab="squad"]');
+    if (hasSquadTab !== !!chatSquadId) {
+        renderChatWidget();
+        return;
+    }
+
+    const privateThreads = getPrivateChatThreads();
+    if (chatActiveView === 'private' && !chatActivePmThread && privateThreads.length) {
+        chatActivePmThread = privateThreads[0].key;
+        chatPmTarget = chatActivePmThread;
+        markPrivateThreadRead(chatActivePmThread, true);
+        const recipientInput = document.getElementById('chat-recipient-input');
+        if (recipientInput) recipientInput.value = chatActivePmThread;
+        syncChatRecipientUi();
+    }
+
+    updateChatMessagesDOM();
+    const safeMessages = trimChatMessages(chatMessages);
+    updateChatViewTab('global', 'Global', safeMessages.filter(msg => !msg?.is_private && !msg?.squad_id).length, getUnreadGlobalMessageIds().length > 0);
+    updateChatViewTab('squad', 'Squad', safeMessages.filter(msg => !msg?.is_private && msg?.squad_id).length, getUnreadSquadMessageIds().length > 0);
+    updateChatViewTab('private', 'Private', privateThreads.length, privateThreads.some(thread => thread.unread));
+
+    const threadTabs = root.querySelector('.chat-thread-tabs');
+    if (threadTabs) {
+        const activeTarget = String(chatActivePmThread || chatPmTarget || '').trim();
+        threadTabs.innerHTML = chatPrivateThreadTabsHtml(privateThreads, activeTarget);
+    }
 }
 
 async function loadChatHistory() {
     if (!isChatWidgetAvailable()) return;
     try {
-        const input = document.getElementById('chat-message-input');
-        const inputValue = input?.value || '';
-        const recipientInput = document.getElementById('chat-recipient-input');
-        const recipientValue = recipientInput?.value || '';
         const data = await api('GET', '/game/chat/history');
         chatSquadId = data?.squadId || null;
         const hadStoredReadState = ensureChatReadStateLoaded();
@@ -16391,9 +16653,7 @@ async function loadChatHistory() {
             chatReadStateLoadedFromStorage = true;
             persistChatReadState();
         }
-        renderChatWidget();
-        if (input) input.value = inputValue;
-        if (recipientInput) recipientInput.value = recipientValue;
+        updateChatWidgetLive();
     } catch (e) {
         console.error('Failed to load chat history:', e);
         setChatWidgetStatus(e.message || 'Failed to load chat.', true);
@@ -16401,16 +16661,20 @@ async function loadChatHistory() {
 }
 
 async function pollChat() {
-    if (!isChatWidgetAvailable()) return;
+    if (!isChatWidgetAvailable() || chatPollInFlight) return;
+    chatPollInFlight = true;
     try {
         const data = await api('GET', `/game/chat/history?since=${chatLatestId || 0}`);
-        if (data?.squadId != null) chatSquadId = data.squadId;
+        const previousSquadId = chatSquadId;
+        if (Object.prototype.hasOwnProperty.call(data || {}, 'squadId')) chatSquadId = data.squadId || null;
         const incoming = data?.messages || [];
-        if (!incoming.length) return;
-        appendChatMessages(incoming);
-        renderChatWidget();
+        if (incoming.length) appendChatMessages(incoming);
+        if (!incoming.length && previousSquadId === chatSquadId) return;
+        updateChatWidgetLive();
     } catch (e) {
         console.error('Chat poll failed:', e);
+    } finally {
+        chatPollInFlight = false;
     }
 }
 
@@ -16426,79 +16690,17 @@ function syncChatPolling() {
     chatPollTimer = setInterval(() => { pollChat(); }, 4000);
 }
 
-function bindChatWidgetEvents() {
-    const root = ensureChatWidgetRoot();
-    if (!root || root.dataset.chatBoundV2 === 'true') return;
-    root.addEventListener('keydown', async (event) => {
-        if (event.target?.id !== 'chat-message-input') return;
-        if (event.key !== 'Enter' || event.shiftKey) return;
-        event.preventDefault();
-        await sendChatMessage();
-    });
-    root.addEventListener('input', (event) => {
-        if (event.target?.id === 'chat-recipient-input') {
-            chatPmTarget = String(event.target.value || '');
-            if (chatActiveView === 'private') {
-                chatActivePmThread = String(event.target.value || '').trim();
-            }
-            syncChatRecipientUi();
-            return;
-        }
-        if (event.target?.id === 'chat-message-input') {
-            const counter = document.getElementById('chat-widget-limit');
-            if (counter) {
-                const remaining = Math.max(0, 280 - String(event.target.value || '').length);
-                counter.textContent = `${remaining} left`;
-            }
-        }
-    });
-    root.addEventListener('pointerdown', (event) => {
-        if (isMobileChatDockMode()) return;
-        const handle = event.target?.closest('.chat-widget-header');
-        if (!handle) return;
-        if (event.target?.closest('button,input,textarea')) return;
-        const rect = root.getBoundingClientRect();
-        chatDragState = {
-            offsetX: event.clientX - rect.left,
-            offsetY: event.clientY - rect.top
-        };
-        root.classList.add('dragging');
-        try { handle.setPointerCapture(event.pointerId); } catch {}
-        event.preventDefault();
-    });
-    window.addEventListener('pointermove', (event) => {
-        if (isMobileChatDockMode()) return;
-        if (!chatDragState) return;
-        const margin = 8;
-        const widgetWidth = root.offsetWidth || 360;
-        const widgetHeight = root.offsetHeight || 420;
-        const nextX = Math.max(margin, Math.min(window.innerWidth - widgetWidth - margin, event.clientX - chatDragState.offsetX));
-        const nextY = Math.max(margin, Math.min(window.innerHeight - widgetHeight - margin, event.clientY - chatDragState.offsetY));
-        chatWidgetPosition = { x: nextX, y: nextY };
-        root.style.left = `${nextX}px`;
-        root.style.top = `${nextY}px`;
-        root.style.right = 'auto';
-        root.style.bottom = 'auto';
-    });
-    window.addEventListener('pointerup', () => {
-        if (!chatDragState) return;
-        chatDragState = null;
-        root.classList.remove('dragging');
-    });
-    root.dataset.chatBoundV2 = 'true';
-}
-
 function isMobileChatDockMode() {
     return window.matchMedia('(max-width: 640px)').matches || window.matchMedia('(pointer: coarse)').matches;
 }
 
 function applyChatDockPosition(root) {
     if (!root) return;
-    const mobileDock = isMobileChatDockMode();
-    root.style.left = 'auto';
+    const mobileDock = window.matchMedia('(max-width: 640px)').matches;
+    root.style.left = mobileDock ? '0' : 'auto';
     root.style.top = 'auto';
-    root.style.right = mobileDock ? '6px' : '18px';
-    root.style.bottom = mobileDock ? '6px' : '18px';
+    root.style.right = mobileDock ? '0' : '18px';
+    root.style.bottom = mobileDock ? '0' : '18px';
 }
 
 function clampChatWidgetPosition(root) {
@@ -16525,13 +16727,11 @@ function ensureChatWidgetRoot() {
     if (root.parentElement !== document.body) {
         document.body.appendChild(root);
     }
-    const isMobile = window.matchMedia('(max-width: 640px)').matches;
     root.style.position = 'fixed';
-    if (isMobile) {
-        root.style.right = '0';
-        root.style.bottom = '0';
-        root.style.left = '0';
-        root.style.top = 'auto';
+    if (window.matchMedia('(max-width: 640px)').matches) {
+        applyChatDockPosition(root);
+    } else if (chatWidgetPosition) {
+        clampChatWidgetPosition(root);
     } else {
         root.style.right = '18px';
         root.style.bottom = '18px';
@@ -16540,146 +16740,6 @@ function ensureChatWidgetRoot() {
     }
     root.style.zIndex = '200';
     return root;
-}
-
-function renderChatWidget() {
-    const root = ensureChatWidgetRoot();
-    if (!root) return;
-    if (!isChatWidgetAvailable()) {
-        root.innerHTML = '';
-        root.classList.add('hidden');
-        return;
-    }
-
-    if (chatWidgetCollapsed) {
-        const hasUnreadPm = chatUnreadPmIds.size > 0;
-        root.classList.remove('hidden');
-        applyChatDockPosition(root);
-        root.innerHTML = `
-            <button class="chat-widget-bubble ${hasUnreadPm ? 'has-alert' : ''}" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
-                <span class="chat-widget-bubble-label">Chat</span>
-                ${hasUnreadPm ? '<span class="chat-widget-bubble-alert">!</span>' : ''}
-            </button>`;
-        return;
-    }
-
-    const input = document.getElementById('chat-message-input');
-    const wasFocused = document.activeElement === input;
-    const prevMessage = input?.value || '';
-    const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
-    chatPmTarget = recipientDraft;
-    const privateThreads = getPrivateChatThreads();
-    if (chatActiveView === 'private' && !chatActivePmThread && privateThreads.length) {
-        chatActivePmThread = privateThreads[0].key;
-        chatPmTarget = chatActivePmThread;
-    }
-    if (chatActiveView === 'private' && chatActivePmThread && !privateThreads.some(thread => thread.key === chatActivePmThread)) {
-        chatActivePmThread = '';
-    }
-    const activePrivateTarget = chatActiveView === 'private'
-        ? String(chatActivePmThread || recipientDraft || '').trim()
-        : '';
-    const canSendPm = activePrivateTarget.length > 0;
-    const statusClass = chatStatusText ? (chatStatusIsError ? 'error' : 'success') : '';
-    const visibleMessages = getVisibleChatMessages();
-    const filteredMessages = getFilteredChatMessages();
-    const hiddenCount = Math.max(0, filteredMessages.length - visibleMessages.length);
-    const remainingChars = Math.max(0, 280 - prevMessage.length);
-    const mobileDock = isMobileChatDockMode();
-    const globalCount = trimChatMessages(chatMessages).filter(msg => !msg?.is_private).length;
-    const privateCount = privateThreads.length;
-    const threadTabsHtml = privateThreads.length
-        ? privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
-                <button class="chat-thread-tab-main" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
-                    <span>${escHtml(thread.key)}</span>
-                    ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
-                </button>
-                <button class="chat-thread-tab-close" ${actionAttrs('closePrivateChatThread', thread.key)} data-no-action-lock="true" title="Close private chat">X</button>
-            </div>`).join('')
-        : '<div class="chat-thread-empty">No private conversations yet.</div>';
-
-    root.classList.remove('hidden');
-    root.innerHTML = `
-        <section class="chat-widget">
-            <div class="chat-widget-header">
-                <div class="chat-widget-title-wrap">
-                    <div class="chat-widget-title">Global Chat</div>
-                    <div class="chat-widget-subtitle">${chatActiveView === 'private' ? (canSendPm ? `Private with ${escHtml(activePrivateTarget)}` : 'Choose a private thread') : 'World channel'}</div>
-                </div>
-                <button class="chat-widget-collapse" title="Close chat" ${actionAttrs('toggleChatWidgetCollapsed')} data-no-action-lock="true">
-                    X
-                </button>
-            </div>
-            <div class="chat-widget-body">
-                <div class="chat-widget-view-tabs">
-                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})</button>
-                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})</button>
-                </div>
-                ${chatActiveView === 'private' ? `
-                    <div class="chat-widget-target-row">
-                        <input id="chat-recipient-input" class="chat-widget-target-input" type="text" maxlength="24" placeholder="Character name for new PM" value="${escHtml(activePrivateTarget || recipientDraft)}">
-                        <button class="chat-widget-target-clear ${canSendPm ? 'active' : ''}" ${actionAttrs('clearChatRecipient')} data-no-action-lock="true">
-                            ${canSendPm ? 'Clear PM' : 'Clear'}
-                        </button>
-                    </div>
-                    <div class="chat-thread-tabs">${threadTabsHtml}</div>
-                ` : ''}
-<div class="chat-widget-messages" id="chat-widget-messages">
-                    ${visibleMessages.length ? visibleMessages.map(msg => {
-        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : 'Global';
-        const isOwn = msg.is_outgoing;
-        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
-        const actionBtns = [];
-        if (!isOwn) {
-            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
-            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
-        }
-        if (isOwn) {
-            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
-            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
-        }
-        return `
-                            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'}">
-                                <div class="chat-line-meta">
-                                    <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
-                                    <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
-                                    <span class="chat-line-channel">${privateLabel}</span>
-                                    ${actionBtns.length ? `<div class="chat-line-actions">${actionBtns.join('')}</div>` : ''}
-                                </div>
-                                <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
-                            </div>
-                        `;
-    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
-                </div>
-                ${filteredMessages.length > 8 ? `
-                    <div class="chat-widget-more">
-                        <button class="chat-widget-more-btn" ${actionAttrs('toggleChatExpanded')} data-no-action-lock="true">
-                            ${chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`}
-                        </button>
-                    </div>
-                ` : ''}
-                <div class="chat-widget-compose">
-                    <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...') : 'Send global message...'}" value="${escHtml(prevMessage)}">
-                    <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
-                </div>
-                <div class="chat-widget-foot">
-                    <span id="chat-widget-limit" class="chat-widget-limit">${remainingChars} left</span>
-                    <span id="chat-widget-status" class="chat-widget-status ${statusClass}">${escHtml(chatStatusText)}</span>
-                </div>
-            </div>
-        </section>`;
-
-    bindChatWidgetEvents();
-    if (wasFocused) {
-        const newInput = document.getElementById('chat-message-input');
-        if (newInput) {
-            newInput.value = prevMessage;
-            newInput.focus();
-            newInput.selectionStart = newInput.selectionEnd = prevMessage.length;
-        }
-    }
-    const messagesEl = document.getElementById('chat-widget-messages');
-    if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function toggleChatWidgetCollapsed() {
@@ -16700,27 +16760,6 @@ function toggleChatWidgetCollapsed() {
 
 function toggleChatExpanded() {
     chatExpanded = !chatExpanded;
-    renderChatWidget();
-}
-
-function switchChatView(view = 'global') {
-    chatActiveView = view === 'private' ? 'private' : 'global';
-    if (chatActiveView === 'private') {
-        const threads = getPrivateChatThreads();
-        if (!chatActivePmThread && threads.length) {
-            chatActivePmThread = threads[0].key;
-        }
-        if (chatActivePmThread) {
-            chatPmTarget = chatActivePmThread;
-            markPrivateThreadRead(chatActivePmThread, true);
-        }
-    } else {
-        chatPmTarget = '';
-        chatActivePmThread = '';
-        chatHighlightedPmIds = new Set();
-        markGlobalMessagesRead(true);
-    }
-    clearChatSuggestions();
     renderChatWidget();
 }
 
@@ -16752,31 +16791,15 @@ function closePrivateChatThread(threadKey) {
     renderChatWidget();
 }
 
-function clearChatRecipient() {
-    chatPmTarget = '';
-    chatActivePmThread = '';
-    const input = document.getElementById('chat-recipient-input');
-    if (input) {
-        input.value = '';
-    }
-    const chatInput = document.getElementById('chat-message-input');
-    if (chatInput) {
-        delete chatInput.dataset.editingId;
-    }
-    localStorage.removeItem('rpg_chat_editing_id');
-    delete window._chatEditingId;
-    renderChatWidget();
-}
-
 function clearChatEdit() {
     const input = document.getElementById('chat-message-input');
     if (input) {
         delete input.dataset.editingId;
+        input.classList.remove('editing');
     }
     localStorage.removeItem('rpg_chat_editing_id');
     delete window._chatEditingId;
     setChatWidgetStatus('', false);
-    renderChatWidget();
 }
 
 function editChatMessage(messageId) {
@@ -16789,29 +16812,29 @@ function editChatMessage(messageId) {
     const editingIdStr = String(messageId);
     input.value = message.message_text || '';
     input.dataset.editingId = editingIdStr;
+    input.classList.add('editing');
     localStorage.setItem('rpg_chat_editing_id', editingIdStr);
     window._chatEditingId = editingIdStr;
+    chatDraft = input.value;
+    chatDraftSelectionStart = chatDraft.length;
+    chatDraftSelectionEnd = chatDraft.length;
     input.focus();
+    input.setSelectionRange(chatDraft.length, chatDraft.length);
 
     setChatWidgetStatus('Edit your message and press Send.', false);
-    renderChatWidget();
 }
 
 function pmChatMessage(messageId) {
     const message = chatMessages.find(m => m.id === messageId);
     if (!message || !message.sender_name) return;
 
-    const recipientInput = document.getElementById('chat-recipient-input');
-    const input = document.getElementById('chat-message-input');
+    clearChatEdit();
     chatActiveView = 'private';
     chatActivePmThread = message.sender_name;
     chatPmTarget = message.sender_name;
-    clearChatEdit();
-
-    if (recipientInput) recipientInput.value = message.sender_name;
-    if (input) input.focus();
-    setChatWidgetStatus(`PM to ${message.sender_name}.`, false);
     renderChatWidget();
+    document.getElementById('chat-message-input')?.focus();
+    setChatWidgetStatus(`PM to ${message.sender_name}.`, false);
 }
 
 function replyChatMessage(messageId) {
@@ -16819,18 +16842,16 @@ function replyChatMessage(messageId) {
     if (!message || !message.sender_name) return;
 
     const input = document.getElementById('chat-message-input');
-    const recipientInput = document.getElementById('chat-recipient-input');
     if (!input) return;
 
-    if (recipientInput) recipientInput.value = '';
-    chatPmTarget = '';
-
-    input.value = `@${message.sender_name} `;
     clearChatEdit();
-
+    input.value = `@${message.sender_name} `;
+    chatDraft = input.value;
+    chatDraftSelectionStart = chatDraft.length;
+    chatDraftSelectionEnd = chatDraft.length;
     input.focus();
+    input.setSelectionRange(chatDraft.length, chatDraft.length);
     setChatWidgetStatus(`Replying to ${message.sender_name}.`, false);
-    renderChatWidget();
 }
 
 function deleteChatMessage(messageId) {
@@ -16839,7 +16860,7 @@ function deleteChatMessage(messageId) {
     api('DELETE', `/game/chat/${messageId}`).then(() => {
         chatMessages = chatMessages.filter(m => m.id !== messageId);
         setChatWidgetStatus('Message deleted.');
-        renderChatWidget();
+        updateChatWidgetLive();
     }).catch(e => {
         setChatWidgetStatus(e.message || 'Failed to delete message.', true);
     });
@@ -16905,9 +16926,13 @@ function bindChatWidgetEvents() {
             return;
         }
         if (event.target?.id === 'chat-message-input') {
+            chatDraft = String(event.target.value || '');
+            chatDraftSelectionStart = Number(event.target.selectionStart ?? chatDraft.length);
+            chatDraftSelectionEnd = Number(event.target.selectionEnd ?? chatDraftSelectionStart);
+            chatDraftScrollLeft = Number(event.target.scrollLeft || 0);
             const counter = document.getElementById('chat-widget-limit');
             if (counter) {
-                const remaining = Math.max(0, 280 - String(event.target.value || '').length);
+                const remaining = Math.max(0, 280 - chatDraft.length);
                 counter.textContent = `${remaining} left`;
             }
             const mention = getActiveChatMentionQuery(event.target);
@@ -16919,6 +16944,25 @@ function bindChatWidgetEvents() {
             }
         }
     });
+    root.addEventListener('blur', (event) => {
+        if (event.target?.id !== 'chat-message-input') return;
+        const input = event.target;
+        chatDraft = String(input.value || '');
+        chatDraftSelectionStart = Number(input.selectionStart ?? chatDraft.length);
+        chatDraftSelectionEnd = Number(input.selectionEnd ?? chatDraftSelectionStart);
+        chatDraftScrollLeft = Number(input.scrollLeft || 0);
+        const preservedScrollLeft = chatDraftScrollLeft;
+        requestAnimationFrame(() => {
+            if (input.isConnected && document.activeElement !== input) {
+                input.scrollLeft = preservedScrollLeft;
+            }
+        });
+    }, true);
+    root.addEventListener('scroll', (event) => {
+        if (event.target?.id === 'chat-message-input' && document.activeElement === event.target) {
+            chatDraftScrollLeft = Number(event.target.scrollLeft || 0);
+        }
+    }, true);
     root.addEventListener('pointerdown', (event) => {
         if (isMobileChatDockMode()) return;
         const handle = event.target?.closest('.chat-widget-header');
@@ -16980,9 +17024,23 @@ function renderChatWidget() {
     }
 
     const input = document.getElementById('chat-message-input');
-    const wasFocused = document.activeElement === input;
-    const prevMessage = input?.value || '';
-    const recipientDraft = document.getElementById('chat-recipient-input')?.value || chatPmTarget || '';
+    const recipientInput = document.getElementById('chat-recipient-input');
+    const wasMessageFocused = document.activeElement === input;
+    const wasRecipientFocused = document.activeElement === recipientInput;
+    if (input) {
+        chatDraft = String(input.value || '');
+        chatDraftSelectionStart = Number(input.selectionStart ?? chatDraft.length);
+        chatDraftSelectionEnd = Number(input.selectionEnd ?? chatDraftSelectionStart);
+        if (wasMessageFocused) chatDraftScrollLeft = Number(input.scrollLeft || 0);
+    }
+    const prevMessage = chatDraft;
+    const prevSelStart = Math.min(chatDraftSelectionStart, prevMessage.length);
+    const prevSelEnd = Math.min(chatDraftSelectionEnd, prevMessage.length);
+    const prevInputScrollLeft = chatDraftScrollLeft;
+    const editingId = input?.dataset?.editingId || localStorage.getItem('rpg_chat_editing_id') || window._chatEditingId || '';
+    const recipientDraft = recipientInput?.value || chatPmTarget || '';
+    const recipientSelStart = Number(recipientInput?.selectionStart ?? String(recipientDraft).length);
+    const recipientSelEnd = Number(recipientInput?.selectionEnd ?? recipientSelStart);
     chatPmTarget = recipientDraft;
     const privateThreads = getPrivateChatThreads();
     if (chatActiveView === 'private' && !chatActivePmThread && privateThreads.length) {
@@ -17009,15 +17067,7 @@ function renderChatWidget() {
     const hasUnreadGlobal = unreadGlobalIds.length > 0;
     const hasUnreadSquad = getUnreadSquadMessageIds().length > 0;
     const hasUnreadPrivate = privateThreads.some(thread => thread.unread);
-    const threadTabsHtml = privateThreads.length
-        ? privateThreads.map(thread => `<div class="chat-thread-tab ${thread.key === activePrivateTarget ? 'active' : ''}">
-                <button class="chat-thread-tab-main" ${actionAttrs('selectPrivateChatThread', thread.key)} data-no-action-lock="true">
-                    <span>${escHtml(thread.key)}</span>
-                    ${thread.unread ? '<span class="chat-thread-tab-alert">!</span>' : ''}
-                </button>
-                <button class="chat-thread-tab-close" ${actionAttrs('closePrivateChatThread', thread.key)} data-no-action-lock="true" title="Close private chat">✕</button>
-            </div>`).join('')
-        : '<div class="chat-thread-empty">No private conversations yet.</div>';
+    const threadTabsHtml = chatPrivateThreadTabsHtml(privateThreads, activePrivateTarget);
 
     root.classList.remove('hidden');
     syncTopbarChatAlert();
@@ -17034,9 +17084,9 @@ function renderChatWidget() {
             </div>
             <div class="chat-widget-body">
                 <div class="chat-widget-view-tabs">
-                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})${hasUnreadGlobal ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
-                    ${inSquad ? `<button class="chat-view-tab ${chatActiveView === 'squad' ? 'active' : ''}" ${actionAttrs('switchChatView', 'squad')} data-no-action-lock="true">Squad (${squadCount})${hasUnreadSquad ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>` : ''}
-                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})${hasUnreadPrivate ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
+                    <button class="chat-view-tab ${chatActiveView === 'global' ? 'active' : ''}" data-chat-view-tab="global" ${actionAttrs('switchChatView', 'global')} data-no-action-lock="true">Global (${globalCount})${hasUnreadGlobal ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
+                    ${inSquad ? `<button class="chat-view-tab ${chatActiveView === 'squad' ? 'active' : ''}" data-chat-view-tab="squad" ${actionAttrs('switchChatView', 'squad')} data-no-action-lock="true">Squad (${squadCount})${hasUnreadSquad ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>` : ''}
+                    <button class="chat-view-tab ${chatActiveView === 'private' ? 'active' : ''}" data-chat-view-tab="private" ${actionAttrs('switchChatView', 'private')} data-no-action-lock="true">Private (${privateCount})${hasUnreadPrivate ? ' <span class="chat-thread-tab-alert">!</span>' : ''}</button>
                 </div>
                 ${chatActiveView === 'private' ? `
                     <div class="chat-widget-target-row">
@@ -17049,40 +17099,13 @@ function renderChatWidget() {
                     <div class="chat-thread-tabs">${threadTabsHtml}</div>
                 ` : ''}
                 <div class="chat-widget-messages" id="chat-widget-messages">
-                    ${visibleMessages.length ? visibleMessages.map(msg => {
-        const privateLabel = msg.is_private ? (msg.is_outgoing ? `to ${escHtml(msg.recipient_name || '')}` : 'PM') : (msg.squad_id ? 'Squad' : 'Global');
-        const isOwn = msg.is_outgoing;
-        const isUnreadHighlight = !isOwn && ((!msg.is_private && !msg.squad_id && chatHighlightedGlobalIds.has(Number(msg.id || 0))) || (msg.is_private && chatHighlightedPmIds.has(Number(msg.id || 0))));
-        const editedTag = msg.edited ? ' <span style="opacity:0.5">(edited)</span>' : '';
-        const actionBtns = [];
-        if (!isOwn) {
-            actionBtns.push(`<button class="chat-pm-btn" ${actionAttrs('pmChatMessage', msg.id)} data-no-action-lock="true" title="Send PM">PM</button>`);
-            actionBtns.push(`<button class="chat-reply-btn" ${actionAttrs('replyChatMessage', msg.id)} data-no-action-lock="true" title="Reply">Reply</button>`);
-        }
-        if (isOwn) {
-            actionBtns.push(`<button class="chat-edit-btn" ${actionAttrs('editChatMessage', msg.id)} data-no-action-lock="true" title="Edit message">Edit</button>`);
-            actionBtns.push(`<button class="chat-delete-btn" ${actionAttrs('deleteChatMessage', msg.id)} data-no-action-lock="true" title="Delete message">Delete</button>`);
-        }
-        return `
-                            <div class="chat-line ${msg.is_private ? 'private' : 'global'} ${msg.is_outgoing ? 'outgoing' : 'incoming'} ${isUnreadHighlight ? 'unread-highlight' : ''}">
-                                <div class="chat-line-meta">
-                                    <span class="chat-line-time">${formatChatTime(msg.created_at)}</span>
-                                    <span class="chat-line-author">${escHtml(msg.sender_name || 'Unknown')}</span>
-                                    <span class="chat-line-channel">${privateLabel}</span>
-                                    ${actionBtns.length ? `<div class="chat-line-actions">${actionBtns.join('')}</div>` : ''}
-                                </div>
-                                <div class="chat-line-text">${escHtml(msg.message_text || '')}${editedTag}</div>
-                            </div>
-                        `;
-    }).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
+                    ${visibleMessages.length ? visibleMessages.map(chatMessageHtml).join('') : '<div class="chat-empty">No messages yet. Say hello.</div>'}
                 </div>
-                ${filteredMessages.length > 8 ? `
-                    <div class="chat-widget-more">
-                        <button class="chat-widget-more-btn" ${actionAttrs('toggleChatExpanded')} data-no-action-lock="true">
-                            ${chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`}
-                        </button>
-                    </div>
-                ` : ''}
+                <div class="chat-widget-more ${filteredMessages.length > 8 ? '' : 'hidden'}" id="chat-widget-more">
+                    <button class="chat-widget-more-btn" ${actionAttrs('toggleChatExpanded')} data-no-action-lock="true">
+                        ${chatExpanded ? 'Show less' : `Read more (${hiddenCount} older)`}
+                    </button>
+                </div>
                 <div class="chat-widget-compose">
                     <input id="chat-message-input" class="chat-widget-message-input" type="text" maxlength="280" placeholder="${chatActiveView === 'private' ? (canSendPm ? 'Send private message...' : 'Choose or enter a character name...') : chatActiveView === 'squad' ? 'Send squad message...' : 'Send global message...'}" value="${escHtml(prevMessage)}">
                     <button class="chat-send-btn" ${actionAttrs('sendChatMessage')} aria-label="Send message"></button>
@@ -17096,13 +17119,22 @@ function renderChatWidget() {
         </section>`;
 
     bindChatWidgetEvents();
-    if (wasFocused) {
-        const newInput = document.getElementById('chat-message-input');
-        if (newInput) {
-            newInput.value = prevMessage;
-            newInput.focus();
-            newInput.selectionStart = newInput.selectionEnd = prevMessage.length;
+    const newInput = document.getElementById('chat-message-input');
+    if (newInput) {
+        newInput.value = prevMessage;
+        if (editingId) {
+            newInput.dataset.editingId = String(editingId);
+            newInput.classList.add('editing');
         }
+        newInput.scrollLeft = prevInputScrollLeft;
+        if (wasMessageFocused) newInput.focus({ preventScroll: true });
+        try { newInput.setSelectionRange(prevSelStart, prevSelEnd); } catch {}
+    }
+    const newRecipientInput = document.getElementById('chat-recipient-input');
+    if (newRecipientInput && recipientInput) {
+        newRecipientInput.value = recipientDraft;
+        if (wasRecipientFocused) newRecipientInput.focus({ preventScroll: true });
+        try { newRecipientInput.setSelectionRange(recipientSelStart, recipientSelEnd); } catch {}
     }
     const messagesEl = document.getElementById('chat-widget-messages');
     if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -17118,6 +17150,7 @@ function switchChatView(view = 'global') {
         }
         if (chatActivePmThread) {
             chatPmTarget = chatActivePmThread;
+            markPrivateThreadRead(chatActivePmThread, true);
         }
     } else {
         chatPmTarget = '';
@@ -17168,6 +17201,9 @@ function chooseChatMentionSuggestion(name) {
     const value = String(input.value || '');
     input.value = `${value.slice(0, range.start)}@${nextName} ${value.slice(range.end)}`;
     const caret = range.start + nextName.length + 2;
+    chatDraft = input.value;
+    chatDraftSelectionStart = caret;
+    chatDraftSelectionEnd = caret;
     input.focus();
     input.setSelectionRange(caret, caret);
     const counter = document.getElementById('chat-widget-limit');
@@ -17206,9 +17242,14 @@ async function sendChatMessage() {
         if (editingId) {
             const result = await api('PUT', `/game/chat/edit/${editingId}`, { message });
             delete input.dataset.editingId;
+            input.classList.remove('editing');
             localStorage.removeItem('rpg_chat_editing_id');
             delete window._chatEditingId;
             if (input) input.value = '';
+            chatDraft = '';
+            chatDraftSelectionStart = 0;
+            chatDraftSelectionEnd = 0;
+            chatDraftScrollLeft = 0;
 
             const idx = chatMessages.findIndex(m => m.id === Number(editingId));
             if (idx >= 0) {
@@ -17223,6 +17264,10 @@ async function sendChatMessage() {
                 channel
             });
             if (input) input.value = '';
+            chatDraft = '';
+            chatDraftSelectionStart = 0;
+            chatDraftSelectionEnd = 0;
+            chatDraftScrollLeft = 0;
             appendChatMessages(result?.message ? [result.message] : []);
             if (recipientName) {
                 chatActiveView = 'private';
@@ -17231,7 +17276,9 @@ async function sendChatMessage() {
             }
             setChatWidgetStatus(recipientName ? `Sent to ${recipientName}.` : channel === 'squad' ? 'Sent to squad.' : 'Message sent.');
         }
-        renderChatWidget();
+        const counter = document.getElementById('chat-widget-limit');
+        if (counter) counter.textContent = '280 left';
+        updateChatWidgetLive();
     } catch (e) {
         setChatWidgetStatus(e.message || 'Failed to send chat message.', true);
     }
@@ -18908,10 +18955,14 @@ function closeMissionModal2() {
     const modal = document.getElementById('mission-location-modal');
     if (modal) modal.classList.add('hidden');
 }
+window.exitAbyss = exitAbyss;
+
 function renderCurrentMap() {
     const currentMap = character?.current_map || 'overworld';
     if (currentMap === 'abyss') {
         renderAbyssMap();
+    } else if (currentMap === 'celestial' && celestialData) {
+        renderCelestialMap();
     } else {
         renderWorldMap();
     }
@@ -18978,6 +19029,72 @@ function renderAbyssMap() {
     // Swap map background to abyss-map
     const bgImg = document.getElementById('world-map-bg');
     if (bgImg) bgImg.src = '/images/abyss-map.jpg';
+
+    layer.innerHTML = svgLines + pinsHtml + exitButton;
+}
+
+// ── The Celestial map ────────────────────────────────────────────────────
+// Same pin layout as the Abyss, but every gate is opened by HONOR: no
+// gatekeeper fight, no level requirement. Locked gates show the Honor needed.
+function renderCelestialMap() {
+    const layer = document.getElementById('map-nodes-layer');
+    if (!layer || !celestialData) return;
+
+    const zones = celestialData.zones || {};
+    const routes = celestialData.routes || {};
+    const currentZone = character?.location || 'celestial_1';
+    const honor = currentHonor();
+    const drawnPairs = new Set();
+    const pt = CURRENT_LANG === 'pt';
+
+    let svgLines = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">`;
+    for (const [fromId, neighbors] of Object.entries(routes)) {
+        for (const toId of Object.keys(neighbors)) {
+            const key = [fromId, toId].sort().join('-');
+            if (drawnPairs.has(key)) continue;
+            drawnPairs.add(key);
+            const from = zones[fromId];
+            const to = zones[toId];
+            if (!from || !to) continue;
+            const isActive = [currentZone, playerTravelTarget].includes(fromId) || [currentZone, playerTravelTarget].includes(toId);
+            const path = buildCurvedRoutePath(from.pos, to.pos, key);
+            svgLines += `<path d="${path}" style="stroke:${isActive ? 'rgba(241,196,15,0.55)' : 'rgba(255,255,255,0.15)'};stroke-width:2;stroke-dasharray:6 4;fill:none;stroke-linecap:round"/>`;
+        }
+    }
+    svgLines += '</svg>';
+
+    const pinsHtml = Object.entries(zones).map(([zoneId, zone]) => {
+        const isCurrent = currentZone === zoneId;
+        const isTraveling = playerTravelTarget === zoneId;
+        const need = Number(zone.honorRequired || 1000);
+        const isOpen = isCurrent || honor >= need;
+        const pinStyle = `position:absolute;left:${zone.pos.x}%;top:${zone.pos.y}%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center;transition:transform 0.2s;${!isOpen ? 'opacity:0.82' : ''}`;
+        const badge = isCurrent ? '📍' : isTraveling ? '🚶' : !isOpen ? '🔒' : '';
+        const ringStyle = `width:72px;height:72px;border-radius:50%;border:3px solid ${isCurrent ? '#f1c40f' : !isOpen ? 'rgba(231,76,60,0.7)' : 'rgba(255,255,255,0.3)'};object-fit:cover;display:block;background:#2c3e50;${!isOpen ? ';filter:saturate(0.85);box-shadow:0 0 0 2px rgba(231,76,60,0.2)' : ''}${isCurrent ? ';box-shadow:0 0 0 3px rgba(241,196,15,0.45)' : ''}${isTraveling ? ';animation:pulse 1.5s infinite' : ''}`;
+        const subLabel = isOpen
+            ? (isCurrent ? (pt ? 'AQUI' : 'HERE') : (pt ? 'Honra ok' : 'Honor ok'))
+            : (pt ? `Honra ${need}` : `Honor ${need}`);
+
+        return `<div style="${pinStyle}" ${actionAttrs('onMapNodeClick', zoneId)} title="${zName(zone)}">
+            <div style="position:relative;display:inline-block">
+                ${badge ? `<span style="position:absolute;top:-4px;right:-4px;font-size:14px;line-height:1;z-index:2">${badge}</span>` : ''}
+                <img style="${ringStyle}" src="${zone.mapImg}" alt="${zName(zone)}" data-error-background="#2c3e50">
+            </div>
+            <div style="text-align:center;margin-top:5px;font-size:11px;font-weight:600;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,0.9);white-space:nowrap">${zName(zone)}</div>
+            <div style="font-size:10px;color:${isOpen ? 'rgba(241,196,15,0.85)' : 'rgba(255,255,255,0.6)'};text-align:center">${subLabel}</div>
+        </div>`;
+    }).join('');
+
+    const exitButton = `
+        <div style="position:absolute;left:15%;top:93%;transform:translate(-50%,-50%);cursor:pointer;z-index:10;text-align:center" ${actionAttrs('exitCelestial')} title="${pt ? 'Voltar à Cidade das Sombras' : 'Return to Dark City'}">
+            <div style="position:relative;display:inline-block">
+                <img style="width:72px;height:72px;border-radius:50%;border:3px solid #e74c3c;object-fit:cover;display:block;background:#2c3e50;box-shadow:0 0 0 3px rgba(231,76,60,0.3)" src="/images/zones/dark-city.jpg" alt="Dark City" data-error-background="#2c3e50">
+                <span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,0.9);text-transform:uppercase;letter-spacing:2px">${pt ? 'SAIR' : 'EXIT'}</span>
+            </div>
+        </div>`;
+
+    const bgImg = document.getElementById('world-map-bg');
+    if (bgImg) bgImg.src = '/images/celestial-map.jpeg';
 
     layer.innerHTML = svgLines + pinsHtml + exitButton;
 }
