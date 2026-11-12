@@ -4,7 +4,7 @@ const { getDb } = require('./db');
 const BotRunner = require('./bot-runner');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES, STORY_QUESTS, STORY_NPC } = require('./gamedata');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES, STORY_QUESTS, STORY_NPC, CELESTIAL_ZONES, CELESTIAL_ROUTES, CELESTIAL_ENTRY, CELESTIAL_MIN_HONOR, CELESTIAL_HONOR_STEP, buildCelestialMonster } = require('./gamedata');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -1004,6 +1004,8 @@ const WEEKLY_TASKS = [
             'ALTER TABLE guild_raid_members ADD COLUMN member_level INTEGER DEFAULT 1',
             'ALTER TABLE guild_raid_members ADD COLUMN member_payload TEXT DEFAULT NULL',
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
+            `ALTER TABLE characters ADD COLUMN celestial_prev_map TEXT DEFAULT NULL`,
+            `ALTER TABLE characters ADD COLUMN celestial_prev_location TEXT DEFAULT NULL`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN size TEXT NOT NULL DEFAULT 'small'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -9368,6 +9370,7 @@ function stringifyTravelUnlocks(unlocks) {
 }
 
 function getTravelUnlockSet(char, currentMap = 'overworld') {
+    if (currentMap === 'celestial') return getCelestialAccessSet(char);
     const unlocks = parseTravelUnlocks(char?.unlocked_zones);
     const key = currentMap === 'abyss' ? 'abyss' : 'overworld';
     const set = new Set(unlocks[key] || []);
@@ -9434,7 +9437,9 @@ function buildTravelGuardian(targetZone, currentMap, playerLevel, playerStats = 
 }
 
 function getTravelGraph(currentMap) {
-    return currentMap === 'abyss' ? ABYSS_ROUTES : OVERWORLD_TRAVEL_ROUTES;
+    if (currentMap === 'abyss') return ABYSS_ROUTES;
+    if (currentMap === 'celestial') return CELESTIAL_ROUTES;
+    return OVERWORLD_TRAVEL_ROUTES;
 }
 
 function getShortestTravel(currentMap, fromZone, toZone, allowedNodes = null) {
@@ -9980,6 +9985,21 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
                 const v = rollStat(cfg, level);
                 if (v > 0) stats[k] = v;
             }
+        }
+    }
+
+    // Celestial shop pieces carry extra stat slots on top of every normal roll:
+    // N additional stats, each independently rolled (identical stats stack).
+    const extraStatSlots = Math.max(0, Math.min(8, Math.floor(Number(opts.extraStatSlots) || 0)));
+    if (extraStatSlots > 0) {
+        const poolKeys = Object.keys(CELESTIAL_EXTRA_STAT_POOL);
+        for (let i = 0; i < extraStatSlots; i++) {
+            const key = poolKeys[Math.floor(Math.random() * poolKeys.length)];
+            const value = rollStat(CELESTIAL_EXTRA_STAT_POOL[key], level);
+            if (value > 0) stats[key] = (stats[key] || 0) + value;
+        }
+        if (stats.dmg_min && stats.dmg_max && stats.dmg_max < stats.dmg_min + 1) {
+            stats.dmg_max = stats.dmg_min + 1;
         }
     }
 
@@ -13654,8 +13674,11 @@ router.get('/missions', auth, async (req, res) => {
         const currentMap = char.current_map || 'overworld';
         const zones = getAllZones(currentMap);
 
+        // The Celestial has no level gate at all — its zones open on Honor.
         const unlockedZones = Object.entries(zones)
-            .filter(([,z]) => char.level >= z.minLevel)
+            .filter(([,z]) => currentMap === 'celestial'
+                ? Number(char.honor || 0) >= Number(z.honorRequired || CELESTIAL_MIN_HONOR)
+                : char.level >= z.minLevel)
             .map(([key, z]) => ({ key, ...z }));
 
         res.json({
@@ -13728,11 +13751,25 @@ router.post('/missions/start', auth, async (req, res) => {
 
         if (currentMap === 'abyss') {
             zone = ABYSS_ZONES[zoneId];
+        } else if (currentMap === 'celestial') {
+            zone = CELESTIAL_ZONES[zoneId];
         } else {
             zone = ZONES[zoneId];
         }
 
         if (!zone) return res.status(404).json({ error: 'Zone not found' });
+
+        // The Celestial gates check Honor on every action, not just on travel.
+        if (currentMap === 'celestial') {
+            const needHonor = Number(zone.honorRequired || CELESTIAL_MIN_HONOR);
+            if (Number(character.honor || 0) < needHonor) {
+                return res.status(403).json({
+                    error: `The gate to ${zone.name} requires ${needHonor} Honor.`,
+                    requiresHonor: needHonor,
+                    honor: Number(character.honor || 0),
+                });
+            }
+        }
 
         const spot = zone.spots.find(s => s.id === spotId);
         if (!spot) return res.status(404).json({ error: 'Spot not found' });
@@ -13890,6 +13927,10 @@ async function collectMissionForCharacter(db, characterId) {
         if (mission.map_type === 'abyss') {
             const zone = ABYSS_ZONES[mission.zone];
             zoneLevel = zone?.minLevel || 39;
+        } else if (mission.map_type === 'celestial') {
+            // The Celestial has no level gate at all; its enemies are fixed
+            // templates applied further down.
+            zoneLevel = CELESTIAL_ZONES[mission.zone]?.minLevel || 1;
         } else {
             const zone = ZONES[mission.zone];
             zoneLevel = zone?.minLevel || 1;
@@ -14088,6 +14129,25 @@ async function collectMissionForCharacter(db, characterId) {
         npc.name = npcName;
         npc.class = 'npc';  // Add class for mage penalty check (not a mage)
 
+        // Celestial missions use hand-tuned stat lines with a small linear level
+        // adjustment and no random variance.
+        if (mission.map_type === 'celestial') {
+            const fixed = buildCelestialMonster(mission.zone, mission.difficulty, freshChar.level);
+            if (fixed) {
+                npc.hp = fixed.hp;
+                npc.hpMax = fixed.hp;
+                npc.dmgMin = fixed.dmgMin;
+                npc.dmgMax = fixed.dmgMax;
+                npc.agility = fixed.agility;
+                npc.magic = fixed.magic;
+                npc.armor = fixed.armor;
+                npc.hit_chance = fixed.hit_chance;
+                npc.crit_chance = fixed.crit_chance;
+                npc.elem_dmg = { ...fixed.elem_dmg };
+                npc.elem_resist = { ...fixed.elem_resist };
+            }
+        }
+
         // Zone-based stat overrides — hard = gatekeeper level, medium = 75%, easy = 50%
         if (mission.zone === 'mountains') {
             if (mission.difficulty === 'hard') {
@@ -14128,8 +14188,10 @@ async function collectMissionForCharacter(db, characterId) {
         }
 
         // Stat variance pass — different ranges per stat for better variety
-        // HP stays close to base, hit/crit can vary widely, others moderate
-        if (mission.map_type !== 'abyss') {
+        // HP stays close to base, hit/crit can vary widely, others moderate.
+        // Abyss scales from player stats and Celestial has deterministic scaling,
+        // so neither map rolls this variance.
+        if (mission.map_type !== 'abyss' && mission.map_type !== 'celestial') {
             const ranges = {
                 hp:         [0.9, 1.4],
                 dmgMin:     [0.7, 1.3],
@@ -14155,7 +14217,7 @@ async function collectMissionForCharacter(db, characterId) {
 
         // Random elemental resists for hard missions — at least 2 types, up to all 4, scales with zone
         // Skip for abyss missions — buildNpc() already scales from player's own gear resists
-        if (mission.difficulty === 'hard' && mission.map_type !== 'abyss') {
+        if (mission.difficulty === 'hard' && mission.map_type !== 'abyss' && mission.map_type !== 'celestial') {
             const allElem = ['pyro', 'water', 'wind', 'electro'];
             const count = Math.min(4, 2 + (Math.random() < 0.5 ? 1 : 0) + (Math.random() < 0.25 ? 1 : 0));
             const chosen = [...allElem].sort(() => Math.random() - 0.5).slice(0, count);
@@ -14455,8 +14517,53 @@ async function collectMissionForCharacter(db, characterId) {
                     { id:'demon_core', emoji:'👹', name:'Demon Core' }
                 ],
             };
+            if (mission.map_type === 'celestial') {
+                matsByZone = {
+                    celestial_1: [
+                        { id:'void_shard', emoji:'🔮', name:'Void Shard' },
+                        { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
+                        { id:'abyss_crystal', emoji:'💎', name:'Abyss Crystal' },
+                        { id:'wood', emoji:'🪵', name:'Wood' },
+                        { id:'wolf_pelt', emoji:'🐺', name:'Wolf Pelt' },
+                        { id:'herbs', emoji:'🌿', name:'Herbs' },
+                        { id:'iron_ore', emoji:'⛏️', name:'Iron Ore' }
+                    ],
+                    celestial_2: [
+                        { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
+                        { id:'shadowsteel', emoji:'⚙️', name:'Shadowsteel' },
+                        { id:'demon_core', emoji:'👹', name:'Demon Core' },
+                        { id:'poison_gland', emoji:'🐸', name:'Poison Gland' },
+                        { id:'swamp_crystal', emoji:'💎', name:'Swamp Crystal' }
+                    ],
+                    celestial_3: [
+                        { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+                        { id:'soul_essence', emoji:'👻', name:'Soul Essence' },
+                        { id:'primordial_shard', emoji:'✨', name:'Primordial Shard' },
+                        { id:'frost_essence', emoji:'❄️', name:'Frost Essence' },
+                        { id:'dragon_scale_shard', emoji:'🐉', name:'Dragon Scale Shard' }
+                    ],
+                    celestial_4: [
+                        { id:'primordial_shard', emoji:'✨', name:'Primordial Shard' },
+                        { id:'eternal_core', emoji:'💠', name:'Eternal Core' },
+                        { id:'shadow_essence', emoji:'🌑', name:'Shadow Essence' },
+                        { id:'mithril_ore', emoji:'✨', name:'Mithril Ore' },
+                        { id:'rune_fragment', emoji:'🔮', name:'Rune Fragment' }
+                    ],
+                    celestial_5: [
+                        { id:'dark_essence', emoji:'🌑', name:'Dark Essence' },
+                        { id:'eternal_core', emoji:'💠', name:'Eternal Core' },
+                        { id:'demon_core', emoji:'👹', name:'Demon Core' },
+                        { id:'arcane_dust', emoji:'✨', name:'Arcane Dust' },
+                        { id:'void_shard', emoji:'🔮', name:'Void Shard' }
+                    ],
+                };
+            }
         }
-        const mats = matsByZone[mission.zone] || (mission.map_type === 'abyss' ? matsByZone.shadowfen : matsByZone.forest);
+        const mats = matsByZone[mission.zone]
+            || (mission.map_type === 'abyss' ? matsByZone.shadowfen
+                : mission.map_type === 'celestial' ? matsByZone.celestial_1
+                : matsByZone.forest);
+        const isCelestialMission = mission.map_type === 'celestial';
         const addMaterialDrop = async (mat, qty) => {
             const existing = await dbGet(db, `SELECT * FROM inventory WHERE char_id=? AND item_type='raw_mat' AND json_extract(item_data,'$.id')=?`, [freshChar.id, mat.id]);
             const rarity = RAW_MATERIALS[mat.id]?.rarity || 'common';
@@ -14477,11 +14584,28 @@ async function collectMissionForCharacter(db, characterId) {
             for (const mat of tutorialPool) {
                 await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 2));
             }
+        } else if (isCelestialMission) {
+            let dropCount = 0;
+            if (playerWon) dropCount = 2 + Math.floor(Math.random() * 2);
+            else if (isDraw) dropCount = 1 + Math.floor(Math.random() * 2);
+            else if (Math.random() < 0.30) dropCount = 1;
+
+            // Sample distinct materials so the larger Celestial pools add variety
+            // across missions instead of paying almost the entire pool at once.
+            const celestialPool = [...mats];
+            for (let i = celestialPool.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [celestialPool[i], celestialPool[j]] = [celestialPool[j], celestialPool[i]];
+            }
+            for (const mat of celestialPool.slice(0, Math.min(dropCount, celestialPool.length))) {
+                await addMaterialDrop(mat, 2 + Math.floor(Math.random() * 4));
+            }
         } else {
             const dropChance = playerWon ? 0.6 : (isDraw ? 0.4 : 0.2);
             for (const mat of mats) {
                 if (Math.random() < dropChance) {
-                    await addMaterialDrop(mat, 1 + Math.floor(Math.random() * 3));
+                    const qty = 1 + Math.floor(Math.random() * 3);
+                    await addMaterialDrop(mat, qty);
                 }
             }
         }
@@ -14795,8 +14919,11 @@ router.post('/missions/auto-enable', auth, async (req, res) => {
         const { zone, spot, missionIdx, size, potionIds, potions, hpPotions, hpStopEnabled, hpStopThreshold, hpHealEnabled, hpHealThreshold } = req.body || {};
         const now = Math.floor(Date.now() / 1000);
         const currentMap = char.current_map || 'overworld';
-        const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[zone] || ZONES[zone]) : ZONES[zone];
+        const zoneDef = getZoneData(zone, currentMap) || ZONES[zone];
         if (!zoneDef) return res.status(400).json({ error: 'Zone not found' });
+        if (currentMap === 'celestial' && Number(char.honor || 0) < Number(zoneDef.honorRequired || CELESTIAL_MIN_HONOR)) {
+            return res.status(403).json({ error: `This gate requires ${Number(zoneDef.honorRequired || CELESTIAL_MIN_HONOR)} Honor.` });
+        }
         const spotDef = zoneDef.spots.find(s => String(s.id) === String(spot));
         if (!spotDef) return res.status(400).json({ error: 'Spot not found' });
         if (!['small', 'medium', 'large'].includes(size)) return res.status(400).json({ error: 'Invalid mission size' });
@@ -15093,8 +15220,12 @@ async function processOneAutoChar(db, state) {
     const effectivePvpCooldown = hasPremium(activePrem, 'fortune_hunter') ? Math.floor(pvpCooldown * 0.50) : pvpCooldown;
     if (Number(fresh.last_battle_at || 0) + effectivePvpCooldown > now) return;
 
-    const zoneDef = currentMap === 'abyss' ? (ABYSS_ZONES[state.zone] || ZONES[state.zone]) : ZONES[state.zone];
+    const zoneDef = getZoneData(state.zone, currentMap) || ZONES[state.zone];
     if (!zoneDef) { await shutoff('Zone not found'); return; }
+    if (currentMap === 'celestial' && Number(fresh.honor || 0) < Number(zoneDef.honorRequired || CELESTIAL_MIN_HONOR)) {
+        await shutoff('Not enough Honor for this gate');
+        return;
+    }
     const spotDef = zoneDef.spots.find(s => String(s.id) === String(state.spot));
     if (!spotDef) { await shutoff('Spot not found'); return; }
     const missionIdx = Number(state.mission_idx) || 0;
@@ -15841,9 +15972,11 @@ router.post('/travel/start', auth, async (req, res) => {
         let zone;
         let travelTime;
 
-        // Check if target is in Abyss or Overworld
+        // Check if target is in Abyss, Celestial or Overworld
         if (currentMap === 'abyss' && ABYSS_ZONES[targetZone]) {
             zone = ABYSS_ZONES[targetZone];
+        } else if (currentMap === 'celestial' && CELESTIAL_ZONES[targetZone]) {
+            zone = CELESTIAL_ZONES[targetZone];
         } else if (ZONES[targetZone]) {
             zone = ZONES[targetZone];
         } else {
@@ -15852,6 +15985,20 @@ router.post('/travel/start', auth, async (req, res) => {
 
         if (!zone) return res.status(400).json({ error: 'Invalid zone' });
         if (character.location === targetZone) return res.status(400).json({ error: 'Already at this zone' });
+
+        // Celestial gates are Honor checks, not fights. Refuse early with a
+        // message that names the requirement instead of a generic route error.
+        if (currentMap === 'celestial') {
+            const needHonor = Number(zone.honorRequired || CELESTIAL_MIN_HONOR);
+            if (Number(character.honor || 0) < needHonor) {
+                return res.status(403).json({
+                    error: `The gate to ${zone.name} requires ${needHonor} Honor.`,
+                    requiresHonor: needHonor,
+                    honor: Number(character.honor || 0),
+                });
+            }
+        }
+
         const travelUnlockSet = getTravelUnlockSet(character, currentMap);
         const prereq = getTravelGatekeeperPrereq(currentMap, targetZone);
         if (prereq && !travelUnlockSet.has(prereq.unlockZone)) {
@@ -15925,7 +16072,11 @@ router.get('/travel/status', auth, async (req, res) => {
         // Check if travel completed
         if (character.travel_target && character.travel_end_time && character.travel_end_time <= now) {
             let targetZone = character.travel_target;
-            const zoneUnlocked = getTravelUnlockSet(character, currentMap).has(targetZone);
+            // Celestial travel is honor-gated at departure and the gate is never a
+            // fight, so a completed trip simply lands you there (nothing to unlock).
+            const zoneUnlocked = currentMap === 'celestial'
+                ? true
+                : getTravelUnlockSet(character, currentMap).has(targetZone);
 
             if (!zoneUnlocked) {
                 const freshChar = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [character.id]);
@@ -15993,6 +16144,8 @@ router.get('/travel/status', auth, async (req, res) => {
         const unlocks = parseTravelUnlocks(responseCharacter.unlocked_zones);
         const overworldUnlocked = Array.from(new Set([...(unlocks.overworld || []), 'forest', responseCharacter.current_map === 'overworld' ? responseCharacter.location : null].filter(Boolean)));
         const abyssUnlocked = Array.from(new Set([...(unlocks.abyss || []), responseCharacter.current_map === 'abyss' ? responseCharacter.location : null].filter(Boolean)));
+        const celestialHonor = Number(responseCharacter.honor || 0);
+        const celestialUnlocked = Array.from(getCelestialAccessSet(responseCharacter));
 
         res.json({
             location: responseCharacter.location || 'forest',
@@ -16004,6 +16157,9 @@ router.get('/travel/status', auth, async (req, res) => {
             timeRemaining: responseCharacter.travel_target ? Math.max(0, responseCharacter.travel_end_time - now) : 0,
             unlockedZones: overworldUnlocked,
             unlockedAbyssZones: abyssUnlocked,
+            unlockedCelestialZones: celestialUnlocked,
+            celestialUnlocked: celestialHonor >= CELESTIAL_MIN_HONOR,
+            celestialHonor,
             encounterResult,
             character: await buildCharacterResponse(responseCharacter, db),
         });
@@ -16018,6 +16174,9 @@ function getZoneData(zoneId, currentMap = 'overworld') {
     if (currentMap === 'abyss' && ABYSS_ZONES[zoneId]) {
         return ABYSS_ZONES[zoneId];
     }
+    if (currentMap === 'celestial' && CELESTIAL_ZONES[zoneId]) {
+        return CELESTIAL_ZONES[zoneId];
+    }
     return ZONES[zoneId];
 }
 
@@ -16026,7 +16185,24 @@ function getAllZones(currentMap = 'overworld') {
     if (currentMap === 'abyss') {
         return ABYSS_ZONES;
     }
+    if (currentMap === 'celestial') {
+        return CELESTIAL_ZONES;
+    }
     return ZONES;
+}
+
+// Celestial gates are opened by HONOR, not by defeating a guardian and not by
+// level. Nothing is persisted: access is always evaluated from the live Honor
+// value, so every zone you currently qualify for (plus where you stand) is
+// reachable, and the rest stay shut.
+function getCelestialAccessSet(char) {
+    const honor = Number(char?.honor || 0);
+    const set = new Set();
+    for (const [zoneId, zone] of Object.entries(CELESTIAL_ZONES)) {
+        if (honor >= Number(zone.honorRequired || CELESTIAL_MIN_HONOR)) set.add(zoneId);
+    }
+    if (char?.location && CELESTIAL_ZONES[char.location]) set.add(char.location);
+    return set;
 }
 
 function getSellPriceForInventoryItem(itemData, sellRate) {
@@ -16402,13 +16578,49 @@ const SHOP_LOCATION_BOOST = {
     void:      null,
     citadel:   { slots: ['ring', 'amulet', 'accessory'], legendary: 0.22, statBoost: 1.50 },
     eternal_dark: { slots: ['ring', 'amulet', 'accessory'], legendary: 0.24, statBoost: 1.60 },
+    // ── The Celestial ────────────────────────────────────────────────────
+    // Each zone pushes three specific slots far past anything below: bigger
+    // stat rolls, a much higher legendary chance, and 3 EXTRA stat slots.
+    celestial_1: { slots: ['shield', 'boots'],                legendary: 0.30, statBoost: 1.35, extraStatSlots: 3 },
+    celestial_2: { slots: ['weapon'],                         legendary: 0.34, statBoost: 1.45, extraStatSlots: 3 },
+    celestial_3: { slots: ['armor'],                          legendary: 0.38, statBoost: 1.55, extraStatSlots: 3 },
+    celestial_4: { slots: ['helmet'],                         legendary: 0.42, statBoost: 1.65, extraStatSlots: 3 },
+    celestial_5: { slots: ['ring', 'amulet', 'accessory'],     legendary: 0.48, statBoost: 1.85, extraStatSlots: 3 },
 };
+
+// Stat pool for the Celestial bonus slots. Each entry is a normal stat config
+// (min/max/scale) so it rides the same level scaling + statBoost as every other
+// roll on the item.
+const CELESTIAL_EXTRA_STAT_POOL = {
+    strength:    { min: 3,  max: 11, scale: 0.55 },
+    defense:     { min: 3,  max: 11, scale: 0.55 },
+    agility:     { min: 3,  max: 11, scale: 0.55 },
+    magic:       { min: 3,  max: 11, scale: 0.55 },
+    vitality:    { min: 3,  max: 10, scale: 0.45 },
+    hit_chance:  { min: 1,  max: 4,  scale: 0.25 },
+    crit_chance: { min: 2,  max: 7,  scale: 0.35 },
+    armor:       { min: 4,  max: 14, scale: 0.90 },
+    hp_max:      { min: 20, max: 60, scale: 2.20 },
+    dmg_min:     { min: 3,  max: 9,  scale: 0.50 },
+    dmg_max:     { min: 6,  max: 16, scale: 0.70 },
+    pyro_dmg:    { min: 4,  max: 12, scale: 0.60 },
+    water_dmg:   { min: 4,  max: 12, scale: 0.60 },
+    wind_dmg:    { min: 4,  max: 12, scale: 0.60 },
+    electro_dmg: { min: 4,  max: 12, scale: 0.60 },
+    pyro_resist:    { min: 4, max: 12, scale: 0.60 },
+    water_resist:   { min: 4, max: 12, scale: 0.60 },
+    wind_resist:    { min: 4, max: 12, scale: 0.60 },
+    electro_resist: { min: 4, max: 12, scale: 0.60 },
+};
+
 function getShopLocationBoost(location) {
     return SHOP_LOCATION_BOOST[location] || null;
 }
 function optionFor(type, boost) {
     if (!boost || !boost.slots.includes(type)) return undefined;
-    return { legendaryChance: boost.legendary, statBoost: boost.statBoost };
+    const opts = { legendaryChance: boost.legendary, statBoost: boost.statBoost };
+    if (boost.extraStatSlots) opts.extraStatSlots = boost.extraStatSlots;
+    return opts;
 }
 
 function generateBackendInventory(playerLevel, location) {
@@ -24796,6 +25008,101 @@ router.post('/travel/abyss/exit', auth, async (req, res) => {
             success: true,
             location: 'dark_city',
             message: 'You return from the Abyss.'
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/travel/celestial/enter', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+
+        // The Celestial has NO level requirement — Honor is the only key.
+        const honor = Number(character.honor || 0);
+        if (honor < CELESTIAL_MIN_HONOR) {
+            return res.status(403).json({
+                error: `The Celestial Gate opens only to those with ${CELESTIAL_MIN_HONOR} Honor.`,
+                requiresHonor: CELESTIAL_MIN_HONOR,
+                honor,
+            });
+        }
+
+        if ((character.current_map || 'overworld') === 'celestial') {
+            return res.status(400).json({ error: 'You are already in the Celestial.' });
+        }
+        if ((character.current_map || 'overworld') === 'abyss') {
+            return res.status(400).json({ error: 'Leave the Abyss before climbing to the Celestial.' });
+        }
+        const now = Math.floor(Date.now() / 1000);
+        if (character.travel_end_time > now) {
+            return res.status(400).json({ error: 'Already traveling' });
+        }
+
+        await dbRun(db, 'UPDATE characters SET current_map=?, location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, celestial_prev_map=?, celestial_prev_location=? WHERE id=?',
+            ['celestial', CELESTIAL_ENTRY.toZone, character.current_map || 'overworld', character.location || CELESTIAL_ENTRY.fromZone, character.id]);
+
+        res.json({
+            success: true,
+            location: CELESTIAL_ENTRY.toZone,
+            message: 'The gate warden reads your Honor and steps aside. The Celestial opens.'
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/travel/celestial/exit', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        if ((character.current_map || 'overworld') !== 'celestial') {
+            return res.status(400).json({ error: 'Not in the Celestial' });
+        }
+        const now = Math.floor(Date.now() / 1000);
+        if (character.travel_end_time > now) {
+            return res.status(400).json({ error: 'Already traveling' });
+        }
+
+        // Deliberately allowed from ANY Celestial zone: Honor can drop below a gate
+        // while you are standing behind it, and that must never trap a player.
+        const prevMap = character.celestial_prev_map || 'overworld';
+        const prevLoc = character.celestial_prev_location || CELESTIAL_ENTRY.fromZone;
+        await dbRun(db, 'UPDATE characters SET current_map=?, location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, celestial_prev_map=NULL, celestial_prev_location=NULL WHERE id=?',
+            [prevMap, prevLoc, character.id]);
+
+        res.json({
+            success: true,
+            location: prevLoc,
+            message: 'You descend from the Celestial.'
+        });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.get('/celestial/data', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId, 'current_map, level, honor');
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+
+        res.json({
+            success: true,
+            zones: CELESTIAL_ZONES,
+            routes: CELESTIAL_ROUTES,
+            entry: CELESTIAL_ENTRY,
+            minHonor: CELESTIAL_MIN_HONOR,
+            honorStep: CELESTIAL_HONOR_STEP,
+            currentMap: char.current_map || 'overworld',
+            playerLevel: char.level,
+            honor: Number(char.honor || 0),
         });
     } catch (e) {
         console.error(e);
