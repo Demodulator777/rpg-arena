@@ -41,7 +41,7 @@
         .loading-text { margin-top: 32px; position: relative; z-index: 9; display: flex; align-items: center; justify-content: center; width: 340px; }
         .loading-title-shimmer { font-family: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif; font-size: 1.35rem; line-height: 1.35; font-weight: 600; letter-spacing: 10px; text-transform: uppercase; background: linear-gradient(90deg, rgba(180,150,255,0.5) 0%, rgba(140,100,255,0.5) 20%, rgba(255,255,255,0.95) 50%, rgba(140,100,255,0.5) 80%, rgba(180,150,255,0.5) 100%); background-size: 250% auto; -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; animation: shimmer-sweep 3.5s linear infinite; filter: drop-shadow(0 0 8px rgba(168,130,255,0.6)) drop-shadow(0 0 20px rgba(139,92,246,0.35)); white-space: nowrap; padding-right: 10px; }
         #loading-dots { display: inline-block; width: 1.6rem; text-align: left; font-family: 'Cinzel', 'Trajan Pro', 'Times New Roman', serif; font-size: 1.35rem; line-height: 1.35; letter-spacing: 4px; color: rgba(168,130,255,0.6); -webkit-text-fill-color: rgba(168,130,255,0.6); flex-shrink: 0; }
-        .loading-text::before, .loading-text::after { content: '?'; font-size: 0.65rem; line-height: 1; color: rgba(168,130,255,0.5); flex-shrink: 0; animation: rune-flicker 2.8s ease-in-out infinite; }
+        .loading-text::before, .loading-text::after { content: '⟡'; font-size: 0.65rem; line-height: 1; color: rgba(168,130,255,0.5); flex-shrink: 0; animation: rune-flicker 2.8s ease-in-out infinite; }
         .loading-text::after { animation-delay: 1.4s; }
         @keyframes shimmer-sweep { from { background-position: 250% center; } to { background-position: 0% center; } }
         @keyframes rune-flicker { 0%, 100% { opacity: 0.3; transform: scale(0.9); } 50% { opacity: 0.9; transform: scale(1.2); } }
@@ -164,14 +164,14 @@
             <div class="auth-server-select">
                 <label for="server-select" data-pt="Servidor">Server</label>
                 <button type="button" id="server-select" class="server-select-btn" data-action="openServerPicker">
-                    <span id="server-select-label">�</span><span class="server-caret"> ?</span>
+                    <span id="server-select-label">…</span><span class="server-caret"> ▾</span>
                 </button>
             </div>
             <div class="auth-server-select">
                 <label for="auth-lang-select" data-pt="Idioma">Language</label>
                 <div class="auth-lang-dropdown" id="auth-lang-dropdown">
                     <button type="button" id="auth-lang-select" class="server-select-btn auth-lang-btn" aria-haspopup="listbox" aria-expanded="false">
-                        <span class="auth-lang-flag" id="auth-lang-flag"></span><span id="auth-lang-label">�</span><span class="server-caret"> ?</span>
+                        <span class="auth-lang-flag" id="auth-lang-flag"></span><span id="auth-lang-label">…</span><span class="server-caret"> ▾</span>
                     </button>
                     <div id="auth-lang-list" class="auth-lang-list hidden" role="listbox"></div>
                 </div>
@@ -227,7 +227,7 @@
                     <button class="auth-legal-link" style="margin-top:10px" data-action="openForgotPasswordModal" data-pt="Esqueceu a senha?">Forgot password?</button>
                     <div class="auth-legal-links">
                         <button class="auth-legal-link" data-action="openGameGuide" data-pt="Guia do Jogo">Game Guide</button>
-                        <span class="auth-legal-sep">�</span>
+                        <span class="auth-legal-sep">•</span>
                         <button class="auth-legal-link" data-action="openAuthLegalModal" data-pt="Termos de Servico e Privacidade">Terms of Service & Privacy</button>
                     </div>
                 </div>
@@ -243,7 +243,7 @@
                     <div id="google-signin-btn-register" class="google-signin-wrap"></div>
                     <div class="auth-legal-links">
                         <button class="auth-legal-link" data-action="openGameGuide" data-pt="Guia do Jogo">Game Guide</button>
-                        <span class="auth-legal-sep">�</span>
+                        <span class="auth-legal-sep">•</span>
                         <button class="auth-legal-link" data-action="openAuthLegalModal" data-pt="Termos de Servico e Privacidade">Terms of Service & Privacy</button>
                     </div>
                 </div>
@@ -415,10 +415,10 @@
                         <div class="game-guide-card">
                             <div class="guide-subtitle" data-pt="Como a Honra Funciona">How Honor Works</div>
                             <ul>
-                                <li data-pt="A <strong>Honra ??</strong> vem principalmente do PvP. Ataques diretos podem dar ou tirar Honra, enquanto vitorias em torneios concedem recompensas fixas de Honra.">Honor <strong>??</strong> comes primarily from PvP. Direct player attacks can gain or lose Honor, while tournament victories grant fixed Honor rewards.</li>
+                                <li data-pt="A <strong>Honra ⚜️</strong> vem principalmente do PvP. Ataques diretos podem dar ou tirar Honra, enquanto vitorias em torneios concedem recompensas fixas de Honra.">Honor <strong>⚜️</strong> comes primarily from PvP. Direct player attacks can gain or lose Honor, while tournament victories grant fixed Honor rewards.</li>
                                 <li data-pt="Vencer uma batalha de torneio concede <strong>5 de Honra</strong>; vencer o torneio concede mais <strong>10 de Honra</strong>. Missoes, masmorras, raides e artesanato nao concedem Honra.">Winning a tournament battle grants <strong>5 Honor</strong>; winning the tournament grants an additional <strong>10 Honor</strong>. Missions, dungeons, raids, and crafting grant no Honor.</li>
                                 <li data-pt="Nos ataques diretos de PvP, somente o <strong>atacante</strong> altera honra: <strong>defender nunca muda a sua</strong>, nem quando vence a defesa.">In direct PvP attacks, only the <strong>attacker</strong> changes honor: <strong>defending never changes yours</strong>, even when you win the defense.</li>
-                                <li data-pt="Nos ataques diretos, o valor depende <strong>apenas da diferenca de nivel</strong>, nao do resultado � voce continua ganhando honra mesmo ao <strong>perder</strong> uma luta equilibrada.">For direct attacks, the amount depends <strong>only on the level difference</strong>, not on who won � you still earn honor even when you <strong>lose</strong> an even fight.</li>
+                                <li data-pt="Nos ataques diretos, o valor depende <strong>apenas da diferenca de nivel</strong>, nao do resultado — voce continua ganhando honra mesmo ao <strong>perder</strong> uma luta equilibrada.">For direct attacks, the amount depends <strong>only on the level difference</strong>, not on who won — you still earn honor even when you <strong>lose</strong> an even fight.</li>
                                 <li data-pt="A honra <strong>nunca e gasta</strong>, nao tem teto e <strong>pode ficar negativa</strong> (exibida em vermelho no perfil e na classificacao).">Honor is <strong>never spent</strong>, has no cap, and <strong>can go negative</strong> (shown in red on your profile and leaderboard).</li>
                             </ul>
                         </div>
@@ -451,10 +451,10 @@
                         <div class="game-guide-card">
                             <div class="guide-subtitle guide-good" data-pt="Beneficios">Benefits</div>
                             <ul>
-                                <li data-pt="<strong>Hall da Fama semanal:</strong> o jogador com maior honra liquida na semana (segunda, 00:00 UTC) ganha <strong>5 ??</strong> na caixa de correio."><strong>Weekly Hall of Fame:</strong> the player with the highest net honor that week (Monday, 00:00 UTC) is mailed <strong>5 ??</strong>.</li>
-                                <li data-pt="<strong>Esquadrao mais honoravel:</strong> cada membro do esquadrao campeao da semana tambem ganha <strong>5 ??</strong>."><strong>Most honorable squad:</strong> every member of the winning squad is also mailed <strong>5 ??</strong>.</li>
+                                <li data-pt="<strong>Hall da Fama semanal:</strong> o jogador com maior honra liquida na semana (segunda, 00:00 UTC) ganha <strong>5 💎</strong> na caixa de correio."><strong>Weekly Hall of Fame:</strong> the player with the highest net honor that week (Monday, 00:00 UTC) is mailed <strong>5 💎</strong>.</li>
+                                <li data-pt="<strong>Esquadrao mais honoravel:</strong> cada membro do esquadrao campeao da semana tambem ganha <strong>5 💎</strong>."><strong>Most honorable squad:</strong> every member of the winning squad is also mailed <strong>5 💎</strong>.</li>
                                 <li data-pt="A honra do esquadrao soma apenas os <strong>10 melhores membros com honra positiva</strong>. Quem esta negativo <strong>nao conta</strong> e nao pode rebaixar a pontuacao do esquadrao.">Squad honor sums only your <strong>10 best members with positive honor</strong>. Members in the negative <strong>don't count</strong> and cannot drag the squad score down.</li>
-                                <li data-pt="<strong>Ouro de missao:</strong> sua honra dos ultimos 7 dias (janela movel) inclina o pagamento de cada missao em ate <strong>�25%</strong>. Honra 0 ou mais tende para <strong>+25%</strong>; honra negativa tende para <strong>-25%</strong>."><strong>Mission gold:</strong> your honor over the last rolling 7 days tilts every mission payout by up to <strong>�25%</strong>. Honor of 0 or more biases the roll toward <strong>+25%</strong>; negative honor biases it toward <strong>-25%</strong>.</li>
+                                <li data-pt="<strong>Ouro de missao:</strong> sua honra dos ultimos 7 dias (janela movel) inclina o pagamento de cada missao em ate <strong>±25%</strong>. Honra 0 ou mais tende para <strong>+25%</strong>; honra negativa tende para <strong>-25%</strong>."><strong>Mission gold:</strong> your honor over the last rolling 7 days tilts every mission payout by up to <strong>±25%</strong>. Honor of 0 or more biases the roll toward <strong>+25%</strong>; negative honor biases it toward <strong>-25%</strong>.</li>
                                 <li data-pt="E o seu titulo de prestigio: aparece no perfil, na lista de classificacao e nos titulos semanais de Honra.">It is your prestige stat: it shows on your profile, the leaderboard, and the weekly Honor titles.</li>
                             </ul>
                         </div>
@@ -516,7 +516,7 @@
                             <li data-pt="Voce so precisa de um nome de usuario e senha para criar uma conta">You only need a username and password to create an account</li>
                             <li data-pt="Voce pode adicionar opcionalmente um email de recuperacao para redefinir a senha">You may optionally add a recovery email for password reset</li>
                             <li data-pt="<strong>Cada usuario tem direito a apenas uma conta</strong>"><strong>Each user is allowed one account only</strong></li>
-                            <li data-pt="Uma conta permite criar ate 4 personagens � um de cada classe disponivel">One account allows you to create up to 4 characters � one of each available class</li>
+                            <li data-pt="Uma conta permite criar ate 4 personagens — um de cada classe disponivel">One account allows you to create up to 4 characters — one of each available class</li>
                         </ul>
                         <p data-pt="<strong>Importante:</strong> Se voce nao adicionar um email de recuperacao e esquecer sua senha, sua conta pode nao ser recuperavel. Voce e responsavel por manter seus dados de login seguros."><strong>Important:</strong> If you do not add a recovery email and forget your password, your account may not be recoverable. You are responsible for keeping your login details safe.</p>
                     </div>
@@ -593,7 +593,7 @@
                             <li data-pt="Voce precisa de um nome de usuario e senha para criar uma conta">You need a username and password to create an account</li>
                             <li data-pt="Voce pode adicionar opcionalmente um email de recuperacao para redefinir a senha">You may optionally add a recovery email for password reset</li>
                             <li data-pt="<strong>Cada usuario tem direito a apenas uma conta</strong>"><strong>Each user is allowed one account only</strong></li>
-                            <li data-pt="Uma conta permite criar ate 4 personagens � um de cada classe disponivel">One account allows you to create up to 4 characters � one of each available class</li>
+                            <li data-pt="Uma conta permite criar ate 4 personagens — um de cada classe disponivel">One account allows you to create up to 4 characters — one of each available class</li>
                         </ul>
                         <p data-pt="<strong>Importante:</strong> Se voce nao adicionar um email de recuperacao e esquecer sua senha, sua conta pode nao ser recuperavel. Voce e responsavel por manter seus dados de login seguros."><strong>Important:</strong> If you do not add a recovery email and forget your password, your account may not be recoverable. You are responsible for keeping your login details safe.</p>
                     </div>
@@ -723,10 +723,10 @@
 
             <!-- Step 1: Foreword -->
             <div class="create-step hidden" id="create-step-foreword">
-                <div class="create-foreword-icon">??</div>
+                <div class="create-foreword-icon">⚔️</div>
                 <h2 class="create-foreword-title" data-pt="Bem-vindo, Aventureiro">Welcome, Adventurer</h2>
                 <p class="create-foreword-text" data-pt="Ecos de batalhas antigas ressoam pelas terras, e a Arena volta a chamar por novos herois. Hoje, voce atende a esse chamado.">Echoes of age-old battles ripple across the land, and the Arena once more calls for new heroes. Today, you answer that call.</p>
-                <p class="create-foreword-text" data-pt="Todo campeao comeca com uma escolha � o caminho que trilhara, a lenda que forjara. Antes do seu nome honrar estas paredes, escolha sua vocacao.">Every champion begins with a choice � the path they will walk, the legend they will forge. Before your name graces these halls, choose your calling.</p>
+                <p class="create-foreword-text" data-pt="Todo campeao comeca com uma escolha — o caminho que trilhara, a lenda que forjara. Antes do seu nome honrar estas paredes, escolha sua vocacao.">Every champion begins with a choice — the path they will walk, the legend they will forge. Before your name graces these halls, choose your calling.</p>
                 <button type="button" class="btn-primary" data-action="createForewordNext" data-pt="Comecar Minha Jornada">Begin My Journey</button>
             </div>
 
@@ -734,9 +734,9 @@
             <div class="create-step hidden" id="create-step-classes">
                 <h2 class="game-title small" data-pt="Escolha Seu Destino">Choose Your Destiny</h2>
                 <div class="create-class-carousel">
-                    <button type="button" class="create-carousel-nav" data-action="createClassPrev" aria-label="Previous class">?</button>
+                    <button type="button" class="create-carousel-nav" data-action="createClassPrev" aria-label="Previous class">◀</button>
                     <div id="create-class-stage" class="create-class-stage"></div>
-                    <button type="button" class="create-carousel-nav" data-action="createClassNext" aria-label="Next class">?</button>
+                    <button type="button" class="create-carousel-nav" data-action="createClassNext" aria-label="Next class">▶</button>
                 </div>
                 <div id="create-class-dots" class="create-class-dots"></div>
                 <div id="create-class-error" class="error-msg hidden"></div>
@@ -797,8 +797,8 @@
                 </div>
             </div>
             <div class="topbar-right">
-                <span id="topbar-gold" class="topbar-currency">?? 0</span>
-                <span id="topbar-gems" class="topbar-currency topbar-gems-btn" data-action="showTab" data-args='["shop"]' title="Go to Shop">?? 0</span>
+                <span id="topbar-gold" class="topbar-currency">💰 0</span>
+                <span id="topbar-gems" class="topbar-currency topbar-gems-btn" data-action="showTab" data-args='["shop"]' title="Go to Shop">💎 0</span>
                 <div class="topbar-right-actions">
                     <button id="topbar-chat-btn" class="topbar-chat-btn" data-action="toggleChatWidgetCollapsed" title="Toggle chat">Chat</button>
                     <button id="topbar-menu-btn" class="topbar-menu-btn" data-action="openTopbarMenu" title="Open menu">Menu</button>
@@ -908,7 +908,7 @@
 
                 <!-- SKILLS -->
                 <div id="tab-skills" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="? Class Skills" data-pt="? Habilidades de Classe">? Class Skills</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="✨ Class Skills" data-pt="✨ Habilidades de Classe">✨ Class Skills</h2></div> -->
                     <div id="skills-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px"></div>
                     <div id="skills-msg" class="msg-bar hidden"></div>
                 </div>
@@ -920,14 +920,14 @@
 
                 <!-- PREMIUM -->
                 <div id="tab-premium" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? Premium Resources" data-pt="?? Recursos Premium">?? Premium Resources</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="💎 Premium Resources" data-pt="💎 Recursos Premium">💎 Premium Resources</h2></div> -->
                     <div id="premium-content"></div>
                     <div id="premium-msg" class="msg-bar hidden"></div>
                 </div>
 
                 <!-- LOADOUT -->
                 <div id="tab-loadout" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? Combat Loadout" data-pt="?? Loadout de Combate">?? Combat Loadout</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="⚔️ Combat Loadout" data-pt="⚔️ Loadout de Combate">⚔️ Combat Loadout</h2></div> -->
                     <div id="loadout-content"></div>
                 </div>
 
@@ -939,7 +939,7 @@
 
                 <!-- UPGRADE -->
                 <div id="tab-upgrade" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? Upgrade Stats" data-pt="?? Melhorar Atributos">?? Upgrade Stats</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="⬆️ Upgrade Stats" data-pt="⬆️ Melhorar Atributos">⬆️ Upgrade Stats</h2></div> -->
                     <div id="upgrade-gold" class="gold-display"></div>
                     <div id="upgrade-grid" class="upgrade-grid"></div>
                     <div id="upgrade-msg" class="msg-bar hidden"></div>
@@ -957,7 +957,7 @@
                     <!-- Active mission overlay -->
                     <div id="mission-overlay" class="mission-overlay hidden">
                         <div class="mission-overlay-inner">
-                            <div class="mission-overlay-badge" data-en="?? ON MISSION" data-pt="?? EM MISSAO">?? ON MISSION</div>
+                            <div class="mission-overlay-badge" data-en="⚔️ ON MISSION" data-pt="⚔️ EM MISSÃO">⚔️ ON MISSION</div>
                             <div id="overlay-mission-name" class="mission-overlay-name">Mission</div>
                             <div id="overlay-mission-zone" class="mission-overlay-zone"></div>
                             <div id="overlay-mission-timer" class="mission-overlay-timer">0:00</div>
@@ -973,7 +973,7 @@
                     <!-- Traveling overlay -->
                     <div id="travel-overlay" class="travel-overlay hidden">
                         <div class="travel-overlay-inner">
-                            <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2" data-en="?? TRAVELING" data-pt="?? VIAJANDO">?? TRAVELING</div>
+                            <div class="mission-overlay-badge" style="border-color:rgba(52,152,219,0.4);color:#5dade2" data-en="🚶 TRAVELING" data-pt="🚶 VIAJANDO">🚶 TRAVELING</div>
                             <div class="travel-overlay-label" data-en="Destination" data-pt="Destino">Destination</div>
                             <div id="travel-overlay-name" class="travel-overlay-name">Zone</div>
                             <div id="travel-overlay-from" class="travel-overlay-from"></div>
@@ -988,7 +988,7 @@
                     <!-- Post-battle rest overlay -->
                     <div id="rest-overlay" class="travel-overlay hidden">
                         <div class="travel-overlay-inner">
-                            <div class="mission-overlay-badge" style="border-color:rgba(231,76,60,0.4);color:#e74c3c" data-en="?? RESTING AFTER BATTLE" data-pt="?? DESCANSANDO APOS A BATALHA">?? RESTING AFTER BATTLE</div>
+                            <div class="mission-overlay-badge" style="border-color:rgba(231,76,60,0.4);color:#e74c3c" data-en="⚔️ RESTING AFTER BATTLE" data-pt="⚔️ DESCANSANDO APOS A BATALHA">⚔️ RESTING AFTER BATTLE</div>
                             <div class="travel-overlay-name" style="color:var(--text-bright)" data-en="Recovering" data-pt="Recuperando">Recovering</div>
                             <div class="travel-overlay-from" data-en="You must rest before starting a new mission" data-pt="Voce deve descansar antes de iniciar uma nova missao">You must rest before starting a new mission</div>
                             <div id="rest-overlay-timer" class="mission-overlay-timer" style="color:#e74c3c">0:00</div>
@@ -998,14 +998,14 @@
                             <div class="mission-overlay-subtext" data-en="Cooldown clears automatically" data-pt="A recarga e zerada automaticamente">Cooldown clears automatically</div>
                             <button id="rest-recover-btn" class="btn-cancel-travel"
                                     style="border-color:rgba(155,89,182,0.5);color:#9b59b6;background:rgba(155,89,182,0.15)"
-                                    data-action="instantBattleRecovery" data-en="? Recover Now (1 ??)" data-pt="? Recuperar Agora (1 ??)">? Recover Now (1 ??)</button>
+                                    data-action="instantBattleRecovery" data-en="⚡ Recover Now (1 💎)" data-pt="⚡ Recuperar Agora (1 💎)">⚡ Recover Now (1 💎)</button>
                         </div>
                     </div>
 
                     <!-- Training Overlay (now consistent with mission + battle cooldowns) -->
                     <div id="training-overlay" class="mission-overlay hidden">
                         <div class="mission-overlay-inner"> <!-- changed to match others -->
-                            <div class="mission-overlay-badge" data-en="?? TRAINING" data-pt="?? TREINANDO">?? TRAINING</div>
+                            <div class="mission-overlay-badge" data-en="⚔️ TRAINING" data-pt="⚔️ TREINANDO">⚔️ TRAINING</div>
                             <div id="training-skill-name" class="mission-overlay-name">Training Skill Name</div>
                             <div id="training-overlay-timer" class="mission-overlay-timer">0:00</div>
 
@@ -1027,7 +1027,7 @@
 
                 <!-- FORGE -->
                 <div id="tab-forge" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? Forge" data-pt="?? Forja">?? Forge</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="🔨 Forge" data-pt="🔨 Forja">🔨 Forge</h2></div> -->
                     <div id="forge-gold" class="gold-display"></div>
                     <div class="forge-tabs filter-tabs">
                         <button class="filter-btn active" data-action="setForgeTab" data-args='["refine"]'><span data-en="Refine" data-pt="Refinar">Refine</span></button>
@@ -1063,7 +1063,7 @@
                 <div id="upgrade-modal" class="modal-overlay hidden">
                     <div class="modal-box upgrade-modal-box" style="max-width: 700px;">
                         <div class="modal-header">
-                            <h3>?? Upgrade Equipment</h3>
+                            <h3>⬆️ Upgrade Equipment</h3>
                             <button class="modal-close" data-action="closeUpgradeModal">X</button>
                         </div>
                         <div id="upgrade-modal-content">
@@ -1077,14 +1077,14 @@
                 <!-- EVENT -->
                 <div id="tab-event" class="game-tab">
                     <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                        <h2 data-en="?? Active Event" data-pt="?? Evento Ativo">?? Active Event</h2>
+                        <h2 data-en="🎴 Active Event" data-pt="🎴 Evento Ativo">🎴 Active Event</h2>
                     </div> -->
                     <div id="event-content" class="event-content"></div>
                 </div>
 
                 <!-- NEWS -->
                 <div id="tab-news" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? News" data-pt="?? Noticias">?? News</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="📰 News" data-pt="📰 Notícias">📰 News</h2></div> -->
                     <div id="news-featured" class="news-featured"></div>
                     <div id="news-list" class="news-list"></div>
                     <div id="news-msg" class="msg-bar hidden"></div>
@@ -1143,11 +1143,11 @@
 
                 <!-- LEADERBOARD -->
                 <div id="tab-leaderboard" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? Leaderboard" data-pt="?? Classificacao">?? Leaderboard</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="🏆 Leaderboard" data-pt="🏆 Classificação">🏆 Leaderboard</h2></div> -->
 
                     <div class="lb-subnav filter-tabs" style="margin-bottom:14px">
-                        <button class="filter-btn active" data-action="setLbTab" data-args='["board"]'><span data-en="Leaderboard" data-pt="Classificacao">?? Leaderboard</span></button>
-                        <button class="filter-btn" data-action="setLbTab" data-args='["hof"]'><span data-en="Hall of Fame" data-pt="Templo da Fama">??? Hall of Fame</span></button>
+                        <button class="filter-btn active" data-action="setLbTab" data-args='["board"]'><span data-en="Leaderboard" data-pt="Classificacao">🏆 Leaderboard</span></button>
+                        <button class="filter-btn" data-action="setLbTab" data-args='["hof"]'><span data-en="Hall of Fame" data-pt="Templo da Fama">🏛️ Hall of Fame</span></button>
                     </div>
 
                     <div id="lb-position-box" style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:20px">
@@ -1169,13 +1169,13 @@
 
                 <!-- SQUADS -->
                 <div id="tab-squads" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="??? Squads" data-pt="??? Esquadroes">??? Squads</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="🛡️ Squads" data-pt="🛡️ Esquadrões">🛡️ Squads</h2></div> -->
                     <div id="squads-content"></div>
                 </div>
 
                 <!-- INBOX -->
                 <div id="tab-inbox" class="game-tab">
-                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="?? Inbox" data-pt="?? Caixa de Entrada">?? Inbox</h2></div> -->
+                    <!-- TAB-HEADER RETIRED (layout test): <div class="tab-header"><h2 data-en="✉️ Inbox" data-pt="✉️ Caixa de Entrada">✉️ Inbox</h2></div> -->
                     <div id="inbox-content"></div>
                 </div>
 
@@ -1196,7 +1196,7 @@
         <!-- Battle log modal -->
         <div id="battle-log-modal" class="battle-log-modal" style="display:none">
             <div class="battle-log-content">
-                <h3>?? Battle Log</h3>
+                <h3>⚔️ Battle Log</h3>
                 <div id="log-lines"></div>
                 <button class="close-log" data-action="closeLog">Close</button>
             </div>
@@ -1249,7 +1249,7 @@
         <!-- Loadout save confirmation -->
         <div id="loadout-save-modal" class="modal-overlay hidden">
             <div class="modal-box loadout-save-box" style="text-align:center">
-                <div id="loadout-save-icon" style="font-size:2rem;margin-bottom:8px">?</div>
+                <div id="loadout-save-icon" style="font-size:2rem;margin-bottom:8px">✅</div>
                 <h3 id="loadout-save-title" style="margin:0 0 12px;color:#f1c40f">Loadout saved!</h3>
                 <div id="loadout-save-message" style="font-size:0.95rem;color:#fff;line-height:1.6">Your attack and block zones were saved.</div>
                 <button class="btn-primary" style="margin-top:16px;width:100%" data-action="closeLoadoutSave">Continue</button>
@@ -1276,7 +1276,7 @@
         <div id="bug-report-modal" class="modal-overlay hidden">
             <div class="modal-box bug-report-modal">
                 <div class="modal-header">
-                    <h2 data-en="?? Report a Problem" data-pt="?? Reportar um Problema">?? Report a Problem</h2>
+                    <h2 data-en="🚩 Report a Problem" data-pt="🚩 Reportar um Problema">🚩 Report a Problem</h2>
                     <button class="modal-close" data-action="closeBugReport">X</button>
                 </div>
                 <div class="modal-body">
@@ -1328,7 +1328,7 @@
                         </div>
                         <div id="screenshot-upload-area" class="screenshot-upload-area hidden">
                             <div class="upload-dropzone" id="screenshot-dropzone" data-action="clickElementById" data-args='["screenshot-file"]'>
-                                <span>??</span>
+                                <span>📸</span>
                                 <span data-en="Click or drag image here" data-pt="Clique ou arraste a imagem aqui">Click or drag image here</span>
                                 <span class="upload-hint" data-en="PNG, JPG up to 5MB" data-pt="PNG, JPG ate 5MB">PNG, JPG up to 5MB</span>
                             </div>
@@ -1351,7 +1351,7 @@
             <div id="exchange-modal" class="modal-overlay hidden">
                 <div class="modal-box" style="max-width: 600px; max-height: 80vh; overflow-y: auto;">
                     <div class="modal-header">
-                        <h3>? Exchange Legendary Fragments</h3>
+                        <h3>⭐ Exchange Legendary Fragments</h3>
                         <button class="modal-close" data-action="closeExchangeModal">X</button>
                     </div>
                     <div id="exchange-content">
@@ -1401,11 +1401,11 @@
         <div class="modal-body">
             <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["beta"]'>
                 <span class="server-picker-name">Beta</span>
-                <span class="server-picker-desc" data-pt="Contas existentes � cadastro limitado a 500">Existing accounts � registration capped at 500</span>
+                <span class="server-picker-desc" data-pt="Contas existentes · cadastro limitado a 500">Existing accounts · registration capped at 500</span>
             </button>
             <button type="button" class="server-picker-option" data-action="selectServerFromPicker" data-args='["server1"]'>
                 <span class="server-picker-name">Server 1</span>
-                <span class="server-picker-desc" data-pt="Contas novas � sem limite de cadastro">Fresh accounts � no registration cap</span>
+                <span class="server-picker-desc" data-pt="Contas novas · sem limite de cadastro">Fresh accounts · no registration cap</span>
             </button>
         </div>    </div>
 </div>
@@ -1413,7 +1413,7 @@
 <div id="vacation-modal" class="modal-overlay hidden">
     <div class="modal-box vacation-modal-box">
         <div class="modal-header">
-            <span class="modal-title" data-pt="??? Ir de ferias" data-en="??? Go on vacation">??? Go on vacation</span>
+            <span class="modal-title" data-pt="🏖️ Ir de férias" data-en="🏖️ Go on vacation">🏖️ Go on vacation</span>
             <button class="modal-close" data-action="closeVacationModal">X</button>
         </div>
         <div class="modal-body">
@@ -1424,7 +1424,7 @@
                     <li data-pt="Os pontos de missao nao se regeneram." data-en="Mission points do not regenerate.">Mission points do not regenerate.</li>
                     <li data-pt="Voce nao ataca ninguem e ninguem pode te atacar." data-en="You can't attack anyone and nobody can attack you.">You can't attack anyone and nobody can attack you.</li>
                     <li data-pt="Nao e possivel jogar, viajar, treinar, criar, comprar ou conversar." data-en="No playing, traveling, training, crafting, shopping or chatting.">No playing, traveling, training, crafting, shopping or chatting.</li>
-                    <li data-pt="Nao ha cancelamento antecipado � entrar na conta nao encurta o periodo." data-en="No early cancel � logging in does not shorten it.">No early cancel � logging in does not shorten it.</li>
+                    <li data-pt="Nao ha cancelamento antecipado — entrar na conta nao encurta o periodo." data-en="No early cancel — logging in does not shorten it.">No early cancel — logging in does not shorten it.</li>
                 </ul>
             </div>
             <div class="vacation-slider-row">
@@ -1434,7 +1434,7 @@
             </div>
             <div class="vacation-return-row">
                 <span class="vacation-return-label" data-pt="Retorno previsto:" data-en="Returns on:">Returns on:</span>
-                <span id="vacation-return-preview">�</span>
+                <span id="vacation-return-preview">—</span>
             </div>
             <div class="vacation-actions">
                 <button type="button" class="btn-secondary" data-action="closeVacationModal" data-pt="Cancelar" data-en="Cancel">Cancel</button>
@@ -1445,7 +1445,7 @@
 
 <div id="vacation-overlay" class="vacation-overlay hidden">
     <div class="vacation-lock-card">
-        <div class="vacation-lock-emoji">???</div>
+        <div class="vacation-lock-emoji">🏖️</div>
         <h2 data-pt="Conta em ferias" data-en="Account on vacation">Account on vacation</h2>
         <p class="vacation-lock-sub" data-pt="Todos os seus personagens estao congelados ate as ferias terminarem." data-en="Every character on your account is frozen until the vacation ends.">Every character on your account is frozen until the vacation ends.</p>
         <div class="vacation-countdown-block">
@@ -1453,8 +1453,8 @@
             <div id="vacation-countdown" class="vacation-countdown">0d 00:00:00</div>
         </div>
         <div class="vacation-facts">
-            <div><span class="vacation-fact-k" data-pt="Iniciado em:" data-en="Started:">Started:</span><span class="vacation-fact-v" id="vacation-started">�</span></div>
-            <div><span class="vacation-fact-k" data-pt="Retorno:" data-en="Returns:">Returns:</span><span class="vacation-fact-v" id="vacation-return">�</span></div>
+            <div><span class="vacation-fact-k" data-pt="Iniciado em:" data-en="Started:">Started:</span><span class="vacation-fact-v" id="vacation-started">—</span></div>
+            <div><span class="vacation-fact-k" data-pt="Retorno:" data-en="Returns:">Returns:</span><span class="vacation-fact-v" id="vacation-return">—</span></div>
         </div>
         <p class="vacation-lock-note" data-pt="Nao e possivel terminar antes do prazo. Sua conta volta automaticamente." data-en="It can't be ended early. Your account comes back automatically.">It can't be ended early. Your account comes back automatically.</p>
         <button type="button" class="btn-secondary vacation-logout" data-action="logoutFromMenu" data-pt="Sair da conta" data-en="Logout">Logout</button>
