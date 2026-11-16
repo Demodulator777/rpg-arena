@@ -165,19 +165,19 @@ function handleJoystick(e) {
 }
 
 function checkCollision(nx, ny) {
-    const b = 20;
+    const b = 0;
     const cx = playerWX + nx;
     const cy = playerWY + ny;
     return walls.some(w => 
         cx + 13 > w.x + b &&
         cx - 13 < w.x + b + w.w &&
-        cy + 26 > w.y + b &&
+        cy + 46 > w.y + b &&
         cy - 26 < w.y + b + w.h
     );
 }
 
 function monsterWallHit(mx, my) {
-    const b = 20;
+    const b = 0;
     return walls.some(w =>
         mx + 20 > w.x + b &&
         mx - 20 < w.x + b + w.w &&
@@ -634,7 +634,7 @@ function update(timestamp) {
     if (!checkCollision(dx * step, 0)) playerWX = nx;
     if (!checkCollision(0, dy * step)) playerWY = ny;
     playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
-    playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+    playerWY = Math.max(30, Math.min(playerWY, 5000 - 46));
     player.style.left = playerWX + 'px';
     player.style.top = playerWY + 'px';
 
@@ -679,7 +679,7 @@ function update(timestamp) {
                 if (!checkCollision(lx, 0)) playerWX += lx;
                 if (!checkCollision(0, ly)) playerWY += ly;
                 playerWX = Math.max(15, Math.min(playerWX, 5000 - 15));
-                playerWY = Math.max(30, Math.min(playerWY, 5000 - 30));
+                playerWY = Math.max(30, Math.min(playerWY, 5000 - 46));
                 player.style.left = playerWX + 'px';
                 player.style.top = playerWY + 'px';
             }
