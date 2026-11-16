@@ -1006,6 +1006,7 @@ const WEEKLY_TASKS = [
             `ALTER TABLE characters ADD COLUMN current_map TEXT DEFAULT 'overworld'`,
             `ALTER TABLE characters ADD COLUMN celestial_prev_map TEXT DEFAULT NULL`,
             `ALTER TABLE characters ADD COLUMN celestial_prev_location TEXT DEFAULT NULL`,
+            `ALTER TABLE characters ADD COLUMN celestial_saved_zone TEXT DEFAULT NULL`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN size TEXT NOT NULL DEFAULT 'small'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -25042,12 +25043,22 @@ router.post('/travel/celestial/enter', auth, async (req, res) => {
             return res.status(400).json({ error: 'Already traveling' });
         }
 
+        // Restore the zone the player last stood in (if still accessible) instead of
+        // always resetting to the Threshold — otherwise exiting + re-entering lets
+        // travel between Celestial zones be skipped.
+        const savedZone = character.celestial_saved_zone;
+        let entryZone = CELESTIAL_ENTRY.toZone;
+        if (savedZone && CELESTIAL_ZONES[savedZone]) {
+            const need = Number(CELESTIAL_ZONES[savedZone].honorRequired || CELESTIAL_MIN_HONOR);
+            if (honor >= need) entryZone = savedZone;
+        }
+
         await dbRun(db, 'UPDATE characters SET current_map=?, location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, celestial_prev_map=?, celestial_prev_location=? WHERE id=?',
-            ['celestial', CELESTIAL_ENTRY.toZone, character.current_map || 'overworld', character.location || CELESTIAL_ENTRY.fromZone, character.id]);
+            ['celestial', entryZone, character.current_map || 'overworld', character.location || CELESTIAL_ENTRY.fromZone, character.id]);
 
         res.json({
             success: true,
-            location: CELESTIAL_ENTRY.toZone,
+            location: entryZone,
             message: 'The gate warden reads your Honor and steps aside. The Celestial opens.'
         });
     } catch (e) {
@@ -25073,8 +25084,9 @@ router.post('/travel/celestial/exit', auth, async (req, res) => {
         // while you are standing behind it, and that must never trap a player.
         const prevMap = character.celestial_prev_map || 'overworld';
         const prevLoc = character.celestial_prev_location || CELESTIAL_ENTRY.fromZone;
-        await dbRun(db, 'UPDATE characters SET current_map=?, location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, celestial_prev_map=NULL, celestial_prev_location=NULL WHERE id=?',
-            [prevMap, prevLoc, character.id]);
+        const savedZone = character.location || CELESTIAL_ENTRY.toZone;
+        await dbRun(db, 'UPDATE characters SET current_map=?, location=?, travel_target=NULL, travel_end_time=0, travel_start_time=0, celestial_prev_map=NULL, celestial_prev_location=NULL, celestial_saved_zone=? WHERE id=?',
+            [prevMap, prevLoc, savedZone, character.id]);
 
         res.json({
             success: true,
