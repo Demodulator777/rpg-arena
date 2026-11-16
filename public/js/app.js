@@ -450,7 +450,7 @@ function statLabelHtml(stat) {
     var label = (CURRENT_LANG === 'pt' ? STAT_LABELS_PT[stat] : STAT_LABELS[stat]) || stat.replace(/_/g,' ');
     var asset = STAT_ICON_ASSETS[stat];
     if (asset) {
-        return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="lazy" decoding="async" data-error-hide="true" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;display:inline-block"> ' + label;
+        return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="eager" decoding="async" data-error-hide="true" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;display:inline-block"> ' + label;
     }
     return label;
 }
@@ -2445,6 +2445,8 @@ window.addEventListener('DOMContentLoaded', async () => {
             window._battleCooldownEndsAt = charData.battle_cooldown_ends_at;
             window._setLoadingProgress(60, 'Rendering interface...');
             showScreen('game');
+            // Sync server-persisted news read state (survives cache/device changes)
+            syncNewsReadFromServer().catch(()=>{});
             // Check SW status — only preload assets if SW is enabled (to warm cache)
             var swEnabled = false;
             var botDetectionEnabled = true;
@@ -4044,7 +4046,7 @@ function getElementIconPath(elementType) {
 function renderElementBadge(elementType, value, type) {
     const iconSrc = getElementIconPath(elementType);
     const iconMarkup = iconSrc
-        ? `<img class="element-badge-icon-img" src="${iconSrc}" alt="${escHtml(elementType)}" loading="lazy" decoding="async">`
+        ? `<img class="element-badge-icon-img" src="${iconSrc}" alt="${escHtml(elementType)}" loading="eager" decoding="async">`
         : `<span class="element-badge-icon">${escHtml(elementType)}</span>`;
     return `<div class="element-entry">
         ${iconMarkup}
@@ -4718,7 +4720,7 @@ function getClassStatIconFilter(className, profile = false) {
 function renderStatIcon(assetKey, fallback, label, className = '', profile = false) {
     const filter = getClassStatIconFilter(className, profile);
     const glow = profile ? 'drop-shadow(0 0 7px rgba(255,255,255,0.28))' : 'drop-shadow(0 0 5px rgba(255,255,255,0.2))';
-    return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="lazy" decoding="async" data-error-hide="true" style="filter:${filter} ${glow};"><span class="stat-icon-fallback">${fallback}</span>`;
+    return `<img class="stat-icon-img" src="/images/assets/${assetKey}.png" alt="${label}" loading="eager" decoding="async" data-error-hide="true" style="filter:${filter} ${glow};"><span class="stat-icon-fallback">${fallback}</span>`;
 }
 function elemEmoji(t) { return {pyro:'🔥',water:'💧',wind:'🌀',electro:'⚡'}[t]||''; }
 function getSkillImagePath(skillId) {
@@ -5604,7 +5606,7 @@ function badgeIconImg(id, def) {
     if (!type) return d?.icon || '🏅';
     const tier = badgeTierFor(d);
     const name = getAchievementPt(id)?.name || d?.name || id || 'Badge';
-    return `<img src="/images/assets/badges/${type.key}.png" alt="${escHtml(name)}" title="${escHtml(name)}" class="badge-icon badge-tier-${tier}" loading="lazy">`;
+    return `<img src="/images/assets/badges/${type.key}.png" alt="${escHtml(name)}" title="${escHtml(name)}" class="badge-icon badge-tier-${tier}" loading="eager">`;
 }
 window.badgeIconImg = badgeIconImg;
 
@@ -15470,6 +15472,10 @@ function skipBattlePlayback() {
 function getMyAttackBlockReason() {
     if (character?.activeSkillTraining) return 'Training in progress';
     if (character?.activeMission || window.activeMission) return 'Mission in progress';
+    const now = Math.floor(Date.now() / 1000);
+    const traveling = (playerTravelTarget && (!playerTravelEndTime || playerTravelEndTime > now)) ||
+        (character?.travel_target && Number(character.travel_end_time || 0) > now);
+    if (traveling) return 'Travel in progress';
     const myBattleCd = character?.battle_cooldown_remaining || 0;
     if (myBattleCd > 0) return `Wait ${Math.ceil(myBattleCd / 60)}m to fight again`;
     return '';
@@ -15771,9 +15777,23 @@ const NEWS_FEED = [
 const NEWS_READ_KEY = 'rpg_read_news_ids';
 function getReadNewsIds() { try { return JSON.parse(localStorage.getItem(NEWS_READ_KEY) || '[]'); } catch { return []; } }
 function setReadNewsIds(ids) { try { localStorage.setItem(NEWS_READ_KEY, JSON.stringify(Array.from(new Set(ids)))); } catch {} }
+async function syncNewsReadFromServer() {
+    try {
+        const res = await api('GET', '/game/news/read', null);
+        const serverIds = Array.isArray(res?.ids) ? res.ids : [];
+        const localIds = getReadNewsIds();
+        const merged = Array.from(new Set([...localIds, ...serverIds]));
+        setReadNewsIds(merged);
+        // push any locally-read ids that server didn't have
+        if (localIds.some(id => !serverIds.includes(id))) {
+            api('POST', '/game/news/read', { ids: localIds }).catch(()=>{});
+        }
+        try { updateNewsBadge(); } catch {}
+    } catch {}
+}
 function isNewsRead(id) { return getReadNewsIds().includes(id); }
-function markNewsRead(id) { const ids = getReadNewsIds(); if (!ids.includes(id)) { ids.push(id); setReadNewsIds(ids); } updateNewsBadge(); const menuBtn = document.getElementById('topbar-menu-btn'); if (menuBtn) { if (getUnreadNewsCount() > 0 || (typeof character !== 'undefined' && character && character.weekly_claimable_count > 0)) menuBtn.classList.add('menu-highlight'); else menuBtn.classList.remove('menu-highlight'); } }
-function markAllNewsRead() { setReadNewsIds(NEWS_FEED.map(item => item.id)); updateNewsBadge(); }
+function markNewsRead(id) { const ids = getReadNewsIds(); if (!ids.includes(id)) { ids.push(id); setReadNewsIds(ids); api('POST', '/game/news/read', { ids: [id] }).catch(()=>{}); } updateNewsBadge(); const menuBtn = document.getElementById('topbar-menu-btn'); if (menuBtn) { if (getUnreadNewsCount() > 0 || (typeof character !== 'undefined' && character && character.weekly_claimable_count > 0)) menuBtn.classList.add('menu-highlight'); else menuBtn.classList.remove('menu-highlight'); } }
+function markAllNewsRead() { const ids = NEWS_FEED.map(item => item.id); setReadNewsIds(ids); api('POST', '/game/news/read', { ids }).catch(()=>{}); updateNewsBadge(); }
 function getUnreadNewsCount() { const read = getReadNewsIds(); return NEWS_FEED.filter(item => !read.includes(item.id)).length; }
 function updateNewsBadge() {
     const count = getUnreadNewsCount();
