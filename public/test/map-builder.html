@@ -39,6 +39,7 @@
         .decal { position: absolute; pointer-events: auto; opacity: 0.7; }
         .decal.selected { outline: 2px solid #fc0; z-index: 10; }
         .trap { position: absolute; background: rgba(255,0,0,0.2); border: 2px dashed #c33; pointer-events: auto; }
+        .revtrap { position: absolute; background: rgba(128,0,255,0.2); border: 2px dashed #80f; pointer-events: auto; }
         .trap.selected { outline: 2px solid #fc0; z-index: 10; }
         .teleport { position: absolute; width: 30px; height: 30px; background: #6cf; border: 2px solid #4af; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; color: #fff; z-index: 4; }
         .teleport.selected { outline: 2px solid #fc0; z-index: 10; }
@@ -62,7 +63,7 @@
         <button id="btn-select" class="active" data-tool="select">Select</button>
         <button id="btn-wall" data-tool="wall">Wall</button>
         <button id="btn-chest" data-tool="chest">Chest</button>
-        <button id="btn-shop" data-tool="shop" style="background:#484;border-color:#6a6">Shop</button>
+        <button id="btn-shop" data-tool="shop">Shop</button>
         <select id="btn-monster" data-tool="monster" style="background:#333;color:#eee;border:1px solid #555;padding:4px 6px;border-radius:4px;font-size:13px;cursor:pointer;height:30px;">
             <option value="melee">Melee Goblin</option>
             <option value="ranged">Archer Goblin</option>
@@ -72,6 +73,7 @@
         <button id="btn-start" data-tool="start">Start</button>
         <button id="btn-decal" data-tool="decal">Decal</button>
         <button id="btn-trap" data-tool="trap">Trap</button>
+        <button id="btn-revtrap" data-tool="revtrap">RevTrap</button>
         <button id="btn-teleport" data-tool="teleport">Portal</button>
         <button id="btn-beam" data-tool="beam">Beam</button>
         <div class="sep"></div>
@@ -87,6 +89,8 @@
         <div class="sep"></div>
         <button id="btn-new">New</button>
         <button id="btn-load">Load</button>
+        <button id="btn-versions">Versions</button>
+        <button id="btn-verify">Verify</button>
         <button id="btn-save" style="background:#4a7;border-color:#6c9">Save</button>
         <div class="sep"></div>
         <span id="status">Ready</span>
@@ -106,6 +110,6 @@
         <span id="info-items">Walls: 0 | Chests: 0 | Monsters: 0 | Decals: 0 | Traps: 0 | Portals: 0 | Beams: 0</span>
     </div>
 
-    <script src="map-builder.js"></script>
+    <script src="map-builder.js?v=11"></script>
 </body>
 </html>
