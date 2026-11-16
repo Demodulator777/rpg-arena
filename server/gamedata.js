@@ -282,9 +282,9 @@ const CELESTIAL_ZONES = {
             { id: 'celestial_1_gate', name: 'Gate of First Light', difficulty: 'easy', img: '/images/spots/celestial/gates.jpeg',
                 description: 'The lower gate, kept by a silent warden of light.', missionDuration: 900, payoutMultiplier: 1.0,
                 missions: [
-                    { name: 'Present Your Honor', img: '/images/missions/abyss/breach.jpg' },
-                    { name: 'Patrol the First Stair', img: '/images/missions/abyss/navigate.jpg' },
-                    { name: 'Gather Starlight Dew', img: '/images/missions/abyss/energy.jpg' }
+                    { name: 'Present Your Honor', img: '/images/missions/celestial/honor.jpeg' },
+                    { name: 'Patrol the First Stair', img: '/images/missions/celestial/stairs.jpeg' },
+                    { name: 'Gather Starlight Dew', img: '/images/missions/celestial/dew.jpeg' }
                 ] },
             { id: 'celestial_1_hall', name: 'Hall of Ascension', difficulty: 'medium', img: '/images/spots/abyss/halls.jpg',
                 description: 'A hall of names, where ascended champions are recorded.', missionDuration: 1200, payoutMultiplier: 1.8,
