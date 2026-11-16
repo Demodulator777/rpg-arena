@@ -75,6 +75,7 @@ let entranceEl = null;
 let decals = [];
 let traps = [];
 let trapTimers = [];
+let reversedUntil = 0;
 let teleports = [];
 let teleportCooldown = 0;
 let beams = [];
@@ -122,6 +123,7 @@ const keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowDown
 function updateInput() {
     dx = (keys.d || keys.ArrowRight ? 1 : 0) - (keys.a || keys.ArrowLeft ? 1 : 0);
     dy = (keys.s || keys.ArrowDown ? 1 : 0) - (keys.w || keys.ArrowUp ? 1 : 0);
+    if (Date.now() < reversedUntil) { dx = -dx; dy = -dy; }
 }
 
 window.addEventListener('keydown', (e) => {
@@ -534,7 +536,7 @@ async function loadLevel(level, spawnAt) {
                 el.className = 'trap-zone';
                 el.style.cssText = `left:${tr.x}px;top:${tr.y}px;width:${tr.width}px;height:${tr.height}px;position:absolute;background:rgba(255,0,0,0.08);border:1px dashed rgba(255,0,0,0.3);pointer-events:none;z-index:2;opacity:0;`;
                 map.appendChild(el);
-                traps.push({ x: tr.x, y: tr.y, w: tr.width, h: tr.height, damage: tr.damage || 10, el });
+                traps.push({ x: tr.x, y: tr.y, w: tr.width, h: tr.height, damage: tr.damage || 10, reverse: !!tr.reverse, el });
                 trapTimers.push(0);
             }
         }
@@ -982,16 +984,21 @@ function update(timestamp) {
         if (playerWX + 13 > tr.x && playerWX - 13 < tr.x + tr.w &&
             playerWY + 26 > tr.y && playerWY - 26 < tr.y + tr.h) {
             if (trapTimers[i] <= 0) {
-                playerHP = Math.max(0, playerHP - tr.damage);
-                document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
-                trapTimers[i] = 1000;
-                triggerShake(8);
-                if (playerHP <= 0) {
-                    playerWX = mapInfo.playerStart.x;
-                    playerWY = mapInfo.playerStart.y;
-                    playerHP = PLAYER_MAX_HP;
-                    document.getElementById('player-hp-inner').style.width = '100%';
+                if (tr.reverse) {
+                    reversedUntil = Date.now() + 5000;
+                    triggerShake(6);
+                } else {
+                    playerHP = Math.max(0, playerHP - tr.damage);
+                    document.getElementById('player-hp-inner').style.width = (playerHP / PLAYER_MAX_HP * 100) + '%';
+                    triggerShake(8);
+                    if (playerHP <= 0) {
+                        playerWX = mapInfo.playerStart.x;
+                        playerWY = mapInfo.playerStart.y;
+                        playerHP = PLAYER_MAX_HP;
+                        document.getElementById('player-hp-inner').style.width = '100%';
+                    }
                 }
+                trapTimers[i] = 1000;
             }
         }
         if (trapTimers[i] > 0) trapTimers[i] -= dt;
