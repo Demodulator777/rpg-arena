@@ -307,7 +307,7 @@ const CELESTIAL_ZONES = {
     },
     celestial_2: {
         name: 'Silvered Terraces', emoji: '⚔️', minLevel: 1, honorRequired: 2000,
-        mapImg: '/images/zones/abyss/void.jpg', bgImg: '/images/zones/abyss/void-bg.jpg',
+        mapImg: '/images/zones/celestial/void.jpeg', bgImg: '/images/zones/celestial/void-bg.jpeg',
         pos: { x: 26, y: 66 },
         travelTime: 240,
         description: 'Terraces of polished silver where celestial armaments are forged and broken.',
@@ -340,7 +340,7 @@ const CELESTIAL_ZONES = {
     },
     celestial_3: {
         name: 'Aurora Sanctum', emoji: '🛡️', minLevel: 1, honorRequired: 3000,
-        mapImg: '/images/zones/abyss/crimson.jpg', bgImg: '/images/zones/abyss/crimson-bg.jpg',
+        mapImg: '/images/zones/celestial/crimson.jpeg', bgImg: '/images/zones/celestial/crimson-bg.jpeg',
         pos: { x: 74, y: 62 },
         travelTime: 300,
         description: 'A sanctum wrapped in living aurora, where armour is grown rather than made.',
@@ -373,7 +373,7 @@ const CELESTIAL_ZONES = {
     },
     celestial_4: {
         name: 'Zenith Halls', emoji: '👑', minLevel: 1, honorRequired: 4000,
-        mapImg: '/images/zones/abyss/eternal.jpg', bgImg: '/images/zones/abyss/eternal-bg.jpg',
+        mapImg: '/images/zones/celestial/eternal.jpeg', bgImg: '/images/zones/celestial/eternal-bg.jpeg',
         pos: { x: 74, y: 30 },
         travelTime: 360,
         description: 'The highest halls of the Celestial, lined with the crowns of forgotten kings.',
@@ -406,7 +406,7 @@ const CELESTIAL_ZONES = {
     },
     celestial_5: {
         name: 'Throne of Dawn', emoji: '🌅', minLevel: 1, honorRequired: 5000,
-        mapImg: '/images/zones/abyss_gate.jpg', bgImg: '/images/zones/abyss/citadel-bg.jpg',
+        mapImg: '/images/zones/celestial/abyss_gate.jpeg', bgImg: '/images/zones/celestial/citadel-bg.jpeg',
         pos: { x: 40, y: 18 },
         travelTime: 420,
         description: 'The last gate. Beyond it, dawn never ends — and the Celestial keeps its treasures.',
