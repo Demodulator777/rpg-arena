@@ -16456,6 +16456,7 @@ router.post('/shop/buy', auth, async (req, res) => {
     try {
         const db = await getDb();
         const { item: clientItem } = req.body;
+        let qty = Math.max(1, Math.min(99, parseInt(req.body?.qty, 10) || 1));
         const character = await getCurrentCharacter(db, req.user.userId);
         if (!character) return res.status(404).json({ error: 'No character' });
         if (!clientItem || !clientItem.id) return res.status(400).json({ error: 'Invalid item data' });
@@ -16485,6 +16486,8 @@ router.post('/shop/buy', auth, async (req, res) => {
         }
         if (!item) return res.status(404).json({ error: 'Item not found in shop' });
 
+        if (!item.consumable) qty = 1;
+
         const basePrice = Math.max(0, Number(item.price || 0));
         const basePriceType = String(item.priceType || 'gold').toLowerCase() === 'gems' ? 'gems' : 'gold';
 
@@ -16493,35 +16496,35 @@ router.post('/shop/buy', auth, async (req, res) => {
         const legendaryGemFee = isLegendary ? (5 + Math.floor(Math.random() * 6)) : 0; // 5-10
         const gemCost = baseGemCost + legendaryGemFee;
 
+        const totalBasePrice = basePrice * qty;
+        const totalGemCost = (baseGemCost + legendaryGemFee) * qty;
         if (basePriceType === 'gems') {
-            const totalGemCost = basePrice + legendaryGemFee;
-            if ((character.gems || 0) < totalGemCost) return res.status(400).json({ error: 'Not enough gems' });
+            if ((character.gems || 0) < totalBasePrice) return res.status(400).json({ error: 'Not enough gems' });
         } else {
-            if (character.gold < basePrice) return res.status(400).json({ error: 'Not enough gold' });
-            if (gemCost > 0 && (character.gems||0) < gemCost)
-                return res.status(400).json({ error: `Not enough gems — this item also costs ${gemCost} 💎` });
+            if (character.gold < totalBasePrice) return res.status(400).json({ error: 'Not enough gold' });
+            if (gemCost > 0 && (character.gems||0) < totalGemCost)
+                return res.status(400).json({ error: `Not enough gems — this item also costs ${totalGemCost} 💎` });
         }
 
         if (basePriceType === 'gems') {
-            const totalGemCost = basePrice + legendaryGemFee;
-            await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [totalGemCost, totalGemCost, character.id]);
+            await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [totalBasePrice, totalBasePrice, character.id]);
         } else {
-            await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [basePrice, character.id]);
+            await dbRun(db, 'UPDATE characters SET gold=gold-? WHERE id=?', [totalBasePrice, character.id]);
             if (gemCost > 0) {
-                await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [gemCost, gemCost, character.id]);
+                await dbRun(db, 'UPDATE characters SET gems=gems-?,total_gems_spent=total_gems_spent+? WHERE id=?', [totalGemCost, totalGemCost, character.id]);
             }
         }
         if (item.consumable) {
             const shopConsumable = (item.category === 'lootbox' || String(item.id || '').startsWith('lootbox_'))
                 ? { ...item, source: 'shop' }
                 : item;
-            await addStackableInventoryItem(db, character.id, 'consumable', shopConsumable, 1);
+            await addStackableInventoryItem(db, character.id, 'consumable', shopConsumable, qty);
         } else {
             await dbRun(db, `INSERT INTO inventory (char_id,item_type,item_data,weapon_type) VALUES (?,'equipment',?,?)`, [character.id, JSON.stringify(item), item.weaponType || null]);
             try { await dbRun(db, `UPDATE shop_items SET sold=1 WHERE char_id=? AND location=? AND json_extract(item_data,'$.id')=?`, [character.id, character.location || 'forest', item.id]); } catch {}
         }
         const updatedChar = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
-        res.json({ success:true, newGold:updatedChar.gold, newGems:updatedChar.gems, character:updatedChar, message:`Purchased ${item.name}!` });
+        res.json({ success:true, newGold:updatedChar.gold, newGems:updatedChar.gems, character:updatedChar, message:`Purchased ${qty}× ${item.name}!` });
     } catch (e) { console.error(e); res.status(500).json({ error: e.message }); }
 });
 
@@ -24155,47 +24158,61 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
             return res.status(400).json({ error: 'You don\'t have any of this loot box!' });
         }
 
-        const loot = generateLootFromBox(itemData.lootType, char.level);
+        const count = Math.max(1, Math.min(currentQty, parseInt(req.body?.count, 10) || 1));
 
-        if (currentQty <= 1) {
+        // Aggregate rewards across all opened boxes.
+        const aggregatedItems = []; // { lootItem, qty multiplier handled per box }
+        let totalGems = 0;
+        let totalGold = 0;
+        const lootResults = [];
+        for (let i = 0; i < count; i++) {
+            const loot = generateLootFromBox(itemData.lootType, char.level);
+            lootResults.push(loot);
+            if (loot.gems > 0) totalGems += loot.gems;
+            if (loot.gold > 0) totalGold += loot.gold;
+        }
+
+        if (currentQty <= count) {
             await dbRun(db, 'DELETE FROM inventory WHERE id=?', [inventoryItem.id]);
         } else {
-            itemData.qty = currentQty - 1;
+            itemData.qty = currentQty - count;
             await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(itemData), inventoryItem.id]);
         }
 
         const addedItems = [];
-        for (const lootItem of loot.items) {
-            if (lootItem.stackable) {
-                const existing = await dbGet(db, `
-                    SELECT * FROM inventory
-                    WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?
-                `, [char.id, lootItem.type, lootItem.id]);
+        for (const loot of lootResults) {
+            for (const lootItem of loot.items) {
+                if (lootItem.stackable) {
+                    const existing = await dbGet(db, `
+                        SELECT * FROM inventory
+                        WHERE char_id=? AND item_type=? AND json_extract(item_data,'$.id')=?
+                    `, [char.id, lootItem.type, lootItem.id]);
 
-                if (existing) {
-                    const existingData = JSON.parse(existing.item_data);
-                    existingData.qty = (existingData.qty || 1) + lootItem.qty;
-                    await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(existingData), existing.id]);
+                    if (existing) {
+                        const existingData = JSON.parse(existing.item_data);
+                        existingData.qty = (existingData.qty || 1) + lootItem.qty;
+                        await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(existingData), existing.id]);
+                    } else {
+                        await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
+                            [char.id, lootItem.type, JSON.stringify(lootItem)]);
+                    }
                 } else {
                     await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
                         [char.id, lootItem.type, JSON.stringify(lootItem)]);
                 }
-            } else {
-                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
-                    [char.id, lootItem.type, JSON.stringify(lootItem)]);
+                addedItems.push(lootItem);
             }
-            addedItems.push(lootItem);
         }
 
         let gemsFound = 0;
-        if (loot.gems > 0) {
-            gemsFound = loot.gems;
+        if (totalGems > 0) {
+            gemsFound = totalGems;
             await dbRun(db, 'UPDATE characters SET gems=gems+? WHERE id=?', [gemsFound, char.id]);
         }
 
         let goldFound = 0;
-        if (loot.gold > 0) {
-            goldFound = loot.gold;
+        if (totalGold > 0) {
+            goldFound = totalGold;
             await dbRun(db, 'UPDATE characters SET gold=gold+? WHERE id=?', [goldFound, char.id]);
         }
 
@@ -24203,7 +24220,7 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
 
         res.json({
             success: true,
-            message: `🎁 Opened ${itemData.name}!`,
+            message: `🎁 Opened ${count}× ${itemData.name}!`,
             loot: addedItems,
             gemsFound,
             goldFound,
