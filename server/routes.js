@@ -1051,6 +1051,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE users ADD COLUMN inbox_prune_missions INTEGER DEFAULT 1',
             'ALTER TABLE users ADD COLUMN last_online_at INTEGER DEFAULT 0',
             'ALTER TABLE users ADD COLUMN google_sub TEXT DEFAULT NULL',
+            'ALTER TABLE users ADD COLUMN read_news_ids TEXT DEFAULT NULL',
             'ALTER TABLE characters ADD COLUMN last_online_at INTEGER DEFAULT 0',
             'ALTER TABLE squads ADD COLUMN logo TEXT DEFAULT NULL',
             `CREATE TABLE IF NOT EXISTS chat_messages (
@@ -26168,6 +26169,38 @@ router.post('/admin/ring-text/delete', auth, async (req, res) => {
         if (map[ringId]) { delete map[ringId]; writeRingTextMap(map); }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── News read state (server-persisted so it survives cache/device changes) ──
+router.get('/news/read', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const row = await dbGet(db, 'SELECT read_news_ids FROM users WHERE id = ?', [req.user.userId]);
+        let ids = [];
+        try { ids = JSON.parse(row?.read_news_ids || '[]'); } catch { ids = []; }
+        if (!Array.isArray(ids)) ids = [];
+        res.json({ ids });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/news/read', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const incoming = Array.isArray(req.body?.ids) ? req.body.ids : [];
+        const row = await dbGet(db, 'SELECT read_news_ids FROM users WHERE id = ?', [req.user.userId]);
+        let existing = [];
+        try { existing = JSON.parse(row?.read_news_ids || '[]'); } catch { existing = []; }
+        if (!Array.isArray(existing)) existing = [];
+        const merged = Array.from(new Set([...existing, ...incoming]));
+        await dbRun(db, 'UPDATE users SET read_news_ids = ? WHERE id = ?', [JSON.stringify(merged), req.user.userId]);
+        res.json({ ids: merged });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // Export battle engine for use by tournament module
