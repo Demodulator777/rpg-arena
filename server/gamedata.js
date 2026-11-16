@@ -286,19 +286,19 @@ const CELESTIAL_ZONES = {
                     { name: 'Patrol the First Stair', img: '/images/missions/celestial/stairs.jpeg' },
                     { name: 'Gather Starlight Dew', img: '/images/missions/celestial/dew.jpeg' }
                 ] },
-            { id: 'celestial_1_hall', name: 'Hall of Ascension', difficulty: 'medium', img: '/images/spots/abyss/halls.jpg',
+            { id: 'celestial_1_hall', name: 'Hall of Ascension', difficulty: 'medium', img: '/images/spots/celestial/halls.jpeg',
                 description: 'A hall of names, where ascended champions are recorded.', missionDuration: 1200, payoutMultiplier: 1.8,
                 missions: [
-                    { name: 'Silence the Fallen Warden', img: '/images/missions/abyss/gatekeepers.jpg' },
-                    { name: 'Recover the Ascension Ledger', img: '/images/missions/abyss/relic.jpg' },
-                    { name: 'Cleanse the Broken Seal', img: '/images/missions/abyss/purify.jpg' }
+                    { name: 'Silence the Fallen Warden', img: '/images/missions/celestial/gatekeepers.jpeg' },
+                    { name: 'Recover the Ascension Ledger', img: '/images/missions/celestial/relic.jpeg' },
+                    { name: 'Cleanse the Broken Seal', img: '/images/missions/celestial/purify.jpeg' }
                 ] },
-            { id: 'celestial_1_star', name: 'The Sunken Star', difficulty: 'hard', img: '/images/spots/abyss/heart.jpg',
+            { id: 'celestial_1_star', name: 'The Sunken Star', difficulty: 'hard', img: '/images/spots/celestial/heart.jpeg',
                 description: 'A dead star lies half-buried here, humming with old power.', missionDuration: 1800, payoutMultiplier: 3.0,
                 missions: [
-                    { name: 'Restore the Dying Star', img: '/images/missions/abyss/restore_light.jpg' },
-                    { name: 'Slay the Star Wraith', img: '/images/missions/abyss/primordial.jpg' },
-                    { name: 'Take the First Shard', img: '/images/missions/abyss/crystal.jpg' }
+                    { name: 'Restore the Dying Star', img: '/images/missions/celestial/restore_light.jpeg' },
+                    { name: 'Slay the Star Wraith', img: '/images/missions/celestial/primordial.jpeg' },
+                    { name: 'Take the First Shard', img: '/images/missions/celestial/crystal.jpeg' }
                 ] }
         ],
         payoutBase: { easy: [1000, 1500], medium: [1200, 1750], hard: [1500, 2550] },
