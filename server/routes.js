@@ -1176,6 +1176,8 @@ const WEEKLY_TASKS = [
                 )`,
             'ALTER TABLE users ADD COLUMN vacation_started_at INTEGER NOT NULL DEFAULT 0',
             'ALTER TABLE users ADD COLUMN vacation_until INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE maps ADD COLUMN version INTEGER NOT NULL DEFAULT 1',
+            'ALTER TABLE maps ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
         ];
         try { await dbRun(db, 'ALTER TABLE character_story_progress ADD COLUMN accepted_stage INTEGER NOT NULL DEFAULT -1'); } catch {}
         for (const sql of migrations) {
@@ -25660,7 +25662,12 @@ router.get('/maps', async (req, res) => {
 router.get('/maps/:level/versions', async (req, res) => {
     try {
         const db = await getDb();
-        const rows = await dbAll(db, 'SELECT id, level, version, name, created_at, updated_at FROM maps WHERE level=? ORDER BY version DESC', [Number(req.params.level)]);
+        let rows = null;
+        try {
+            rows = await dbAll(db, 'SELECT id, level, version, name, created_at, updated_at FROM maps WHERE level=? ORDER BY version DESC', [Number(req.params.level)]);
+        } catch (e) {
+            rows = await dbAll(db, 'SELECT id, level, name, created_at, updated_at FROM maps WHERE level=? ORDER BY id DESC', [Number(req.params.level)]);
+        }
         res.json(rows);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -25722,7 +25729,12 @@ router.put('/maps/:level/verify', async (req, res) => {
     try {
         const db = await getDb();
         const verified = req.body.verified ? 1 : 0;
-        const latest = await dbGet(db, 'SELECT id FROM maps WHERE level=? ORDER BY version DESC, id DESC LIMIT 1', [Number(req.params.level)]);
+        let latest = null;
+        try {
+            latest = await dbGet(db, 'SELECT id FROM maps WHERE level=? ORDER BY version DESC, id DESC LIMIT 1', [Number(req.params.level)]);
+        } catch (e) {
+            latest = await dbGet(db, 'SELECT id FROM maps WHERE level=? ORDER BY id DESC LIMIT 1', [Number(req.params.level)]);
+        }
         if (!latest) return res.status(404).json({ error: 'Map not found' });
         await dbRun(db, 'UPDATE maps SET verified=? WHERE id=?', [verified, latest.id]);
         res.json({ level: Number(req.params.level), verified });
