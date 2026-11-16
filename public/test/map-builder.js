@@ -3,12 +3,14 @@ const WORLD_SIZE = 5000;
 
 let currentTool = 'select';
 let monsterType = 'melee';
+let mapVerified = false;
 let mapData = {
     name: '',
     level: 1,
     playerStart: { x: 2500, y: 2500 },
     walls: [],
     chests: [],
+    shops: [],
     monsterSpawns: [],
     exit: null,
     entrance: null,
@@ -24,6 +26,15 @@ let dragStartX = 0, dragStartY = 0;
 let dragItem = null;
 let dragOffX = 0, dragOffY = 0;
 let rubberBand = null;
+function ensureRubberBand() {
+    if (!rubberBand || !rubberBand.isConnected) {
+        rubberBand = document.createElement('div');
+        rubberBand.className = 'rubber-band';
+        rubberBand.style.display = 'none';
+        gameWorld.appendChild(rubberBand);
+    }
+    return rubberBand;
+}
 let beamStart = null;
 
 // Grid snap
@@ -74,11 +85,17 @@ function setTool(tool) {
 
 document.querySelectorAll('#toolbar button[data-tool]').forEach(btn =>
     btn.addEventListener('click', () => setTool(btn.dataset.tool)));
+// Explicit shop button binding (fallback)
+document.getElementById('btn-shop')?.addEventListener('click', () => setTool('shop'));
 
-document.getElementById('btn-monster').addEventListener('change', function() {
+const monsterSelectEl = document.getElementById('btn-monster');
+monsterSelectEl.addEventListener('focus', () => setTool('monster'));
+monsterSelectEl.addEventListener('change', function() {
     monsterType = this.value;
     setTool('monster');
 });
+// Also activate tool on click (covers selecting the already-default option)
+monsterSelectEl.addEventListener('click', () => setTool('monster'));
 
 // Selection
 function deselectAll() {
@@ -284,6 +301,9 @@ function renderItem(data) {
     } else if (data.type === 'trap') {
         el = document.querySelector(`.trap[data-id="${data._id}"]`);
         if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+    } else if (data.type === 'revtrap') {
+        el = document.querySelector(`.revtrap[data-id="${data._id}"]`);
+        if (el) el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
     } else if (data.type === 'teleport') {
         el = document.querySelector(`.teleport[data-id="${data._id}"]`);
         if (el) el.style.cssText = `left:${data.x - 15}px;top:${data.y - 15}px;`;
@@ -371,6 +391,12 @@ function createItemElement(data) {
         el.dataset.id = data._id;
         el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
         gameWorld.appendChild(el);
+    } else if (data.type === 'revtrap') {
+        el = document.createElement('div');
+        el.className = 'revtrap';
+        el.dataset.id = data._id;
+        el.style.cssText = `left:${data.x}px;top:${data.y}px;width:${data.width}px;height:${data.height}px;`;
+        gameWorld.appendChild(el);
     } else if (data.type === 'teleport') {
         el = document.createElement('div');
         el.className = 'teleport';
@@ -420,6 +446,7 @@ function addItem(data) {
     else if (data.type === 'start') { if (mapData.playerStart) removeItem(mapData.playerStart); mapData.playerStart = data; }
     else if (data.type === 'decal') mapData.decals.push(data);
     else if (data.type === 'trap') mapData.traps.push(data);
+    else if (data.type === 'revtrap') mapData.traps.push(data);
     else if (data.type === 'teleport') mapData.teleports.push(data);
     else if (data.type === 'beam') mapData.beams.push(data);
     createItemElement(data);
@@ -461,6 +488,10 @@ function clientToWorld(clientX, clientY) {
 
 // Click handler
 gameWorld.addEventListener('mousedown', e => {
+    e.preventDefault();
+    if (mapVerified) { setStatus('Map is verified/locked. Unverify to edit.'); return; }
+    // Clean up any stale rubber-bands
+    document.querySelectorAll('.rubber-band').forEach(el => { try { if (el !== rubberBand) el.remove(); } catch(e){} });
     if (currentTool === 'select') return;
     if (currentTool === 'pan') {
         isDragging = true;
@@ -473,14 +504,14 @@ gameWorld.addEventListener('mousedown', e => {
     const sy = snap(pos.y);
 
     if (currentTool === 'wall') {
+        // Clean up any leftover rubber band
+        if (rubberBand) { try { if (rubberBand && rubberBand.parentNode) { try { rubberBand.parentNode.removeChild(rubberBand); } catch(e){} } document.querySelectorAll('.rubber-band').forEach(el => { try { el.remove(); } catch(e){} }); } catch(e){} rubberBand = null; }
         // Start rubber band
         isDragging = true;
         dragStartX = sx;
         dragStartY = sy;
-        rubberBand = document.createElement('div');
-        rubberBand.className = 'rubber-band';
-        rubberBand.style.cssText = `left:${sx}px;top:${sy}px;width:0;height:0;`;
-        gameWorld.appendChild(rubberBand);
+        rubberBand = ensureRubberBand();
+        rubberBand.style.cssText = `left:${sx}px;top:${sy}px;width:0;height:0;display:block;`;
     } else if (currentTool === 'chest') {
         addItem({ type: 'chest', x: sx, y: sy });
     } else if (currentTool === 'shop') {
@@ -499,13 +530,12 @@ gameWorld.addEventListener('mousedown', e => {
     } else if (currentTool === 'decal') {
         addItem({ type: 'decal', x: sx, y: sy, width: 40, height: 40, color: '#888', layer: 'floor' });
     } else if (currentTool === 'trap') {
+        if (rubberBand) { try { if (rubberBand && rubberBand.parentNode) { try { rubberBand.parentNode.removeChild(rubberBand); } catch(e){} } document.querySelectorAll('.rubber-band').forEach(el => { try { el.remove(); } catch(e){} }); } catch(e){} rubberBand = null; }
         isDragging = true;
         dragStartX = sx;
         dragStartY = sy;
-        rubberBand = document.createElement('div');
-        rubberBand.className = 'rubber-band';
-        rubberBand.style.cssText = `left:${sx}px;top:${sy}px;width:0;height:0;`;
-        gameWorld.appendChild(rubberBand);
+        rubberBand = ensureRubberBand();
+        rubberBand.style.cssText = `left:${sx}px;top:${sy}px;width:0;height:0;display:block;`;
     } else if (currentTool === 'teleport') {
         addItem({ type: 'teleport', x: sx, y: sy, id: Date.now(), targetId: 0 });
     } else if (currentTool === 'beam') {
@@ -521,6 +551,13 @@ gameWorld.addEventListener('mousedown', e => {
 });
 
 gameWorld.addEventListener('mousemove', e => {
+    // Safety: if mouse button released without mouseup, reset drag state
+    if (isDragging && !(e.buttons & 1)) {
+        isDragging = false;
+        dragItem = null;
+        document.querySelectorAll('.rubber-band').forEach(el => { try { if (el.parentNode) el.parentNode.removeChild(el); } catch(e){ try { el.remove(); } catch(e2){} } });
+        rubberBand = null;
+    }
     const pos = clientToWorld(e.clientX, e.clientY);
     infoPos.textContent = `X: ${Math.round(pos.x)} Y: ${Math.round(pos.y)}  Grid: ${snap(pos.x)}, ${snap(pos.y)}`;
 
@@ -544,7 +581,7 @@ gameWorld.addEventListener('mousemove', e => {
         const y = Math.min(dragStartY, sy);
         const w = Math.max(GRID, Math.abs(sx - dragStartX));
         const h = Math.max(GRID, Math.abs(sy - dragStartY));
-        rubberBand.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;`;
+        rubberBand.style.cssText = `left:${x}px;top:${y}px;width:${w}px;height:${h}px;display:block;`;
     }
 
     if (isDragging && dragItem) {
@@ -557,30 +594,37 @@ gameWorld.addEventListener('mousemove', e => {
     }
 });
 
-gameWorld.addEventListener('mouseup', e => {
-    if (currentTool === 'pan') {
-        isDragging = false;
-        dragItem = null;
-        return;
-    }
-    if (rubberBand) {
-        const pos = clientToWorld(e.clientX, e.clientY);
-        const sx = snap(pos.x);
-        const sy = snap(pos.y);
-        const x = Math.min(dragStartX, sx);
-        const y = Math.min(dragStartY, sy);
-        const w = Math.max(GRID, Math.abs(sx - dragStartX));
-        const h = Math.max(GRID, Math.abs(sy - dragStartY));
-        if (w >= GRID && h >= GRID) {
-            if (currentTool === 'wall') addItem({ type: 'wall', x, y, width: w, height: h });
-            else if (currentTool === 'trap') addItem({ type: 'trap', x, y, width: w, height: h, damage: 10 });
+document.addEventListener('mouseup', e => {
+    try {
+        if (!isDragging) { /* ignore clicks on toolbar etc. */ }
+        else if (currentTool === 'wall' || currentTool === 'trap') {
+            const pos = clientToWorld(e.clientX, e.clientY);
+            const sx = snap(pos.x);
+            const sy = snap(pos.y);
+            const x = Math.min(dragStartX, sx);
+            const y = Math.min(dragStartY, sy);
+            const w = Math.max(GRID, Math.abs(sx - dragStartX));
+            const h = Math.max(GRID, Math.abs(sy - dragStartY));
+            if (w >= GRID && h >= GRID) {
+                if (currentTool === 'wall') addItem({ type: 'wall', x, y, width: w, height: h });
+                else if (currentTool === 'trap') addItem({ type: 'trap', x, y, width: w, height: h, damage: 10 });
+            else if (currentTool === 'revtrap') addItem({ type: 'revtrap', x, y, width: w, height: h, damage: 0, reverse: true });
+            }
         }
-        rubberBand.remove();
-        rubberBand = null;
-    }
+    } catch (err) { console.error('mouseup err', err); }
     isDragging = false;
     dragItem = null;
+    document.querySelectorAll('.rubber-band').forEach(el => { try { if (el.parentNode) el.parentNode.removeChild(el); } catch(e){ try { el.remove(); } catch(e2){} } });
+    rubberBand = null;
 });
+
+
+
+window.addEventListener('blur', () => { isDragging = false; dragItem = null; if (rubberBand) { if (rubberBand && rubberBand.parentNode) { try { rubberBand.parentNode.removeChild(rubberBand); } catch(e){} } document.querySelectorAll('.rubber-band').forEach(el => { try { el.remove(); } catch(e){} }); rubberBand = null; } });
+
+document.addEventListener('dragstart', e => e.preventDefault());
+
+setInterval(() => { if (!isDragging) document.querySelectorAll('.rubber-band').forEach(el => { try { el.remove(); } catch(e){} }); }, 500);
 
 // Keyboard
 document.addEventListener('keydown', e => {
@@ -606,7 +650,7 @@ document.addEventListener('keydown', e => {
 });
 
 function updateInfo() {
-    infoItems.textContent = `Walls: ${mapData.walls.length} | Chests: ${mapData.chests.length} | Shops: ${mapData.shops.length} | Monsters: ${mapData.monsterSpawns.length} | Decals: ${mapData.decals.length} | Traps: ${mapData.traps.length} | Portals: ${mapData.teleports.length} | Beams: ${mapData.beams.length}`;
+    infoItems.textContent = `Walls: ${(mapData.walls||[]).length} | Chests: ${(mapData.chests||[]).length} | Shops: ${(mapData.shops||[]).length} | Monsters: ${(mapData.monsterSpawns||[]).length} | Decals: ${(mapData.decals||[]).length} | Traps: ${(mapData.traps||[]).length} | Portals: ${(mapData.teleports||[]).length} | Beams: ${(mapData.beams||[]).length}`;
 }
 
 
@@ -700,9 +744,91 @@ document.getElementById('btn-new').addEventListener('click', () => {
     setStatus('New map');
 });
 
+document.getElementById('btn-versions').addEventListener('click', async () => {
+    const level = Number(levelInput.value) || 1;
+    setStatus('Loading versions...');
+    try {
+        const res = await fetch('/api/game/maps/' + level + '/versions');
+        if (!res.ok) throw new Error((await res.json()).error);
+        const versions = await res.json();
+        if (!versions.length) { setStatus('No saved versions for level ' + level); return; }
+        const list = versions.map(v => 'v' + v.version + ' - ' + (v.name || 'unnamed') + ' (' + new Date(v.created_at * 1000).toLocaleString() + ')').join('\n');
+        const choice = prompt('Versions for level ' + level + ':\n' + list + '\n\nEnter version number to load (or Cancel):');
+        if (!choice) { setStatus('Ready'); return; }
+        const vnum = Number(choice);
+        if (!versions.find(v => v.version === vnum)) { setStatus('Version not found'); return; }
+        const r2 = await fetch('/api/game/maps/' + level + '?version=' + vnum);
+        if (!r2.ok) throw new Error((await r2.json()).error);
+        const row = await r2.json();
+        const d = row.data;
+        clearAll();
+        mapData = {
+            name: row.name || '',
+            level: row.level,
+            playerStart: d.playerStart || { x: 2500, y: 2500 },
+            walls: [], chests: [], shops: [], monsterSpawns: [], exit: null, entrance: null,
+            decals: [], traps: [], teleports: [], beams: [],
+            backgroundImage: d.backgroundImage || null
+        };
+        if (d.walls) d.walls.forEach(w => addItem({ type: 'wall', x: w.x, y: w.y, width: w.width, height: w.height }));
+        if (d.chests) d.chests.forEach(c => addItem({ type: 'chest', x: c.x, y: c.y }));
+        if (d.shops) d.shops.forEach(s => addItem({ type: 'shop', x: s.x, y: s.y }));
+        if (d.monsterSpawns) d.monsterSpawns.forEach(m => addItem({ type: 'monster', x: m.x, y: m.y, count: m.count, monsterType: m.monsterType || 'melee' }));
+        if (d.exit) addItem({ type: 'exit', x: d.exit.x, y: d.exit.y, targetLevel: d.exit.targetLevel });
+        if (d.entrance) addItem({ type: 'entrance', x: d.entrance.x, y: d.entrance.y, targetLevel: d.entrance.targetLevel });
+        if (d.decals) d.decals.forEach(dec => addItem({ type: 'decal', x: dec.x, y: dec.y, width: dec.width, height: dec.height, color: dec.color, layer: dec.layer, image: dec.image, flipH: dec.flipH, flipV: dec.flipV }));
+        if (d.traps) d.traps.forEach(t => addItem({ type: t.reverse ? 'revtrap' : 'trap', x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage, reverse: !!t.reverse }));
+        if (d.teleports) d.teleports.forEach(t => addItem({ type: 'teleport', x: t.x, y: t.y, id: t.id, targetId: t.targetId }));
+        if (d.beams) d.beams.forEach(b => addItem({ type: 'beam', x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval }));
+        if (d.backgroundImage) { mapData.backgroundImage = d.backgroundImage; applyBackgroundImage(d.backgroundImage); }
+        nameInput.value = row.name || '';
+        levelInput.value = row.level;
+        mapVerified = !!(row.verified);
+        updateVerifyButton();
+        updateInfoBar();
+        setStatus('Loaded version ' + vnum);
+    } catch (e) {
+        setStatus('Error: ' + e.message);
+    }
+});
+
+function updateVerifyButton() {
+    const btn = document.getElementById('btn-verify');
+    if (!btn) return;
+    btn.textContent = mapVerified ? 'Verified ✓' : 'Verify';
+    btn.style.background = mapVerified ? '#4a7' : '';
+}
+document.getElementById('btn-verify').addEventListener('click', async () => {
+    const level = Number(levelInput.value) || 1;
+    const newVal = !mapVerified;
+    if (newVal && !confirm('Mark this map as VERIFIED/locked? Further edits will be blocked until unverified.')) return;
+    setStatus('Updating verified...');
+    try {
+        const res = await fetch('/api/game/maps/' + level + '/verify', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ verified: newVal })
+        });
+        if (!res.ok) throw new Error((await res.json()).error);
+        mapVerified = newVal;
+        updateVerifyButton();
+        setStatus(mapVerified ? 'Map verified & locked' : 'Map unlocked for editing');
+    } catch (e) {
+        setStatus('Error: ' + e.message);
+    }
+});
+
 document.getElementById('btn-save').addEventListener('click', async () => {
     mapData.name = nameInput.value;
     mapData.level = Number(levelInput.value) || 1;
+    // Warn before overwriting an existing map (saves as a new version, never deletes old)
+    try {
+        const check = await fetch('/api/game/maps/' + mapData.level);
+        if (check.ok) {
+            const ok = confirm('A map already exists for level ' + mapData.level + '. Save as a new version (previous version kept for rollback)?');
+            if (!ok) { setStatus('Save cancelled'); return; }
+        }
+    } catch {}
     const payload = {
         level: mapData.level,
         name: mapData.name,
@@ -715,7 +841,7 @@ document.getElementById('btn-save').addEventListener('click', async () => {
             exit: mapData.exit ? { x: mapData.exit.x, y: mapData.exit.y, targetLevel: mapData.exit.targetLevel } : null,
             entrance: mapData.entrance ? { x: mapData.entrance.x, y: mapData.entrance.y, targetLevel: mapData.entrance.targetLevel } : null,
             decals: mapData.decals.map(d => ({ x: d.x, y: d.y, width: d.width, height: d.height, color: d.color, layer: d.layer, image: d.image || null, flipH: d.flipH || false, flipV: d.flipV || false })),
-            traps: mapData.traps.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage })),
+            traps: mapData.traps.map(t => ({ x: t.x, y: t.y, width: t.width, height: t.height, damage: t.damage, reverse: !!t.reverse })),
             teleports: mapData.teleports.map(t => ({ x: t.x, y: t.y, id: t.id, targetId: t.targetId })),
             beams: mapData.beams.map(b => ({ x1: b.x1, y1: b.y1, x2: b.x2, y2: b.y2, damage: b.damage, interval: b.interval })),
             backgroundImage: mapData.backgroundImage || null
@@ -795,7 +921,7 @@ document.getElementById('btn-load').addEventListener('click', async () => {
 });
 
 function clearAll() {
-    document.querySelectorAll('.wall, .chest, .shop, .monster-spawn, .exit, .entrance, .decal, .trap, .teleport, .beam').forEach(el => el.remove());
+    document.querySelectorAll('.wall, .chest, .shop, .monster-spawn, .exit, .entrance, .decal, .trap, .revtrap, .teleport, .beam').forEach(el => el.remove());
     const ps = document.querySelector('.player-start');
     if (ps) ps.remove();
     deselectAll();
