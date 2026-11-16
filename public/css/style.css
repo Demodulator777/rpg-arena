@@ -4287,7 +4287,6 @@ select.input-field:focus {
     background: var(--card-bg, none) center/cover no-repeat;
     opacity: 0.08;
     pointer-events: none;
-    transform: translateZ(0);
 }
 .forge-card::after {
     content: '';
@@ -4295,7 +4294,6 @@ select.input-field:focus {
     background: url('/images/rune-bg.png') center/cover no-repeat;
     opacity: 0.04;
     pointer-events: none;
-    transform: translateZ(0);
 }
 .forge-card > * { position: relative; z-index: 2; }
 .forge-card:hover { border-color: var(--border-mid); transform: translateY(-1px); }
@@ -4416,7 +4414,6 @@ select.input-field:focus {
     background: var(--card-bg, none) center/cover no-repeat;
     opacity: 0.08;
     pointer-events: none;
-    transform: translateZ(0);
 }
 .inv-consumable-card::after {
     content: '';
@@ -4424,7 +4421,6 @@ select.input-field:focus {
     background: url('/images/rune-bg.png') center/cover no-repeat;
     opacity: 0.04;
     pointer-events: none;
-    transform: translateZ(0);
 }
 .inv-consumable-card > * { position: relative; z-index: 2; }
 .inv-consumable-card:hover { border-color: rgba(255,255,255,0.16); transform: translateY(-1px); }
@@ -4505,7 +4501,6 @@ select.input-field:focus {
     background: var(--card-bg, none) center/cover no-repeat;
     opacity: 0.08;
     pointer-events: none;
-    transform: translateZ(0);
 }
 .mat-card::after {
     content: '';
@@ -4513,7 +4508,6 @@ select.input-field:focus {
     background: url('/images/rune-bg.png') center/cover no-repeat;
     opacity: 0.04;
     pointer-events: none;
-    transform: translateZ(0);
 }
 .mat-card > * { position: relative; z-index: 2; }
 .mat-card:hover { border-color: var(--border-mid); transform: translateY(-1px); }
@@ -8048,7 +8042,6 @@ select.input-field:focus {
     background: rgba(255,255,255,0.015) !important;
     overflow: hidden !important;
     position: relative !important;
-    transform: translateZ(0);
 }
 
 .eq-slot::before,
@@ -8880,3 +8873,9 @@ html.vacation-active, html.vacation-active body { overflow: hidden; }
 /* Game dialog must stay reachable above the vacation lock screen (which is
    z-index 300000 so it can cover an already-open .modal-overlay). */
 #game-dialog-modal { z-index: 310000; }
+
+/* Mobile paint perf: disable expensive backdrop-blur on small screens */
+@media (max-width: 640px) {
+  *, *::before, *::after { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+}
+
