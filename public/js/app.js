@@ -9738,6 +9738,7 @@ function renderInventory(data) {
                 </div>
                 <div class="inv-consumable-desc">${lootBoxDescPT(d.desc)}</div>
                 <div class="inv-consumable-actions">
+                    <input type="number" class="lootbox-qty-input" id="lb-qty-${i.id}" min="1" max="${d.qty || 1}" value="1" style="width:52px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:0.85rem;text-align:center">
                     <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>${_pt('Abrir', 'Open')}</button>
                     <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name, sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name, sp)}>${_pt('Vender', 'Sell')} ${sp}g</button>
                 </div>
@@ -11877,9 +11878,12 @@ if (document.readyState === 'loading') {
 }
 // ── OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION ───────────────────────────────
 async function openLootBox(itemId, itemName) {
+    const qtyInput = document.getElementById(`lb-qty-${itemId}`);
+    const maxQty = parseInt(qtyInput?.max || '1', 10) || 1;
+    const count = Math.max(1, Math.min(maxQty, parseInt(qtyInput?.value || '1', 10) || 1));
     const shouldOpen = await openGameConfirmDialog({
         title: _pt('Abrir Caixa de Recompensa', 'Open Loot Box'),
-        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">${_pt('Abrir', 'Open')} <strong>${escHtml(lootBoxNamePT(itemName))}</strong> ${_pt('agora?', 'now?')}</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">${_pt('As recompensas serão reveladas na animação da caixa de recompensa.', 'The rewards will be revealed in the loot box animation.')}</div>`,
+        message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">${_pt('Abrir', 'Open')} <strong>${count}×</strong> ${escHtml(lootBoxNamePT(itemName))} ${_pt('agora?', 'now?')}</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">${_pt('As recompensas serão reveladas na animação da caixa de recompensa.', 'The rewards will be revealed in the loot box animation.')}</div>`,
         confirmLabel: 'Open',
         cancelLabel: 'Cancel'
     });
@@ -11898,7 +11902,7 @@ async function openLootBox(itemId, itemName) {
     if (!modal) return;
 
     try {
-        const result = await api('POST', `/game/lootbox/open/${itemId}`);
+        const result = await api('POST', `/game/lootbox/open/${itemId}`, { count });
 
         if (result.success) {
             // Update character data
@@ -12632,13 +12636,16 @@ function renderShop() {
                 <div style="display:flex;flex-direction:column;gap:2px">
                     <span class="shop-card-price" style="color:${cc}">${ci} ${price.toLocaleString()}${gemCost?` <span style="color:#9b59b6">+ ${gemCost}💎</span>`:''}</span>
                 </div>
-                <button class="btn-shop" ${actionAttrs('buyItem', item.id)} ${isAvail&&hasEnough&&!item._buying?'':'disabled'}>${
+                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                    ${(item.consumable || item.category === 'lootbox' || String(item.id||'').startsWith('lootbox_')) ? `<input type="number" class="shop-qty-input" id="shop-qty-${item.id}" min="1" value="1" style="width:52px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:0.85rem;text-align:center;flex-shrink:0">` : ''}
+                    <button class="btn-shop" style="white-space:normal;word-break:break-word;flex:1 1 auto;min-width:0;font-size:0.75rem;padding:6px 10px" ${actionAttrs('buyItem', item.id)} ${isAvail&&hasEnough&&!item._buying?'':'disabled'}>${
             item._buying ? _pt('Comprando...', 'Buying...') :
                 !isAvail ? `${_pt('Nível', 'Level')} ${item.level}` :
                         !hasEnoughGold ? `${_pt('Faltam', 'Need')} ${price - (pt==='gems'?(character.gems||0):character.gold)} ${_pt('mais', 'more')}` :
                             !hasEnoughGems ? `${_pt('Faltam', 'Need')} ${gemCost-(character.gems||0)} 💎` :
                                 _pt('Comprar', 'Buy')
         }</button>
+                </div>
             </div>
         </div>`;
     }).join('');
@@ -12646,17 +12653,21 @@ function renderShop() {
 async function buyItem(itemId) {
     const item=shopInventory.find(i=>i.id===itemId); if(!item){showTabAlert('Item not found!');return;}
     const pt=item.priceType||'gold';
+    const qtyInput = document.getElementById(`shop-qty-${itemId}`);
+    const qty = (item.consumable || item.category === 'lootbox' || String(item.id||'').startsWith('lootbox_'))
+        ? Math.max(1, parseInt(qtyInput?.value || '1', 10) || 1)
+        : 1;
     const gemCost=item.gemCost||0;
     const staysInShop = !!(item.alwaysAvailable || item.consumable || item.category === 'premium');
     if (character.level<(item.level||1)){showTabAlert(`Requires level ${item.level}!`);return;}
-    if (pt==='gems'&&(character.gems||0)<item.price){showTabAlert('Not enough gems!');return;}
-    if (pt!=='gems'&&character.gold<item.price){showTabAlert('Not enough gold!');return;}
-    if (gemCost>0&&(character.gems||0)<gemCost){showTabAlert(`This item also costs ${gemCost} 💎 — not enough gems!`);return;}
+    if (pt==='gems'&&(character.gems||0)<item.price*qty){showTabAlert('Not enough gems!');return;}
+    if (pt!=='gems'&&character.gold<item.price*qty){showTabAlert('Not enough gold!');return;}
+    if (gemCost>0&&(character.gems||0)<gemCost*qty){showTabAlert(`This item also costs ${gemCost*qty} 💎 — not enough gems!`);return;}
     if(item._buying){showMsg('shop-msg','Purchase already in progress...',true);return;}
     item._buying=true;
     renderShop();
     try {
-        await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item});
+        await api('POST','/game/shop/buy',{itemId:item.id,category:item.category||item.slot||'weapon',price:item.price,priceType:pt,item,qty});
 
         // Refresh character properly from the game endpoint instead of using result.character
         const refreshedChar = await api('GET','/game/character');
