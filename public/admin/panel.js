@@ -930,7 +930,9 @@ function loadBots() {
             el.innerHTML = '<p style="text-align:center;color:#6a6a70;padding:40px">No bot configs. Add one via the Database tab (bot_configs table).</p>';
             return;
         }
+        window._botPvpIgnore = window._botPvpIgnore || {};
         var rows = data.map(function(b) {
+            window._botPvpIgnore[b.id] = b.pvpIgnore || [];
             var running = b.running ? '<span style="color:#4ade80">● Running</span>' : '<span style="color:#6a6a70">● Stopped</span>';
             var hp = b.hpMax > 0 ? (b.hp || 0) + '/' + b.hpMax : '-';
             var toggleLabel = b.enabled ? 'Stop' : 'Start';
@@ -1002,12 +1004,13 @@ function toggleBotDungeon(id) {
 }
 
 function editBotPvpIgnore(id) {
-    var current = prompt('Enter comma-separated character names/IDs to ignore in PvP (leave empty to clear):');
+    var existing = (window._botPvpIgnore && window._botPvpIgnore[id]) || [];
+    var current = prompt('Comma-separated character names/IDs to ignore in PvP (leave empty to clear):', existing.join(', '));
     if (current === null) return;
     var names = current.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
     adminApi('POST', '/game/admin/bots/' + id + '/pvp-ignore', { names: names }).then(function(r) {
         if (r.error) { alert(r.error); return; }
-        alert('Ignore list updated: ' + (r.pvpIgnore || []).join(', '));
+        alert('Ignore list updated: ' + ((r.pvpIgnore || []).join(', ') || '(empty)'));
         loadBots();
     }).catch(function(e) { alert(e.message); loadBots(); });
 }
