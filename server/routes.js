@@ -19671,6 +19671,23 @@ router.post('/admin/bots/:id/dungeon-toggle', auth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+router.post('/admin/bots/:id/pvp-ignore', auth, async (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
+    try {
+        const db = await getDb();
+        const result = await db.execute({ sql: 'SELECT extra_config FROM bot_configs WHERE id=?', args: [req.params.id] });
+        if (!result.rows.length) return res.status(404).json({ error: 'Bot not found' });
+        const extra = JSON.parse(result.rows[0].extra_config || '{}');
+        let names = req.body?.names;
+        if (typeof names === 'string') names = names.split(',').map(s => s.trim()).filter(Boolean);
+        if (!Array.isArray(names)) names = [];
+        extra.pvpIgnore = names;
+        await db.execute({ sql: 'UPDATE bot_configs SET extra_config=? WHERE id=?', args: [JSON.stringify(extra), req.params.id] });
+        await botRunner.refresh();
+        res.json({ success: true, pvpIgnore: extra.pvpIgnore });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Bot console log buffer
 router.get('/admin/bots/logs', auth, async (req, res) => {
     if (!req.user.isAdmin) return res.status(403).json({ error: 'Admin required' });
