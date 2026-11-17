@@ -19598,6 +19598,7 @@ router.get('/admin/bots', auth, async (req, res) => {
                 hpMax: runningMap[r.id]?.hpMax || 0,
                 gold: runningMap[r.id]?.gold || 0,
                 dungeonEnabled: extra.dungeonEnabled !== false,
+                pvpIgnore: Array.isArray(extra.pvpIgnore) ? extra.pvpIgnore : [],
             };
         });
         res.json(rows);
