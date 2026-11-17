@@ -176,6 +176,8 @@ class BotAccount {
     this._gearSetup = false;
     this._lootboxSetup = false;
     this._skipDungeon = false; // flag to skip dungeon after forced heal
+    this.pvpIgnore = Array.isArray(cfg.pvpIgnore) ? cfg.pvpIgnore : (Array.isArray(cfg.pvp_ignore) ? cfg.pvp_ignore : []);
+    this._squadMemberIds = new Set();
     // Adaptive loadout state
     const as = loadAdaptiveState(this.name);
     if (as && as.attackZones) {
@@ -209,6 +211,7 @@ class BotAccount {
         const char = await api('GET', '/game/character', null, this.token);
         if (char && char.id) {
           this.character = char;
+          await this.loadSquadMembers();
           log(this.name, `Authenticated (level ${char.level} ${char.class})`);
           return;
         }
@@ -238,6 +241,7 @@ class BotAccount {
     // Create character
     const char = await api('POST', '/game/character', { class: this.cfg.class, name: this.cfg.username }, this.token);
     this.character = char;
+    await this.loadSquadMembers();
     log(this.name, `Created ${this.cfg.class} character`);
   }
 
@@ -245,6 +249,16 @@ class BotAccount {
     try {
       this.character = await api('GET', '/game/character', null, this.token);
     } catch { log(this.name, 'Failed to refresh character'); }
+  }
+
+  async loadSquadMembers() {
+    try {
+      const data = await api('GET', '/game/squads/me', null, this.token);
+      const members = data?.members || [];
+      this._squadMemberIds = new Set(members.map(m => m.id).filter(id => id && id !== this.character?.id));
+      const names = members.map(m => m.name).filter(Boolean);
+      if (names.length) this.pvpIgnore = Array.from(new Set([...(this.pvpIgnore || []), ...names]));
+    } catch { /* not in a squad */ }
   }
 
   // ── Mana Potions ────────────────────────────────────────────────────────
@@ -468,6 +482,17 @@ class BotAccount {
       // Skip if target is another bot (username starts with bot_)
       if (target.username && target.username.startsWith('bot_')) {
         log(this.name, `Skipping ${target.name} (bot)`);
+        return false;
+      }
+
+      // Skip squad members and custom ignore list
+      if (this._squadMemberIds && this._squadMemberIds.has(target.id)) {
+        log(this.name, `Skipping ${target.name} (squad member)`);
+        return false;
+      }
+      const ignoreList = this.pvpIgnore || [];
+      if (ignoreList.includes(target.id) || ignoreList.includes(target.name) || ignoreList.includes(String(target.id))) {
+        log(this.name, `Skipping ${target.name} (ignore list)`);
         return false;
       }
 
