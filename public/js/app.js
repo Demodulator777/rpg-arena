@@ -16075,8 +16075,13 @@ function renderInboxFilter(filter) {
         </div>`;
     };
 
+    document.querySelectorAll('.inbox-tab').forEach(t => {
+        t.classList.toggle('active', parseActionArgs(t)?.[0] === filter);
+    });
+
     if (!list.length) {
         container.innerHTML = `<p class="empty">${_pt('Nenhum item nesta categoria.', 'No items in this category.')}</p>`;
+        pollUnread();
         return;
     }
 
@@ -16100,11 +16105,6 @@ function renderInboxFilter(filter) {
     }
 
     pollUnread();
-
-    // Update tab UI
-    document.querySelectorAll('.inbox-tab').forEach(t => {
-        t.classList.toggle('active', parseActionArgs(t)?.[0] === filter);
-    });
 }
 
 function openWarPanelFromMsg(msgId) {
