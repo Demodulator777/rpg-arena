@@ -6347,9 +6347,12 @@ function closeDungeonVictory() {
                   '<div class="exchange-desc">' + exchange.desc + '</div>' +
                   '<div class="exchange-cost">' + costHtml + '</div>' +
                   '<div class="exchange-reward">' + rewardHtml + '</div>' +
-                  '<button class="exchange-btn" ' + actionAttrs('exchangeAtGuild', exchange.id) + ' ' + ((!canExchange || D._guildExchangeInFlight) ? 'disabled' : '') + '>' +
+                  '<div style="display:flex;gap:6px">' +
+                  '<button class="exchange-btn" style="flex:1" ' + actionAttrs('exchangeAtGuild', exchange.id) + ' ' + ((!canExchange || D._guildExchangeInFlight) ? 'disabled' : '') + '>' +
                     (isLocked ? _pt('🔒 Bloqueado', '🔒 Locked') : canExchange ? _pt('Trocar', 'Exchange') : missingReason || _pt('Requisitos Ausentes', 'Missing Requirements')) +
                   '</button>' +
+                  (canExchange && !isLocked ? '<button class="exchange-btn" style="flex:1" ' + actionAttrs('exchangeAllAtGuild', exchange.id) + ' ' + (D._guildExchangeInFlight ? 'disabled' : '') + '>' + _pt('Trocar Tudo', 'Exchange All') + '</button>' : '') +
+                  '</div>' +
                 '</div>' +
               '</div>';
             }).join('')}
@@ -6422,6 +6425,55 @@ function exchangeAtGuild(exchangeId) {
       D._guildExchangeInFlight = false;
       if (!D._pendingExchangeModal) renderGuild();
     });
+}
+
+async function exchangeAllAtGuild(exchangeId) {
+  if (D._guildExchangeInFlight) return;
+  D._guildExchangeInFlight = true;
+  let count = 0;
+  let totalGold = 0;
+  let grantedItems = [];
+  try {
+    while (true) {
+      const response = await apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId });
+      if (!response || !response.success) break;
+      count++;
+      if (response.goldGained) totalGold += response.goldGained;
+      if (response.grantedItem) grantedItems.push(response.grantedItem);
+      const goldEl = document.getElementById('dungeon-gold-count');
+      if (goldEl) goldEl.textContent = response.dungeonGold;
+    }
+  } catch (e) {
+    // stop on first failure (out of resources)
+  } finally {
+    D._guildExchangeInFlight = false;
+    refreshCharacter();
+    if (count > 0) {
+      // Build per-item counts
+      const counts = {};
+      for (const it of grantedItems) {
+        const key = it.name || it.id;
+        counts[key] = (counts[key] || 0) + 1;
+      }
+      const itemLines = Object.entries(counts).map(([name, c]) => `📦 ${c}× ${name}`).join('<br>');
+      const goldLine = totalGold ? `💰 ${totalGold.toLocaleString()} ${_pt('Ouro', 'Gold')}` : '';
+      const overlay = document.getElementById('dungeon-overlay');
+      if (overlay) {
+        const old = overlay.querySelector('.exchange-reward-modal');
+        if (old) old.remove();
+        const modal = document.createElement('div');
+        modal.className = 'exchange-reward-modal';
+        modal.innerHTML = `
+          <div style="text-align:center;padding:20px 24px">
+            <div style="font-size:1.2rem;font-weight:bold;color:#ffcc00;margin-bottom:10px">${_pt('Trocou Tudo', 'Exchange All')} — ${count}×</div>
+            ${goldLine ? `<div style="font-size:1rem;margin-bottom:6px">${goldLine}</div>` : ''}
+            ${itemLines ? `<div style="font-size:1rem;margin-bottom:6px">${itemLines}</div>` : ''}
+            <button class="dungeon-btn" style="margin-top:12px" ${actionAttrs('closeExchangeRewardModal')}>${_pt('OK', 'OK')}</button>
+          </div>`;
+        overlay.appendChild(modal);
+      }
+    }
+  }
 }
 
 function showExchangeRewardModal(item) {
@@ -7318,6 +7370,7 @@ global.debugDungeonDetails = function() {
   global.openGuild = openGuild;
 global.closeGuild = closeGuild;
 global.exchangeAtGuild = exchangeAtGuild;
+global.exchangeAllAtGuild = exchangeAllAtGuild;
 global.closeExchangeRewardModal = function() {
   const modal = document.querySelector('.exchange-reward-modal');
   if (modal) modal.remove();
