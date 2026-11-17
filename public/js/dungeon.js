@@ -6434,17 +6434,16 @@ async function exchangeAllAtGuild(exchangeId) {
   let totalGold = 0;
   let grantedItems = [];
   try {
-    while (true) {
-      const response = await apiFetch('POST', '/game/dungeon/guild/exchange', { exchangeId });
-      if (!response || !response.success) break;
-      count++;
-      if (response.goldGained) totalGold += response.goldGained;
-      if (response.grantedItem) grantedItems.push(response.grantedItem);
+    const response = await apiFetch('POST', '/game/dungeon/guild/exchange-all', { exchangeId });
+    if (response && response.success) {
+      count = response.count || 0;
+      totalGold = response.goldGained || 0;
+      grantedItems = response.grantedItems || [];
       const goldEl = document.getElementById('dungeon-gold-count');
-      if (goldEl) goldEl.textContent = response.dungeonGold;
+      if (goldEl && response.dungeonGold != null) goldEl.textContent = response.dungeonGold;
     }
   } catch (e) {
-    // stop on first failure (out of resources)
+    // ignore
   } finally {
     D._guildExchangeInFlight = false;
     refreshCharacter();
