@@ -23513,6 +23513,129 @@ router.post('/dungeon/guild/exchange', auth, async (req, res) => {
     }
 });
 
+// Batch version: process as many exchanges as resources allow in one request.
+router.post('/dungeon/guild/exchange-all', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const { exchangeId } = req.body;
+        const exchange = GUILD_EXCHANGES.find(e => e.id === exchangeId);
+        if (!exchange) return res.status(400).json({ error: 'Invalid exchange' });
+
+        let count = 0;
+        let totalGold = 0;
+        let totalRankBonus = 0;
+        const grantedItems = [];
+        let lastDungeonGold = null;
+        let lastReputation = null;
+
+        // Safety cap
+        for (let i = 0; i < 1000; i++) {
+            const char = await getCurrentCharacter(db, req.user.userId, 'id, dungeon_gold, guild_reputation');
+
+            // Reputation gate
+            if (exchange.minRep > 0 && (char.guild_reputation || 0) < exchange.minRep) break;
+
+            // Atomic dungeonGold deduction
+            if (exchange.cost.dungeonGold) {
+                const cost = Number(exchange.cost.dungeonGold || 0);
+                if (cost <= 0) break;
+                const deduct = await db.execute({
+                    sql: `UPDATE characters SET dungeon_gold = dungeon_gold - ? WHERE id = ? AND COALESCE(dungeon_gold, 0) >= ? RETURNING dungeon_gold`,
+                    args: [cost, char.id, cost]
+                });
+                if (!deduct?.rows || deduct.rows.length === 0) break;
+            }
+
+            // Tier material cost (swap exchanges)
+            let tierCostKey = null, tierCostQty = 0;
+            for (const [key, qty] of Object.entries(exchange.cost)) {
+                if (key.startsWith('tier_')) { tierCostKey = key.replace('tier_', ''); tierCostQty = qty; break; }
+            }
+            if (tierCostKey) {
+                const tierItems = ELEM_TIER_ITEMS[tierCostKey];
+                if (!tierItems) break;
+                const mats = await getInventoryMaterials(db, char.id);
+                let totalHave = 0;
+                for (const id of tierItems) if (mats[id]) totalHave += mats[id].qty || 0;
+                if (totalHave < tierCostQty) break;
+                let toDeduct = tierCostQty;
+                const sorted = tierItems.map(id => mats[id]).filter(Boolean).sort((a, b) => a.invId - b.invId);
+                for (const mat of sorted) {
+                    if (toDeduct <= 0) break;
+                    const take = Math.min(toDeduct, mat.qty);
+                    const invRow = await dbGet(db, `SELECT * FROM inventory WHERE id=?`, [mat.invId]);
+                    if (invRow) {
+                        const d = JSON.parse(invRow.item_data);
+                        d.qty = (d.qty || 1) - take;
+                        if (d.qty <= 0) await dbRun(db, 'DELETE FROM inventory WHERE id=?', [mat.invId]);
+                        else await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(d), mat.invId]);
+                    }
+                    toDeduct -= take;
+                }
+            }
+
+            // Apply gold reward (with rank-based bonus)
+            let finalGold = 0;
+            let rankDiscount = 0;
+            if (exchange.reward.gold) {
+                let currentRank = GUILD_RANKS[0];
+                for (let i = GUILD_RANKS.length - 1; i >= 0; i--) {
+                    if ((char.guild_reputation || 0) >= GUILD_RANKS[i].repNeeded) { currentRank = GUILD_RANKS[i]; break; }
+                }
+                rankDiscount = currentRank.discount;
+                const bonus = 1 + (rankDiscount / 100);
+                finalGold = Math.floor(exchange.reward.gold * bonus);
+                await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [finalGold, char.id]);
+            }
+
+            // Apply reputation reward
+            if (exchange.reward.reputation) {
+                await dbRun(db, 'UPDATE characters SET guild_reputation = guild_reputation + ? WHERE id = ?', [exchange.reward.reputation, char.id]);
+            }
+
+            // Apply item chest reward
+            if (exchange.reward.item) {
+                const item = { name: exchange.reward.item, type: 'chest', quality: exchange.id.includes('legendary') ? 'legendary' : 'rare', qty: 1 };
+                await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?, ?, ?)', [char.id, 'consumable', JSON.stringify(item)]);
+            }
+
+            // Apply element material reward
+            if (exchange.reward.elemTier) {
+                const tier = exchange.reward.elemTier;
+                const tierItems = ELEM_TIER_ITEMS[tier];
+                if (tierItems && tierItems.length > 0) {
+                    const chosen = tierItems[Math.floor(Math.random() * tierItems.length)];
+                    const def = [...DUNGEON_ELEM_COMMON, ...DUNGEON_ELEM_RARE].find(d => d.id === chosen);
+                    const item = { id: chosen, name: def ? def.name : chosen, emoji: def ? def.emoji : '📦', rarity: tier, type: 'raw_mat' };
+                    await addStackableInventoryItem(db, char.id, 'raw_mat', item, 1);
+                    grantedItems.push(item);
+                }
+            }
+
+            count++;
+            totalGold += finalGold;
+            totalRankBonus = rankDiscount;
+
+            const updated = await getCurrentCharacter(db, req.user.userId, 'dungeon_gold, guild_reputation');
+            lastDungeonGold = updated.dungeon_gold;
+            lastReputation = updated.guild_reputation;
+        }
+
+        res.json({
+            success: true,
+            count,
+            message: `Exchanged ${count}x`,
+            dungeonGold: lastDungeonGold,
+            guildReputation: lastReputation,
+            goldGained: totalGold,
+            rankBonus: totalRankBonus,
+            grantedItems
+        });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/dungeon/guild/bounty/claim', auth, async (req, res) => {
     try {
         const db = await getDb();
