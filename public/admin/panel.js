@@ -948,6 +948,7 @@ function loadBots() {
                     '<button class="db-btn" data-bot-id="' + b.id + '" data-action="toggle">' + toggleLabel + '</button> ' +
                     '<button class="db-btn" data-bot-id="' + b.id + '" data-action="switch-version">→v' + (b.script_version === 'bot2' ? '1' : '2') + '</button> ' +
                     '<button class="db-btn" data-bot-id="' + b.id + '" data-action="dungeon-toggle">DNG ' + dungeonLabel + '</button> ' +
+                    '<button class="db-btn" data-bot-id="' + b.id + '" data-action="pvp-ignore">IGNORE</button> ' +
                     '<button class="db-btn db-btn-del" data-bot-id="' + b.id + '" data-action="delete">X</button>' +
                 '</td></tr>';
         }).join('');
@@ -964,6 +965,7 @@ function loadBots() {
             if (action === 'toggle') toggleBot(id);
             else if (action === 'switch-version') switchBotVersion(id);
             else if (action === 'dungeon-toggle') toggleBotDungeon(id);
+            else if (action === 'pvp-ignore') editBotPvpIgnore(id);
             else if (action === 'delete') deleteBot(id);
         });
     }).catch(function(e) { el.innerHTML = '<p class="error">' + e.message + '</p>'; });
@@ -995,6 +997,17 @@ function deleteBot(id) {
 function toggleBotDungeon(id) {
     adminApi('POST', '/game/admin/bots/' + id + '/dungeon-toggle').then(function(r) {
         if (r.error) { alert(r.error); return; }
+        loadBots();
+    }).catch(function(e) { alert(e.message); loadBots(); });
+}
+
+function editBotPvpIgnore(id) {
+    var current = prompt('Enter comma-separated character names/IDs to ignore in PvP (leave empty to clear):');
+    if (current === null) return;
+    var names = current.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+    adminApi('POST', '/game/admin/bots/' + id + '/pvp-ignore', { names: names }).then(function(r) {
+        if (r.error) { alert(r.error); return; }
+        alert('Ignore list updated: ' + (r.pvpIgnore || []).join(', '));
         loadBots();
     }).catch(function(e) { alert(e.message); loadBots(); });
 }
