@@ -135,6 +135,8 @@ class TestBot {
     this._lootboxSetup = false;
     this._skipDungeon = false;
     this._skipPvp = cfg.skipPvp ?? false;
+    this.pvpIgnore = Array.isArray(cfg.pvpIgnore) ? cfg.pvpIgnore : (Array.isArray(cfg.pvp_ignore) ? cfg.pvp_ignore : []);
+    this._squadMemberIds = new Set();
     this._guardianWinThreshold = {};
 
     // Build system
@@ -207,6 +209,7 @@ class TestBot {
         const char = await api('GET', '/game/character', null, this.token);
         if (char && char.id) {
           this.character = char;
+          await this.loadSquadMembers();
           log(this.name, `Authenticated (level ${char.level} ${char.class}, build: ${this._currentBuild.name})`);
           return;
         }
@@ -227,12 +230,14 @@ class TestBot {
       const existing = await api('GET', '/game/character', null, this.token);
       if (existing && existing.id) {
         this.character = existing;
+        await this.loadSquadMembers();
         log(this.name, `Using existing ${existing.class} character (level ${existing.level})`);
         return;
       }
     } catch {}
     const char = await api('POST', '/game/character', { class: this.cfg.class, name: this.cfg.username }, this.token);
     this.character = char;
+    await this.loadSquadMembers();
     log(this.name, `Created ${this.cfg.class} character`);
   }
 
@@ -240,6 +245,16 @@ class TestBot {
     try {
       this.character = await api('GET', '/game/character', null, this.token);
     } catch {}
+  }
+
+  async loadSquadMembers() {
+    try {
+      const data = await api('GET', '/game/squads/me', null, this.token);
+      const members = data?.members || [];
+      this._squadMemberIds = new Set(members.map(m => m.id).filter(id => id && id !== this.character?.id));
+      const names = members.map(m => m.name).filter(Boolean);
+      if (names.length) this.pvpIgnore = Array.from(new Set([...(this.pvpIgnore || []), ...names]));
+    } catch { /* not in a squad */ }
   }
 
   // ── Achievements ───────────────────────────────────────────────────────
@@ -917,6 +932,10 @@ class TestBot {
       if (!target || !target.id) return false;
       // Skip other bots
       if (target.username && (target.username.startsWith('bot_') || target.username.startsWith('b2_'))) return false;
+      // Skip squad members and custom ignore list
+      if (this._squadMemberIds && this._squadMemberIds.has(target.id)) return false;
+      const ignoreList = this.pvpIgnore || [];
+      if (ignoreList.includes(target.id) || ignoreList.includes(target.name) || ignoreList.includes(String(target.id))) return false;
 
       const targetId = target.id;
       const myLevel = this.character.level || 1;
