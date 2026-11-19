@@ -4117,7 +4117,10 @@ function renderCharacter() {
     const bonusMag  = (itemBonus.magic || 0) + (setBonus.magic || 0) + beastMag;
     const bonusVit  = (itemBonus.vitality || 0) + (setBonus.vitality || 0) + beastVit;
     const bonusHit  = (itemBonus.hit_chance || 0) + (setBonus.hit_chance || 0);
-    const bonusCrit = (itemBonus.crit_chance || 0) + (setBonus.crit_chance || 0);
+    const _now = Math.floor(Date.now()/1000);
+    const _activeSkills = (typeof c.active_skills === 'string') ? (()=>{try{return JSON.parse(c.active_skills);}catch{return {};}})() : (c.active_skills || {});
+    const exposeBonus = (_activeSkills.expose && _activeSkills.expose > _now) ? 15 : 0;
+    const bonusCrit = (itemBonus.crit_chance || 0) + (setBonus.crit_chance || 0) + exposeBonus;
     const totalStr = baseStr + bonusStr;
     const totalDef = baseDef + bonusDef;
 
@@ -9738,8 +9741,7 @@ function renderInventory(data) {
                 </div>
                 <div class="inv-consumable-desc">${lootBoxDescPT(d.desc)}</div>
                 <div class="inv-consumable-actions">
-                    <input type="number" class="lootbox-qty-input" id="lb-qty-${i.id}" min="1" max="${d.qty || 1}" value="1" style="width:52px;padding:4px 6px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:0.85rem;text-align:center">
-                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name)}>${_pt('Abrir', 'Open')}</button>
+                    <button class="btn-primary inv-consumable-btn" ${actionAttrs('openLootBox', i.id, d.name, d.qty || 1)}>${_pt('Abrir', 'Open')}</button>
                     <button class="btn-sm danger inv-consumable-btn" ${invBulkMode ? actionAttrs('sellItemWithQty', i.id, d.name, sp, d.qty || 1) : actionAttrs('sellItem', i.id, d.name, sp)}>${_pt('Vender', 'Sell')} ${sp}g</button>
                 </div>
             </div>`;
@@ -11877,10 +11879,49 @@ if (document.readyState === 'loading') {
     createLootboxModal();
 }
 // ── OPEN LOOT BOX WITH MANUAL CLICK PROGRESSION ───────────────────────────────
-async function openLootBox(itemId, itemName) {
-    const qtyInput = document.getElementById(`lb-qty-${itemId}`);
-    const maxQty = parseInt(qtyInput?.max || '1', 10) || 1;
-    const count = Math.max(1, Math.min(maxQty, parseInt(qtyInput?.value || '1', 10) || 1));
+function promptLootboxQty(maxQty, itemName) {
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.zIndex = '400000';
+        overlay.innerHTML = `
+            <div class="modal-box" style="max-width:360px">
+                <div class="modal-header"><h3>${_pt('Abrir Caixa', 'Open Loot Box')}</h3><button class="btn-secondary" data-action="closeLootboxQtyPrompt">✕</button></div>
+                <div style="padding:8px 0">
+                    <div style="font-size:0.9rem;margin-bottom:10px">${_pt('Quantas', 'How many')} <strong>${escHtml(lootBoxNamePT(itemName))}</strong> ${_pt('abrir?', 'to open?')} (max ${maxQty})</div>
+                    <input type="number" id="lb-qty-prompt" min="1" max="${maxQty}" value="1" style="width:100%;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#fff;font-size:1rem;text-align:center">
+                    <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+                        ${[1,5,10,maxQty].filter((v,i,a)=>a.indexOf(v)===i && v<=maxQty).map(v=>`<button class="btn-sm" data-lbqty="${v}">${v===maxQty?_pt('Máx','Max'):v}</button>`).join('')}
+                    </div>
+                </div>
+                <div class="game-dialog-actions" style="margin-top:12px">
+                    <button class="btn-secondary" data-action="closeLootboxQtyPrompt">${_pt('Cancelar','Cancel')}</button>
+                    <button class="btn-primary" data-action="confirmLootboxQtyPrompt">${_pt('Abrir','Open')}</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        const input = overlay.querySelector('#lb-qty-prompt');
+        overlay.querySelectorAll('[data-lbqty]').forEach(b => {
+            b.addEventListener('click', () => { input.value = b.getAttribute('data-lbqty'); });
+        });
+        const cleanup = (val) => { overlay.remove(); resolve(val); };
+        overlay.querySelector('[data-action="confirmLootboxQtyPrompt"]').addEventListener('click', () => {
+            const v = Math.max(1, Math.min(maxQty, parseInt(input.value, 10) || 1));
+            cleanup(v);
+        });
+        overlay.querySelectorAll('[data-action="closeLootboxQtyPrompt"]').forEach(b => {
+            b.addEventListener('click', () => cleanup(null));
+        });
+        // click backdrop
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) cleanup(null); });
+    });
+}
+window.promptLootboxQty = promptLootboxQty;
+
+async function openLootBox(itemId, itemName, maxQty) {
+    maxQty = Math.max(1, parseInt(maxQty, 10) || 1);
+    const count = await promptLootboxQty(maxQty, itemName);
+    if (!count) return;
     const shouldOpen = await openGameConfirmDialog({
         title: _pt('Abrir Caixa de Recompensa', 'Open Loot Box'),
         message: `<div style="font-size:0.95rem;line-height:1.6;color:var(--text-bright)">${_pt('Abrir', 'Open')} <strong>${count}×</strong> ${escHtml(lootBoxNamePT(itemName))} ${_pt('agora?', 'now?')}</div><div style="margin-top:8px;font-size:0.8rem;color:var(--text-dim)">${_pt('As recompensas serão reveladas na animação da caixa de recompensa.', 'The rewards will be revealed in the loot box animation.')}</div>`,
@@ -18858,6 +18899,7 @@ async function openExchangeModal() {
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 1)} ${!mat.canAfford ? 'disabled' : ''}>x1</button>
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 5)} ${data.fragmentCount < mat.fragmentCost * 5 ? 'disabled' : ''}>x5</button>
                             <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, 10)} ${data.fragmentCount < mat.fragmentCost * 10 ? 'disabled' : ''}>x10</button>
+                            <button class="btn-sm" ${actionAttrs('exchangeFragments', mat.id, Math.floor(data.fragmentCount / mat.fragmentCost))} ${!mat.canAfford ? 'disabled' : ''}>${_pt('Tudo', 'All')}</button>
                         </div>
                     </div>
                 `;
