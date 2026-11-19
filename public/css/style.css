@@ -4616,7 +4616,7 @@ select.input-field:focus {
 .tt-close:hover { background:rgba(180,48,208,0.20); color:#b030d0; text-shadow:0 0 14px rgba(180,48,208,0.7); }
 .item-tooltip {
     /* Must sit above modals (e.g. `.modal-overlay` uses `z-index: 200000`). */
-    position: fixed; z-index: 320000; width: 220px;
+    position: fixed; z-index: 400000; width: 220px;
     background: rgba(8,12,22,0.97); border: 1px solid rgba(255,255,255,0.12);
     border-radius: 14px; padding: 0;
     box-shadow: 0 20px 60px rgba(0,0,0,0.9);
