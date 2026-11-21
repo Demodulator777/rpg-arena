@@ -7778,8 +7778,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         // blade_storm: dual_strike, pierce_block, 1 use
         if (!specialAttackDmg && hasSkill(atkSkills, 'blade_storm') && !attacker._usedAbilities.blade_storm) {
             attacker._usedAbilities.blade_storm = true;
-            const dmg = Math.max(dmgMinConfigured, dmgMaxConfigured);
-            const dualStrike = Math.floor(dmg * 2 * rogueWeaponPenalty * physicalDamagePenalty * atkBonusDmg);
+            const dmg = Math.max(Number(attacker.dmgMin || 0) + (attacker._abyssalDmgBonus || 0), Number(attacker.dmgMax || 0) + (attacker._wyrmflameDmgBonus || 0));
+            const bsEff = getActiveCombatEffect(attacker, 'blade_storm');
+            const bsDmgBonus = 1 + (bsEff?.dmg_bonus || 0.10);
+            const dualStrike = Math.floor(dmg * 2 * rogueWeaponPenalty * physicalDamagePenalty * atkBonusDmg * bsDmgBonus);
             specialAttackDmg = Math.max(1, dualStrike);
             if (specialAttackDmg > 0) logLine = `Round ${roundNum}: ${attacker.name} unleashes BLADE STORM — ${specialAttackDmg} damage`;
         }
@@ -10694,13 +10696,19 @@ async function buildCharacterResponse(char, db) {
     const skillsUnlocked = dailyMpSpent >= MP_SKILL_UNLOCK;
     const activeEvent = getActiveEvent();
     let eventInfo = activeEvent ? { ...GLOBAL_EVENTS[0], ends_at: activeEvent.ends_at } : null;
+    let activeGachaBanner = null;
     try {
         const db = await getDb();
-        const bannerRows = await db.execute({ sql: `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`, args: [now, now] });
+        const bannerRows = await db.execute({ sql: `SELECT * FROM banner_events WHERE start_at <= ? AND end_at > ? AND event_key IS NOT NULL AND event_key != '' LIMIT 1`, args: [now, now] });
         if (bannerRows.rows.length > 0) {
             const b = bannerRows.rows[0];
-            eventInfo = { key: 'banner', name: b.name, desc: `Banner event: ${b.name}`, ends_at: b.end_at, isBanner: true };
+            eventInfo = { key: b.event_key || 'banner', name: b.name, desc: `Banner event: ${b.name}`, ends_at: b.end_at, isBanner: true };
         }
+        // Expose active gacha banner (non-event) name separately
+        try {
+            const gachaRows = await db.execute({ sql: `SELECT name FROM banner_events WHERE start_at <= ? AND end_at > ? AND (event_key IS NULL OR event_key = '') LIMIT 1`, args: [now, now] });
+            if (gachaRows.rows.length > 0) activeGachaBanner = gachaRows.rows[0].name;
+        } catch {}
     } catch (e) { console.error('banner check:', e); }
 
     const weeklyClaimableCount = await getWeeklyClaimableCount(db, char);
@@ -10785,6 +10793,7 @@ async function buildCharacterResponse(char, db) {
         battle_cooldown_remaining: battleCooldownRemaining,
         battle_cooldown_ends_at:   battleCooldownEndsAt,
         active_event: eventInfo,
+        active_gacha_banner: activeGachaBanner,
         vacation: vacationState,
         story: await getStoryState(db, char),
         armor_value:  armorValue,
