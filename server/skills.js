@@ -1267,7 +1267,7 @@ const SKILL_TREES = {
                         id: 'blade_storm', tier: 5, name: 'Blade Storm', emoji: '🌀',
                         type: 'progressive',
                         desc: 'Once per battle: both weapons strike for full damage, ignore blocks.',
-                        effects: [{ type: 'active_combat', id: 'blade_storm', dual_strike: true, pierce_block: true, uses: 1 }],
+                        effects: [{ type: 'active_combat', id: 'blade_storm', dual_strike: true, pierce_block: true, uses: 1, dmg_bonus: 0.10 }],
                         requires: ['ambidexterity'],
                         unlockCondition: 'wins_500',
                         thresholds: ROGUE_THRESHOLDS.tier5,
