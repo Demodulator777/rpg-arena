@@ -10270,7 +10270,8 @@ function showItemTooltip(event, itemId) {
     const hasApprentice = !!activePrem.apprentice;
     const merchantPrince = hasVaultKeeper && hasApprentice;
     const sellPrice = getInventorySellPrice(d);
-    const sn = (d.name||'').replace(/'/g,"\\'");
+    const sn = (d.name||'').replace(/'/g,"\\\\'");
+    const isPreviewOnly = !!info.previewOnly;
 
     tooltip.innerHTML = `
         <div class="tt-preview">
@@ -10287,7 +10288,7 @@ function showItemTooltip(event, itemId) {
             ${classWarn}
             ${equippedItem && !isEquipped ? `<div class="tt-vs">${_pt('vs equipado:', 'vs equipped:')} <strong>${escHtml(getDisplayItemName(equippedItem, 0))}</strong></div>` : ''}
         </div>
-        <div class="tt-actions">
+        ${isPreviewOnly ? '' : `<div class="tt-actions">
             ${isMainEquipped
         ?`<button class="tt-btn tt-btn-secondary" ${actionAttrs('unequipSlot', equippedSlotKey || d.slot)}>${_pt('Desequipar', 'Unequip')}</button>`
         :`<button class="tt-btn tt-btn-primary" ${actionAttrs('equipItem', itemId)}>${_pt('Equipar', 'Equip')}</button>`}
@@ -10299,7 +10300,7 @@ function showItemTooltip(event, itemId) {
             <button class="tt-btn tt-btn-danger" ${actionAttrs('sellItem', itemId, d.name || '', sellPrice)} ${isEquipped?'disabled':''}>
                 ${_pt('Vender', 'Sell')} ${sellPrice}g ${merchantPrince ? '(40%)' : '(30%)'}
             </button>
-        </div>`;
+        </div>`}`;
 
     tooltip.classList.remove('hidden');
     const r = event.currentTarget.getBoundingClientRect();
@@ -12393,7 +12394,7 @@ async function loadBannerEvent() {
                     window._bannerItemData = window._bannerItemData || {};
                     const cells = banner.scaledLoot.map(it => {
                         const synId = 'banner_' + it.id;
-                        window._bannerItemData[synId] = { item_data: it, equippedInSlot: null, equipped: false, offHandAvailable: false, upgrade_level: 0 };
+                        window._bannerItemData[synId] = { item_data: it, equippedInSlot: null, equipped: false, offHandAvailable: false, upgrade_level: 0, previewOnly: true };
                         // Also register in _invGearData so showItemTooltip can find it
                         window._invGearData = window._invGearData || {};
                         window._invGearData[synId] = window._bannerItemData[synId];
