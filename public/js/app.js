@@ -12409,6 +12409,21 @@ async function loadBannerEvent() {
                     }).join('');
                     return `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:20px;">${cells}</div>`;
                 })() : ''}
+                ${(() => {
+                    const sets = data.sets || {};
+                    const firstId = (banner.scaledLoot && banner.scaledLoot[0] && banner.scaledLoot[0].id) || (banner.loot_table && banner.loot_table[0] && banner.loot_table[0].id) || '';
+                    const setId = String(firstId).replace(/_(weapon|armor|helmet|shield|boots)$/, '');
+                    const setDef = sets[setId] || null;
+                    if (!setDef) return '';
+                    const name = setDef.name || setId;
+                    const b3 = setDef.bonus3 && setDef.bonus3.desc ? translateSetBonusDescPT(setDef.bonus3.desc) : '';
+                    const b4 = setDef.bonus4 && setDef.bonus4.desc ? translateSetBonusDescPT(setDef.bonus4.desc) : (setDef.bonus5 && setDef.bonus5.desc ? translateSetBonusDescPT(setDef.bonus5.desc) : '');
+                    return `<div style="margin:0 0 20px;padding:12px 14px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;">
+                        <div style="font-size:0.85rem;font-weight:700;color:var(--text-bright);margin-bottom:6px;">${escHtml(name)} — ${_pt('Bônus de Conjunto', 'Set Bonus')}</div>
+                        ${b3 ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0;">✦ 2/5: ${escHtml(b3)}</div>` : ''}
+                        ${b4 ? `<div style="font-size:0.72rem;color:var(--text-dim);margin:2px 0;">✦ 4/5: ${escHtml(b4)}</div>` : ''}
+                    </div>`;
+                })()}
                 
                 <div class="event-pity-card">
                     <div class="event-pity-header">
