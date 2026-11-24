@@ -1256,14 +1256,14 @@ const CRAFTING_SETS = {
     eclipsed_seraph: {
         name:'Eclipsed Seraph Set', emoji:'👼',
         bonus3:{
-            defense:60, magic:50, strength:40, hit_chance:20, crit_chance:20,
+            defense:60, magic:50, strength:40, hit_chance:45, crit_chance:45,
             pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'2/5: +60 DEF · +50 MAG · +40 STR · +20 Hit · +20 Crit · +20 all Elem Resist'
+            desc:'2/5: +60 DEF · +50 MAG · +40 STR · +45 Hit · +45 Crit · +20 all Elem Resist'
         },
         bonus4:{
             defense:130, magic:110, strength:90, hp_max:750, armor:20,
-            pyro_resist:30, water_resist:30, wind_resist:30, electro_resist:30, hit_chance:40, crit_chance:40, agility:30,
-            desc:'4/5: +130 DEF · +110 MAG · +90 STR · +750 HP · +20 Armor · +30 all Elem Resist · +40 Hit · +40 Crit · +30 AGI'
+            pyro_resist:30, water_resist:30, wind_resist:30, electro_resist:30, hit_chance:80, crit_chance:80, agility:30,
+            desc:'4/5: +130 DEF · +110 MAG · +90 STR · +750 HP · +20 Armor · +30 all Elem Resist · +80 Hit · +80 Crit · +30 AGI'
         },
     },
     wyrmflame: {
