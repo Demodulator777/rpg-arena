@@ -1936,7 +1936,7 @@ async function confirmVacation() {
 function renderTopbarMenu() {
     const content = document.getElementById('topbar-menu-content');
     if (!content || !character) return;
-    const eventName = character?.active_event ? (eventNamePT(character.active_event) || t('menu.noEvent', 'No active event right now')) : t('menu.noEvent', 'No active event right now');
+    const eventName = character?.active_event ? (eventNamePT(character.active_event) || t('menu.noEvent', 'No active event right now')) : (character?.active_gacha_banner || t('menu.noEvent', 'No active event right now'));
     const referralCode = character?.referral_code || username || '';
     const referralLink = referralCode ? getReferralLink(referralCode) : '';
     const switcherLabel = `${t('menu.switchCharacter', 'Switch Character')} (${accountCharacters.length}/${maxCharacterSlots})`;
@@ -1974,7 +1974,7 @@ function renderTopbarMenu() {
             <div class="topbar-menu-label">${t('menu.liveStatus', 'Live Status')}</div>
             <div class="topbar-menu-info-card">
                 <div class="topbar-menu-info-title">${t('menu.activeEvent', 'Active Event')}</div>
-                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:${character?.active_event ? 'pointer' : 'default'};opacity:${character?.active_event ? '1' : '0.6'}">${escHtml(eventName)}</div>
+                <div class="topbar-menu-info-value" data-banner-action="true" style="cursor:${(character?.active_event || character?.active_gacha_banner) ? 'pointer' : 'default'};opacity:${(character?.active_event || character?.active_gacha_banner) ? '1' : '0.6'}">${escHtml(eventName)}</div>
             </div>
         </div>
         <div class="topbar-menu-section">
@@ -2163,6 +2163,11 @@ document.addEventListener('click', (e) => {
         // banner still falls through — enterEvent() re-checks /event/status, which
         // only knows about the trial_arcane window.)
         if (!character?.active_event) {
+            if (character?.active_gacha_banner) {
+                closeTopbarMenu();
+                showTab('premium');
+                return;
+            }
             const msg = t('menu.noEvent', 'No active event right now');
             if (typeof openGameDialog === 'function') openGameDialog({ title: t('menu.activeEvent', 'Active Event'), message: msg, confirmLabel: 'OK', showCancel: false }).catch(() => {});
             else alert(msg);
@@ -12373,11 +12378,37 @@ async function loadBannerEvent() {
 
         content.innerHTML = `
             <div class="event-banner-card">
-                <div class="event-banner-image" style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);border-radius:12px;padding:20px;text-align:center;margin-bottom:20px;">
-                    ${banner.image ? `<img src="/images/banner/${banner.image}.png" style="width:200px;max-width:100%;margin-bottom:10px;">` : ''}
-                    <div class="event-banner-name" style="font-size:1.4rem;font-weight:700;color:#f1c40f;margin-bottom:8px;">${escHtml(banner.name)}</div>
-                    <div class="event-banner-timer" id="event-timer" style="font-size:0.9rem;color:rgba(255,255,255,0.6);"></div>
+                <div class="event-banner-image" style="position:relative;border-radius:12px;overflow:hidden;margin-bottom:20px;min-height:200px;background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);">
+                    ${banner.image ? `<img src="/images/banner/${banner.image}.png" class="banner-pan-img" style="position:absolute;inset:-10px;width:calc(100% + 20px);height:calc(100% + 20px);object-fit:cover;">` : ''}
+                    <div style="position:absolute;inset:0;background:linear-gradient(0deg,rgba(0,0,0,0.7) 0%,rgba(0,0,0,0.2) 60%,rgba(0,0,0,0.4) 100%);pointer-events:none;"></div>
+                    <div class="banner-particles" style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">
+                        ${Array.from({length:18}).map((_,i)=>{const colors=['#ffd700','#ffcc00','#ff8c00','#ff6b35','#e63946','#D32C19','#f1c40f'];const c=colors[Math.floor(Math.random()*colors.length)];return `<span class="banner-particle" style="left:${Math.random()*100}%;top:${Math.random()*100}%;background:${c};box-shadow:0 0 6px ${c};animation-delay:${Math.random()*4}s;animation-duration:${3+Math.random()*4}s;"></span>`;}).join('')}
+                    </div>
+                    <div style="position:relative;z-index:1;padding:20px;text-align:center;display:flex;flex-direction:column;justify-content:flex-end;min-height:200px;">
+                        <div class="event-banner-name" style="font-size:1.4rem;font-weight:700;color:#f1c40f;margin-bottom:8px;">${escHtml(banner.name)}</div>
+                        <div class="event-banner-timer" id="event-timer" style="font-size:0.9rem;color:rgba(255,255,255,0.6);"></div>
+                    </div>
                 </div>
+                ${banner.scaledLoot && banner.scaledLoot.length ? (() => {
+                    window._bannerItemData = window._bannerItemData || {};
+                    const cells = banner.scaledLoot.map(it => {
+                        const synId = 'banner_' + it.id;
+                        window._bannerItemData[synId] = { item_data: it, equippedInSlot: null, equipped: false, offHandAvailable: false, upgrade_level: 0 };
+                        // Also register in _invGearData so showItemTooltip can find it
+                        window._invGearData = window._invGearData || {};
+                        window._invGearData[synId] = window._bannerItemData[synId];
+                        const stats = it.stats || {};
+                        const statLines = Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(' · ');
+                        const imgSrc = it.img || (it.name && !it.consumable ? (typeof getAssetImagePath === 'function' ? getAssetImagePath(it.name) : null) : null);
+                        return `<div class="inv-item-cell inv-legendary" style="position:relative;cursor:pointer;aspect-ratio:1;min-height:0;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:12px;" data-hover-action="hoverItemTooltip" data-args='["${synId}"]' data-leave-action="scheduleHideTooltip" data-action="openItemTooltip">
+                            <div class="inv-item-icon" style="display:flex;align-items:center;justify-content:center;">
+                                ${imgSrc ? `<img src="${escHtml(imgSrc)}" style="width:64px;height:64px;object-fit:contain;border-radius:4px;display:block" data-error-hide="true" data-error-next-display="block"><span style="display:none;font-size:2rem;line-height:1">${escHtml(it.emoji || '⚔️')}</span>` : `<span style="font-size:2rem;line-height:1">${escHtml(it.emoji || '⚔️')}</span>`}
+                            </div>
+                            <div class="inv-item-name-label">${escHtml(it.name)}</div>
+                        </div>`;
+                    }).join('');
+                    return `<div style="display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px;margin-bottom:20px;">${cells}</div>`;
+                })() : ''}
                 
                 <div class="event-pity-card">
                     <div class="event-pity-header">
@@ -12430,7 +12461,6 @@ async function doBannerPull() {
 
     btn.disabled = true;
     btn.textContent = 'Pulling...';
-    results.innerHTML = '<div class="loading-spinner">Opening pulls...</div>';
 
     try {
         const data = await api('POST', '/banner/pull');
@@ -12452,14 +12482,68 @@ async function doBannerPull() {
         if (data.goldFound > 0) bonusHtml.push(`💰 +${data.goldFound.toLocaleString()} Gold`);
         if (data.gemsFound > 0) bonusHtml.push(`💎 +${data.gemsFound} Gems`);
 
-        // Add won items to display
-        const wonItemsHtml = data.wonItems ? data.wonItems.map(item =>
-            `<div class="event-item event-item-legendary">🌟 ${escHtml(item.name)}</div>`
-        ).join('') : '';
+        const wonItemsHtml = data.wonItems ? data.wonItems.map(item => {
+            const imgSrc = (typeof getAssetImagePath === 'function') ? getAssetImagePath(item.name, '/images/assets') : null;
+            return `<div class="gacha-reveal-item gacha-reveal-legendary">${imgSrc ? `<img src="${escHtml(imgSrc)}" style="width:48px;height:48px;object-fit:contain;vertical-align:middle;margin-right:8px;" data-error-hide="true" data-error-next-display="inline">` : '🌟 '}${escHtml(item.name)}</div>`;
+        }).join('') : '';
+        const itemsRevealHtml = data.items.map(item => {
+            if (item.type === 'raw_mat') return `<div class="gacha-reveal-item">${matIcon(item.name, item.emoji, '2rem')} ${item.qty}x ${item.name}</div>`;
+            const imgSrc = (typeof getAssetImagePath === 'function') ? getAssetImagePath(item.name, '/images/assets') : null;
+            return `<div class="gacha-reveal-item">${imgSrc ? `<img src="${escHtml(imgSrc)}" style="width:40px;height:40px;object-fit:contain;vertical-align:middle;margin-right:6px;" data-error-hide="true" data-error-next-display="inline">` : (item.emoji || '🎁')} ${item.name}</div>`;
+        }).join('');
+
+        // Full-screen epic reveal sequence
+        const showOverlay = (html, ms) => new Promise(resolve => {
+            const ov = document.createElement('div');
+            ov.className = 'gacha-reveal-overlay';
+            ov.innerHTML = html;
+            document.body.appendChild(ov);
+            requestAnimationFrame(() => ov.classList.add('gacha-reveal-show'));
+            const close = () => { ov.classList.remove('gacha-reveal-show'); setTimeout(() => ov.remove(), 300); resolve(); };
+            const btn = ov.querySelector('.gacha-reveal-close');
+            if (btn) btn.addEventListener('click', close);
+            if (ms) setTimeout(close, ms);
+        });
+
+        // 1. Suspense spin (2s)
+        await showOverlay(`
+            <div class="gacha-reveal-bg"></div>
+            <div class="gacha-reveal-content">
+                <div class="gacha-spin-ring"></div>
+                <div class="gacha-reveal-title" style="margin-top:20px;">${data.won ? '🎴 ...' : '🎴 Pulling...'}</div>
+            </div>`, 2000);
+
+        // 2. If won, reveal each won item one by one (2s each)
+        if (data.won && data.wonItems && data.wonItems.length) {
+            for (const wi of data.wonItems) {
+                const imgSrc = (typeof getAssetImagePath === 'function') ? getAssetImagePath(wi.name, '/images/assets') : null;
+                await showOverlay(`
+                    <div class="gacha-reveal-bg"></div>
+                    <div class="gacha-reveal-content">
+                        <div class="gacha-reveal-title">🎴 ${escHtml(wi.name)}</div>
+                        <div style="margin:20px 0;">
+                            ${imgSrc ? `<img src="${escHtml(imgSrc)}" style="width:220px;height:220px;object-fit:contain;border-radius:16px;box-shadow:0 0 40px rgba(255,215,0,0.6);" data-error-hide="true" data-error-next-display="block"><span style="display:none;font-size:4rem">${wi.emoji||'⚔️'}</span>` : `<span style="font-size:4rem">${wi.emoji||'⚔️'}</span>`}
+                        </div>
+                        <div class="gacha-reveal-stats">${wi.type || ''} · ${wi.rarity || 'legendary'}</div>
+                    </div>`, 2000);
+            }
+        }
+
+        // 3. Final summary
+        await showOverlay(`
+            <div class="gacha-reveal-bg"></div>
+            <div class="gacha-reveal-content">
+                ${data.won ? '<div class="gacha-reveal-title">🎴 BANNER SET WON!</div>' : ''}
+                ${wonItemsHtml ? `<div class="gacha-reveal-grid">${wonItemsHtml}</div>` : ''}
+                <div class="gacha-reveal-grid">${itemsRevealHtml}</div>
+                ${bonusHtml.length > 0 ? `<div class="gacha-reveal-bonus">${bonusHtml.join(' · ')}</div>` : ''}
+                <div class="gacha-reveal-stats">${data.won ? 'Pity Reset! · ' : ''}Pulls: ${data.stats.pityCount ?? 0}/10 · Odds: ${(data.stats.currentOdds * 100).toFixed(1)}%</div>
+                <button class="btn-primary gacha-reveal-close">OK</button>
+            </div>`);
 
         results.innerHTML = `
             <div class="event-result-won ${data.won ? 'won' : ''}">${data.won ? '🎴 BANNER SET WON!' : ''}</div>
-            ${wonItemsHtml ? `<div class="event-items-grid">${wonItemsHtml}</div>` : ''}
+            ${wonItemsHtml ? `<div class="event-items-grid">${data.wonItems.map(i=>`<div class="event-item event-item-legendary">🌟 ${escHtml(i.name)}</div>`).join('')}</div>` : ''}
             <div class="event-items-grid">${itemsHtml}</div>
             ${bonusHtml.length > 0 ? `<div class="event-bonus-rewards">${bonusHtml.join(' · ')}</div>` : ''}
             <div class="event-new-stats">
