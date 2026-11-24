@@ -359,7 +359,7 @@ router.get('/current', async (req, res) => {
         const allStats = await getAllPlayerBannerStats(db, char.id);
         
         // Scale loot table items to the player's level for preview
-        const { EQUIPMENT_RECIPES } = require('./gamedata');
+        const { EQUIPMENT_RECIPES, CRAFTING_SETS } = require('./gamedata');
         // Derive loot table from image to avoid stale/wrong stored loot
         const imageLootMap = { spiteforged: SPITEFORGED_LOOT, eclipsed_seraph: ECLIPSED_SERAPH_LOOT };
         let derived = null;
@@ -399,6 +399,7 @@ router.get('/current', async (req, res) => {
             allStats,
             cost: BANNER_COST_GEMS,
             pullsPerPurchase: PULLS_PER_PURCHASE,
+            sets: CRAFTING_SETS,
         });
     } catch (e) {
         console.error('Banner GET error:', e);
