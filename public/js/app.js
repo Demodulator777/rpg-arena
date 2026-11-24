@@ -15924,6 +15924,17 @@ const NEWS_FEED = [
         title: { en: 'The Celestial Has Opened!', pt: 'O Celestial Se Abriu!'},
         short: { en: 'A new Honor-gated map with five zones, fixed bosses, high rewards, and exclusive shop bonuses.', pt: 'Um novo mapa bloqueado por Honra, com cinco zonas, chefes fixos, recompensas altas e bônus exclusivos na loja.'},
         body: { en: 'The Celestial is a five-zone map beyond Dark City, accessible only through Honor. Each zone demands another 1,000 Honor, up to 5,000 for the fifth. Battles use fixed, powerful monsters scaled by zone and a small character-level adjustment, while mission payouts match Abyss rewards and drops are now more varied. Shop boosts in each zone also grant 3 extra stat slots, making Celestial gear truly unique.', pt: 'O Celestial é um mapa de cinco zonas além da Cidade das Sombras, acessível apenas por Honra. Cada zona exige mais 1.000 de Honra, até 5.000 na quinta. As batalhas usam monstros fixos e poderosos, escalados por zona e com um pequeno ajuste por nível do personagem, enquanto as recompensas de missão igualam as do Abismo e as drops ficaram mais variadas. Os bônus da loja em cada zona também concedem 3 slots extras de atributos, tornando o equipamento do Celestial verdadeiramente único.'}
+    },
+    {
+        id: 'news-eclipsed-seraph-banner',
+        type: 'event',
+        date: '2026-11-24',
+        start: '2026-11-24',
+        end: '2026-12-24',
+        image: '/images/banner/eclipsed_seraph.png',
+        title: { en: 'Eclipsed Seraph Banner — Limited Time!', pt: 'Banner Seraph Eclipsado — Tempo Limitado!'},
+        short: { en: 'Pull the new Eclipsed Seraph legendary set: 5 pieces with elemental damage, high defense and magic.', pt: 'Puxe o novo conjunto lendário Seraph Eclipsado: 5 peças com dano elemental, alta defesa e magia.'},
+        body: { en: 'A new limited-time banner is now live: the Eclipsed Seraph set. Each pull gives you a chance at 5 legendary pieces (Fallen Grace, Vestments of the Black Halo, Halo of Ruination, Wingguard of the Forsaken, Heavenfall Sabatons) with elemental damage across all elements, high defense, magic and strength. Collect all 5 to unlock the set bonuses. Available until December 24 — do not miss it!', pt: 'Um novo banner por tempo limitado está ativo: o conjunto Seraph Eclipsado. Cada pull dá a chance de ganhar 5 peças lendárias (Fallen Grace, Vestments of the Black Halo, Halo of Ruination, Wingguard of the Forsaken, Heavenfall Sabatons) com dano elemental em todos os elementos, alta defesa, magia e força. Colete todas as 5 para desbloquear os bônus de conjunto. Disponível até 24 de dezembro — não perca!'}
     }
 ];
 const NEWS_READ_KEY = 'rpg_read_news_ids';
@@ -15946,7 +15957,16 @@ async function syncNewsReadFromServer() {
 function isNewsRead(id) { return getReadNewsIds().includes(id); }
 function markNewsRead(id) { const ids = getReadNewsIds(); if (!ids.includes(id)) { ids.push(id); setReadNewsIds(ids); api('POST', '/game/news/read', { ids: [id] }).catch(()=>{}); } updateNewsBadge(); const menuBtn = document.getElementById('topbar-menu-btn'); if (menuBtn) { if (getUnreadNewsCount() > 0 || (typeof character !== 'undefined' && character && character.weekly_claimable_count > 0)) menuBtn.classList.add('menu-highlight'); else menuBtn.classList.remove('menu-highlight'); } }
 function markAllNewsRead() { const ids = NEWS_FEED.map(item => item.id); setReadNewsIds(ids); api('POST', '/game/news/read', { ids }).catch(()=>{}); updateNewsBadge(); }
-function getUnreadNewsCount() { const read = getReadNewsIds(); return NEWS_FEED.filter(item => !read.includes(item.id)).length; }
+function isNewsActive(item) {
+    const now = new Date();
+    const start = item.start ? new Date(item.start) : (item.date ? new Date(item.date) : null);
+    const end = item.end ? new Date(item.end + 'T23:59:59') : null;
+    if (start && now < start) return false;
+    if (end && now > end) return false;
+    return true;
+}
+function getActiveNewsFeed() { return NEWS_FEED.filter(isNewsActive); }
+function getUnreadNewsCount() { const read = getReadNewsIds(); return getActiveNewsFeed().filter(item => !read.includes(item.id)).length; }
 function updateNewsBadge() {
     const count = getUnreadNewsCount();
     const btn = document.querySelector('[data-action="openNews"]');
@@ -16012,7 +16032,7 @@ async function loadNews() {
     // All news in one list, newest first. Story items keep their CTA button but are
 // not pinned above newer updates.
     newsFeaturedEl.innerHTML = '';
-    const sortedNews = NEWS_FEED.slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sortedNews = getActiveNewsFeed().slice().sort((a, b) => new Date(b.date) - new Date(a.date));
     if (sortedNews.length) {
         newsListEl.innerHTML = sortedNews.map(item => {
             const unread = !isNewsRead(item.id);
