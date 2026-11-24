@@ -28,6 +28,7 @@ function scaleItemToLevel(recipe, playerLevel) {
         else if (stat === 'crit_chance') v = Math.min(15, Math.floor(value + level * 0.05 * qualityScale));
         else if (stat === 'hp_max') v = Math.min(300, Math.floor(value + level * 0.50 * qualityScale));
         else if (stat === 'block_chance') v = Math.min(20, Math.floor(value + level * 0.06 * qualityScale));
+        else if (stat.endsWith('_dmg')) { v = Math.floor(value + level * 0.24 * qualityScale); v = Math.min(Math.max(70, Math.floor(level * 0.6)), v); }
         else if (stat.endsWith('_resist')) v = Math.min(80, Math.floor(value + level * 0.10 * qualityScale));
         scaledStats[stat] = v;
     }
