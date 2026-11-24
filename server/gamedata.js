@@ -898,9 +898,9 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         name:'Fallen Grace', emoji:'⚔️', quality:'legendary',
         slot:'weapon', bannerOnly: true,
         desc:'A divine relic stained by betrayal and ruin, its light twisted into a cold, judging flame.',
-        stats:{ dmg_min:18, dmg_max:42, strength:12, magic:16, defense:8, hit_chance:36, crit_chance:10,
-                pyro_dmg:5, pyro_resist:12, water_dmg:5, water_resist:12,
-                wind_dmg:5, wind_resist:12, electro_dmg:5, electro_resist:12 },
+        stats:{ dmg_min:38, dmg_max:66, strength:22, magic:16, defense:18, hit_chance:36, crit_chance:10,
+                pyro_dmg:10, pyro_resist:12, water_dmg:10, water_resist:12,
+                wind_dmg:10, wind_resist:12, electro_dmg:10, electro_resist:12 },
         components:{}, goldCost:0,
     },
     {
@@ -909,7 +909,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         slot:'armor', bannerOnly: true,
         desc:'Once radiant armor now shrouded in celestial darkness, humming with stifled hymns.',
         stats:{ dmg_min:1, dmg_max:2, defense:44, armor:28, hp_max:150, strength:8, magic:10, vitality:6, hit_chance:34, crit_chance:9,
-                water_dmg:5, water_resist:15, agility:-10 },
+                water_dmg:10, water_resist:15, agility:-10 },
         components:{}, goldCost:0,
     },
     {
@@ -918,7 +918,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         slot:'helmet', bannerOnly: true,
         desc:'A broken crown of fractured light that radiates forbidden divinity and silent wrath.',
         stats:{ dmg_min:2, dmg_max:4, defense:32, armor:16, hp_max:100, strength:8, magic:12, hit_chance:27,
-                crit_chance:10, hit_chance:46, wind_dmg:5, wind_resist:15 },
+                crit_chance:10, hit_chance:46, wind_dmg:10, wind_resist:15 },
         components:{}, goldCost:0,
     },
     {
@@ -927,7 +927,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         slot:'shield', bannerOnly: true,
         desc:'Fashioned from the shattered wings of a fallen seraph, each feather cuts those it fails to shield.',
         stats:{ dmg_min:1, dmg_max:2, defense:36, armor:29, hp_max:120, strength:10, magic:8, hit_chance:32, crit_chance:11,
-                electro_dmg:5, electro_resist:15, agility:-10 },
+                electro_dmg:10, electro_resist:15, agility:-10 },
         components:{}, goldCost:0,
     },
     {
@@ -936,7 +936,7 @@ stats:{ dmg_min:1, dmg_max:1.5, defense:18, armor:10, agility:7, crit_chance:12,
         slot:'boots', bannerOnly: true,
         desc:'Leave burning traces of celestial ash in their wake — the earth remembers every step.',
         stats:{ dmg_min:1, dmg_max:2, defense:40, armor:16, hp_max:60, strength:6, magic:8, hit_chance:33, crit_chance:12,
-                pyro_dmg:5, pyro_resist:15 },
+                pyro_dmg:10, pyro_resist:15 },
         components:{}, goldCost:0,
     },
 
@@ -1256,14 +1256,14 @@ const CRAFTING_SETS = {
     eclipsed_seraph: {
         name:'Eclipsed Seraph Set', emoji:'👼',
         bonus3:{
-            defense:60, magic:50, strength:40,
-            pyro_resist:10, water_resist:10, wind_resist:10, electro_resist:10,
-            desc:'2/5: +60 DEF · +50 MAG · +40 STR · +10 all Elem Resist'
+            defense:60, magic:50, strength:40, hit_chance:20, crit_chance:20,
+            pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
+            desc:'2/5: +60 DEF · +50 MAG · +40 STR · +20 Hit · +20 Crit · +20 all Elem Resist'
         },
         bonus4:{
             defense:130, magic:110, strength:90, hp_max:750, armor:20,
-            pyro_resist:20, water_resist:20, wind_resist:20, electro_resist:20,
-            desc:'4/5: +130 DEF · +110 MAG · +90 STR · +750 HP · +20 Armor · +20 all Elem Resist'
+            pyro_resist:30, water_resist:30, wind_resist:30, electro_resist:30, hit_chance:40, crit_chance:40, agility:30,
+            desc:'4/5: +130 DEF · +110 MAG · +90 STR · +750 HP · +20 Armor · +30 all Elem Resist · +40 Hit · +40 Crit · +30 AGI'
         },
     },
     wyrmflame: {
