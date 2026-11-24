@@ -167,10 +167,10 @@ function getBannerOdds(pullCount) {
 
 async function getActiveBanner(db) {
     const now = Math.floor(Date.now() / 1000);
-    const banner = await dbGet(db,
-        `SELECT id, name, image, start_at, end_at, loot_table FROM banner_events WHERE start_at <= ? AND end_at > ? LIMIT 1`,
-        [now, now]
-    );
+        const banner = await dbGet(db,
+            `SELECT id, name, image, start_at, end_at, loot_table FROM banner_events WHERE start_at <= ? AND end_at > ? AND (event_key IS NULL OR event_key = '') ORDER BY start_at DESC, id DESC LIMIT 1`,
+            [now, now]
+        );
     if (!banner) return null;
     banner.loot_table = banner.loot_table ? JSON.parse(banner.loot_table) : [];
     return banner;
@@ -343,7 +343,7 @@ router.get('/current', async (req, res) => {
             return res.json({ active: false, banner: null, stats: {} });
         }
         
-        const char = await getCurrentCharacter(db, req.user.userId, 'id');
+        const char = await getCurrentCharacter(db, req.user.userId, 'id, level');
         if (!char) {
             return res.json({ active: true, banner: null, stats: {} });
         }
@@ -357,6 +357,24 @@ router.get('/current', async (req, res) => {
         
         const allStats = await getAllPlayerBannerStats(db, char.id);
         
+        // Scale loot table items to the player's level for preview
+        const { EQUIPMENT_RECIPES } = require('./gamedata');
+        // Derive loot table from image to avoid stale/wrong stored loot
+        const imageLootMap = { spiteforged: SPITEFORGED_LOOT, eclipsed_seraph: ECLIPSED_SERAPH_LOOT };
+        let derived = null;
+        if (banner.name) {
+            const n = String(banner.name).toLowerCase();
+            if (n.includes('eclipsed')) { derived = ECLIPSED_SERAPH_LOOT; banner.image = 'eclipsed_seraph'; }
+            else if (n.includes('spiteforged')) { derived = SPITEFORGED_LOOT; banner.image = 'spiteforged'; }
+        }
+        if (!derived) derived = imageLootMap[banner.image];
+        if (derived) banner.loot_table = derived;
+        const scaledLoot = (banner.loot_table || []).map(item => {
+            const recipe = (EQUIPMENT_RECIPES || []).find(r => r.id === item.id);
+            const stats = recipe ? scaleItemToLevel(recipe, char.level).stats : generateBannerItemStats(item.type, char.level);
+            const imgSlug = String(item.name || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+            return { ...item, level: char.level, stats, emoji: recipe?.emoji || item.emoji || '⚔️', img: `/images/assets/${imgSlug}.png` };
+        });
         res.json({
             active: true,
             banner: {
@@ -366,6 +384,7 @@ router.get('/current', async (req, res) => {
                 startAt: banner.start_at,
                 endAt: banner.end_at,
                 lootTable: banner.loot_table,
+                scaledLoot,
             },
             stats: {
                 pullCount: stats.pullCount,
@@ -394,6 +413,20 @@ router.post('/pull', async (req, res) => {
         if (!banner) {
             return res.status(400).json({ error: 'No active banner event' });
         }
+        // Derive correct loot table from image/name (avoid stale/wrong stored loot)
+        const imageLootMap = { spiteforged: SPITEFORGED_LOOT, eclipsed_seraph: ECLIPSED_SERAPH_LOOT };
+        let derivedLoot = null;
+        // Name takes priority
+        if (banner.name) {
+            const n = String(banner.name).toLowerCase();
+            if (n.includes('eclipsed')) { derivedLoot = ECLIPSED_SERAPH_LOOT; banner.image = 'eclipsed_seraph'; }
+            else if (n.includes('spiteforged')) { derivedLoot = SPITEFORGED_LOOT; banner.image = 'spiteforged'; }
+        }
+        if (!derivedLoot) {
+            derivedLoot = imageLootMap[banner.image];
+            if (derivedLoot && banner.image) banner.image = banner.image;
+        }
+        if (derivedLoot) banner.loot_table = derivedLoot;
         
 const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, gold, class, unlocked_profile_pics');
         if (!char || char.gems < BANNER_COST_GEMS) {
@@ -445,14 +478,17 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
             
             // Unlock profile pic for this set (extract set ID by removing slot suffix)
             const setId = banner.loot_table[0]?.id?.replace(/_(weapon|armor|helmet|shield|boots)$/, '') || 'spiteforged';
-            const unlockedPics = JSON.parse(char.unlocked_profile_pics || '[]');
-            const picToUnlock = `${char.class}-${setId}`;
-            if (!unlockedPics.includes(picToUnlock)) {
-                unlockedPics.push(picToUnlock);
-                await dbRun(db, `UPDATE characters SET unlocked_profile_pics = ?, profile_pic = ? WHERE id = ?`, [JSON.stringify(unlockedPics), `${picToUnlock}.png`, char.id]);
-            } else {
-                // Already unlocked, just set as active
-                await dbRun(db, `UPDATE characters SET profile_pic = ? WHERE id = ?`, [`${picToUnlock}.png`, char.id]);
+            // Eclipsed Seraph has no profile picture — skip changing profile_pic
+            if (setId !== 'eclipsed_seraph') {
+                const unlockedPics = JSON.parse(char.unlocked_profile_pics || '[]');
+                const picToUnlock = `${char.class}-${setId}`;
+                if (!unlockedPics.includes(picToUnlock)) {
+                    unlockedPics.push(picToUnlock);
+                    await dbRun(db, `UPDATE characters SET unlocked_profile_pics = ?, profile_pic = ? WHERE id = ?`, [JSON.stringify(unlockedPics), `${picToUnlock}.png`, char.id]);
+                } else {
+                    // Already unlocked, just set as active
+                    await dbRun(db, `UPDATE characters SET profile_pic = ? WHERE id = ?`, [`${picToUnlock}.png`, char.id]);
+                }
             }
             
              if (char) {
@@ -461,10 +497,12 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                     const recipe = EQUIPMENT_RECIPES.find(r => r.id === item.id);
                     const itemStats = recipe ? scaleItemToLevel(recipe, char.level).stats : generateBannerItemStats(item.type, char.level);
                     const itemPrice = Math.floor(35000 * 1.35);
-                    const fullItem = {
-                        id: `${item.id}_${Date.now()}`,
-                        name: item.name,
-                        emoji: '⚔️',
+                        const fullItem = {
+                            id: `${item.id}_${Date.now()}`,
+                            name: item.name,
+                            desc: recipe?.desc || item.desc || '',
+                            weaponType: item.type === 'weapon' ? 'scythe' : undefined,
+                            emoji: '⚔️',
                         tier: 5,
                         level: char.level,
                         type: item.type,
@@ -510,7 +548,7 @@ const char = await getCurrentCharacter(db, req.user.userId, 'id, level, gems, go
                 totalPulls: newStats.totalPulls,
                 carryPulls: newStats.carryPulls,
                 pityCount: newPity,
-                currentOdds: getBannerOdds(globalPity + 1),
+                currentOdds: getBannerOdds(newPity + 1),
                 won: newStats.won,
             },
         });
