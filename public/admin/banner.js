@@ -82,15 +82,21 @@ async function loadBanners() {
     }
 }
 
+let PRESET_LOOT = { trial_arcane: [], spiteforged: SPITEFORGED_LOOT, eclipsed_seraph: ECLIPSED_SERAPH_LOOT };
+let PRESET_IMAGE = { trial_arcane: 'trial_arcane', spiteforged: 'spiteforged', eclipsed_seraph: 'eclipsed_seraph' };
+
 async function createBanner() {
+    const preset = document.getElementById('new-preset')?.value || 'custom';
     const name = document.getElementById('new-name').value;
     const duration = parseInt(document.getElementById('new-duration').value);
     const eventKey = document.getElementById('new-event-key').value;
     const start = now();
     const end = start + days(duration);
-    
+    const img = PRESET_IMAGE[preset] || (name.toLowerCase().includes('eclipsed') ? 'eclipsed_seraph' : 'spiteforged');
+    const loot = PRESET_LOOT[preset] || (name.toLowerCase().includes('eclipsed') ? ECLIPSED_SERAPH_LOOT : SPITEFORGED_LOOT);
+    const ek = preset === 'trial_arcane' ? 'trial_arcane' : eventKey;
     try {
-        await api('POST', '/create', { name, image: 'spiteforged', start_at: start, end_at: end, loot_table: SPITEFORGED_LOOT, event_key: eventKey });
+    await api('POST', '/create', { name, image: img, start_at: start, end_at: end, loot_table: loot, event_key: ek });
         showMsg('Created ' + name, false);
         loadBanners();
     } catch (e) {
@@ -102,6 +108,13 @@ async function activateBanner(id) {
     const start = now();
     const end = start + days(7);
     try {
+        // Deactivate all other banners first so only this one is active
+        const data = await api('GET', '/list');
+        for (const b of (data.banners || [])) {
+            if (b.id !== id && b.start_at <= now() && b.end_at > now()) {
+                await api('PUT', '/' + b.id, { end_at: now() - 1 });
+            }
+        }
         await api('PUT', '/' + id, { start_at: start, end_at: end });
         showMsg('Activated', false);
         loadBanners();
@@ -149,11 +162,15 @@ async function deleteBanner(id) {
 async function activateSpiteforged() {
     try {
         const data = await api('GET', '/list');
+        // Deactivate all currently active banners first
+        for (const b of (data.banners || [])) {
+            if (!b.event_key && b.start_at <= now() && b.end_at > now()) await api('PUT', '/' + b.id, { end_at: now() - 1 });
+        }
         const existing = data.banners.find(b => b.name && b.name.toLowerCase().includes('spiteforged'));
         if (existing) {
             const start = now();
             const end = start + days(7);
-            await api('PUT', '/' + existing.id, { start_at: start, end_at: end });
+            await api('PUT', '/' + existing.id, { start_at: start, end_at: end, image: 'spiteforged', loot_table: SPITEFORGED_LOOT });
             showMsg('Spiteforged activated for 7 days', false);
         } else {
             const start = now();
@@ -170,11 +187,14 @@ async function activateSpiteforged() {
 async function activateEclipsedSeraph() {
     try {
         const data = await api('GET', '/list');
+        for (const b of (data.banners || [])) {
+            if (!b.event_key && b.start_at <= now() && b.end_at > now()) await api('PUT', '/' + b.id, { end_at: now() - 1 });
+        }
         const existing = data.banners.find(b => b.name && b.name.toLowerCase().includes('eclipsed seraph'));
         if (existing) {
             const start = now();
             const end = start + days(7);
-            await api('PUT', '/' + existing.id, { start_at: start, end_at: end });
+            await api('PUT', '/' + existing.id, { start_at: start, end_at: end, image: 'eclipsed_seraph', loot_table: ECLIPSED_SERAPH_LOOT });
             showMsg('Eclipsed Seraph activated for 7 days', false);
         } else {
             const start = now();
@@ -193,5 +213,16 @@ document.getElementById('btn-eclipsed-seraph').addEventListener('click', activat
 document.getElementById('btn-deactivate-all').addEventListener('click', deactivateAll);
 document.getElementById('btn-refresh').addEventListener('click', loadBanners);
 document.getElementById('btn-create').addEventListener('click', createBanner);
+
+const presetSel = document.getElementById('new-preset');
+if (presetSel) {
+    presetSel.addEventListener('change', function() {
+        const v = presetSel.value;
+        if (v === 'custom') return;
+        document.getElementById('new-name').value = v === 'trial_arcane' ? 'Trial of the Arcane' : (v === 'spiteforged' ? 'Spiteforged Banner' : 'Eclipsed Seraph Banner');
+        const ek = document.getElementById('new-event-key');
+        if (ek) ek.value = v === 'trial_arcane' ? 'trial_arcane' : '';
+    });
+}
 
 loadBanners();
