@@ -2084,3 +2084,71 @@ body.modal-lock #screen-game.active > .game-body::after { opacity: 0.2; }
     .news-list .news-item:nth-child(2n) .news-item-art img { animation-duration: 22s; animation-delay: -7s; }
     .news-list .news-item:nth-child(3n) .news-item-art img { animation-duration: 20s; animation-delay: -12s; }
 }
+
+/* ── Celestial rarity (shared by all five Celestial sets) ─────────────── */
+.inv-item-cell.inv-celestial {
+    border-color: rgba(139, 233, 253, 0.55);
+    box-shadow: 0 0 0 1px rgba(139, 233, 253, 0.18) inset, 0 0 12px rgba(96, 165, 250, 0.18);
+    background-image: radial-gradient(circle at 50% 0%, rgba(139, 233, 253, 0.10), transparent 60%);
+}
+.inv-item-cell.inv-celestial .inv-item-name-label { color: #8be9fd; }
+.cel-panel {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(139, 233, 253, 0.28);
+    border-radius: 10px;
+    background: linear-gradient(180deg, rgba(17, 32, 52, 0.85), rgba(10, 18, 32, 0.9));
+}
+.cel-head {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 700; font-size: 0.8rem; color: #8be9fd; letter-spacing: 0.04em;
+}
+.cel-slot-chip {
+    margin-left: auto; font-size: 0.62rem; padding: 2px 6px; border-radius: 6px;
+    border: 1px solid rgba(139, 233, 253, 0.35); color: #bfeaff;
+}
+.cel-set-row {
+    margin-top: 8px; padding: 8px; border-radius: 8px;
+    background: rgba(139, 233, 253, 0.05); border: 1px solid rgba(139, 233, 253, 0.12);
+}
+.cel-set-title { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 700; color: #d9f6ff; }
+.cel-set-count { margin-left: auto; font-size: 0.66rem; color: var(--text-dim); }
+.cel-set-bar { margin: 6px 0 4px; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.cel-set-bar > div { height: 100%; background: linear-gradient(90deg, #38bdf8, #8be9fd); }
+.cel-set-mech { font-size: 0.68rem; color: var(--text-dim); }
+.cel-set-mech.on { color: #7ef9c3; }
+.cel-empty { margin-top: 8px; font-size: 0.7rem; color: var(--text-dim); }
+.cel-phoenix { margin-top: 8px; font-size: 0.7rem; }
+.cel-phoenix.ready { color: #7ef9c3; }
+.cel-phoenix.cooling { color: #f0b350; }
+.cel-alloc { margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(139, 233, 253, 0.18); }
+.cel-alloc-head { font-size: 0.7rem; color: #bfeaff; }
+.cel-alloc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 6px 0; }
+.cel-alloc-cell { display: flex; flex-direction: column; gap: 3px; font-size: 0.64rem; color: var(--text-dim); }
+.cel-alloc-input {
+    width: 100%; padding: 4px 6px; border-radius: 6px; font-size: 0.72rem;
+    border: 1px solid rgba(139, 233, 253, 0.3); background: rgba(6, 14, 26, 0.85); color: #e6f8ff;
+}
+.cel-alloc-save { width: 100%; }
+.cel-xp-warn { margin-top: 8px; font-size: 0.68rem; color: #f0b350; }
+
+/* Celestial shop cards */
+.shop-card.celestial {
+    border-color: rgba(139, 233, 253, 0.55);
+    box-shadow: 0 0 14px rgba(96, 165, 250, 0.22);
+}
+.celestial-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    padding: 2px 7px;
+    border-radius: 8px;
+    color: #062431;
+    background: linear-gradient(135deg, #8be9fd, #5eead4);
+    box-shadow: 0 0 10px rgba(139, 233, 253, 0.45);
+}
+
+.cel-alloc-head .cel-alloc-note { color: #7fd6a8; font-size: 0.62rem; font-weight: 600; }
