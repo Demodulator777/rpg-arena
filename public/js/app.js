@@ -4076,6 +4076,77 @@ function renderTempStatBuffs(buffs) {
     return `<div style="display:flex;flex-wrap:wrap;gap:6px;font-size:0.72rem;color:#7ef29b;background:rgba(46,204,113,0.08);border:1px solid rgba(46,204,113,0.25);border-radius:6px;padding:5px 8px;margin-bottom:8px">${parts}</div>`;
 }
 
+// ── Celestial equipment panel (set progress, phoenix cooldown, allocation) ──
+function renderCelestialPanel(c) {
+    const cel = c?.celestial;
+    if (!cel) return '';
+    const isPT = CURRENT_LANG === 'pt';
+    const sets = Array.isArray(cel.sets) ? cel.sets : [];
+    const budget = Number(cel.allocationBudget || 0);
+    const alloc = cel.allocation || {};
+    const phoenix = cel.phoenix || {};
+    const hasRequiem = sets.some(s => s.id === 'eternal_requiem');
+    const usedPts = ['pyro', 'water', 'wind', 'electro'].reduce((sum, e) => sum + (Number(alloc[e]) || 0), 0);
+
+    const rows = sets.length ? sets.map(s => {
+        const active = !!s.mechanicActive;
+        const pct = Math.round((s.count / (s.size || 5)) * 100);
+        return `<div class="cel-set-row">
+            <div class="cel-set-title"><span>${s.emoji || '✨'}</span><span>${escHtml(translateSetNamePT(s.name || s.id))}</span>
+              <span class="cel-set-count">${s.count}/${s.size || 5}</span></div>
+            <div class="cel-set-bar"><div style="width:${pct}%"></div></div>
+            <div class="cel-set-mech ${active ? 'on' : ''}">${active ? '✦' : '🔒'} <strong>${escHtml(s.mechanicName || '')}</strong> — ${escHtml(translateSetBonusDescPT(s.mechanicDesc || ''))}</div>
+        </div>`;
+    }).join('') : `<div class="cel-empty">${isPT ? 'Nenhuma peça Celestial equipada' : 'No Celestial pieces equipped'}</div>`;
+
+    const phoenixLine = hasRequiem ? (() => {
+        const ready = !!phoenix.ready;
+        const remaining = Number(phoenix.remaining || 0);
+        const hours = Math.floor(remaining / 3600);
+        const mins = Math.floor((remaining % 3600) / 60);
+        const cdText = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+        return `<div class="cel-phoenix ${ready ? 'ready' : 'cooling'}">🕊️ <strong>Phoenix Resurrection</strong> — ${ready
+            ? (isPT ? 'disponível' : 'available')
+            : (isPT ? `em recarga (${cdText})` : `on cooldown (${cdText})`)}</div>`;
+    })() : '';
+
+    const allocEditor = budget > 0 ? `
+        <div class="cel-alloc">
+            <div class="cel-alloc-head">🌌 <strong>Primordial Mastery</strong> — ${isPT ? 'orçamento' : 'budget'}: ${usedPts}/${budget} <span class="cel-alloc-note">(${isPT ? 'escala com o nível' : 'scales with level'})</span></div>
+            <div class="cel-alloc-grid">
+                ${['pyro', 'water', 'wind', 'electro'].map(el => `<label class="cel-alloc-cell"><span>${({ pyro: '🔥', water: '💧', wind: '🌪️', electro: '⚡' })[el]} ${el}</span>
+                    <input type="number" min="0" max="${budget}" step="1" class="cel-alloc-input" data-elem="${el}" value="${Number(alloc[el]) || 0}" /></label>`).join('')}
+            </div>
+            <button class="btn-sm cel-alloc-save" ${actionAttrs('saveCelestialAllocation')}>${isPT ? 'Salvar alocação' : 'Save allocation'}</button>
+        </div>` : '';
+
+    return `<div class="cel-panel">
+        <div class="cel-head">✨ ${isPT ? 'EQUIPAMENTO CELESTIAL' : 'CELESTIAL EQUIPMENT'}
+            <span class="cel-slot-chip">${Number(cel.upgradeSlots || 6)} ${isPT ? 'melhorias' : 'upgrade slots'}</span></div>
+        ${rows}
+        ${phoenixLine}
+        ${allocEditor}
+        ${cel.xpSuppressed ? `<div class="cel-xp-warn">⚠️ ${isPT ? 'XP de missões suprimido (conjunto completo)' : 'Mission XP suppressed (full set)'}</div>` : ''}
+    </div>`;
+}
+
+async function saveCelestialAllocation() {
+    try {
+        const inputs = Array.from(document.querySelectorAll('.cel-alloc-input'));
+        const allocation = {};
+        for (const input of inputs) allocation[input.dataset.elem] = Math.max(0, Math.floor(Number(input.value) || 0));
+        const res = await api('POST', '/game/celestial/allocation', { allocation });
+        if (res?.character) {
+            character = res.character;
+            renderCharacter();
+        }
+        showMsg('char-msg', _pt('Alocação elemental salva!', 'Elemental allocation saved!'));
+    } catch (e) {
+        showMsg('char-msg', e.message || 'Error', true);
+    }
+}
+window.saveCelestialAllocation = saveCelestialAllocation;
+
 function renderCharacter() {
     if (!character) return;
     warmOffHandDmgPct();
@@ -4300,6 +4371,7 @@ const eqSlots=[
               Object.keys(c.equipped_set_counts || {}).length ? '' :
               '<div style="margin-top:10px;font-size:0.7rem;color:var(--text-dim)">🔗 '+(isPT?'Nenhum bônus de conjunto equipado':'No set bonuses equipped')+'</div>'
           )}
+          ${renderCelestialPanel(c)}
           <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06)">
             <div class="record-row">
               <div class="record-item"><div class="record-num wins">${c.wins}</div><div class="record-lbl">${isPT ? 'VITÓRIAS' : 'WINS'}</div></div>
@@ -9575,9 +9647,9 @@ function renderGearGrid(el, gear, equipped, offHandUnlocked = false) {
         const isOffHandEquipped = equippedSlot === 'off_hand';
         const canEquipOffHand = offHandUnlocked && d.slot === 'weapon';
         const upgradeLevel = i.upgrade_level || 0;
-        const qc = d.quality==='legendary'?'inv-legendary':d.quality==='epic'?'inv-epic':d.quality==='rare'?'inv-rare':'';
+        const qc = d.quality==='celestial'?'inv-celestial':d.quality==='legendary'?'inv-legendary':d.quality==='epic'?'inv-epic':d.quality==='rare'?'inv-rare':'';
         const upgradeBadge = upgradeLevel > 0 ? `<div class="upgrade-badge">+${upgradeLevel}</div>` : '';
-        const maxUpgrade = d.quality === 'legendary' ? 5 : (d.quality === 'epic' || d.quality === 'rare' ? 4 : 3);
+        const maxUpgrade = celestialMaxUpgrade(d.quality);
         const setupBadges = (i.setups || []).map(sn => `<span class="setup-badge" title="${_pt('No loadout:', 'In setup:')} ${escHtml(sn)}">🔧 ${escHtml(sn)}</span>`).join('');
         const isSelected = invBulkMode && invBulkSelected[i.id];
         const sellPrice = getInventorySellPrice(d);
@@ -9612,7 +9684,7 @@ async function upgradeItem(inventoryId) {
         const itemData = item.item_data;
         const currentUpgrade = item.upgrade_level || 0;
         const quality = itemData.quality || 'common';
-        const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
+        const maxUpgrade = celestialMaxUpgrade(quality);
 
         if (currentUpgrade >= maxUpgrade) {
             showMsg('inv-msg', _pt(`Item já está no nível máximo de melhoria (+${maxUpgrade}) para qualidade ${quality}!`, `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`), true);
@@ -10237,7 +10309,7 @@ function showItemTooltip(event, itemId) {
     }
 
     const allKeys = new Set([...Object.keys(d.stats||{}),...Object.keys(d.wp_stats||{}),...Object.keys(equippedItem?.stats||{}),...Object.keys(equippedItem?.wp_stats||{}), ...(Array.isArray(d.upgradedStats) ? d.upgradedStats : Object.keys(d.upgradedStats||{}))].filter(k=>!k.includes('type')));
-    const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[d.quality||'common'];
+    const qColor = qualityColor(d.quality);
     const displayName = getDisplayItemName(d, info.upgrade_level || 0);
     const displayDesc = getCanonicalItemDesc(d.desc, d.name);
     const imgSrc = d.img || (d.name && !d.consumable ? getAssetImagePath(d.name) : null);
@@ -10282,7 +10354,7 @@ function showItemTooltip(event, itemId) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(isOffHandEquipped ? 'off_hand' : (itemSlot||''))}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>
+            <div class="tt-meta">${slotLabelPT(isOffHandEquipped ? 'off_hand' : (itemSlot||''))}${d.quality&&d.quality!=='common'?' · <span style="color:'+qColor+'">'+qualityLabelPT(d.quality)+'</span>':''}</div>${celestialItemMetaHtml(d)}
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||`<span style="color:var(--text-dim);font-size:0.72rem">${_pt('Sem atributos', 'No stats')}</span>`}</div>
             ${classWarn}
@@ -10314,7 +10386,7 @@ function showEqTooltip(event, itemJson) {
     const tooltip = document.getElementById('item-tooltip');
     if (!tooltip) return;
     let item; try { item = typeof itemJson==='string'?JSON.parse(itemJson):itemJson; } catch { return; }
-    const qColor = {legendary:'#ffd700',epic:'#e67e22',rare:'#9b59b6',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const qColor = qualityColor(item.quality);
     const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
     const displayName = getDisplayItemName(item, item.upgrade_level || 0);
     const displayDesc = getDisplayItemDesc(item);
@@ -10344,7 +10416,7 @@ function showEqTooltip(event, itemJson) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${displayName}</div>
-            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>`:''}</div>
+            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>`:''}</div>${celestialItemMetaHtml(item)}
             ${displayDesc?`<div class="tt-desc">${displayDesc}</div>`:''}
             <div class="tt-stats">${statsHtml||'<span style="color:var(--text-dim);font-size:0.72rem">No stats</span>'}</div>
             ${classWarn}
@@ -10368,7 +10440,7 @@ function showForgeItemTooltip(event, itemJson) {
         return;
     }
 
-    const qColor = {legendary:'#ffd700',rare:'#9b59b6',epic:'#3498db',common:'rgba(255,255,255,0.5)'}[item.quality||'common'];
+    const qColor = qualityColor(item.quality);
     const imgSrc = item.img || (item.name ? getAssetImagePath(item.name) : null);
 
     const classWarn = !isWeaponSuitedForClass(item, character?.class) ? CLASS_WARN_HTML : '';
@@ -10408,7 +10480,7 @@ function showForgeItemTooltip(event, itemJson) {
         </div>
         <div class="tt-body">
             <div class="tt-name" style="color:${qColor}">${translateItemNamePT(item.name || '')}</div>
-            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>
+            <div class="tt-meta">${slotLabelPT(item.slot||'item')}${item.quality&&item.quality!=='common'?` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>`:''}${item.level?` · Lv.${item.level}`:''}</div>${celestialItemMetaHtml(item)}
             ${getCanonicalItemDesc(item.desc, item.name)?`<div class="tt-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>`:''}
             <div class="tt-stats">${statsHtml || '<span style="color:var(--text-dim);font-size:0.72rem">' + _pt('Sem atributos', 'No stats') + '</span>'}</div>
             ${classWarn}
@@ -10930,6 +11002,7 @@ function getCanonicalItemDesc(desc, name) {
         .replace(/^undefined\s*/i, '')
         .replace(/\s*\(Crafted at level \d+\)\s*$/i, '')
         .replace(/\s*\[Upgraded \+\d+ using [^\]]+\]\s*$/i, '')
+        .replace(/\s*\[[^\]]*\]\s*$/i, '')
         .trim();
     if (!cleaned) return '';
     // Exact gamedata descriptions (forge/raid/loot boxes) first — a full, proper
@@ -11703,8 +11776,35 @@ function slotLabelPT(slot) {
 
 // PT labels for item quality names shown in tooltip meta lines
 function qualityLabelPT(q) {
-    if (CURRENT_LANG !== 'pt' || !q) return q;
-    return ({ common: 'comum', uncommon: 'incomum', rare: 'raro', epic: 'épico', legendary: 'lendário', mythic: 'mítico' })[String(q).toLowerCase()] || q;
+    if (!q) return q;
+    const key = String(q).toLowerCase();
+    if (key === 'celestial') return 'Celestial';
+    if (CURRENT_LANG !== 'pt') return q;
+    return ({ common: 'comum', uncommon: 'incomum', rare: 'raro', epic: 'épico', legendary: 'lendário', mythic: 'mítico' })[key] || q;
+}
+
+// ── Celestial rarity helpers ────────────────────────────────────────────
+// Celestial gear has six upgrade slots; every other rarity keeps its old cap.
+// The server re-validates this — the client value is display only.
+const CELESTIAL_RARITY_COLOR = '#8be9fd';
+function celestialMaxUpgrade(q) {
+    const s = String(q || '').toLowerCase();
+    if (s === 'celestial') return 6;
+    if (s === 'legendary') return 5;
+    if (s === 'epic' || s === 'rare') return 4;
+    return 3;
+}
+function qualityColor(q) {
+    const s = String(q || 'common').toLowerCase();
+    if (s === 'celestial') return CELESTIAL_RARITY_COLOR;
+    return ({ legendary: '#ffd700', epic: '#e67e22', rare: '#9b59b6', common: 'rgba(255,255,255,0.5)' })[s] || 'rgba(255,255,255,0.5)';
+}
+// Extra meta line for Celestial items: rarity, set name and the six slots.
+function celestialItemMetaHtml(d) {
+    if (!d || String(d.quality || '').toLowerCase() !== 'celestial') return '';
+    const parts = [`✦ Celestial`];
+    if (d.setName) parts.push(escHtml(translateSetNamePT(d.setName)));
+    return parts.length ? `<div class="tt-meta" style="color:${CELESTIAL_RARITY_COLOR}">${parts.join(' · ')}</div>` : '';
 }
 
 // Render single item with image and popup effect
@@ -12737,7 +12837,8 @@ function renderShop() {
         const hasEnough = hasEnoughGold && hasEnoughGems;
         let cardClass='shop-card';
         if(!isAvail)cardClass+=' locked-future';
-        if(item.quality==='legendary')cardClass+=' legendary';
+        if(item.quality==='celestial')cardClass+=' celestial';
+        else if(item.quality==='legendary')cardClass+=' legendary';
         else if(item.quality==='epic')cardClass+=' epic';
         else if(item.quality==='rare')cardClass+=' rare';
 
@@ -15135,7 +15236,7 @@ async function openProfile(id) {
         const smallSlotsHtml = smallSlots.map(([slot,icon,label]) => {
             const item = eq[slot];
             if (!item) return `<div style="display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:6px;border:1px dashed rgba(255,255,255,0.1);background:rgba(255,255,255,0.02);font-size:0.7rem;color:rgba(255,255,255,0.25)">${icon} ${label}</div>`;
-            const qc=item.quality==='legendary'?'#f1c40f':item.quality==='epic'?'#e67e22':item.quality==='rare'?'#9b59b6':'rgba(255,255,255,0.5)';
+            const qc=qualityColor(item.quality);
             const itemData=escHtml(JSON.stringify(item));
             return `<div style="display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;border:1px solid ${hexToRgba(qc, 0.2)};background:rgba(255,255,255,0.03);cursor:default"
                 data-item="${itemData}"
@@ -15935,6 +16036,15 @@ const NEWS_FEED = [
         title: { en: 'Eclipsed Seraph Banner — Limited Time!', pt: 'Banner Seraph Eclipsado — Tempo Limitado!'},
         short: { en: 'Pull the new Eclipsed Seraph legendary set: 5 pieces with elemental damage, high defense and magic.', pt: 'Puxe o novo conjunto lendário Seraph Eclipsado: 5 peças com dano elemental, alta defesa e magia.'},
         body: { en: 'A new limited-time banner is now live: the Eclipsed Seraph set. Each pull gives you a chance at 5 legendary pieces (Fallen Grace, Vestments of the Black Halo, Halo of Ruination, Wingguard of the Forsaken, Heavenfall Sabatons) with elemental damage across all elements, high defense, magic and strength. Collect all 5 to unlock the set bonuses. Available until December 24 — do not miss it!', pt: 'Um novo banner por tempo limitado está ativo: o conjunto Seraph Eclipsado. Cada pull dá a chance de ganhar 5 peças lendárias (Fallen Grace, Vestments of the Black Halo, Halo of Ruination, Wingguard of the Forsaken, Heavenfall Sabatons) com dano elemental em todos os elementos, alta defesa, magia e força. Colete todas as 5 para desbloquear os bônus de conjunto. Disponível até 24 de dezembro — não perca!'}
+    },
+    {
+        id: 'news-celestial-items',
+        type: 'announcement',
+        date: '2026-11-26',
+        image: '/images/assets/phoenix-shroud.png',
+        title: { en: 'Celestial Equipment Arrives!', pt: 'Equipamento Celestial Chegou!'},
+        short: { en: 'Five new Celestial sets with unique mechanics, elemental damage and powerful set bonuses — available in the Celestial shop.', pt: 'Cinco novos conjuntos Celestiais com mecânicas únicas, dano elemental e bônus de conjunto poderosos — disponíveis na loja do Celestial.'},
+        body: { en: 'The Celestial now offers five legendary-quality sets: Sanguine Divinity, Aegis of Eternity, Wrath of the Heavens, Primordial Sovereign and Eternal Requiem. Each grants a unique 5/5 mechanic (vampiric healing, counter prevention, crit damage, elemental allocation and Phoenix resurrection) plus elemental damage, strength, defense, hit and crit bonuses. Equip all 5 pieces to unlock the full power of your chosen set. Visit the Celestial shop to start collecting.', pt: 'O Celestial agora oferece cinco conjuntos de qualidade lendária: Sanguine Divinity, Aegis of Eternity, Wrath of the Heavens, Primordial Sovereign e Eternal Requiem. Cada um concede uma mecânica única em 5/5 (cura vampírica, prevenção de contra-ataques, dano crítico, alocação elemental e ressurreição Fênix) além de dano elemental, força, defesa, acerto e crítico. Equipe todas as 5 peças para desbloquear o poder total do conjunto escolhido. Visite a loja do Celestial para começar a colecionar.'}
     }
 ];
 const NEWS_READ_KEY = 'rpg_read_news_ids';
@@ -18316,6 +18426,7 @@ function showShopItemTooltip(event, itemJson) {
             <div class="tt-meta">
                 ${slotLabelPT(itemSlot || 'item')}
                 ${item.quality && item.quality !== 'common' ? ` · <span style="color:${qColor}">${qualityLabelPT(item.quality)}</span>` : ''}
+                ${item.setName ? ` · <span style="color:${CELESTIAL_RARITY_COLOR}">${escHtml(translateSetNamePT(item.setName))}</span>` : ''}
             </div>
             ${getCanonicalItemDesc(item.desc, item.name) ? `<div class="tt-desc">${getCanonicalItemDesc(item.desc, item.name)}</div>` : ''}
             <div class="tt-stats">
@@ -18739,7 +18850,7 @@ async function openUpgradeModal(inventoryId) {
         currentUpgradeBaseLevel = currentUpgrade;
         _currentUpgradeItemCrimsonUsed = itemData.crimsonAlloyUsed || 0;
         const quality = itemData.quality || 'common';
-        const maxUpgrade = quality === 'legendary' ? 5 : (quality === 'epic' || quality === 'rare' ? 4 : 3);
+        const maxUpgrade = celestialMaxUpgrade(quality);
 
         if (currentUpgrade >= maxUpgrade) {
             showMsg('inv-msg', _pt(`Item já está no nível máximo de melhoria (+${maxUpgrade}) para qualidade ${quality}!`, `Item already at max upgrade level (+${maxUpgrade}) for ${quality} quality!`), true);
