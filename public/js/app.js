@@ -4080,8 +4080,9 @@ function renderTempStatBuffs(buffs) {
 function renderCelestialPanel(c) {
     const cel = c?.celestial;
     if (!cel) return '';
-    const isPT = CURRENT_LANG === 'pt';
     const sets = Array.isArray(cel.sets) ? cel.sets : [];
+    if (!sets.length || !sets.some(s => (s.count || 0) > 0)) return '';
+    const isPT = CURRENT_LANG === 'pt';
     const budget = Number(cel.allocationBudget || 0);
     const alloc = cel.allocation || {};
     const phoenix = cel.phoenix || {};
