@@ -12,7 +12,7 @@ const {
   getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
   computeOffHandDmgPct,
   DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
-  applyWeaponSkill, ensureElemental, getCurrentWeekStart
+  applyWeaponSkill, ensureElemental, getCurrentWeekStart, applyCelestialCombatState
 } = require('./routes');
 const {
   computePassiveBonusesWithProgress,
@@ -672,6 +672,7 @@ async function buildFighter(db, participant, participants, noEquip) {
     blockEffectiveness: skillPassives.block_effectiveness || 0
   };
   applyWeaponSkill(result);
+  applyCelestialCombatState(result, char, equippedArray);
   return result;
 }
 
@@ -774,6 +775,20 @@ function deathmatchBattle(fighterA, fighterB) {
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
     hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
 
+    // Celestial — Sanguine Divinity: one heal per round from damage actually dealt.
+    for (const [f, res] of [[fighterA, resA], [fighterB, resB]]) {
+      const pct = Number(f.celestial?.vampiricPct) || 0;
+      const dealt = Number(res.damageDealt) || 0;
+      if (pct <= 0 || dealt <= 0) continue;
+      const curHp = f === fighterA ? hpA : hpB;
+      if (curHp <= 0) continue;
+      const capped = Math.min(f.hpMax || 9999, curHp + Math.max(1, Math.floor(dealt * pct)));
+      if (capped > curHp) {
+        if (f === fighterA) hpA = capped; else hpB = capped;
+        log.push(`🩸 ${f.name} absorbs ${capped - curHp} HP (Sanguine Divinity)`);
+      }
+    }
+
     if (elemA && elemAHp > 0 && dmgToA > 0) {
       const capA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
       elemAHp = Math.max(0, elemAHp - Math.min(capA, Math.max(1, Math.floor(dmgToA * 0.03))));
@@ -825,6 +840,20 @@ function deathmatchBattle(fighterA, fighterB) {
             log.push(`🔥🕊️ ${f.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
             resurrected = true;
           }
+        }
+      }
+      if (!resurrected) {
+        // Celestial — Eternal Requiem: full-HP revival (24h cooldown armed by fightMatch).
+        for (const [f, hp] of [[fighterA, hpA], [fighterB, hpB]]) {
+          if (hp > 0) continue;
+          if (!f.celestial?.phoenix) continue;
+          f.celestial.phoenix = false;
+          f._phoenixTriggered = true;
+          const fullHp = Math.max(1, f.hpMax || 9999);
+          if (f === fighterA) hpA = fullHp; else hpB = fullHp;
+          log.push(`🕊️ ${f.name} rises from the ashes at full HP! (Phoenix Resurrection)`);
+          resurrected = true;
+          break;
         }
       }
       if (resurrected) { log.push('---'); continue; }
@@ -1010,6 +1039,20 @@ function normalBattle(fighterA, fighterB) {
     hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
     hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
 
+    // Celestial — Sanguine Divinity: one heal per round from damage actually dealt.
+    for (const [f, res] of [[fighterA, resA], [fighterB, resB]]) {
+      const pct = Number(f.celestial?.vampiricPct) || 0;
+      const dealt = Number(res.damageDealt) || 0;
+      if (pct <= 0 || dealt <= 0) continue;
+      const curHp = f === fighterA ? hpA : hpB;
+      if (curHp <= 0) continue;
+      const capped = Math.min(f.hpMax || 9999, curHp + Math.max(1, Math.floor(dealt * pct)));
+      if (capped > curHp) {
+        if (f === fighterA) hpA = capped; else hpB = capped;
+        log.push(`🩸 ${f.name} absorbs ${capped - curHp} HP (Sanguine Divinity)`);
+      }
+    }
+
     if (elemA && elemAHp > 0 && dmgToA > 0) {
       const capA = Math.max(1, Math.floor((elemA.hpMax || 9999) * 0.06));
       elemAHp = Math.max(0, elemAHp - Math.min(capA, Math.max(1, Math.floor(dmgToA * 0.03))));
@@ -1061,6 +1104,20 @@ function normalBattle(fighterA, fighterB) {
             log.push(`🔥🕊️ ${f.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
             resurrected = true;
           }
+        }
+      }
+      if (!resurrected) {
+        // Celestial — Eternal Requiem: full-HP revival (24h cooldown armed by fightMatch).
+        for (const [f, hp] of [[fighterA, hpA], [fighterB, hpB]]) {
+          if (hp > 0) continue;
+          if (!f.celestial?.phoenix) continue;
+          f.celestial.phoenix = false;
+          f._phoenixTriggered = true;
+          const fullHp = Math.max(1, f.hpMax || 9999);
+          if (f === fighterA) hpA = fullHp; else hpB = fullHp;
+          log.push(`🕊️ ${f.name} rises from the ashes at full HP! (Phoenix Resurrection)`);
+          resurrected = true;
+          break;
         }
       }
       if (resurrected) { log.push('---'); continue; }
@@ -1146,6 +1203,14 @@ async function fightMatch(db, tournamentId, roundIndex, p1Id, p2Id, participants
   const f2 = await buildFighter(db, p2, participants, noEquip);
   const useNormal = mode === 'normal' || mode === 'damage' || mode === 'least_damage' || mode === 'no_equip';
   const result = useNormal ? normalBattle(f1, f2) : deathmatchBattle(f1, f2);
+  // Celestial — Phoenix Resurrection consumes its 24h cooldown for either side.
+  const phoenixNow = Math.floor(Date.now() / 1000);
+  if (f1._phoenixTriggered && p1.char_id) {
+    await dbRun_t(db, 'UPDATE characters SET phoenix_resurrect_at=? WHERE id=?', [phoenixNow, p1.char_id]).catch(() => {});
+  }
+  if (f2._phoenixTriggered && p2.char_id) {
+    await dbRun_t(db, 'UPDATE characters SET phoenix_resurrect_at=? WHERE id=?', [phoenixNow, p2.char_id]).catch(() => {});
+  }
   const winnerPid = result.isDraw ? null : (result.winnerId === f1.id ? p1.id : p2.id);
   const dmgToP1 = Math.round(result.totalDmgToA);
   const dmgToP2 = Math.round(result.totalDmgToB);
