@@ -4,7 +4,7 @@ const { getDb } = require('./db');
 const BotRunner = require('./bot-runner');
 const auth = require('./middleware');
 const skillsModule = require('./skills');
-const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES, STORY_QUESTS, STORY_NPC, CELESTIAL_ZONES, CELESTIAL_ROUTES, CELESTIAL_ENTRY, CELESTIAL_MIN_HONOR, CELESTIAL_HONOR_STEP, buildCelestialMonster } = require('./gamedata');
+const { ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS, RAID_BOSS_GEAR, generateMission, TIER_COLORS, TIER_LABELS, LOOT_BOXES, STORY_QUESTS, STORY_NPC, CELESTIAL_ZONES, CELESTIAL_ROUTES, CELESTIAL_ENTRY, CELESTIAL_MIN_HONOR, CELESTIAL_HONOR_STEP, buildCelestialMonster, CELESTIAL_SETS, CELESTIAL_QUALITY, CELESTIAL_QUALITY_META, CELESTIAL_TUNING } = require('./gamedata');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
@@ -1007,6 +1007,8 @@ const WEEKLY_TASKS = [
             `ALTER TABLE characters ADD COLUMN celestial_prev_map TEXT DEFAULT NULL`,
             `ALTER TABLE characters ADD COLUMN celestial_prev_location TEXT DEFAULT NULL`,
             `ALTER TABLE characters ADD COLUMN celestial_saved_zone TEXT DEFAULT NULL`,
+            `ALTER TABLE characters ADD COLUMN celestial_alloc TEXT DEFAULT NULL`,
+            `ALTER TABLE characters ADD COLUMN phoenix_resurrect_at INTEGER DEFAULT 0`,
             `ALTER TABLE active_missions ADD COLUMN map_type TEXT DEFAULT 'overworld'`,
             `ALTER TABLE active_missions ADD COLUMN size TEXT NOT NULL DEFAULT 'small'`,
             'ALTER TABLE users ADD COLUMN active_character_id INTEGER DEFAULT NULL',
@@ -1087,6 +1089,7 @@ const WEEKLY_TASKS = [
             'ALTER TABLE characters ADD COLUMN damage_negated_elem INTEGER DEFAULT 0',
             'ALTER TABLE characters ADD COLUMN damage_negated_shield INTEGER DEFAULT 0',
             `ALTER TABLE inventory ADD COLUMN weapon_type TEXT DEFAULT NULL`,
+            `ALTER TABLE inventory ADD COLUMN upgrade_level INTEGER NOT NULL DEFAULT 0`,
             `ALTER TABLE battles ADD COLUMN attacker_name TEXT DEFAULT NULL`,
             `ALTER TABLE battles ADD COLUMN defender_name TEXT DEFAULT NULL`,
             `ALTER TABLE battles ADD COLUMN battle_type TEXT DEFAULT NULL`,
@@ -1246,6 +1249,7 @@ const WEEKLY_TASKS = [
         }
         try { await db.execute({ sql: `UPDATE inventory SET weapon_type = json_extract(item_data, '$.weaponType') WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.slot') = 'weapon'`, args: [] }); } catch {}
         try { await db.execute({ sql: `UPDATE inventory SET weapon_type = 'scythe' WHERE item_type = 'equipment' AND weapon_type IS NULL AND (json_extract(item_data, '$.id') IN ('spiteforged_weapon','wyrmflame_weapon') OR json_extract(item_data, '$.name') IN ('Spiteforged Trident','Fang of the Worldpyre'))`, args: [] }); } catch {}
+        try { await db.execute({ sql: `UPDATE inventory SET weapon_type = 'scythe' WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.quality') = 'celestial' AND json_extract(item_data, '$.slot') = 'weapon'`, args: [] }); } catch {}
         try {
             await db.execute({ sql: 'UPDATE users SET is_admin = 1 WHERE username = ?', args: ['Forsaken'] });
         } catch {}
@@ -7176,6 +7180,23 @@ function getEquippedSetBonuses(equippedItems) {
             }
             continue;
         }
+        // Celestial sets: flat 2pc / 4pc stat bonuses, identical rules for all five.
+        if (isCelestialSet(setId)) {
+            const cdef = CELESTIAL_SETS[setId];
+            if (count >= 2 && cdef.bonus3) {
+                for (const [key, value] of Object.entries(cdef.bonus3)) {
+                    if (key === 'desc' || typeof value !== 'number') continue;
+                    total[key] = (total[key] || 0) + value;
+                }
+            }
+            if (count >= 4 && cdef.bonus4) {
+                for (const [key, value] of Object.entries(cdef.bonus4)) {
+                    if (key === 'desc' || typeof value !== 'number') continue;
+                    total[key] = (total[key] || 0) + value;
+                }
+            }
+            continue;
+        }
         const def = CRAFTING_SETS[setId];
         if (!def) continue;
         if (count >= 2 && def.bonus3) {
@@ -7223,6 +7244,13 @@ function describePrefixSet(setId, count, scale) {
 // Return total bonus "extra hits" from the fighter's equipped set bonus (5/5),
 // any skill effect that grants them (quickness, ambidexterity, ...), and the
 // equipped weapon skill that grants additional attacks beyond round 10.
+// Celestial — Aegis of Eternity: cancel an incoming counterattack entirely
+// (the original attack still resolves). One dedicated roll per counter event.
+function celestialPreventsCounter(defender) {
+    const chance = Number(defender?.celestial?.counterPreventChance) || 0;
+    return chance > 0 && Math.random() < chance;
+}
+
 function getFighterExtraHits(fighter) {
     let extra = Number(fighter?.extra_hits || 0);
     const effects = Array.isArray(fighter?.skillEffects) ? fighter.skillEffects : [];
@@ -7759,6 +7787,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             const negEff = getActiveCombatEffect(defender, 'negate_crit');
             if (Math.random() < (negEff?.chance || 0.50)) isCrit = false;
         }
+        // Celestial — Wrath of the Heavens: configurable crit-damage amplification.
+        // Folds into the existing damage path (physical + elemental), not a
+        // separate critical-hit calculation.
+        const critDamageMult = isCrit ? 1 + (Number(attacker.celestial?.critDamageBonus) || 0) : 1;
 
         const effMagic = getEffectiveMagic(attacker);
         const magicFlatBonus = Math.floor((effMagic || 0) * 0.0125);
@@ -7938,7 +7970,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             rawPhysicalDmg = dmgRoll;
             rawPhysicalDmg = Math.floor(rawPhysicalDmg * rogueWeaponPenalty);
             let physicalDmg = Math.floor(rawPhysicalDmg * physicalDamagePenalty);
-            physicalDmg = Math.floor(physicalDmg * zoneEffMult * atkBonusDmg);
+            physicalDmg = Math.floor(physicalDmg * zoneEffMult * atkBonusDmg * critDamageMult);
 
             const { damageBonus, resistance } = applyMagicDamageModifiers(attacker, defender);
             const magicToElemental = attacker.class === 'mage';
@@ -7973,6 +8005,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     ed += rampA.elemFlat.electro;
                 }
                 ed = Math.floor(ed * magicElemMult);
+                if (critDamageMult > 1) ed = Math.floor(ed * critDamageMult);
                 if (isCrit && (attacker.class === 'mage' || attacker.class === 'paladin')) {
                     const critElemMult = magicToElemental ? 1.2 : 1.1;
                     ed = Math.floor(ed * critElemMult);
@@ -8231,9 +8264,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const caChance = caEff?.counter_chance || 0.40;
                     const caPct = caEff?.counter_dmg_pct || 0.75;
                     if (Math.random() < caChance) {
-                        const counterDmg = Math.floor(finalDmg * caPct);
-                        logLine += ` — COUNTERED for ${counterDmg}`;
-                        damageCounter += counterDmg;
+                        if (celestialPreventsCounter(defender)) {
+                            logLine += ' 🛡️ Eternal Aegis suppresses the counter';
+                        } else {
+                            const counterDmg = Math.floor(finalDmg * caPct);
+                            logLine += ` — COUNTERED for ${counterDmg}`;
+                            damageCounter += counterDmg;
+                        }
                     }
                 }
                 // phantom_counter: 25% counter on dodge (when attacker missed)
@@ -8241,18 +8278,26 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     const pcEff = getActiveCombatEffect(defender, 'phantom_counter');
                     const pcChance = pcEff?.counter_on_dodge_pct || 0.25;
                     if (Math.random() < pcChance) {
-                        const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
-                        if (phantomDmg > 0) {
-                            logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
-                            damageCounter += phantomDmg;
+                        if (celestialPreventsCounter(defender)) {
+                            logLine += ' 🛡️ Eternal Aegis suppresses the phantom counter';
+                        } else {
+                            const phantomDmg = Math.floor((attacker.dmgMin || 0) * 0.50);
+                            if (phantomDmg > 0) {
+                                logLine += ` 👻 ${defender.name} phantom counters for ${phantomDmg}`;
+                                damageCounter += phantomDmg;
+                            }
                         }
                     }
                 }
                 if (blk.special === 'next_round_hit_penalty' && !hasClassModifier(attacker, 'stun_immune')) nextAtkPenalty = true;
                 if (blk.special === 'counter_25' && Math.random() < 0.25) {
-                    const counterDmg = Math.floor(finalDmg * 0.50);
-                    logLine += ` — COUNTERED for ${counterDmg}`;
-                    damageCounter += counterDmg;
+                    if (celestialPreventsCounter(defender)) {
+                        logLine += ' 🛡️ Eternal Aegis suppresses the counter';
+                    } else {
+                        const counterDmg = Math.floor(finalDmg * 0.50);
+                        logLine += ` — COUNTERED for ${counterDmg}`;
+                        damageCounter += counterDmg;
+                    }
                 }
             }
         }
@@ -8462,6 +8507,23 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         hpA = Math.min(fighterA.hpMax || 9999, Math.max(0, hpA - dmgToA + (resA.healBack || 0)));
         hpB = Math.min(fighterB.hpMax || 9999, Math.max(0, hpB - dmgToB + (resB.healBack || 0)));
 
+        // Celestial — Sanguine Divinity: sum the damage actually dealt this
+        // round and convert it to HP once per round, capped at max HP. Zero /
+        // missed / blocked hits contribute nothing.
+        for (const [fighter, res] of [[fighterA, resA], [fighterB, resB]]) {
+            const pct = Number(fighter.celestial?.vampiricPct) || 0;
+            if (pct <= 0) continue;
+            const dealt = Number(res.damageDealt) || 0;
+            if (dealt <= 0) continue;
+            const curHp = fighter === fighterA ? hpA : hpB;
+            if (curHp <= 0) continue;
+            const maxHp = fighter.hpMax || 9999;
+            const capped = Math.min(maxHp, curHp + Math.max(1, Math.floor(dealt * pct)));
+            const gained = capped - curHp;
+            if (fighter === fighterA) hpA = capped; else hpB = capped;
+            if (gained > 0) log.push(`🩸 ${fighter.name} absorbs ${gained} HP (Sanguine Divinity)`);
+        }
+
         // Elemental split damage: 3% of dmg dealt to player goes to elemental,
         // capped at 6% of the elemental's max HP so it can't be one-shot every round.
         if (elemA && elemAHp > 0 && dmgToA > 0) {
@@ -8502,7 +8564,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
         if (hpA <= 0 || hpB <= 0) {
             let resurrected = false;
-            for (const { fighter, hp } of [[fighterA, hpA], [fighterB, hpB]]) {
+            for (const [fighter, hp] of [[fighterA, hpA], [fighterB, hpB]]) {
                 if (hp > 0) continue;
                 const resMod = hasClassModifier(fighter, 'resurrection');
                 if (resMod && !fighter._resurrectionUsed) {
@@ -8530,6 +8592,23 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
                         log.push(`🔥🕊️ ${fighter.name} is reborn in flame with ${restoreHp} HP — ${other.name} is burning!`);
                         resurrected = true;
                     }
+                }
+            }
+            if (!resurrected) {
+                // Celestial — Eternal Requiem: automatic full-HP revival. The
+                // 24h cooldown is armed by the caller from a server timestamp,
+                // so reconnecting or restarting a battle cannot re-trigger it.
+                for (const [fighter, hp] of [[fighterA, hpA], [fighterB, hpB]]) {
+                    if (hp > 0) continue;
+                    if (!fighter.celestial?.phoenix) continue;
+                    fighter.celestial.phoenix = false;
+                    fighter._phoenixTriggered = true;
+                    const fullHp = Math.max(1, fighter.hpMax || 9999);
+                    if (fighter === fighterA) hpA = fullHp;
+                    else hpB = fullHp;
+                    log.push(`🕊️ ${fighter.name} rises from the ashes at full HP! (Phoenix Resurrection)`);
+                    resurrected = true;
+                    break;
                 }
             }
             if (resurrected) {
@@ -9245,6 +9324,7 @@ async function buildCombatFighter(db, char) {
         blockEffectiveness: skillPassives.block_effectiveness || 0,
     };
     applyWeaponSkill(fighter);
+    applyCelestialCombatState(fighter, char, equippedArray);
     return fighter;
 }
 
@@ -9517,13 +9597,13 @@ function maxElemStats(level) {
 }
 
 function rollElemStats(stats, level, tier, canDmg, canResist, quality) {
-    const qualBonus = quality === 'legendary' ? 0.25 : quality === 'rare' ? 0.15 : 0;
+    const qualBonus = (quality === 'legendary' || quality === CELESTIAL_QUALITY) ? 0.25 : quality === 'rare' ? 0.15 : 0;
     const baseChance = tier >= 5 ? 0.75 : tier >= 3 ? 0.55 : tier >= 2 ? 0.35 : 0.15;
     if (Math.random() > Math.min(0.95, baseChance + qualBonus)) return;
 
     const maxStats = maxElemStats(level);
     const minCount = level >= 45 ? 2 : level >= 30 ? 1 : 0;
-    const qualCount = quality === 'legendary' ? 1 : 0;
+    const qualCount = (quality === 'legendary' || quality === CELESTIAL_QUALITY) ? 1 : 0;
     const maxRoll  = Math.max(minCount, Math.min(maxStats, Math.ceil(level / 20)));
     const count    = minCount + qualCount + Math.floor(Math.random() * Math.max(1, maxRoll - minCount + 1));
 
@@ -9848,8 +9928,8 @@ function ensureWeaponSkill(item, level) {
     const isWeapon = item.slot === 'weapon' || item.category === 'weapon' || item.type === 'weapon';
     if (!isWeapon) return false;
     const q = String(item.quality || '').toLowerCase();
-    if (q !== 'legendary' && q !== 'rare' && q !== 'epic') return false;
-    const chance = q === 'legendary' ? 0.20 : 0.05;
+    if (q !== 'legendary' && q !== 'rare' && q !== 'epic' && q !== CELESTIAL_QUALITY) return false;
+    const chance = q === CELESTIAL_QUALITY ? 0.30 : q === 'legendary' ? 0.20 : 0.05;
     if (Math.random() >= chance) return false;
     item.skill = rollWeaponSkill(level);
     item.desc = `${item.desc} ⚔️ Skill: ${item.skill.name} — ${WEAPON_SKILLS.find(d => d.id === item.skill.id).desc}`;
@@ -9879,6 +9959,211 @@ function weaponElementDamageMultiplier(fighter, elem, roundNum, ramp = null) {
     if (r.dmgPct?.[elem] && r.dmgPct[elem] !== 1) mult *= r.dmgPct[elem];
     return mult;
 }
+// ── Celestial rarity / sets ──────────────────────────────────────────────
+// One shared rarity (`celestial`) for all five sets. Everything here is
+// server-authoritative: set completion, upgrade slots, elemental allocation
+// and the phoenix cooldown are all derived from the DB on every request.
+const CELESTIAL_PIECE_TYPES = ['weapon', 'armor', 'helmet', 'shield', 'boots'];
+// Stat roll multiplier applied inside the existing roll formula for Celestial
+// pieces (on top of level scaling, quality chances and the shop statBoost).
+const CELESTIAL_STAT_MULT = 1.12;
+
+function getMaxUpgradeSlots(quality) {
+    const q = String(quality || '').toLowerCase();
+    if (q === CELESTIAL_QUALITY) return 6;
+    if (q === 'legendary') return 5;
+    if (q === 'epic' || q === 'rare') return 4;
+    return 3;
+}
+
+function isCelestialSet(setId) {
+    return Object.prototype.hasOwnProperty.call(CELESTIAL_SETS, setId);
+}
+
+function isCelestialItem(itemData) {
+    return String(itemData?.quality || '').toLowerCase() === CELESTIAL_QUALITY;
+}
+
+// `celestial_3` -> 3, anything else -> 0.
+function celestialZoneIndex(location) {
+    const m = /^celestial_([1-5])$/.exec(String(location || ''));
+    return m ? Number(m[1]) : 0;
+}
+
+function celestialSetAllowedInZone(setId, zoneIdx) {
+    const def = CELESTIAL_SETS[setId];
+    if (!def || !zoneIdx) return false;
+    return zoneIdx >= def.minZone && zoneIdx <= def.maxZone;
+}
+
+// Generate one Celestial set piece through the normal item generator, then
+// stamp the set identity on top of the rolled stats.
+function generateCelestialSetItem(level, setId, slotType) {
+    const def = CELESTIAL_SETS[setId];
+    const piece = def?.items?.[slotType];
+    if (!def || !piece) return null;
+    const item = generateBackendRandomItem(level, slotType, CELESTIAL_QUALITY, {
+        statBoost: 1.35,
+        extraStatSlots: 2,
+    });
+    if (!item) return null;
+    item.name = piece.name;
+    item.emoji = piece.emoji;
+    item.desc = piece.desc || `${def.lore}`;
+    item.setId = setId;
+    item.setName = def.name;
+    item.setPiece = slotType;
+    item.quality = CELESTIAL_QUALITY;
+    item.rarity = CELESTIAL_QUALITY;
+    item.maxUpgradeSlots = CELESTIAL_QUALITY_META.upgradeSlots;
+    item.slot = slotType;
+    item.category = slotType;
+    if (slotType === 'weapon') item.weaponType = 'scythe';
+    item.img = getAssetImagePath(piece.name);
+    item.price = calculateBackendItemPrice(item, level);
+    item.original_price = item.price;
+    return item;
+}
+
+// Daily Celestial stock for one zone. Weighted toward the more accessible sets
+// so the pool is not dominated by the newest set; each piece respects its
+// set's min/max zone window.
+function generateCelestialShopPieces(playerLevel, location) {
+    const zoneIdx = celestialZoneIndex(location);
+    if (!zoneIdx) return [];
+    const allowed = Object.keys(CELESTIAL_SETS).filter(id => celestialSetAllowedInZone(id, zoneIdx));
+    if (!allowed.length) return [];
+    const weighted = allowed.map(id => {
+        const def = CELESTIAL_SETS[id];
+        let weight = 1;
+        if (def.minZone === 1) weight = 3;
+        else if (def.minZone === 2) weight = 2;
+        return { id, weight };
+    });
+    const totalWeight = weighted.reduce((sum, e) => sum + e.weight, 0);
+    const pickSet = () => {
+        let roll = Math.random() * totalWeight;
+        for (const e of weighted) { roll -= e.weight; if (roll <= 0) return e.id; }
+        return weighted[weighted.length - 1].id;
+    };
+    const pieces = [];
+    for (const slot of CELESTIAL_PIECE_TYPES) {
+        // Two pieces of every slot per daily stock, so a set can be completed
+        // over several days without the shop being flooded.
+        for (let i = 0; i < 2; i++) {
+            const item = generateCelestialSetItem(playerLevel, pickSet(), slot);
+            if (item) pieces.push(item);
+        }
+    }
+    return pieces;
+}
+
+// Primordial Mastery budget scales with character level (0.5 points per level,
+// i.e. 30 at level 60), so higher-level characters get more elemental damage to
+// spread. Floors at primordialBudgetMin.
+function celestialPrimordialBudget(level) {
+    const lvl = Math.max(1, Math.floor(Number(level) || 1));
+    return Math.max(CELESTIAL_TUNING.primordialBudgetMin, Math.floor(lvl * CELESTIAL_TUNING.primordialBudgetPerLevel));
+}
+
+// Sanitise a stored allocation against the current budget. Any malformed or
+// over-budget data is clamped rather than trusted.
+function normalizeCelestialAllocation(raw, budget = CELESTIAL_TUNING.primordialBudgetMin) {
+    let parsed = raw;
+    if (typeof parsed === 'string') {
+        try { parsed = JSON.parse(parsed); } catch { parsed = null; }
+    }
+    const out = { pyro: 0, water: 0, wind: 0, electro: 0 };
+    if (!parsed || typeof parsed !== 'object') return out;
+    let remaining = Math.max(0, Math.floor(Number(budget) || 0));
+    for (const elem of ELEMENTS) {
+        const want = Math.max(0, Math.floor(Number(parsed[elem]) || 0));
+        const granted = Math.min(want, remaining);
+        out[elem] = granted;
+        remaining -= granted;
+    }
+    return out;
+}
+
+// Only the set's full 5/5 completion grants its special mechanic.
+function getCelestialMechanics(setCounts, level) {
+    const out = {
+        vampiricPct: 0,
+        counterPreventChance: 0,
+        critDamageBonus: 0,
+        primordialBudget: 0,
+        phoenix: false,
+        xpSuppression: false,
+        fullSets: [],
+    };
+    for (const [setId, count] of Object.entries(setCounts || {})) {
+        if (!isCelestialSet(setId)) continue;
+        const def = CELESTIAL_SETS[setId];
+        if (Number(count) < (def.pieces || 5)) continue;
+        out.fullSets.push(setId);
+        if (def.mechanic === 'vampiric') out.vampiricPct = Math.max(out.vampiricPct, CELESTIAL_TUNING.vampiricHealPct);
+        if (def.mechanic === 'counter_prevent') out.counterPreventChance = Math.max(out.counterPreventChance, CELESTIAL_TUNING.counterPreventChance);
+        if (def.mechanic === 'crit_damage') out.critDamageBonus = Math.max(out.critDamageBonus, CELESTIAL_TUNING.critDamageBonus);
+        if (def.mechanic === 'elemental_allocation') out.primordialBudget = Math.max(out.primordialBudget, celestialPrimordialBudget(level));
+        if (def.mechanic === 'phoenix') out.phoenix = true;
+    }
+    const xpSuppSets = CELESTIAL_TUNING.xpSuppressionSets || [CELESTIAL_TUNING.xpSuppressionSet].filter(Boolean);
+    if (out.fullSets.some(s => xpSuppSets.includes(s))) out.xpSuppression = true;
+    return out;
+}
+
+function getPhoenixState(char) {
+    const now = Math.floor(Date.now() / 1000);
+    const lastUsedAt = Number(char?.phoenix_resurrect_at || 0);
+    const cooldown = CELESTIAL_TUNING.phoenixCooldownSeconds;
+    const readyAt = lastUsedAt > 0 ? lastUsedAt + cooldown : 0;
+    return {
+        ready: readyAt <= now,
+        readyAt,
+        lastUsedAt,
+        cooldownSeconds: cooldown,
+        remaining: Math.max(0, readyAt - now),
+    };
+}
+
+// Full derived Celestial state for a character (used by responses and combat).
+function getCelestialStatus(char, equippedArray) {
+    const counts = getEquippedSetCounts(equippedArray || []);
+    const mechanics = getCelestialMechanics(counts, char?.level);
+    const budget = mechanics.primordialBudget || 0;
+    return {
+        counts,
+        mechanics,
+        budget,
+        allocation: normalizeCelestialAllocation(char?.celestial_alloc, budget),
+        phoenix: getPhoenixState(char),
+    };
+}
+
+// Attach the set mechanics (and Primordial allocation) to a built fighter.
+function applyCelestialCombatState(fighter, char, equippedArray) {
+    if (!fighter) return null;
+    const status = getCelestialStatus(char, equippedArray);
+    if (status.mechanics.primordialBudget > 0) {
+        if (!fighter.elem_dmg) fighter.elem_dmg = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        for (const elem of ELEMENTS) {
+            const add = status.allocation[elem] || 0;
+            if (add > 0) fighter.elem_dmg[elem] = (fighter.elem_dmg[elem] || 0) + add;
+        }
+    }
+    fighter.celestial = {
+        vampiricPct: status.mechanics.vampiricPct,
+        counterPreventChance: status.mechanics.counterPreventChance,
+        critDamageBonus: status.mechanics.critDamageBonus,
+        primordialBudget: status.mechanics.primordialBudget,
+        // Phoenix is only armed when the 24h cooldown has expired. The server
+        // re-checks this at battle time; the client can never arm it early.
+        phoenix: !!status.mechanics.phoenix && status.phoenix.ready,
+        xpSuppression: status.mechanics.xpSuppression,
+    };
+    return fighter.celestial;
+}
+
 function generateBackendRandomItem(level, type, forceQuality, opts) {
     const generator = ITEM_GENERATORS[type];
     if (!generator) return null;
@@ -9893,6 +10178,9 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
         let v = mn + Math.floor(Math.random() * Math.max(1, mx - mn + 1));
         v = Math.floor(v * (0.85 + Math.random() * 0.30));
         if (quality === 'legendary') v = Math.floor(v * 1.05);
+        // Celestial keeps the same level-scaled formula with one small, uniform
+        // quality multiplier — identical for all five sets.
+        if (quality === CELESTIAL_QUALITY) v = Math.floor(v * CELESTIAL_STAT_MULT);
         if (opts.statBoost) v = Math.floor(v * opts.statBoost);
         return Math.max(cfg.min, v);
     }
@@ -9917,6 +10205,7 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
 
     function getStatChance(baseChance) {
         if (quality === 'legendary') return Math.min(0.95, baseChance + 0.35);
+        if (quality === CELESTIAL_QUALITY) return Math.min(0.95, baseChance + 0.35);
         if (quality === 'rare') return Math.min(0.85, baseChance + 0.20);
         return baseChance;
     }
@@ -10033,6 +10322,7 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
         category: type,
         price:   0,
         quality,
+        maxUpgradeSlots: getMaxUpgradeSlots(quality),
         ...(hasPrefixTier ? { setId: prefixKey } : {}),
     };
     item.price = calculateBackendItemPrice(item, level);
@@ -10054,7 +10344,7 @@ function generateBackendRandomItem(level, type, forceQuality, opts) {
     }
 
     // Weapon skills can roll on legendary (20%) and rare/epic (5%) weapons.
-    if (type === 'weapon' && ['legendary','rare','epic'].includes(String(item.quality || '').toLowerCase())) {
+    if (type === 'weapon' && ['legendary','rare','epic',CELESTIAL_QUALITY].includes(String(item.quality || '').toLowerCase())) {
         if (ensureWeaponSkill(item, level)) {
             item.price = Math.max(1, Math.floor(item.price * 1.15));
             item.original_price = item.price;
@@ -10619,7 +10909,7 @@ async function buildCharacterResponse(char, db) {
     const setBonuses = getEquippedSetBonuses(equippedArray);
     const setCounts = getEquippedSetCounts(equippedArray);
     const setDetails = Object.entries(setCounts)
-        .filter(([setId]) => CRAFTING_SETS[setId] || isPrefixSet(setId))
+        .filter(([setId]) => CRAFTING_SETS[setId] || isPrefixSet(setId) || isCelestialSet(setId))
         .map(([setId, count]) => {
             if (isPrefixSet(setId)) {
                 const scale = genQualityScale(getSetMaxQuality(equippedArray, setId));
@@ -10637,6 +10927,23 @@ async function buildCharacterResponse(char, db) {
                 };
             }
             const def = CRAFTING_SETS[setId];
+            if (!def && isCelestialSet(setId)) {
+                const cdef = CELESTIAL_SETS[setId];
+                return {
+                    id: setId,
+                    name: cdef.name || setId,
+                    emoji: cdef.emoji || '✨',
+                    count,
+                    size: cdef.pieces || 5,
+                    active: count >= 2,
+                    celestial: true,
+                    mechanicName: cdef.mechanicName || '',
+                    mechanicDesc: cdef.mechanicDesc || '',
+                    mechanicActive: count >= (cdef.pieces || 5),
+                    bonus3: cdef.bonus3 || null,
+                    bonus4: cdef.bonus4 || null,
+                };
+            }
             return {
                 id: setId,
                 name: def.name || setId,
@@ -10649,6 +10956,7 @@ async function buildCharacterResponse(char, db) {
             };
         })
         .sort((a, b) => b.count - a.count);
+    const celestialStatus = getCelestialStatus(char, equippedArray);
     let hpMax     = calcHpMax(char, equippedArray);
     let hpCurrent = Math.min(char.hp_current ?? hpMax, hpMax);
     const squadDiscountPct = await getSquadStatDiscount(db, char.id);
@@ -10808,6 +11116,16 @@ async function buildCharacterResponse(char, db) {
         equipped_set_counts: setCounts,
         equipped_set_bonuses: setBonuses,
         equipped_set_details: setDetails,
+        celestial: {
+            quality: CELESTIAL_QUALITY,
+            upgradeSlots: CELESTIAL_QUALITY_META.upgradeSlots,
+            sets: setDetails.filter(s => s.celestial),
+            fullSets: celestialStatus.mechanics.fullSets,
+            allocation: celestialStatus.allocation,
+            allocationBudget: celestialStatus.budget,
+            phoenix: celestialStatus.phoenix,
+            xpSuppressed: celestialStatus.mechanics.xpSuppression,
+        },
         weekly_claimable_count: weeklyClaimableCount,
         assistant_enabled: Number(userSettings?.assistant_enabled ?? 1) !== 0,
         skip_battle_animations: Number(userSettings?.skip_battle_animations ?? 0) !== 0,
@@ -14131,6 +14449,7 @@ async function collectMissionForCharacter(db, characterId) {
         }
 
         applyWeaponSkill(playerFighter);
+        applyCelestialCombatState(playerFighter, freshChar, equippedArray);
 
         const isTutorial = isTutorialCharacter(freshChar);
 
@@ -14340,6 +14659,14 @@ async function collectMissionForCharacter(db, characterId) {
 
         // Tutorial Check: Don't deplete HP for the first 4 battles
         const newHp = isTutorial ? (freshChar.hp_current ?? playerFighter.hpMax) : Math.max(0, battle.hpRemainingA);
+
+        // Celestial — Eternal Requiem: only mission XP is suppressed; gold, items
+        // and every other reward still pay out.
+        if (playerFighter.celestial?.xpSuppression) xpEarned = 0;
+        // Phoenix Resurrection consumes its 24h cooldown once, server-side.
+        if (playerFighter._phoenixTriggered) {
+            await dbRun(db, 'UPDATE characters SET phoenix_resurrect_at=? WHERE id=?', [now, freshChar.id]);
+        }
 
         let newXp = (freshChar.xp || 0) + xpEarned, newLevel = freshChar.level, leveledUp = false;
         while (newXp >= LEVEL_XP(newLevel)) { newXp -= LEVEL_XP(newLevel); newLevel++; leveledUp = true; }
@@ -16670,6 +16997,7 @@ function generateBackendInventory(playerLevel, location) {
         const item = generateBackendRandomItem(playerLevel, type, null, optionFor(type, boost));
         if (item) inventory.push(item);
     }
+    inventory.push(...generateCelestialShopPieces(playerLevel, location));
     inventory.push(...getPotionsForLevel(playerLevel));
     for (let i = 0; i < 3; i++) {
         inventory.push({
@@ -17013,6 +17341,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         }
         applyWeaponSkill(fighterA);
         applyWeaponSkill(fighterB);
+        applyCelestialCombatState(fighterA, freshA, equippedA);
+        applyCelestialCombatState(fighterB, freshD, equippedD);
 
         const elemRowB = await ensureElemental(db, freshD.id);
         if (elemRowB) {
@@ -17028,6 +17358,13 @@ router.post('/attack/:targetId', auth, async (req, res) => {
         const battleStatsForDefender = { you: summarizeBattleStats(fighterB), enemy: summarizeBattleStats(fighterA) };
 
         const battle = runBattle(fighterA, fighterB);
+        // Phoenix Resurrection: persist the consumed 24h cooldown for either side.
+        if (fighterA._phoenixTriggered) {
+            await dbRun(db, 'UPDATE characters SET phoenix_resurrect_at=? WHERE id=?', [Math.floor(Date.now() / 1000), freshA.id]);
+        }
+        if (fighterB._phoenixTriggered) {
+            await dbRun(db, 'UPDATE characters SET phoenix_resurrect_at=? WHERE id=?', [Math.floor(Date.now() / 1000), freshD.id]);
+        }
         const attackerWon = battle.winnerId === freshA.id;
         const isDraw = battle.winnerId === 0;
 
@@ -24632,6 +24969,73 @@ function generateLootFromBox(boxType, playerLevel) {
     return result;
 }
 
+// ── Celestial: Primordial Sovereign elemental allocation ──────────────────
+// The budget is fixed and server-owned; only the split is player-controlled.
+router.get('/celestial/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const equippedArray = await getEquippedItemsArray(db, char.id);
+        const status = getCelestialStatus(char, equippedArray);
+        res.json({
+            quality: CELESTIAL_QUALITY,
+            upgradeSlots: CELESTIAL_QUALITY_META.upgradeSlots,
+            allocation: status.allocation,
+            allocationBudget: status.budget,
+            fullSets: status.mechanics.fullSets,
+            phoenix: status.phoenix,
+            xpSuppressed: status.mechanics.xpSuppression,
+        });
+    } catch (e) {
+        console.error('Celestial status error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/celestial/allocation', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const char = await getCurrentCharacter(db, req.user.userId);
+        if (!char) return res.status(404).json({ error: 'Character not found' });
+        const equippedArray = await getEquippedItemsArray(db, char.id);
+        const status = getCelestialStatus(char, equippedArray);
+        const budget = status.mechanics.primordialBudget;
+        if (budget <= 0) {
+            return res.status(400).json({ error: 'Equip the complete Primordial Sovereign set first.' });
+        }
+        const body = req.body || {};
+        const raw = (body.allocation && typeof body.allocation === 'object') ? body.allocation : body;
+        const cleaned = { pyro: 0, water: 0, wind: 0, electro: 0 };
+        let total = 0;
+        for (const elem of ELEMENTS) {
+            const value = raw[elem];
+            if (value === undefined || value === null || value === '') continue;
+            const num = Number(value);
+            if (!Number.isFinite(num) || num < 0 || Math.floor(num) !== num) {
+                return res.status(400).json({ error: `Invalid amount for ${elem}.` });
+            }
+            cleaned[elem] = num;
+            total += num;
+        }
+        if (total > budget) {
+            return res.status(400).json({ error: `Allocation exceeds the ${budget} point budget.` });
+        }
+        await dbRun(db, 'UPDATE characters SET celestial_alloc=? WHERE id=?', [JSON.stringify(cleaned), char.id]);
+        const updated = await dbGet(db, 'SELECT * FROM characters WHERE id=?', [char.id]);
+        res.json({
+            success: true,
+            allocation: cleaned,
+            allocationBudget: budget,
+            remaining: budget - total,
+            character: await buildCharacterResponse(updated, db),
+        });
+    } catch (e) {
+        console.error('Celestial allocation error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
     try {
         const db = await getDb();
@@ -24653,9 +25057,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             ? Number(expectedUpgradeLevel)
             : currentUpgrade;
         const quality = itemData.quality || 'common';
-        let maxUpgrade = 3;
-        if (quality === 'legendary') maxUpgrade = 5;
-        else if (quality === 'epic' || quality === 'rare') maxUpgrade = 4;
+        let maxUpgrade = getMaxUpgradeSlots(quality);
 
         if (normalizedExpectedUpgrade !== currentUpgrade) {
             return res.status(409).json({ error: 'This upgrade view is outdated. Reopen the item and try again.' });
@@ -24783,6 +25185,7 @@ router.post('/equipment/upgrade/:inventoryId', auth, async (req, res) => {
             success: true,
             message,
             newUpgradeLevel: nextUpgrade,
+            maxUpgrade,
             upgradedStats: upgradedStatsList.map(stat => ({
                 stat,
                 oldValue: itemData.stats?.[stat] || 0,
@@ -26393,6 +26796,10 @@ module.exports = {
     getEquippedSetBonuses, getEquippedWeaponData, getEquippedShieldData, skillPassiveBonus,
     computeOffHandDmgPct,
     getFighterExtraHits,
+    getMaxUpgradeSlots, isCelestialSet, isCelestialItem, celestialZoneIndex, celestialSetAllowedInZone,
+    generateCelestialSetItem, generateCelestialShopPieces, generateBackendInventory, generateBackendRandomItem,
+    getCelestialMechanics, getCelestialStatus, getPhoenixState, normalizeCelestialAllocation, celestialPrimordialBudget,
+    applyCelestialCombatState, celestialPreventsCounter, CELESTIAL_STAT_MULT,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
     WEAPON_SKILLS, rollWeaponSkill, applyWeaponSkill,
     DUNGEON_MONSTER_POOL, DUNGEON_MINI_BOSS_POOL, buildRegularMonsterForFloor, buildMiniBossForFloor,
