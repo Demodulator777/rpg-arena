@@ -1536,6 +1536,135 @@ function generateMission(zoneId, spotId, charLevel) {
     };
 }
 
+// ── Celestial equipment rarity + sets ─────────────────────────────────────
+// The Celestial rarity is a single rarity shared by all five sets. Every set
+// uses the same generation rules (level-scaled stat rolls on the existing
+// generator) and the same six upgrade slots; the sets differ only in their
+// static 2pc/4pc bonuses, their special 5/5 mechanic and the celestial zones
+// they can drop in.
+const CELESTIAL_QUALITY = 'celestial';
+const CELESTIAL_QUALITY_META = {
+    id: CELESTIAL_QUALITY,
+    label: 'Celestial',
+    labelPt: 'Celestial',
+    upgradeSlots: 6,
+};
+
+// Per-set mechanic tuning. Kept in one place so balance passes never have to
+// hunt through the combat engine.
+const CELESTIAL_TUNING = {
+    // Sanguine Divinity — share of damage actually dealt converted to HP,
+    // once per round, capped at max HP.
+    vampiricHealPct: 0.10,
+    // Aegis of Eternity — chance to cancel an incoming counterattack entirely.
+    counterPreventChance: 0.55,
+    // Wrath of the Heavens — extra crit damage (+50% on a crit).
+    critDamageBonus: 0.50,
+    // Primordial Sovereign — elemental damage points the player may split, granted
+    // per character level (0.5/level → 30 points at level 60), so higher level
+    // characters and gear get a bigger pool. Never below the minimum.
+    primordialBudgetPerLevel: 0.5,
+    primordialBudgetMin: 5,
+    // Eternal Requiem — resurrection cooldown, in seconds (24 hours).
+    phoenixCooldownSeconds: 24 * 60 * 60,
+    // Sets that suppress mission XP while the full set is worn.
+    xpSuppressionSets: ['aegis_of_eternity', 'eternal_requiem'],
+};
+
+// Item display names per slot. Slot keys match the shop generator's type keys.
+const CELESTIAL_SETS = {
+    sanguine_divinity: {
+        name: 'Sanguine Divinity', emoji: '🩸', pieces: 5, minZone: 1, maxZone: 5,
+        mechanic: 'vampiric',
+        mechanicName: 'Vampiric Absorption',
+        mechanicDesc: '5/5: 10% of all damage you deal is restored as HP (once per round, capped at max HP).',
+        lore: 'Drink deeply of the fallen; the blood remembers every wound.',
+        bonus3: { hp_max: 350, strength: 65, defense: 75, hit_chance: 40, crit_chance: 30, agility: 35, pyro_dmg: 10, water_dmg: 10, pyro_resist: 15, water_resist: 15, wind_resist: 15, electro_resist: 15, desc: '2/5: +350 HP · +65 STR · +75 DEF · +40 Hit · +30 Crit · +35 AGI · +10 Pyro/Water Dmg · +15 all Elem Resist' },
+        bonus4: { hp_max: 800, strength: 140, defense: 160, armor: 18, vitality: 10, hit_chance: 80, crit_chance: 60, agility: 70, pyro_dmg: 20, water_dmg: 20, pyro_resist: 30, water_resist: 30, wind_resist: 30, electro_resist: 30, desc: '4/5: +800 HP · +140 STR · +160 DEF · +18 Armor · +10 VIT · +80 Hit · +60 Crit · +70 AGI · +20 Pyro/Water Dmg · +30 all Elem Resist' },
+        items: {
+            weapon: { name: 'Bloodwake Blade', emoji: '⚔️', desc: 'A blade that drinks from every wound it opens, humming with stolen vitality.' },
+            armor: { name: 'Sanguine Cuirass', emoji: '🥼', desc: 'Armor forged from crystallized blood, warm to the touch and hungry for more.' },
+            helmet: { name: 'Crown of Thirst', emoji: '👑', desc: 'A crown of jagged rubies that pulse in time with the wearer’s heartbeat.' },
+            shield: { name: 'Veil of Blood', emoji: '🛡️', desc: 'A shield of coagulated crimson that hardens when struck.' },
+            boots: { name: 'Bloodstep Greaves', emoji: '👢', desc: 'Greaves that leave burning red prints, marking every step with hunger.' },
+        },
+    },
+    aegis_of_eternity: {
+        name: 'Aegis of Eternity', emoji: '🛡️', pieces: 5, minZone: 2, maxZone: 5,
+        mechanic: 'counter_prevent',
+        mechanicName: 'Eternal Aegis',
+        mechanicDesc: '5/5: 55% chance to completely prevent incoming counterattacks. While worn, mission XP is suppressed.',
+        lore: 'A wall that time itself refuses to breach.',
+        bonus3: { defense: 105, armor: 20, hp_max: 400, strength: 40, hit_chance: 40, crit_chance: 30, agility: 35, wind_dmg: 10, electro_dmg: 10, pyro_resist: 15, water_resist: 15, wind_resist: 15, electro_resist: 15, desc: '2/5: +105 DEF · +20 Armor · +400 HP · +40 STR · +40 Hit · +30 Crit · +35 AGI · +10 Wind/Electro Dmg · +15 all Elem Resist' },
+        bonus4: { defense: 230, armor: 55, hp_max: 900, vitality: 12, strength: 80, hit_chance: 80, crit_chance: 60, agility: 70, wind_dmg: 20, electro_dmg: 20, pyro_resist: 30, water_resist: 30, wind_resist: 30, electro_resist: 30, desc: '4/5: +230 DEF · +55 Armor · +900 HP · +12 VIT · +80 STR · +80 Hit · +60 Crit · +70 AGI · +20 Wind/Electro Dmg · +30 all Elem Resist' },
+        items: {
+            weapon: { name: "Warden's Verdict", emoji: '🗡️', desc: 'A hammer of judgment that strikes down those who dare to counter.' },
+            armor: { name: 'Eternal Bulwark Plate', emoji: '🛡️', desc: 'Plate that has never been breached, etched with runes of unyielding time.' },
+            helmet: { name: 'Aegis Crown', emoji: '⛑️', desc: 'A crown that grants sight beyond the present moment.' },
+            shield: { name: 'Aegis of Eternity', emoji: '🔰', desc: 'A shield that turns aside not just blows but the very flow of battle.' },
+            boots: { name: 'Timeless Striders', emoji: '🥾', desc: 'Boots that step through moments, leaving no trace in time.' },
+        },
+    },
+    wrath_of_the_heavens: {
+        name: 'Wrath of the Heavens', emoji: '⚡', pieces: 5, minZone: 3, maxZone: 5,
+        mechanic: 'crit_damage',
+        mechanicName: 'Divine Wrath',
+        mechanicDesc: '5/5: critical hits deal +50% bonus damage.',
+        lore: 'Judgment does not knock. It arrives.',
+        bonus3: { crit_chance: 75, strength: 75, hit_chance: 70, defense: 60, agility: 70, pyro_dmg: 10, electro_dmg: 10, pyro_resist: 15, water_resist: 15, wind_resist: 15, electro_resist: 15, desc: '2/5: +75 Crit · +75 STR · +70 Hit · +60 DEF · +70 AGI · +10 Pyro/Electro Dmg · +15 all Elem Resist' },
+        bonus4: { crit_chance: 150, strength: 160, hit_chance: 145, dmg_min: 12, dmg_max: 28, defense: 120, agility: 105, pyro_dmg: 20, electro_dmg: 20, pyro_resist: 30, water_resist: 30, wind_resist: 30, electro_resist: 30, desc: '4/5: +150 Crit · +160 STR · +145 Hit · +12-28 DMG · +120 DEF · +105 AGI · +20 Pyro/Electro Dmg · +30 all Elem Resist' },
+        items: {
+            weapon: { name: 'Heavenfall Edge', emoji: '⚔️', desc: 'A blade that calls down judgment with every critical strike.' },
+            armor: { name: 'Skybreaker Plate', emoji: '🥼', desc: 'Plate charged with storm energy, crackling with divine wrath.' },
+            helmet: { name: 'Crown of Thunder', emoji: '👑', desc: 'A crown wreathed in lightning, amplifying the wearer’s fury.' },
+            shield: { name: 'Stormward Aegis', emoji: '🛡️', desc: 'A shield that absorbs and redirects the force of the heavens.' },
+            boots: { name: 'Tempest Treads', emoji: '👟', desc: 'Boots that move like the wind, striking before the thunder fades.' },
+        },
+    },
+    primordial_sovereign: {
+        name: 'Primordial Sovereign', emoji: '🌌', pieces: 5, minZone: 4, maxZone: 5,
+        mechanic: 'elemental_allocation',
+        mechanicName: 'Primordial Mastery',
+        mechanicDesc: '5/5: split elemental damage points between the four elements. The budget grows with your level (0.5 points per level).',
+        lore: 'Before the elements had names, one will divided them.',
+        bonus3: { magic: 85, hit_chance: 70, crit_chance: 30, strength: 40, defense: 60, agility: 50, water_dmg: 10, wind_dmg: 10, pyro_resist: 25, water_resist: 25, wind_resist: 25, electro_resist: 25, desc: '2/5: +85 MAG · +70 Hit · +30 Crit · +40 STR · +60 DEF · +50 AGI · +10 Water/Wind Dmg · +25 all Elem Resist' },
+        bonus4: {
+            magic: 180, hit_chance: 140, crit_chance: 50, strength: 80, defense: 120, agility: 95,
+            water_dmg: 20, wind_dmg: 20,
+            pyro_resist: 40, water_resist: 40, wind_resist: 40, electro_resist: 40,
+            desc: '4/5: +180 MAG · +140 Hit · +50 Crit · +80 STR · +120 DEF · +95 AGI · +20 Water/Wind Dmg · +40 all Elem Resist'
+        },
+        items: {
+            weapon: { name: 'Primordial Fang', emoji: '🪄', desc: 'A fang that shapes the elements to the wielder’s will.' },
+            armor: { name: 'Genesis Carapace', emoji: '🛡️', desc: 'Armor born from the first breath of creation.' },
+            helmet: { name: 'Eye of Creation', emoji: '👁️', desc: 'An eye that sees all elements in perfect balance.' },
+            shield: { name: 'Worldshell', emoji: '🔰', desc: 'A shell that contains the raw forces of the world.' },
+            boots: { name: 'Foundation Walkers', emoji: '👢', desc: 'Boots that walk the line between elements.' },
+        },
+    },
+    eternal_requiem: {
+        name: 'Eternal Requiem', emoji: '🕊️', pieces: 5, minZone: 5, maxZone: 5,
+        mechanic: 'phoenix',
+        mechanicName: 'Phoenix Resurrection',
+        mechanicDesc: '5/5: when you would die in battle, rise again at full HP. Once every 24 hours. While worn, mission XP is suppressed.',
+        lore: 'Every ending is a verse the phoenix has already sung.',
+        bonus3: { hp_max: 500, vitality: 12, defense: 95, strength: 40, hit_chance: 40, crit_chance: 30, agility: 35, pyro_dmg: 10, water_dmg: 10, wind_dmg: 10, electro_dmg: 10, pyro_resist: 30, water_resist: 30, wind_resist: 30, electro_resist: 30, desc: '2/5: +500 HP · +12 VIT · +95 DEF · +40 STR · +40 Hit · +30 Crit · +35 AGI · +10 all Elem Dmg · +30 all Elem Resist' },
+        bonus4: {
+            hp_max: 1100, vitality: 25, defense: 200, armor: 25, strength: 80, hit_chance: 80, crit_chance: 60, agility: 70,
+            pyro_dmg: 20, water_dmg: 20, wind_dmg: 20, electro_dmg: 20,
+            pyro_resist: 45, water_resist: 45, wind_resist: 45, electro_resist: 45,
+            desc: '4/5: +1,100 HP · +25 VIT · +200 DEF · +25 Armor · +80 STR · +80 Hit · +60 Crit · +70 AGI · +20 all Elem Dmg · +45 all Elem Resist'
+        },
+        items: {
+            weapon: { name: "Requiem's Last Note", emoji: '🏹', desc: 'A bow that sings the final verse of a fallen soul.' },
+            armor: { name: 'Phoenix Shroud', emoji: '🥼', desc: 'A shroud woven from phoenix ash, warm with rebirth.' },
+            helmet: { name: 'Ash Crown', emoji: '👑', desc: 'A crown of cinders that remembers every flame.' },
+            shield: { name: 'Cradle of Ash', emoji: '🛡️', desc: 'A shield that holds the last embers of a dying fire.' },
+            boots: { name: 'Ember Wings', emoji: '👟', desc: 'Boots that carry the wearer on wings of dying light.' },
+        },
+    },
+};
+
 // ── Guild Raid boss gear catalog (tokens exchange) ─────────────────────────
 // Each entry maps a GUILD_RAID_BOSS_POOL boss setId to its 5 set pieces with
 // deterministic base stats (mirroring EQUIPMENT_RECIPES). Base stats are scaled
@@ -1889,6 +2018,7 @@ const STORY_QUESTS = [
 module.exports = {
     ZONES, ABYSS_ZONES, ABYSS_ROUTES, ABYSS_ENTRY, RAW_MATERIALS, COMPONENTS, EQUIPMENT_RECIPES, CRAFTING_SETS, PREFIX_TIERS,
     CELESTIAL_ZONES, CELESTIAL_ROUTES, CELESTIAL_ENTRY, CELESTIAL_MIN_HONOR, CELESTIAL_HONOR_STEP,
+    CELESTIAL_SETS, CELESTIAL_QUALITY, CELESTIAL_QUALITY_META, CELESTIAL_TUNING,
     buildCelestialMonster,
     RAID_BOSS_GEAR,
     generateMission, TIER_COLORS, TIER_LABELS, randBetween, LOOT_BOXES,
