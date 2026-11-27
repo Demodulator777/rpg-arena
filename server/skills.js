@@ -202,8 +202,7 @@ const SKILL_TREES = {
                     },
                 },
             },
-
-            // BRANCH 1: Berserker
+             // BRANCH 1: Berserker
             berserker: {
                 name: 'Berserker',
                 emoji: '🔥',
@@ -2890,6 +2889,44 @@ async function computePassiveBonusesWithProgress(db, className, learnedSkillIds,
     return bonuses;
 }
 
+// Higher-tier skills upgrade an earlier active_combat effect by re-declaring the
+// same id (divine_judgment -> divine_wrath, consecrate -> avatar_of_justice, ...).
+// Each declaration is scaled by its own skill's progress, so a freshly learned
+// upgrade sits in the list with all-zero values and used to shadow the trained
+// original (the battle code reads the last matching effect). Merge duplicates by
+// keeping the strongest value of every field: progress can then only improve an
+// effect, never reset it.
+function mergeActiveCombatEffects(effects) {
+    const merged = [];
+    const byId = new Map();
+    for (const eff of effects) {
+        const prev = byId.get(eff.id);
+        if (!prev) {
+            const copy = { ...eff };
+            byId.set(eff.id, copy);
+            merged.push(copy);
+            continue;
+        }
+        for (const [key, val] of Object.entries(eff)) {
+            if (key === 'id' || key === 'type') continue;
+            const cur = prev[key];
+            if (cur === undefined) { prev[key] = val; continue; }
+            if (typeof val === 'number' && typeof cur === 'number') {
+                prev[key] = Math.max(cur, val);
+            } else if (typeof val === 'boolean' && typeof cur === 'boolean') {
+                prev[key] = cur || val;
+            } else if (Array.isArray(val) && Array.isArray(cur)) {
+                if (val.length > cur.length) prev[key] = val.slice();
+            } else if ((cur === '' || cur == null) && val) {
+                prev[key] = val;
+            }
+        }
+        // The upgrade is the more specific source of the merged effect.
+        prev.sourceSkill = eff.sourceSkill || prev.sourceSkill;
+    }
+    return merged;
+}
+
 async function computeActiveCombatEffectsWithProgress(db, className, learnedSkillIds, charId) {
     const tree = SKILL_TREES[className];
     if (!tree) return [];
@@ -2907,7 +2944,7 @@ async function computeActiveCombatEffectsWithProgress(db, className, learnedSkil
             }
         }
     }
-    return effects;
+    return mergeActiveCombatEffects(effects);
 }
 
 async function computeClassModifiersWithProgress(db, className, learnedSkillIds, charId) {
