@@ -777,16 +777,15 @@ function deathmatchBattle(fighterA, fighterB) {
 
     // Celestial — Sanguine Divinity: one heal per round from damage actually dealt.
     for (const [f, res] of [[fighterA, resA], [fighterB, resB]]) {
-      const pct = Number(f.celestial?.vampiricPct) || 0;
-      const dealt = Number(res.damageDealt) || 0;
-      if (pct <= 0 || dealt <= 0) continue;
-      const curHp = f === fighterA ? hpA : hpB;
-      if (curHp <= 0) continue;
-      const capped = Math.min(f.hpMax || 9999, curHp + Math.max(1, Math.floor(dealt * pct)));
-      if (capped > curHp) {
-        if (f === fighterA) hpA = capped; else hpB = capped;
-        log.push(`🩸 ${f.name} absorbs ${capped - curHp} HP (Sanguine Divinity)`);
-      }
+       const pct = Number(f.celestial?.vampiricPct) || 0;
+       const dealt = Number(res.damageDealt) || 0;
+       if (pct <= 0 || dealt <= 0) continue;
+       const curHp = f === fighterA ? hpA : hpB;
+       if (curHp <= 0) continue;
+       const healAmount = Math.max(1, Math.floor(dealt * pct));
+       const capped = Math.min(f.hpMax || 9999, curHp + healAmount);
+       if (f === fighterA) hpA = capped; else hpB = capped;
+       log.push(`🩸 ${f.name} absorbs ${healAmount} HP (Sanguine Divinity)`);
     }
 
     if (elemA && elemAHp > 0 && dmgToA > 0) {
@@ -1041,16 +1040,15 @@ function normalBattle(fighterA, fighterB) {
 
     // Celestial — Sanguine Divinity: one heal per round from damage actually dealt.
     for (const [f, res] of [[fighterA, resA], [fighterB, resB]]) {
-      const pct = Number(f.celestial?.vampiricPct) || 0;
-      const dealt = Number(res.damageDealt) || 0;
-      if (pct <= 0 || dealt <= 0) continue;
-      const curHp = f === fighterA ? hpA : hpB;
-      if (curHp <= 0) continue;
-      const capped = Math.min(f.hpMax || 9999, curHp + Math.max(1, Math.floor(dealt * pct)));
-      if (capped > curHp) {
-        if (f === fighterA) hpA = capped; else hpB = capped;
-        log.push(`🩸 ${f.name} absorbs ${capped - curHp} HP (Sanguine Divinity)`);
-      }
+       const pct = Number(f.celestial?.vampiricPct) || 0;
+       const dealt = Number(res.damageDealt) || 0;
+       if (pct <= 0 || dealt <= 0) continue;
+       const curHp = f === fighterA ? hpA : hpB;
+       if (curHp <= 0) continue;
+       const healAmount = Math.max(1, Math.floor(dealt * pct));
+       const capped = Math.min(f.hpMax || 9999, curHp + healAmount);
+       if (f === fighterA) hpA = capped; else hpB = capped;
+       log.push(`🩸 ${f.name} absorbs ${healAmount} HP (Sanguine Divinity)`);
     }
 
     if (elemA && elemAHp > 0 && dmgToA > 0) {
