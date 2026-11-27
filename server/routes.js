@@ -8518,10 +8518,10 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
             const curHp = fighter === fighterA ? hpA : hpB;
             if (curHp <= 0) continue;
             const maxHp = fighter.hpMax || 9999;
-            const capped = Math.min(maxHp, curHp + Math.max(1, Math.floor(dealt * pct)));
-            const gained = capped - curHp;
+            const healAmount = Math.max(1, Math.floor(dealt * pct));
+            const capped = Math.min(maxHp, curHp + healAmount);
             if (fighter === fighterA) hpA = capped; else hpB = capped;
-            if (gained > 0) log.push(`🩸 ${fighter.name} absorbs ${gained} HP (Sanguine Divinity)`);
+            log.push(`🩸 ${fighter.name} absorbs ${healAmount} HP (Sanguine Divinity)`);
         }
 
         // Elemental split damage: 3% of dmg dealt to player goes to elemental,
