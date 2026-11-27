@@ -1557,7 +1557,7 @@ const CELESTIAL_TUNING = {
     // once per round, capped at max HP.
     vampiricHealPct: 0.10,
     // Aegis of Eternity — chance to cancel an incoming counterattack entirely.
-    counterPreventChance: 0.55,
+    counterPreventChance: 0.90,
     // Wrath of the Heavens — extra crit damage (+50% on a crit).
     critDamageBonus: 0.50,
     // Primordial Sovereign — elemental damage points the player may split, granted
@@ -1593,7 +1593,7 @@ const CELESTIAL_SETS = {
         name: 'Aegis of Eternity', emoji: '🛡️', pieces: 5, minZone: 2, maxZone: 5,
         mechanic: 'counter_prevent',
         mechanicName: 'Eternal Aegis',
-        mechanicDesc: '5/5: 55% chance to completely prevent incoming counterattacks. While worn, mission XP is suppressed.',
+        mechanicDesc: '5/5: 90% chance to completely prevent incoming counterattacks. While worn, mission XP is suppressed.',
         lore: 'A wall that time itself refuses to breach.',
         bonus3: { defense: 105, armor: 20, hp_max: 400, strength: 40, hit_chance: 40, crit_chance: 30, agility: 35, wind_dmg: 10, electro_dmg: 10, pyro_resist: 15, water_resist: 15, wind_resist: 15, electro_resist: 15, desc: '2/5: +105 DEF · +20 Armor · +400 HP · +40 STR · +40 Hit · +30 Crit · +35 AGI · +10 Wind/Electro Dmg · +15 all Elem Resist' },
         bonus4: { defense: 230, armor: 55, hp_max: 900, vitality: 12, strength: 80, hit_chance: 80, crit_chance: 60, agility: 70, wind_dmg: 20, electro_dmg: 20, pyro_resist: 30, water_resist: 30, wind_resist: 30, electro_resist: 30, desc: '4/5: +230 DEF · +55 Armor · +900 HP · +12 VIT · +80 STR · +80 Hit · +60 Crit · +70 AGI · +20 Wind/Electro Dmg · +30 all Elem Resist' },
