@@ -5642,11 +5642,181 @@ ACHIEVEMENTS.push(
     { id: 'elem_resist_200', chain: 'elem_resist', category: 'progression', name: 'Elemental Immunity', desc: 'Reach 200 of a single elemental resistance on your gear.', icon: '🛡️', metric: 'elem_resist_max', target: 200, rewards: { gold: 400000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
 );
 
+// ── Honor & Celestial achievements ────────────────────────────────────────
+// Honor is earned from PvP and tournament wins (rows in honor_changes) and gates
+// every zone of the Celestial map, so it gets its own ladder: a lifetime "honor
+// earned" chain (monotonic — sums the positive deltas) plus a "honor held" chain
+// that mirrors the five gate thresholds. Celestial mission progress is read from
+// the map_type='celestial' rows of character_mission_spot_stats.
+function buildHonorAndCelestialAchievements() {
+    const list = [];
+
+    // Fine-grained ladder: the first steps are close together so the Honor system
+    // starts paying rewards early, then it widens before reaching the long tail.
+    const honorEarnedTiers = [
+        { target: 250, name: 'First Mark', desc: 'Earn 250 Honor.', icon: '🎖️', rewards: { gold: 2500, lootbox: { id: 'lootbox_common', qty: 1 } } },
+        { target: 500, name: 'Honor Bound', desc: 'Earn 500 Honor.', icon: '🎖️', rewards: { gold: 5000, lootbox: { id: 'lootbox_common', qty: 1 } } },
+        { target: 1000, name: 'Marked by the Arena', desc: 'Earn 1,000 Honor.', icon: '⚜️', rewards: { gold: 10000, gems: 3 } },
+        { target: 2000, name: 'A Respected Name', desc: 'Earn 2,000 Honor.', icon: '⚜️', rewards: { gold: 18000, gems: 5, lootbox: { id: 'lootbox_novice', qty: 1 } } },
+        { target: 3000, name: 'Honored Contender', desc: 'Earn 3,000 Honor.', icon: '🥉', rewards: { gold: 28000, gems: 6, lootbox: { id: 'lootbox_novice', qty: 1 } } },
+        { target: 4000, name: 'Proven Champion', desc: 'Earn 4,000 Honor.', icon: '🥈', rewards: { gold: 40000, gems: 8, lootbox: { id: 'lootbox_novice', qty: 1 } } },
+        { target: 5000, name: 'Banner of Honor', desc: 'Earn 5,000 Honor.', icon: '🏅', rewards: { gold: 55000, gems: 10, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 7500, name: 'Honorforged', desc: 'Earn 7,500 Honor.', icon: '🏅', rewards: { gold: 85000, gems: 12, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 10000, name: 'Honorbound Champion', desc: 'Earn 10,000 Honor.', icon: '🏅', rewards: { gold: 120000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 12500, name: 'A Name Worth Speaking', desc: 'Earn 12,500 Honor.', icon: '⚔️', rewards: { gold: 160000, gems: 17, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 15000, name: 'Voice of the Arena', desc: 'Earn 15,000 Honor.', icon: '📯', rewards: { gold: 200000, gems: 18, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 20000, name: 'Paragon of Honor', desc: 'Earn 20,000 Honor.', icon: '🌟', rewards: { gold: 280000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 25000, name: 'Arena Exemplar', desc: 'Earn 25,000 Honor.', icon: '💠', rewards: { gold: 360000, gems: 21, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 30000, name: 'Crown of Honor', desc: 'Earn 30,000 Honor.', icon: '👑', rewards: { gold: 450000, gems: 22, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 40000, name: 'Eternal Contender', desc: 'Earn 40,000 Honor.', icon: '🔱', rewards: { gold: 600000, gems: 24, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 50000, name: 'Living Legend of the Arena', desc: 'Earn 50,000 Honor.', icon: '🌟', rewards: { gold: 800000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+        { target: 75000, name: 'Honor Incarnate', desc: 'Earn 75,000 Honor.', icon: '🔥', rewards: { gold: 1200000, gems: 27, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 100000, name: 'Immortal Renown', desc: 'Earn 100,000 Honor.', icon: '💫', rewards: { gold: 1600000, gems: 30, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 150000, name: 'Undisputed Sovereign', desc: 'Earn 150,000 Honor.', icon: '👑', rewards: { gold: 2400000, gems: 35, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 200000, name: 'Myth of the Arena', desc: 'Earn 200,000 Honor.', icon: '🌌', rewards: { gold: 3200000, gems: 40, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+        { target: 300000, name: 'Honor Beyond Measure', desc: 'Earn 300,000 Honor.', icon: '♾️', rewards: { gold: 5000000, gems: 50, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    ];
+    for (const tier of honorEarnedTiers) {
+        list.push({
+            id: `honor_earned_${tier.target}`,
+            chain: 'honor_earned',
+            category: 'honor',
+            name: tier.name,
+            desc: tier.desc,
+            icon: tier.icon,
+            metric: 'honor_earned',
+            target: tier.target,
+            rewards: tier.rewards,
+        });
+    }
+
+    // Standing thresholds match the Celestial gates (1,000 / 2,000 / 3,000 / 4,000 / 5,000).
+    const honorStandingTiers = [
+        { target: 1000, name: 'Threshold of Honor', desc: 'Hold 1,000 Honor and the Celestial Threshold opens to you.', icon: '🌟', rewards: { gold: 10000, gems: 5 } },
+        { target: 2000, name: 'Silvered Standing', desc: 'Hold 2,000 Honor.', icon: '⚔️', rewards: { gold: 25000, gems: 10, lootbox: { id: 'lootbox_novice', qty: 1 } } },
+        { target: 3000, name: 'Aurora Bearer', desc: 'Hold 3,000 Honor.', icon: '🛡️', rewards: { gold: 50000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 4000, name: 'Zenith Bearing', desc: 'Hold 4,000 Honor.', icon: '👑', rewards: { gold: 90000, gems: 20, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 5000, name: 'Warden of the Dawn', desc: 'Hold 5,000 Honor and stand at the Throne of Dawn.', icon: '🌅', rewards: { gold: 150000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } } },
+    ];
+    for (const tier of honorStandingTiers) {
+        list.push({
+            id: `honor_standing_${tier.target}`,
+            chain: 'honor_standing',
+            category: 'honor',
+            name: tier.name,
+            desc: tier.desc,
+            icon: tier.icon,
+            metric: 'honor_current',
+            target: tier.target,
+            rewards: tier.rewards,
+        });
+    }
+
+    const celestialTotalTiers = [
+        { target: 10, name: 'First Steps Beyond', desc: 'Win 10 Celestial missions.', icon: '🌠', rewards: { gold: 15000, lootbox: { id: 'lootbox_common', qty: 1 } } },
+        { target: 50, name: 'Celestial Regular', desc: 'Win 50 Celestial missions.', icon: '🌙', rewards: { gold: 60000, gems: 5, lootbox: { id: 'lootbox_novice', qty: 1 } } },
+        { target: 250, name: 'Dawnbound', desc: 'Win 250 Celestial missions.', icon: '☀️', rewards: { gold: 400000, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } } },
+        { target: 1000, name: 'Sovereign of the Dawn', desc: 'Win 1,000 Celestial missions.', icon: '🌅', rewards: { gold: 1800000, gems: 25, lootbox: { id: 'lootbox_legendary', qty: 1 } } },
+    ];
+    for (const tier of celestialTotalTiers) {
+        list.push({
+            id: `celestial_wins_${tier.target}`,
+            chain: 'celestial_wins',
+            category: 'missions',
+            name: tier.name,
+            desc: tier.desc,
+            icon: tier.icon,
+            metric: 'celestial_wins_total',
+            target: tier.target,
+            rewards: tier.rewards,
+        });
+    }
+
+    const zoneTitles = {
+        celestial_1: 'Threshold',
+        celestial_2: 'Silvered',
+        celestial_3: 'Aurora',
+        celestial_4: 'Zenith',
+        celestial_5: 'Dawn',
+    };
+    let zoneStep = 0;
+    for (const zoneId of Object.keys(CELESTIAL_ZONES)) {
+        zoneStep += 1;
+        const zoneName = CELESTIAL_ZONES[zoneId]?.name || zoneId;
+        const title = zoneTitles[zoneId] || zoneName;
+        list.push({
+            id: `${zoneId}_wins_25`,
+            chain: `${zoneId}_wins`,
+            category: 'missions',
+            name: `${title} Pathfinder`,
+            desc: `Win 25 missions in ${zoneName}.`,
+            icon: '🧭',
+            metric: 'celestial_zone_wins',
+            metric_key: zoneId,
+            target: 25,
+            rewards: { gold: 15000 * zoneStep, gems: 5, lootbox: { id: 'lootbox_novice', qty: 1 } },
+        });
+        list.push({
+            id: `${zoneId}_wins_100`,
+            chain: `${zoneId}_wins`,
+            category: 'missions',
+            name: `${title} Sovereign`,
+            desc: `Win 100 missions in ${zoneName}.`,
+            icon: '👑',
+            metric: 'celestial_zone_wins',
+            metric_key: zoneId,
+            target: 100,
+            rewards: { gold: 80000 * zoneStep, gems: 15, lootbox: { id: 'lootbox_rare', qty: 1 } },
+        });
+        list.push({
+            id: `${zoneId}_spots`,
+            chain: `${zoneId}_spots`,
+            category: 'missions',
+            name: `${title} Explorer`,
+            desc: `Fight at all 3 mission spots of ${zoneName}.`,
+            icon: '🗺️',
+            metric: 'celestial_zone_spots',
+            metric_key: zoneId,
+            target: 3,
+            rewards: { gold: 12000 * zoneStep, gems: 5, lootbox: { id: 'lootbox_common', qty: 1 } },
+        });
+    }
+
+    list.push(
+        {
+            id: 'celestial_zones_won_5',
+            chain: 'celestial_zones',
+            category: 'missions',
+            name: 'Pilgrim of the Celestial',
+            desc: 'Win a mission in all 5 Celestial zones.',
+            icon: '✨',
+            metric: 'celestial_zones_won',
+            target: 5,
+            rewards: { gold: 200000, gems: 20, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        },
+        {
+            id: 'celestial_spots_discovered_15',
+            chain: 'celestial_spots',
+            category: 'missions',
+            name: 'Celestial Cartographer',
+            desc: 'Fight at all 15 Celestial mission spots.',
+            icon: '🧭',
+            metric: 'celestial_spots_discovered',
+            target: 15,
+            rewards: { gold: 300000, gems: 25, lootbox: { id: 'lootbox_epic', qty: 1 } },
+        }
+    );
+
+    return list;
+}
+
+ACHIEVEMENTS.push(...buildHonorAndCelestialAchievements());
+
 async function buildAchievementMetricSnapshot(db, char) {
     const now = Math.floor(Date.now() / 1000);
     const weekStart = getCurrentWeekStart(now);
-    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow, weeklyDmgRow, warDmgRow] = await Promise.all([
-        dbAll(db, 'SELECT fights, wins, spot_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
+    const [missionRows, monsterRows, referralRow, raidRow, gatekeeperRows, crawlerRow, weeklyDmgRow, warDmgRow, honorRow] = await Promise.all([
+        dbAll(db, 'SELECT fights, wins, spot_id, map_type, zone_id FROM character_mission_spot_stats WHERE char_id = ?', [char.id]),
         dbAll(db, 'SELECT source, monster_key, kills FROM character_monster_stats WHERE char_id = ?', [char.id]),
         char.user_id
             ? dbGet(db, 'SELECT referrals_registered, referrals_level5 FROM users WHERE id = ?', [char.user_id])
@@ -5672,6 +5842,7 @@ async function buildAchievementMetricSnapshot(db, char) {
                  )
         `, [char.id, weekStart, char.id, weekStart]),
         dbGet(db, 'SELECT COALESCE(SUM(damage_dealt), 0) AS total FROM war_performance WHERE char_id = ?', [char.id]),
+        dbGet(db, 'SELECT COALESCE(SUM(CASE WHEN delta > 0 THEN delta ELSE 0 END), 0) AS earned FROM honor_changes WHERE char_id = ?', [char.id]),
     ]);
 
     const missionTotals = {
@@ -5687,6 +5858,25 @@ async function buildAchievementMetricSnapshot(db, char) {
         missionTotals.fights += fights;
         missionTotals.bySpot[row.spot_id] = { wins, fights };
     }
+
+    // Celestial progress is tracked per zone (3 spots each) so the new map can
+    // award zone-scoped and map-wide mission achievements.
+    const celestialTotals = { wins: 0, fights: 0, spots: 0, zones: {}, zonesWon: 0 };
+    for (const row of missionRows) {
+        if (String(row.map_type || '') !== 'celestial') continue;
+        const zoneId = String(row.zone_id || '');
+        if (!zoneId) continue;
+        const wins = Number(row.wins || 0);
+        const fights = Number(row.fights || 0);
+        celestialTotals.wins += wins;
+        celestialTotals.fights += fights;
+        celestialTotals.spots += 1;
+        if (!celestialTotals.zones[zoneId]) celestialTotals.zones[zoneId] = { wins: 0, fights: 0, spots: 0 };
+        celestialTotals.zones[zoneId].wins += wins;
+        celestialTotals.zones[zoneId].fights += fights;
+        celestialTotals.zones[zoneId].spots += 1;
+    }
+    celestialTotals.zonesWon = Object.values(celestialTotals.zones).filter((z) => z.wins > 0).length;
 
     const monsterTotals = {
         all: { kills: 0, keys: new Set(), byKey: {} },
@@ -5754,7 +5944,12 @@ async function buildAchievementMetricSnapshot(db, char) {
         crawler_deaths: Number(crawlerRow?.deaths || 0),
         total_dmg_dealt: Number(weeklyDmgRow?.total || 0),
         war_damage: Number(warDmgRow?.total || 0),
+        // Honor earned before honor_changes was logged (or granted outside PvP and
+        // tournaments) is not in the table, so standing is a floor for lifetime Honor.
+        honor_earned: Math.max(Number(honorRow?.earned || 0), Number(char.honor || 0)),
+        honor_current: Number(char.honor || 0),
         missionTotals,
+        celestialTotals,
         monsterTotals,
         gatekeeperTotals,
     };
@@ -5875,6 +6070,19 @@ async function getAchievementMetricValue(db, char, achievement, snapshot = null)
 
     if (metric === 'total_dmg_dealt') {
         return metrics.total_dmg_dealt || 0;
+    }
+
+    if (metric === 'honor_earned') return metrics.honor_earned || 0;
+    if (metric === 'honor_current') return metrics.honor_current || 0;
+
+    if (metric === 'celestial_wins_total') return metrics.celestialTotals?.wins || 0;
+    if (metric === 'celestial_spots_discovered') return metrics.celestialTotals?.spots || 0;
+    if (metric === 'celestial_zones_won') return metrics.celestialTotals?.zonesWon || 0;
+    if (metric === 'celestial_zone_wins' || metric === 'celestial_zone_spots') {
+        if (!achievement.metric_key) return 0;
+        const row = metrics.celestialTotals?.zones?.[achievement.metric_key];
+        if (!row) return 0;
+        return metric === 'celestial_zone_wins' ? row.wins : row.spots;
     }
 
     return 0;
