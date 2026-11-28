@@ -6,10 +6,10 @@
     <title>Mid-Evil: Battle Arena</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/fonts/fonts.css"/>
-    <link rel="stylesheet" href="/css/style.css?v=2026-11-16-banner-fx"/>
+    <link rel="stylesheet" href="/css/style.css?v=2026-11-27-modal-close-square"/>
     <link rel="stylesheet" href="/css/tournaments.css?v=2026-08-22-hist-align"/>
     <link rel="stylesheet" id="dungeon-css" href="/css/dungeon.css?v=2026-09-25-dir-pad"/>
-    <link rel="stylesheet" href="/css/epic-ui.css?v=2026-11-24-celestial-budget"/>
+    <link rel="stylesheet" href="/css/epic-ui.css?v=2026-11-27-frostbite-boss-art"/>
     <style>
         html, body { margin: 0; padding: 0; background: #070b10; }
         #app { display: none; }
@@ -954,6 +954,9 @@
                     </div>
                     <div id="missions-msg" class="msg-bar hidden" style="margin:8px 0"></div>
 
+                    <!-- Frostbite Boss Event (unlocked by wearing the full Frostbite set) -->
+                    <div id="frost-boss-card" class="frost-boss-card hidden"></div>
+
                     <!-- Active mission overlay -->
                     <div id="mission-overlay" class="mission-overlay hidden">
                         <div class="mission-overlay-inner">
@@ -1222,6 +1225,17 @@
             </div>
         </div>
 
+        <!-- Frostbite Boss Event modal (Christmas, Frostbite set) -->
+        <div id="frost-boss-modal" class="modal-overlay hidden">
+            <div class="modal-box frost-boss-box">
+                <div class="modal-header">
+                    <h3 id="frost-boss-title" style="margin:0">❄️ Frostbite Colossus</h3>
+                    <button class="modal-close" data-action="closeFrostBoss">X</button>
+                </div>
+                <div id="frost-boss-body" class="fb-body"></div>
+            </div>
+        </div>
+
         <!-- Mission rewards modal -->
         <div id="mission-rewards-modal" class="modal-overlay hidden">
             <div class="modal-box mission-rewards-box" style="text-align:center">
@@ -1386,7 +1400,8 @@
 
 <script src="/asset-manifest.js"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="/js/app.js?v=2026-11-26-hide-empty-cel"></script>
+    <script src="/js/app.js?v=2026-11-27-frostbite-desc"></script>
+    <script src="/js/snowflakes.js"></script>
     <script src="/js/ring-fx.js?v=2026-09-10-ring-arc-band"></script>
     <script src="/js/skills-tree.js?v=2026-10-29-shadow-step-keyfix"></script>
     <script src="/js/dungeon.js?v=2026-11-16-exchange-batch"></script>
