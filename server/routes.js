@@ -1179,6 +1179,8 @@ const WEEKLY_TASKS = [
                 )`,
             'ALTER TABLE users ADD COLUMN vacation_started_at INTEGER NOT NULL DEFAULT 0',
             'ALTER TABLE users ADD COLUMN vacation_until INTEGER NOT NULL DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN christmas_boss_last_fight INTEGER DEFAULT 0',
+            'ALTER TABLE characters ADD COLUMN christmas_boss_points INTEGER DEFAULT 0',
             'ALTER TABLE maps ADD COLUMN version INTEGER NOT NULL DEFAULT 1',
             'ALTER TABLE maps ADD COLUMN verified INTEGER NOT NULL DEFAULT 0',
         ];
@@ -1255,6 +1257,45 @@ const WEEKLY_TASKS = [
         } catch {}
         try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN user_id INTEGER DEFAULT NULL", args: [] }); } catch {}
         try { await db.execute({ sql: "ALTER TABLE csp_violations ADD COLUMN character_name TEXT DEFAULT NULL", args: [] }); } catch {}
+try { await db.execute({ sql: "UPDATE inventory SET weapon_type = 'scythe' WHERE item_type = 'equipment' AND weapon_type IS NULL AND json_extract(item_data, '$.quality') = 'christmas' AND json_extract(item_data, '$.slot') = 'weapon'", args: [] }); } catch {}
+        // Frostbite (Christmas) set backfill: pieces generated before the set
+        // existed carry no setId (so they never counted toward a set bonus) and
+        // some carry a stray `stats.maxUpgradeSlots` entry, which item tooltips
+        // rendered as a literal "maxUpgradeSlots" stat line. Stamp the set id
+        // and strip the meta key. Idempotent.
+        try {
+            const frostRows = await db.execute({
+                sql: `SELECT id, item_data FROM inventory WHERE item_type='equipment' AND json_extract(item_data,'$.quality')='christmas'`,
+                args: []
+            });
+            for (const row of frostRows.rows || []) {
+                let data;
+                try { data = JSON.parse(row.item_data); } catch { continue; }
+                if (!data || typeof data !== 'object') continue;
+                let changed = false;
+                if (data.setId !== 'frostbite') {
+                    data.setId = 'frostbite';
+                    data.setName = 'Frostbite Set';
+                    data.setPiece = data.setPiece || data.slot;
+                    changed = true;
+                }
+                if (data.stats && Object.prototype.hasOwnProperty.call(data.stats, 'maxUpgradeSlots')) {
+                    delete data.stats.maxUpgradeSlots;
+                    changed = true;
+                }
+                // Refresh the shared old flavour line with the per-piece copy.
+                const pieceKey = data.setPiece || data.slot;
+                const pieceDesc = CHRISTMAS_GEAR_DESC[pieceKey];
+                if (pieceDesc && data.desc !== pieceDesc) {
+                    data.desc = pieceDesc;
+                    changed = true;
+                }
+
+                if (changed) await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(data), row.id]);
+            }
+        } catch (e) {
+            console.warn('Frostbite backfill skipped:', e.message);
+        }
         // DOM mutation reports table
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS dom_mutations (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER DEFAULT 0, char_name TEXT DEFAULT '', char_id INTEGER DEFAULT 0, mutation_type TEXT DEFAULT '', target_info TEXT DEFAULT '', detail TEXT DEFAULT '', url TEXT DEFAULT '', created_at INTEGER NOT NULL)`, args: [] }); } catch {}
         // War performance tracking
@@ -1265,6 +1306,9 @@ const WEEKLY_TASKS = [
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS event_attempts (character_id INTEGER, attempt_no INTEGER, score INTEGER, clear_time REAL, cleared_at DATETIME, cleared INTEGER)`, args: [] }); } catch {}
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS event_leaderboard (character_id INTEGER PRIMARY KEY, best_score INTEGER, best_time REAL)`, args: [] }); } catch {}
         try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS event_runs (character_id INTEGER PRIMARY KEY, room_index INTEGER, score INTEGER, total_dmg INTEGER, kills INTEGER, bosses INTEGER, start_time REAL)`, args: [] }); } catch {}
+        // Frostbite Boss Event — one claim row per character/milestone (PK guards
+        // double claims even under concurrent requests).
+        try { await db.execute({ sql: `CREATE TABLE IF NOT EXISTS christmas_boss_claims (character_id INTEGER NOT NULL, milestone INTEGER NOT NULL, claimed_at INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (character_id, milestone))`, args: [] }); } catch {}
         // Default SW enabled
         try { await db.execute({ sql: `INSERT OR IGNORE INTO server_settings (key, value) VALUES ('sw_enabled', '1')`, args: [] }); } catch {}
         // Server 1 registration-launch timestamp (epoch ms). Overridable via admin panel.
@@ -6334,6 +6378,7 @@ function buildRaidPartyFighter(raidId, members, fighters) {
         crit_chance: 0,
         armor: 0,
         elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        frost_dmg: 0,
         elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
         skillMods: {},
         activeSkills: {},
@@ -6357,6 +6402,8 @@ function buildRaidPartyFighter(raidId, members, fighters) {
             base.elem_dmg[elem] += Number(fighter.elem_dmg?.[elem] || 0);
             base.elem_resist[elem] += Number(fighter.elem_resist?.[elem] || 0);
         }
+        // Frostbite frost must survive the raid-party aggregation.
+        base.frost_dmg += Number(fighter.frost_dmg || 0);
     }
     const count = Math.max(1, fighters.length);
     base.hit_chance = Math.min(95, Math.round(base.hit_chance / count));
@@ -7068,6 +7115,22 @@ function calcElemDmg(equippedItems) {
     return totals;
 }
 
+function calcFrostDmg(equippedItems) {
+    let total = 0;
+    // Frost damage granted by set bonuses (Frostbite 4/5) counts like gear frost.
+    const setBonuses = getEquippedSetBonuses(equippedItems);
+    total += Number(setBonuses.frost_dmg) || 0;
+    for (const item of equippedItems || []) {
+        try {
+            const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data;
+            const s = data?.stats || {};
+            if (s.frost_dmg) total += Number(s.frost_dmg);
+            if (data?.wp_stats?.frost_dmg) total += Number(data.wp_stats.frost_dmg);
+        } catch {}
+    }
+    return total;
+}
+
 function calcElemResist(char, equippedItems) {
     const resist = { pyro:0, water:0, wind:0, electro:0 };
     const setBonuses = getEquippedSetBonuses(equippedItems);
@@ -7632,7 +7695,10 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
 
     const atkHit = !forceMiss && !divineNegate && Math.random() <= atkHitChance;
     const autoBlockedHit = autoBlocked && atkHit;
-    let logLine = '', finalDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
+    let logLine = '', finalDmg = 0, blizzardBonusDmg = 0, nextAtkPenalty = false, healBack = 0, rawPhysicalDmg = 0, damageCounter = 0, totalElemDmg = 0;
+    // Frost damage actually landed this round (Frostbite gear). Reported
+    // separately from totalElemDmg so event scoring can read it.
+    let frostDealt = 0;
     // Absorbed/negated damage trackers (amount of incoming damage the defender stopped).
     // absorbedPhys = physical damage negated by armor, absorbedElem = elemental damage
     // negated by elem + magic resist, absorbedShield = damage stopped by force field.
@@ -7675,7 +7741,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         // would-be damage (physical roll + elemental) so it counts toward negation tracking.
         const negEstPhysRaw = Math.floor((Number(attacker.dmgMin || 0) + Number(attacker.dmgMax || 0)) / 2) ;
         const negEstPhys = Math.floor(negEstPhysRaw * rogueWeaponPenalty * physicalDamagePenalty);
-        const negEstElem = Math.floor(ELEMENTS.reduce((s, el) => s + ((attacker.elem_dmg || {})[el] || 0), 0));
+        const negEstElem = Math.floor(ELEMENTS.reduce((s, el) => s + ((attacker.elem_dmg || {})[el] || 0), 0)) + (attacker.frost_dmg || 0);
         if (divineNegate) {
             logLine = `Round ${roundNum}: ${attacker.name} swings — ✨ DIVINE SHIELD absorbed the blow!`;
             absorbedPhys += Math.min(Math.max(0, negEstPhys), dArmorCap);
@@ -7734,6 +7800,16 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                         absorbedElem += edBefore - ed;
                     }
                     gElem += Math.floor(ed);
+                }
+                // Frost damage (Christmas gear): unresisted glance.
+                if ((attacker.frost_dmg || 0) > 0) {
+                    let gfd = (attacker.frost_dmg || 0) + magicFlatBonus;
+                    gfd = Math.floor(gfd * magicElemMult);
+                    gfd = Math.floor(gfd * atkBonusDmg);
+                    const glanceFrostMin = Math.floor(gfd / 2);
+                    gfd = glanceFrostMin + Math.floor(Math.random() * (gfd - glanceFrostMin + 1));
+                    gElem += gfd;
+                    frostDealt += gfd;
                 }
                 if (m2e) {
                     const mRaw = Math.max(1, Math.floor((glanceRaw * rogueWeaponPenalty * physicalDamagePenalty * hit.dmgMult * atkBonusDmg) * 0.05));
@@ -7906,8 +7982,11 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 }
             }
         }
-        // blizzard: magic_mult 1.5x, split_rounds 5
-        if (!specialAttackDmg && hasSkill(atkSkills, 'blizzard')) {
+        // blizzard: magic_mult 1.5x, split over split_rounds (default 5) — one-shot channel.
+        // Its split damage is dealt ON TOP of the normal attack (applied after finalDmg is
+        // resolved below), NOT instead of it. `_blizzardUsed` makes the channel fire for
+        // exactly split_rounds hit rounds per battle, then normal hits continue normally.
+        if (hasSkill(atkSkills, 'blizzard') && !attacker._blizzardUsed) {
             const bzEff = getActiveCombatEffect(attacker, 'blizzard');
             if (!attacker._blizzardActive) {
                 attacker._blizzardActive = true;
@@ -7929,10 +8008,13 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                     ed = Math.max(0, ed - eRes - mRes);
                     totalBzDmg += ed;
                 }
-                const splitDmg = Math.max(1, Math.floor(totalBzDmg / attacker._blizzardTotalRounds));
-                specialAttackDmg = splitDmg;
-                if (splitDmg > 0) logLine = `Round ${roundNum}: ${attacker.name}'s BLIZZARD hits — ${splitDmg} damage (round ${attacker._blizzardRound}/${attacker._blizzardTotalRounds})`;
-                if (attacker._blizzardRound >= attacker._blizzardTotalRounds) attacker._blizzardActive = false;
+                if (totalBzDmg > 0) {
+                    blizzardBonusDmg = Math.max(1, Math.floor(totalBzDmg / attacker._blizzardTotalRounds));
+                }
+                if (attacker._blizzardRound >= attacker._blizzardTotalRounds) {
+                    attacker._blizzardActive = false;
+                    attacker._blizzardUsed = true;
+                }
             }
         }
         // Apply defender armor to all special attack damage
@@ -7945,6 +8027,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
         if (specialAttackFired) {
             finalDmg = specialAttackDmg;
             totalElemDmg = 0;
+            frostDealt = 0;
         }
 
         const dmgMinConfigured = Number(attacker.dmgMin || 0) + (attacker._abyssalDmgBonus || 0);
@@ -8032,6 +8115,17 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 totalElemDmg += Math.floor(ed);
             }
 
+            // Frost damage (Christmas gear): unresisted, scales with magic.
+            if ((attacker.frost_dmg || 0) > 0) {
+                let fd = (attacker.frost_dmg || 0) + magicFlatBonus;
+                fd = Math.floor(fd * magicElemMult);
+                if (critDamageMult > 1) fd = Math.floor(fd * critDamageMult);
+                fd = Math.floor(fd * atkBonusDmg);
+                rawElemTotal += fd;
+                totalElemDmg += fd;
+                frostDealt += fd;
+            }
+
             const critTag = isCrit ? ' ⚡CRIT' : '';
 
             if (magicToElemental) {
@@ -8049,6 +8143,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
                 absorbedPhys += Math.min(Math.max(0, physicalDmg), dArmorCap);
                 absorbedElem += Math.min(Math.max(0, rawElemTotal), dElemResistCap);
                 totalElemDmg = 0;
+                frostDealt = 0;
                 finalDmg = 0;
             }
             if (!blockCovers || blockFails) {
@@ -8302,6 +8397,15 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
             }
         }
     } // end if (!specialAttackFired) — normal block/armor/post-dmg/absorb/log pipeline
+
+    // Blizzard is a channel: its split damage is dealt ON TOP of the round's hit
+    // (normal attack, special attack or a blocked hit) rather than replacing it.
+    if (blizzardBonusDmg > 0) {
+        finalDmg += blizzardBonusDmg;
+        if (logLine) logLine += ` ❄️ Blizzard +${blizzardBonusDmg}`;
+        else logLine = `Round ${roundNum}: ${attacker.name}'s BLIZZARD hits — ${blizzardBonusDmg} damage`;
+    }
+
     // Warrior rage: track hits taken
     if (defender.class === 'warrior' && finalDmg > 0) {
         defender.rageHits = (defender.rageHits || 0) + 1;
@@ -8333,7 +8437,7 @@ function simulateRound(roundNum, attacker, defender, atkZone, blkZone, atkPenalt
     if (roundStartHeal > 0 && logLine) {
         logLine += ` 💚+${roundStartHeal} HP healed`;
     }
-    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender, absorbedPhys, absorbedElem, absorbedShield };
+    return { logLine, damageDealt: finalDmg, damageCounter, nextAtkPenalty, healBack, totalElemDmg, frostDmg: Math.round(frostDealt), attackerBurnDmg, defenderBurnDmg, roundStartHeal, postDmgHeal, postDmgHealDefender, absorbedPhys, absorbedElem, absorbedShield };
 }
 function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     if (options?.guaranteedHit) {
@@ -8360,6 +8464,9 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
     let totalDmgToA = 0, totalDmgToB = 0;
     let totalElemDmgDealtA = 0;
     let totalElemDmgDealtB = 0;
+    // Frost damage landed by each side (Frostbite gear), surfaced for event scoring.
+    let totalFrostDealtA = 0;
+    let totalFrostDealtB = 0;
 
     // Absorbed/negated damage totals (damage stopped by armor/resist/shield).
     // absorbedPhysA = physical damage negated by A, absorbedElemA = elemental negated by A,
@@ -8462,7 +8569,7 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         const noOpRes = () => ({
             logLine: '', damageDealt: 0, damageCounter: 0, nextAtkPenalty: false,
             healBack: 0, totalElemDmg: 0, attackerBurnDmg: 0, defenderBurnDmg: 0,
-            roundStartHeal: 0, postDmgHeal: 0, postDmgHealDefender: 0, absorbedPhys: 0, absorbedElem: 0, absorbedShield: 0
+            roundStartHeal: 0, postDmgHeal: 0, postDmgHealDefender: 0, absorbedPhys: 0, absorbedElem: 0, absorbedShield: 0, frostDmg: 0
         });
         const resA = aActs ? simulateRound(round, fighterA, fighterB, atkZoneA, blkZoneB, penaltyA, shieldA, shieldB) : noOpRes();
         const resB = bActs ? simulateRound(round, fighterB, fighterA, atkZoneB, blkZoneA, penaltyB, shieldB, shieldA) : noOpRes();
@@ -8488,6 +8595,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
 
         totalElemDmgDealtA += resA.totalElemDmg;
         totalElemDmgDealtB += resB.totalElemDmg;
+        totalFrostDealtA += resA.frostDmg || 0;
+        totalFrostDealtB += resB.frostDmg || 0;
 
         // resA is A attacking B → B is the defender that absorbed the damage.
         totalAbsorbedPhysB += resA.absorbedPhys || 0;
@@ -8719,6 +8828,8 @@ function runBattle(fighterA, fighterB, forceWinnerId = null, options = {}) {
         totalElemDmgDealt: Math.round(totalElemDmgDealtA),
         totalElemDmgDealtA: Math.round(totalElemDmgDealtA),
         totalElemDmgDealtB: Math.round(totalElemDmgDealtB),
+        totalFrostDealtA: Math.round(totalFrostDealtA),
+        totalFrostDealtB: Math.round(totalFrostDealtB),
         totalAbsorbedPhysA: Math.round(totalAbsorbedPhysA),
         totalAbsorbedElemA: Math.round(totalAbsorbedElemA),
         totalAbsorbedShieldA: Math.round(totalAbsorbedShieldA),
@@ -8770,7 +8881,10 @@ function summarizeBattleStats(fighter) {
         Number(elem.pyro || 0) +
         Number(elem.water || 0) +
         Number(elem.wind || 0) +
-        Number(elem.electro || 0);
+        Number(elem.electro || 0) +
+        // Frostbite frost is unresisted and applied as elemental damage, so the
+        // pre-fight summary has to count it too.
+        Number(fighter.frost_dmg || 0);
     const hpMax = Number(fighter.hpMax ?? fighter.hp_max ?? fighter.hp ?? 0);
     return {
         dmgMin: Math.round(physMin),
@@ -9296,6 +9410,7 @@ async function buildCombatFighter(db, char) {
             wind: (elemDmg.wind || 0) + (skillPassives.wind_dmg || 0),
             electro: (elemDmg.electro || 0) + (skillPassives.electro_dmg || 0),
         },
+        frost_dmg: calcFrostDmg(equippedArray),
         elem_resist: {
             pyro: (elemResist.pyro || 0) + (skillPassives.pyro_resist || 0),
             water: (elemResist.water || 0) + (skillPassives.water_resist || 0),
@@ -9971,6 +10086,7 @@ const CELESTIAL_STAT_MULT = 1.12;
 function getMaxUpgradeSlots(quality) {
     const q = String(quality || '').toLowerCase();
     if (q === CELESTIAL_QUALITY) return 6;
+    if (q === 'christmas') return 6;
     if (q === 'legendary') return 5;
     if (q === 'epic' || q === 'rare') return 4;
     return 3;
@@ -14421,6 +14537,8 @@ async function collectMissionForCharacter(db, characterId) {
                 wind:    (calcElemDmg(equippedArray).wind    || 0) + (skillPassives.wind_dmg    || 0),
                 electro: (calcElemDmg(equippedArray).electro || 0) + (skillPassives.electro_dmg || 0),
             },
+            // Frostbite frost damage — simulateRound adds it to the elemental hit.
+            frost_dmg: calcFrostDmg(equippedArray),
             elem_resist: {
                 pyro:    (calcElemResist(freshChar, equippedArray).pyro    || 0) + (skillPassives.pyro_resist    || 0),
                 water:   (calcElemResist(freshChar, equippedArray).water   || 0) + (skillPassives.water_resist   || 0),
@@ -17272,6 +17390,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 wind:    (calcElemDmg(equippedA).wind    || 0) + (skillPassivesA.wind_dmg    || 0),
                 electro: (calcElemDmg(equippedA).electro || 0) + (skillPassivesA.electro_dmg || 0),
             },
+            // Frostbite frost damage — simulateRound adds it to the elemental hit.
+            frost_dmg: calcFrostDmg(equippedA),
             elem_resist: {
                 pyro:    (calcElemResist(freshA, equippedA).pyro    || 0) + (skillPassivesA.pyro_resist    || 0),
                 water:   (calcElemResist(freshA, equippedA).water   || 0) + (skillPassivesA.water_resist   || 0),
@@ -17313,6 +17433,8 @@ router.post('/attack/:targetId', auth, async (req, res) => {
                 wind:    (calcElemDmg(equippedD).wind    || 0) + (skillPassivesD.wind_dmg    || 0),
                 electro: (calcElemDmg(equippedD).electro || 0) + (skillPassivesD.electro_dmg || 0),
             },
+            // Frostbite frost damage — simulateRound adds it to the elemental hit.
+            frost_dmg: calcFrostDmg(equippedD),
             elem_resist: {
                 pyro:    (calcElemResist(freshD, equippedD).pyro    || 0) + (skillPassivesD.pyro_resist    || 0),
                 water:   (calcElemResist(freshD, equippedD).water   || 0) + (skillPassivesD.water_resist   || 0),
@@ -24682,12 +24804,12 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
                         existingData.qty = (existingData.qty || 1) + lootItem.qty;
                         await dbRun(db, 'UPDATE inventory SET item_data=? WHERE id=?', [JSON.stringify(existingData), existing.id]);
                     } else {
-                        await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
-                            [char.id, lootItem.type, JSON.stringify(lootItem)]);
+                        await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data, weapon_type) VALUES (?,?,?,?)',
+                            [char.id, lootItem.type, JSON.stringify(lootItem), lootItem.weaponType || null]);
                     }
                 } else {
-                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data) VALUES (?,?,?)',
-                        [char.id, lootItem.type, JSON.stringify(lootItem)]);
+                    await dbRun(db, 'INSERT INTO inventory (char_id, item_type, item_data, weapon_type) VALUES (?,?,?,?)',
+                        [char.id, lootItem.type, JSON.stringify(lootItem), lootItem.weaponType || null]);
                 }
                 addedItems.push(lootItem);
             }
@@ -24722,12 +24844,81 @@ router.post('/lootbox/open/:inventoryId', auth, async (req, res) => {
     }
 });
 
+// Frostbite (Christmas) gear flavour text — one witty line per piece. Keyed by
+// slot so generation, the boss event and the inventory backfill all agree.
+const CHRISTMAS_GEAR_DESC = {
+    weapon: 'Somebody wrapped a warhammer and left it under the tree. It still rings like a Christmas bell on every swing.',
+    armor: 'Plate armour quilted with eternal winter. Stops arrows, absorbs impacts, and ruins every hug.',
+    helmet: 'A helm cold enough to keep your head clear and your opinions frozen solid. The elves refused to test it twice.',
+    shield: 'Officially a shield, practically a backpack full of blizzard. Blocks attacks and carries the snacks.',
+    boots: 'Boots that leave frost prints everywhere. Terrible for stealth, excellent for making pursuers slip.',
+    amulet: 'A blizzard trapped in glass. Hums one Christmas carol on loop, forever — and the frost it lends ignores resistances.',
+    accessory: 'A festive trinket that keeps enemies cold and your collar colder. Warning: may attract penguins.',
+};
+
 function generateLootFromBox(boxType, playerLevel) {
     const result = {
         items: [],
         gems: 0,
         gold: 0
     };
+
+    if (boxType === 'christmas') {
+        const slots = [
+            { slot: 'weapon', img: '/images/christmas/weapon.png', name: 'Frostbite Blade' },
+            { slot: 'armor', img: '/images/christmas/armor.png', name: 'Frostbite Plate' },
+            { slot: 'helmet', img: '/images/christmas/helmet.png', name: 'Frostbite Helm' },
+            { slot: 'shield', img: '/images/christmas/shield.png', name: 'Frostbite Backpack' },
+            { slot: 'boots', img: '/images/christmas/boots.png', name: 'Frostbite Greaves' },
+            { slot: 'amulet', img: '/images/christmas/amulet.png', name: 'Frostbite Amulet' },
+            { slot: 'accessory', img: '/images/christmas/accessory.png', name: 'Frostbite Charm' },
+        ];
+        const lvl = Math.max(1, Number(playerLevel) || 1);
+        for (const s of slots) {
+            const frostVal = Math.max(5, Math.floor(lvl * 0.6) + 8);
+            // Stronger roll than a plain legendary: Frostbite is a premium,
+            // reward-only set, so its pieces should sit at or just above the
+            // stats of same-level craftable set gear.
+            const item = generateBackendRandomItem(lvl, s.slot === 'accessory' ? 'accessory' : (s.slot === 'amulet' ? 'amulet' : s.slot), 'legendary', { statBoost: 1.5, extraStatSlots: 3 });
+            const base = item || {};
+            const stats = { ...(base.stats || {}) };
+            // remove other elemental damage to keep frost unique
+            for (const e of ['pyro', 'water', 'wind', 'electro']) delete stats[`${e}_dmg`];
+            stats.frost_dmg = frostVal;
+            // Never let generation meta reach the stat list (it renders as a
+            // "maxUpgradeSlots" line in item tooltips).
+            delete stats.maxUpgradeSlots;
+            const isWeapon = s.slot === 'weapon';
+            const baseClean = { ...base };
+            delete baseClean.setId;
+            delete baseClean.setName;
+            result.items.push({
+                ...baseClean,
+                id: `christmas_${s.slot}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+                name: s.name,
+                emoji: '🎄',
+                desc: CHRISTMAS_GEAR_DESC[s.slot] || 'Christmas gear forged from eternal frost. Deals Frost damage no enemy can resist.',
+                type: 'equipment',
+                slot: s.slot,
+                quality: 'christmas',
+                rarity: 'legendary',
+                setId: 'frostbite',
+                setName: 'Frostbite Set',
+                setPiece: s.slot,
+                stats,
+                frost_dmg: frostVal,
+                maxUpgradeSlots: 6,
+                img: s.img,
+                source: 'christmas',
+                sell_price_cap: 1000,
+                stackable: false,
+                qty: 1,
+                level: lvl,
+                ...(isWeapon ? { weaponType: 'scythe', weapon_type: 'scythe' } : {}),
+            });
+        }
+        return result;
+    }
 
     const drops = {
         common: {
@@ -26785,11 +26976,323 @@ router.post('/news/read', auth, async (req, res) => {
     }
 });
 
+// ── Frostbite Boss Event (Christmas, Frostbite-set exclusive) ─────────────
+// Wearing the full Frostbite armour set unlocks a boss that can be hit once
+// every 3 hours for free (no mission points). A win pays gold plus event points;
+// points are per-character and stack toward claimable milestones.
+const CHRISTMAS_BOSS = {
+    id: 'frostbite_colossus',
+    name: 'Frostbite Colossus',
+    emoji: '❄️',
+    cooldownSeconds: 3 * 60 * 60,
+    setPiecesRequired: 5,
+    // Event points = guaranteed points + frost damage dealt / 100 (win or loss
+    // alike). The guaranteed half keeps the event fair at level 1: a brand-new
+    // character still earns 100+ a hit and clears the 10,000-point track in
+    // roughly 100 fights.
+    frostPointsDivisor: 100,
+    guaranteedPoints: 100,
+    goldBase: 1500,
+    goldPerLevel: 60,
+    // Event window: the Christmas season runs October 1 → January 13 (UTC), so
+    // the boss is gone from January 14 until the next season.
+    seasonStartMonth: 9, // October
+    endMonth: 0,         // January
+    endDay: 14,          // exclusive boundary
+    // 1,000 pts → 10,000 gold + 10 gems … 10,000 pts → 100,000 gold + 100 gems.
+    milestones: (() => {
+        const list = [];
+        for (let pts = 1000; pts <= 10000; pts += 1000) {
+            list.push({ points: pts, gold: pts * 10, gems: Math.round(pts / 100) });
+        }
+        return list;
+    })(),
+};
+
+// Unix timestamp the boss disappears (start of January 14, UTC). The season
+// starts in October, so Oct-Dec points at next January's boundary while Jan-Sep
+// points at this year's (already passed → the boss stays gone until October).
+function christmasBossEndsAt() {
+    const d = new Date(Date.now());
+    const year = d.getUTCFullYear();
+    const endYear = d.getUTCMonth() >= CHRISTMAS_BOSS.seasonStartMonth ? year + 1 : year;
+    return Math.floor(Date.UTC(endYear, CHRISTMAS_BOSS.endMonth, CHRISTMAS_BOSS.endDay) / 1000);
+}
+
+// The boss is scaled off the player's own fighter so the fight stays fair at
+// every level (same approach as the Abyss nightmare NPC scaling).
+function buildChristmasBoss(playerFighter) {
+    const pf = playerFighter || {};
+    const lvl = Math.max(1, Number(pf.level) || 1);
+    const hpMax = Math.max(600, Math.round(Number(pf.hpMax || 600) * 1.8));
+    const dmgMin = Math.max(10, Math.round(Number(pf.dmgMin || 10) * 0.55));
+    const dmgMax = Math.max(dmgMin + 4, Math.round(Number(pf.dmgMax || dmgMin) * 0.70));
+    return {
+        id: 'christmas_boss',
+        name: CHRISTMAS_BOSS.name,
+        emoji: CHRISTMAS_BOSS.emoji,
+        class: 'boss',
+        level: lvl,
+        hp: hpMax,
+        hpMax,
+        dmgMin,
+        dmgMax,
+        strength: Math.round(dmgMin * 1.6),
+        agility: Math.max(10, Math.round(Number(pf.agility || 50) * 0.75)),
+        magic: Math.max(10, Math.round(Number(pf.magic || 50) * 0.6)),
+        defense: Math.round(Number(pf.defense || 50) * 0.8),
+        hit_chance: Math.min(95, 30 + lvl),
+        crit_chance: Math.min(35, 8 + Math.floor(lvl / 3)),
+        armor: Math.round(Number(pf.armor || 50) * 0.8),
+        elem_dmg: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        elem_resist: { pyro: 0, water: 0, wind: 0, electro: 0 },
+        frost_dmg: 0,
+        skillMods: {},
+        activeSkills: {},
+        attackZones: DEFAULT_ATTACK_ZONES,
+        blockZones: DEFAULT_BLOCK_ZONES,
+        dualWield: false,
+    };
+}
+
+// Gold is only paid for a win; event points are computed from frost damage.
+function rollChristmasBossGold(level) {
+    const lvl = Math.max(1, Number(level) || 1);
+    const variance = 0.85 + Math.random() * 0.30;
+    return Math.max(1, Math.round((CHRISTMAS_BOSS.goldBase + lvl * CHRISTMAS_BOSS.goldPerLevel) * variance));
+}
+
+async function getChristmasBossState(db, char) {
+    const now = Math.floor(Date.now() / 1000);
+    const equipped = await getEquippedItemsArray(db, char.id);
+    const counts = getEquippedSetCounts(equipped);
+    const pieces = Number(counts.frostbite || 0);
+    const unlocked = pieces >= CHRISTMAS_BOSS.setPiecesRequired;
+    const lastFightAt = Number(char.christmas_boss_last_fight || 0);
+    const nextFightAt = lastFightAt ? lastFightAt + CHRISTMAS_BOSS.cooldownSeconds : 0;
+    const cooldownRemaining = Math.max(0, nextFightAt - now);
+    const endsAt = christmasBossEndsAt();
+    const ended = now >= endsAt;
+    const points = Math.max(0, Number(char.christmas_boss_points || 0));
+
+    // Tolerate a cold boot that lands before the migration finishes.
+    let claimRows = [];
+    try { claimRows = await dbAll(db, 'SELECT milestone FROM christmas_boss_claims WHERE character_id = ?', [char.id]); } catch { claimRows = []; }
+    const claimed = new Set(claimRows.map(r => Number(r.milestone)));
+    const milestones = CHRISTMAS_BOSS.milestones.map(m => ({
+        points: m.points,
+        gold: m.gold,
+        gems: m.gems,
+        claimed: claimed.has(m.points),
+        claimable: !claimed.has(m.points) && points >= m.points,
+    }));
+
+    return {
+        unlocked,
+        pieces,
+        required: CHRISTMAS_BOSS.setPiecesRequired,
+        boss: { name: CHRISTMAS_BOSS.name, emoji: CHRISTMAS_BOSS.emoji },
+        cooldownSeconds: CHRISTMAS_BOSS.cooldownSeconds,
+        frostPointsDivisor: CHRISTMAS_BOSS.frostPointsDivisor,
+        guaranteedPoints: CHRISTMAS_BOSS.guaranteedPoints,
+        endsAt,
+        ended,
+        lastFightAt,
+        nextFightAt,
+        cooldownRemaining,
+        canFight: unlocked && !ended && cooldownRemaining <= 0,
+        points,
+        milestones,
+        // Same smallest-first contract as the Trial milestones.
+        nextClaimable: milestones.find(m => m.claimable) || null,
+        nextGoal: milestones.find(m => !m.claimed && !m.claimable) || null,
+        claimableCount: milestones.filter(m => m.claimable).length,
+        claimedCount: milestones.filter(m => m.claimed).length,
+        total: milestones.length,
+    };
+}
+
+router.get('/christmas-boss/status', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+        const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        res.json({ success: true, ...(await getChristmasBossState(db, fresh)) });
+    } catch (e) {
+        console.error('Christmas boss status error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/christmas-boss/fight', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+
+        const before = await getChristmasBossState(db, character);
+        if (!before.unlocked) {
+            return res.status(403).json({
+                error: `Wear the full Frostbite set to challenge the ${CHRISTMAS_BOSS.name}.`,
+                requiresSet: true,
+                pieces: before.pieces,
+                required: before.required,
+                state: before,
+            });
+        }
+        if (before.ended) {
+            return res.status(403).json({
+                error: 'The Frostbite Boss event has ended.',
+                ended: true,
+                state: before,
+            });
+        }
+        if (before.cooldownRemaining > 0) {
+            return res.status(400).json({
+                error: `The ${CHRISTMAS_BOSS.name} is still recovering. Try again in ${Math.ceil(before.cooldownRemaining / 60)} min.`,
+                cooldownRemaining: before.cooldownRemaining,
+                state: before,
+            });
+        }
+
+        const now = Math.floor(Date.now() / 1000);
+        // Consume the 3h charge atomically so two parallel requests can't both fight.
+        const guard = await dbRun(
+            db,
+            'UPDATE characters SET christmas_boss_last_fight = ? WHERE id = ? AND COALESCE(christmas_boss_last_fight, 0) <= ?',
+            [now, character.id, now - CHRISTMAS_BOSS.cooldownSeconds]
+        );
+        const consumed = guard?.rowsAffected ?? guard?.changes ?? 0;
+        if (!consumed) {
+            return res.status(400).json({ error: 'The boss is still recovering.', state: before });
+        }
+
+        const char = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        const playerFighter = await buildCombatFighter(db, char);
+        const boss = buildChristmasBoss(playerFighter);
+        const battle = runBattle(playerFighter, boss, null);
+        const playerWon = battle.winnerId === char.id;
+
+        const hpRemaining = Math.max(0, Math.min(Number(playerFighter.hpMax || 1), Number(battle.hpRemainingA ?? 0)));
+        await dbRun(db, 'UPDATE characters SET hp_current = ? WHERE id = ?', [hpRemaining, char.id]);
+        if (playerFighter._elementalFighter) {
+            await dbRun(db, 'UPDATE elementals SET hp_current = ? WHERE char_id = ? AND id = ?',
+                [battle.elementalHpA, char.id, playerFighter._elementalFighter.id]).catch(() => {});
+        }
+
+        // Points scale with the frost damage the player actually landed, win or
+        // loss. Gold is win-only.
+        const frostDealt = Math.max(0, Math.round(Number(battle.totalFrostDealtA) || 0));
+        const frostPoints = Math.floor(frostDealt / CHRISTMAS_BOSS.frostPointsDivisor);
+        // Guaranteed points + the frost damage points, so a level-1 character
+        // still earns 100+ a hit and finishes the track in ~100 fights.
+        const pointsWon = CHRISTMAS_BOSS.guaranteedPoints + frostPoints;
+        const goldWon = playerWon ? rollChristmasBossGold(char.level) : 0;
+        if (goldWon > 0 || pointsWon > 0) {
+            await dbRun(db,
+                'UPDATE characters SET gold = gold + ?, christmas_boss_points = COALESCE(christmas_boss_points, 0) + ? WHERE id = ?',
+                [goldWon, pointsWon, char.id]);
+        }
+
+        const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [char.id]);
+        res.json({
+            success: true,
+            won: playerWon,
+            isDraw: battle.winnerId === 0,
+            battleLog: battle.log,
+            battleStats: { you: summarizeBattleStats(playerFighter), enemy: summarizeBattleStats(boss) },
+            goldWon,
+            pointsWon,
+            frostDealt,
+            frostPoints,
+            totalDmgDealt: Math.round(Number(battle.totalDmgToB) || 0),
+            totalDmgTaken: Math.round(Number(battle.totalDmgToA) || 0),
+            hpRemaining,
+            gold: Number(fresh?.gold || 0),
+            gems: Number(fresh?.gems || 0),
+            state: await getChristmasBossState(db, fresh),
+        });
+    } catch (e) {
+        console.error('Christmas boss fight error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/christmas-boss/claim', auth, async (req, res) => {
+    try {
+        const db = await getDb();
+        const character = await getCurrentCharacter(db, req.user.userId);
+        if (!character) return res.status(404).json({ error: 'Character not found' });
+
+        const state = await getChristmasBossState(db, character);
+        const next = state.nextClaimable;
+        if (!next) {
+            const done = state.claimedCount >= CHRISTMAS_BOSS.milestones.length;
+            return res.status(400).json({ error: done ? 'All rewards already claimed.' : 'No reward available yet.', state });
+        }
+        const wanted = req.body && req.body.points != null ? Number(req.body.points) : next.points;
+        if (wanted !== next.points) return res.status(400).json({ error: 'Claim rewards in order.', state });
+
+        // Row first, guarded by the PK: a duplicate/concurrent claim is rejected
+        // before any gold or gems move.
+        const insert = await dbRun(
+            db,
+            'INSERT OR IGNORE INTO christmas_boss_claims (character_id, milestone, claimed_at) VALUES (?, ?, ?)',
+            [character.id, next.points, Math.floor(Date.now() / 1000)]
+        );
+        const inserted = insert?.rowsAffected ?? insert?.changes ?? 0;
+        if (!inserted) return res.status(409).json({ error: 'Already claimed.', state });
+
+        await dbRun(db, 'UPDATE characters SET gold = gold + ? WHERE id = ?', [next.gold, character.id]);
+        await dbRun(db, 'UPDATE characters SET gems = gems + ?, total_gems_earned = COALESCE(total_gems_earned, 0) + ? WHERE id = ?',
+            [next.gems, next.gems, character.id]);
+
+        const fresh = await dbGet(db, 'SELECT * FROM characters WHERE id = ?', [character.id]);
+        res.json({
+            success: true,
+            milestone: next.points,
+            gold: next.gold,
+            gems: next.gems,
+            goldTotal: Number(fresh?.gold || 0),
+            gemsTotal: Number(fresh?.gems || 0),
+            state: await getChristmasBossState(db, fresh),
+        });
+    } catch (e) {
+        console.error('Christmas boss claim error:', e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
 // Export battle engine for use by tournament module
+async function processChristmasDelivery(db, force = false) {
+    try {
+        const now = new Date();
+        if (!force && (now.getMonth() !== 11 || now.getDate() !== 24)) return;
+        const year = now.getFullYear();
+        const key = 'christmas_delivery_year';
+        const row = await dbGet(db, 'SELECT value FROM server_settings WHERE key = ?', [key]);
+        if (row && String(row.value) === String(year)) return;
+        await dbRun(db, "INSERT OR REPLACE INTO server_settings (key, value) VALUES (?, ?)", [key, String(year)]);
+
+        const recipients = await dbAll(db, 'SELECT id FROM characters ORDER BY id ASC', []);
+        const subject = '🎄 Christmas Gift';
+        const body = 'Merry Christmas! Open this gift box to claim your 7-piece Frost gear set. Frost damage bypasses all resistances!';
+        const rewardPayload = JSON.stringify({ lootbox: { id: 'lootbox_christmas', qty: 1 } });
+        for (const r of recipients) {
+            await dbRun(db, `INSERT INTO messages (sender_id, receiver_id, sender_label, subject, body, reward_payload, reward_claimed, system_message) VALUES (?,?,?,?,?,?,0,1)`,
+                [r.id, r.id, 'Arena Staff', subject, body, rewardPayload]);
+        }
+        console.log(`[Christmas] Delivered gift boxes to ${recipients.length} characters for ${year}`);
+    } catch (e) {
+        console.error('[Christmas] delivery failed:', e.message);
+    }
+}
+
 module.exports = {
     router, parseAdminPassword, dbGet, dbAll, getDb,
     simulateRound, runBattle, calculateMagicShield, buildCombatFighter,
-    calcHpMax, calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
+    calcHpMax, calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist, calcFrostDmg,
     calcElemAttackValue, calcElemHealValue,
     getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
     hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
@@ -26798,6 +27301,8 @@ module.exports = {
     getFighterExtraHits,
     getMaxUpgradeSlots, isCelestialSet, isCelestialItem, celestialZoneIndex, celestialSetAllowedInZone,
     generateCelestialSetItem, generateCelestialShopPieces, generateBackendInventory, generateBackendRandomItem,
+    generateLootFromBox, calcFrostDmg,
+    CHRISTMAS_BOSS, buildChristmasBoss, rollChristmasBossGold, getChristmasBossState, christmasBossEndsAt,
     getCelestialMechanics, getCelestialStatus, getPhoenixState, normalizeCelestialAllocation, celestialPrimordialBudget,
     applyCelestialCombatState, celestialPreventsCounter, CELESTIAL_STAT_MULT,
     DEFAULT_ATTACK_ZONES, DEFAULT_BLOCK_ZONES, EQUIPMENT_SLOTS,
@@ -26806,6 +27311,7 @@ module.exports = {
     runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, checkAndAwardWeeklyDamageAchievements, checkAndAwardWarDamageAchievements,
     processPendingWars,
     processAutoMissions, collectMissionForCharacter,
+    processChristmasDelivery, generateLootFromBox, addStackableInventoryItem,
     ensureElemental,
     purgeAllOldData, migrateBase64Logos, incrementWeeklyPerformance, getCurrentWeekStart,
     backfillWeeklyPerformance
