@@ -424,6 +424,7 @@ const STAT_LABELS = {
     water_dmg:      'Water Dmg',
     wind_dmg:       'Wind Dmg',
     electro_dmg:    'Electro Dmg',
+    frost_dmg:      'Frost Dmg',
     pyro_resist:    'Fire Resist',
     water_resist:   'Water Resist',
     wind_resist:    'Wind Resist',
@@ -434,7 +435,7 @@ const STAT_LABELS_PT = {
     dmg_min: 'Dano Mín', dmg_max: 'Dano Máx', armor: 'Armadura', hp_max: 'PV',
     defense: 'Defesa', strength: 'Força', agility: 'Agilidade', magic: 'Mágica', vitality: 'Vitalidade',
     hit_chance: 'Chance de Acerto', crit_chance: 'Chance de Crítico',
-    pyro_dmg: 'Dano de Fogo', water_dmg: 'Dano de Água', wind_dmg: 'Dano de Vento', electro_dmg: 'Dano Elétrico',
+    pyro_dmg: 'Dano de Fogo', water_dmg: 'Dano de Água', wind_dmg: 'Dano de Vento', electro_dmg: 'Dano Elétrico', frost_dmg: 'Dano de Gelo',
     pyro_resist: 'Resist. Fogo', water_resist: 'Resist. Água', wind_resist: 'Resist. Vento', electro_resist: 'Resist. Elétrica',
 };
 
@@ -447,7 +448,12 @@ const STAT_ICON_ASSETS = {
 };
 
 function statLabelHtml(stat) {
+    // Item metadata is not a stat — never render it as a tooltip stat line.
+    if (stat === 'maxUpgradeSlots') return '';
     var label = (CURRENT_LANG === 'pt' ? STAT_LABELS_PT[stat] : STAT_LABELS[stat]) || stat.replace(/_/g,' ');
+    if (stat === 'frost_dmg') {
+        return '<img class="stat-icon-img" src="/images/christmas/snowflake1.png" alt="' + escHtml(label) + '" loading="eager" decoding="async" data-error-hide="true" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;display:inline-block"> ' + label;
+    }
     var asset = STAT_ICON_ASSETS[stat];
     if (asset) {
         return '<img class="stat-icon-img" src="/images/assets/' + asset + '.png" alt="' + escHtml(label) + '" loading="eager" decoding="async" data-error-hide="true" style="width:14px;height:14px;vertical-align:middle;margin-right:3px;display:inline-block"> ' + label;
@@ -6772,12 +6778,287 @@ async function loadMissions() {
         else loadStoryPanel().catch(() => {});
 
         await checkTrainingStatus();
+        loadFrostBossStatus().catch(() => {});
     } catch(e) {
         console.error('Error loading missions:', e);
         const layer = document.getElementById('map-nodes-layer');
         if (layer) layer.innerHTML = `<p style="color:red;padding:20px">Failed to load: ${e.message}</p>`;
     }
 }
+
+// ── Frostbite Boss Event (Christmas, Frostbite-set exclusive) ─────────────
+// The card lives in the Missions tab and only appears while the full Frostbite
+// armour set is equipped. One hit every 3h, no mission points spent; wins pay
+// gold plus event points that stack toward claimable milestones.
+let _frostBossState = null;
+let _frostBossTick = null;
+let _frostBossBusy = false;
+let _frostBossLast = null;
+let _frostBossFlash = '';
+
+// Boss art. The file lives with the other dungeon bosses; the ❄️ emoji is the
+// fallback, so a missing/broken file hides the <img> and shows the emoji
+// instead of an empty box.
+const FROST_BOSS_ART = '/images/boss/frostbite_colossus.png';
+function frostBossArtHtml() {
+    return `<img src="${FROST_BOSS_ART}" alt="" loading="eager" decoding="async" data-error-hide="true" data-error-next-display="inline-flex"><span style="display:none;font-size:1.7rem;line-height:1">❄️</span>`;
+}
+
+function frostBossNum(n) { return Number(n || 0).toLocaleString('en-US'); }
+
+function frostBossCooldownRemaining(st) {
+    if (!st || !st.nextFightAt) return 0;
+    return Math.max(0, Number(st.nextFightAt) - Math.floor(Date.now() / 1000));
+}
+
+// Last day the boss is playable (the server cuts off at the start of Jan 14 UTC,
+// so the displayed date is the boundary minus one day).
+function frostBossEndDate(st) {
+    if (!st || !st.endsAt) return '';
+    const d = new Date((Number(st.endsAt) - 1) * 1000);
+    try {
+        return d.toLocaleDateString(CURRENT_LANG === 'pt' ? 'pt-BR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    } catch { return d.toISOString().slice(0, 10); }
+}
+
+function frostBossReadyText(sec) {
+    const s = Math.max(0, Math.floor(sec));
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const ss = s % 60;
+    if (h > 0) return `${h}h ${String(m).padStart(2, '0')}m`;
+    return `${m}m ${String(ss).padStart(2, '0')}s`;
+}
+
+async function loadFrostBossStatus() {
+    try {
+        const st = await api('GET', '/game/christmas-boss/status');
+        if (st && !st.error) _frostBossState = st;
+    } catch (e) {
+        _frostBossState = null;
+    }
+    renderFrostBossCard();
+    if (!document.getElementById('frost-boss-modal')?.classList.contains('hidden')) renderFrostBossBody();
+    return _frostBossState;
+}
+
+function renderFrostBossCard() {
+    const el = document.getElementById('frost-boss-card');
+    if (!el) return;
+    const st = _frostBossState;
+    // Visible while the set unlocks it, and after the event ends only if the
+    // player still has earned rewards sitting unclaimed.
+    const visible = !!st && (st.unlocked || (st.ended && Number(st.claimableCount || 0) > 0));
+    if (!visible) {
+        el.classList.add('hidden');
+        el.innerHTML = '';
+        return;
+    }
+    el.classList.remove('hidden');
+    const cd = frostBossCooldownRemaining(st);
+    const claimable = Number(st.claimableCount || 0);
+    el.innerHTML = `
+        <div class="fb-card-main">
+            <div class="fb-card-icon">${frostBossArtHtml()}</div>
+            <div class="fb-card-text">
+                <div class="fb-card-title">${escHtml(st.boss?.name || 'Frostbite Colossus')}</div>
+                <div class="fb-card-sub">${_pt('Evento do chefe · 1 ataque a cada 3h · sem gasto de MP', 'Boss event · 1 hit every 3h · no MP cost')}</div>
+            </div>
+            <div class="fb-card-right">
+                <div class="fb-card-points">${frostBossNum(st.points)} <span>${_pt('pts', 'pts')}</span></div>
+                <div class="fb-card-claim">${claimable
+                    ? `🎁 ${claimable} ${_pt('para resgatar', 'to claim')}`
+                    : (st.ended
+                        ? `❄️ ${_pt('Evento encerrado', 'Event ended')}`
+                        : (cd > 0 ? `⏳ ${frostBossReadyText(cd)}` : `⚔️ ${_pt('Pronto', 'Ready')}`))}</div>
+            </div>
+        </div>
+        <button class="btn-primary fb-card-btn" ${actionAttrs('openFrostBoss')}>${_pt('Abrir evento', 'Open event')} →</button>`;
+}
+
+function renderFrostBossBody() {
+    const body = document.getElementById('frost-boss-body');
+    if (!body) return;
+    const st = _frostBossState;
+    const titleEl = document.getElementById('frost-boss-title');
+    if (titleEl && st?.boss) titleEl.textContent = `${st.boss.emoji || '❄️'} ${st.boss.name}`;
+
+    if (!st) {
+        body.innerHTML = `<div class="fb-note">${_pt('Carregando…', 'Loading…')}</div>`;
+        return;
+    }
+    if (!st.unlocked) {
+        body.innerHTML = `
+            <div class="fb-locked">
+                <div style="font-size:2rem;margin-bottom:6px">🔒</div>
+                <div>${_pt('Vista o conjunto Frostbite completo para desbloquear este evento.', 'Wear the full Frostbite set to unlock this event.')}</div>
+                <div class="fb-note" style="margin-top:6px">${st.pieces}/${st.required} ${_pt('peças', 'pieces')}</div>
+            </div>`;
+        return;
+    }
+
+    const cd = frostBossCooldownRemaining(st);
+    const nextGoal = st.nextGoal;
+    const barPct = nextGoal ? Math.min(100, Math.floor((Number(st.points) / Number(nextGoal.points)) * 100)) : 100;
+    const rows = (st.milestones || []).map(m => {
+        const state = m.claimed ? 'claimed' : (m.claimable ? 'claimable' : 'locked');
+        const label = m.claimed
+            ? _pt('✅ Resgatado', '✅ Claimed')
+            : (m.claimable ? _pt('Resgatar', 'Claim') : `${frostBossNum(Math.max(0, m.points - st.points))} pts`);
+        return `<div class="fb-mile ${state}">
+            <div class="fb-mile-pts">${frostBossNum(m.points)} pts</div>
+            <div class="fb-mile-reward">${frostBossNum(m.gold)} 🪙 · ${m.gems} 💎</div>
+            <button class="fb-mile-btn" data-action="claimFrostBossReward" data-args="${encodeActionArgs([m.points])}" ${m.claimable ? '' : 'disabled'}>${label}</button>
+        </div>`;
+    }).join('');
+
+    const last = _frostBossLast;
+    const resultHtml = last ? `<div class="fb-result ${last.won ? 'win' : 'lose'}">${last.won
+        ? `🏆 ${_pt('Vitória', 'Victory')} · +${frostBossNum(last.goldWon)} 🪙 · +${frostBossNum(last.pointsWon)} pts`
+        : `💀 ${_pt('Derrota', 'Defeat')} · +${frostBossNum(last.pointsWon)} pts`}
+        <div class="fb-note" style="margin-top:3px">🎁 ${frostBossNum(last.guaranteedPoints || st.guaranteedPoints || 100)} ${_pt('garantidos', 'guaranteed')} + ❄️ ${frostBossNum(last.frostDealt)} ${_pt('de gelo ÷ 100', 'frost ÷ 100')} = ${frostBossNum(last.frostPoints || 0)} → <strong>+${frostBossNum(last.pointsWon)} pts</strong><br>⚔️ ${frostBossNum(last.dmgDealt)} ${_pt('dano causado', 'dmg dealt')} · 💔 ${frostBossNum(last.dmgTaken)} ${_pt('dano recebido', 'dmg taken')}</div></div>` : '';
+    const flashHtml = _frostBossFlash ? `<div class="fb-flash">${escHtml(_frostBossFlash)}</div>` : '';
+
+    body.innerHTML = `
+        <div class="fb-hero">
+            <div class="fb-hero-art">${frostBossArtHtml()}</div>
+            <div class="fb-hero-info">
+                <div class="fb-hero-name">${escHtml(st.boss?.name || 'Frostbite Colossus')}</div>
+                <div class="fb-hero-sub">${_pt('1 ataque a cada 3 horas · não gasta pontos de missão', 'One hit every 3 hours · no mission points spent')}</div>
+                <div class="fb-hero-sub">${st.ended
+                    ? `❄️ ${_pt('Evento encerrado em', 'Event ended on')} ${frostBossEndDate(st)}`
+                    : `${_pt('Termina em', 'Ends on')} ${frostBossEndDate(st)}`}</div>
+                <div class="fb-hero-points">${frostBossNum(st.points)} <span>${_pt('pontos do evento', 'event points')}</span></div>
+            </div>
+        </div>
+        <div class="fb-track"><div class="fb-fill" style="width:${barPct}%"></div></div>
+        <div class="fb-note">${nextGoal
+            ? `${_pt('Próximo prêmio', 'Next reward')}: ${frostBossNum(nextGoal.points)} pts (${frostBossNum(nextGoal.gold)} 🪙 · ${nextGoal.gems} 💎)`
+            : _pt('Todos os prêmios alcançáveis foram conquistados.', 'Every reachable reward has been earned.')}</div>
+        ${st.ended
+            ? `<div class="fb-result lose">❄️ ${_pt('O Frostbite Colossus se foi. As recompensas já conquistadas continuam resgatáveis.', 'The Frostbite Colossus is gone. Rewards you already earned can still be claimed.')}</div>`
+            : `<button id="fb-fight-btn" class="btn-primary fb-fight" data-action="fightFrostBoss" ${cd > 0 ? 'disabled' : ''}>
+            ${cd > 0 ? `${_pt('Pronto em', 'Ready in')} ${frostBossReadyText(cd)}` : _pt('⚔️ Enfrentar o Colossus', '⚔️ Fight the Colossus')}
+        </button>
+        <div id="fb-cd" class="fb-note">${cd > 0 ? `${_pt('Próximo ataque em', 'Next hit in')} ${frostBossReadyText(cd)}` : _pt('Pronto para atacar', 'Ready to attack')}</div>
+        <div class="fb-note">${_pt(`Cada ataque rende ${st.guaranteedPoints || 100} pontos garantidos + dano de gelo causado ÷ 100 (na vitória ou na derrota)`, `Each hit pays ${st.guaranteedPoints || 100} guaranteed points + frost damage dealt ÷ 100 (win or loss)`)}</div>`}
+        ${flashHtml}
+        ${resultHtml}
+        <div class="fb-miles">${rows}</div>`;
+}
+
+function startFrostBossTicker() {
+    stopFrostBossTicker();
+    _frostBossTick = setInterval(updateFrostBossCooldownUI, 1000);
+}
+
+function stopFrostBossTicker() {
+    if (_frostBossTick) { clearInterval(_frostBossTick); _frostBossTick = null; }
+}
+
+function updateFrostBossCooldownUI() {
+    const st = _frostBossState;
+    if (!st) return;
+    const cd = frostBossCooldownRemaining(st);
+    const btn = document.getElementById('fb-fight-btn');
+    if (btn) {
+        btn.disabled = cd > 0 || !st.unlocked;
+        btn.textContent = cd > 0
+            ? `${_pt('Pronto em', 'Ready in')} ${frostBossReadyText(cd)}`
+            : _pt('⚔️ Enfrentar o Colossus', '⚔️ Fight the Colossus');
+    }
+    const cdEl = document.getElementById('fb-cd');
+    if (cdEl) {
+        cdEl.textContent = cd > 0
+            ? `${_pt('Próximo ataque em', 'Next hit in')} ${frostBossReadyText(cd)}`
+            : _pt('Pronto para atacar', 'Ready to attack');
+    }
+}
+
+function openFrostBoss() {
+    const modal = document.getElementById('frost-boss-modal');
+    if (!modal) return;
+    _frostBossLast = null;
+    _frostBossFlash = '';
+    modal.classList.remove('hidden');
+    renderFrostBossBody();
+    loadFrostBossStatus().catch(() => {});
+    startFrostBossTicker();
+}
+window.openFrostBoss = openFrostBoss;
+
+function closeFrostBoss() {
+    document.getElementById('frost-boss-modal')?.classList.add('hidden');
+    stopFrostBossTicker();
+}
+window.closeFrostBoss = closeFrostBoss;
+
+async function fightFrostBoss() {
+    if (_frostBossBusy) return;
+    const st = _frostBossState;
+    if (!st || !st.unlocked || st.ended) return;
+    if (frostBossCooldownRemaining(st) > 0) { updateFrostBossCooldownUI(); return; }
+
+    _frostBossBusy = true;
+    _frostBossFlash = '';
+    const btn = document.getElementById('fb-fight-btn');
+    if (btn) { btn.disabled = true; btn.textContent = _pt('Lutando…', 'Fighting…'); }
+    try {
+        const r = await api('POST', '/game/christmas-boss/fight', {});
+        _frostBossLast = {
+            won: !!r.won,
+            goldWon: Number(r.goldWon || 0),
+            pointsWon: Number(r.pointsWon || 0),
+            frostDealt: Number(r.frostDealt || 0),
+            frostPoints: Number(r.frostPoints || 0),
+            guaranteedPoints: Number(r.state && r.state.guaranteedPoints || 100),
+            dmgDealt: Number(r.totalDmgDealt || 0),
+            dmgTaken: Number(r.totalDmgTaken || 0)
+        };
+        if (r.state) _frostBossState = r.state;
+        if (typeof r.gold === 'number') character.gold = r.gold;
+        if (typeof r.gems === 'number') character.gems = r.gems;
+        if (typeof r.hpRemaining === 'number') character.hp_current = r.hpRemaining;
+        renderTopBar();
+        renderFrostBossCard();
+        renderFrostBossBody();
+        if (Array.isArray(r.battleLog) && r.battleLog.length) {
+            const summary = _frostBossLast.won
+                ? `🏆 ${_pt('Vitória', 'Victory')} · +${frostBossNum(_frostBossLast.goldWon)} 🪙 · +${frostBossNum(_frostBossLast.pointsWon)} pts`
+                : `💀 ${_pt('Derrota', 'Defeat')} · +${frostBossNum(_frostBossLast.pointsWon)} pts`;
+            showBattleReportModal(r.battleLog, _frostBossLast.won, summary, _frostBossLast.dmgDealt, _frostBossLast.dmgTaken, {
+                enemyName: _frostBossState?.boss?.name || 'Frostbite Colossus',
+                battleType: 'christmas_boss'
+            });
+        }
+    } catch (e) {
+        _frostBossFlash = e.message || _pt('Não foi possível lutar agora.', 'Could not fight right now.');
+        renderFrostBossBody();
+        loadFrostBossStatus().catch(() => {});
+    } finally {
+        _frostBossBusy = false;
+        renderFrostBossBody();
+    }
+}
+window.fightFrostBoss = fightFrostBoss;
+
+async function claimFrostBossReward(points) {
+    try {
+        const r = await api('POST', '/game/christmas-boss/claim', { points: Number(points) });
+        if (r.state) _frostBossState = r.state;
+        if (typeof r.goldTotal === 'number') character.gold = r.goldTotal;
+        if (typeof r.gemsTotal === 'number') character.gems = r.gemsTotal;
+        _frostBossFlash = `🎁 +${frostBossNum(r.gold)} 🪙 · +${r.gems} 💎`;
+        renderTopBar();
+        renderFrostBossCard();
+        renderFrostBossBody();
+    } catch (e) {
+        _frostBossFlash = e.message || _pt('Não foi possível resgatar.', 'Could not claim.');
+        renderFrostBossBody();
+    }
+}
+window.claimFrostBossReward = claimFrostBossReward;
+window.loadFrostBossStatus = loadFrostBossStatus;
 
 function renderWorldMap() {
     const layer=document.getElementById('map-nodes-layer');
@@ -9530,7 +9811,7 @@ function showRaidGearTooltip(event, declJson) {
         ...Object.keys(equippedItem?.wp_stats || {})
     ].filter(k => !k.includes('type')));
     const statsHtml = Array.from(allStats)
-        .filter(stat => stat !== 'elem_dmg' && stat !== 'elem_dmg_type' && stat !== 'elem_resist')
+        .filter(stat => stat !== 'elem_dmg' && stat !== 'elem_dmg_type' && stat !== 'elem_resist' && stat !== 'maxUpgradeSlots')
         .map(stat => {
             const nv = previewStats[stat] || 0;
             const ov = (equippedItem?.stats?.[stat] || 0) + (equippedItem?.wp_stats?.[stat] || 0);
@@ -10317,7 +10598,7 @@ function showItemTooltip(event, itemId) {
     const dualWieldPct = getOffHandDmgPct();
     let statsHtml = '';
     for (const stat of allKeys) {
-        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist' || stat === 'maxUpgradeSlots') continue;
         // For off-hand equipped weapons, show reduced damage values
         let nv = (d.stats?.[stat]||0) + (d.wp_stats?.[stat]||0);
         let ov = ((equippedItem?.stats?.[stat])||0) + ((equippedItem?.wp_stats?.[stat])||0);
@@ -10401,7 +10682,7 @@ function showEqTooltip(event, itemJson) {
         : 1;
     const statKeys = new Set([...Object.keys(item.stats||{}), ...Object.keys(item.wp_stats||{})]);
     let statsHtml = [...statKeys]
-        .filter(k => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
+        .filter(k => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist' && k !== 'maxUpgradeSlots')
         .map((k) => {
             const total = (Number(item.stats?.[k]) || 0) + (Number(item.wp_stats?.[k]) || 0);
             if (typeof total !== 'number' || total === 0) return '';
@@ -10460,7 +10741,7 @@ function showForgeItemTooltip(event, itemJson) {
     ].filter(k => !k.includes('type')));
 
     const statsHtml = Array.from(allStats)
-        .filter(stat => stat !== 'elem_dmg' && stat !== 'elem_dmg_type' && stat !== 'elem_resist')
+        .filter(stat => stat !== 'elem_dmg' && stat !== 'elem_dmg_type' && stat !== 'elem_resist' && stat !== 'maxUpgradeSlots')
         .map(stat => {
             const nv = (item.stats?.[stat] || 0) + (item.wp_stats?.[stat] || 0);
             const ov = ((equippedItem?.stats?.[stat]) || 0) + ((equippedItem?.wp_stats?.[stat]) || 0);
@@ -11292,6 +11573,14 @@ const GAMEDATA_DESC_PT = {
     'Epic loot! Contains 5 items: epic materials, high chance for epic/legendary gear. 10% chance for a gem!':'Saque épico! Contém 5 itens: materiais épicos, alta chance de equipamento épico/lendário. 10% de chance de uma gema!',
     'Rare loot! High chance for legendary gear, rare materials, and gems.':'Saque raro! Alta chance de equipamento lendário, materiais raros e gemas.',
     'Mythic loot! Guaranteed crafted item, high chance for legendary gear and rare materials.':'Saque mítico! Item forjado garantido, alta chance de equipamento lendário e materiais raros.',
+    // Frostbite (Christmas) gear — per-piece lines from routes.js CHRISTMAS_GEAR_DESC
+    'Somebody wrapped a warhammer and left it under the tree. It still rings like a Christmas bell on every swing.':'Alguém embrulhou um martelo de guerra e deixou-o debaixo da árvore. Continua a soar como um sino de Natal a cada golpe.',
+    'Plate armour quilted with eternal winter. Stops arrows, absorbs impacts, and ruins every hug.':'Armadura de placas acolchoada com inverno eterno. Pára flechas, absorve impactos e arruína qualquer abraço.',
+    'A helm cold enough to keep your head clear and your opinions frozen solid. The elves refused to test it twice.':'Um elmo frio o bastante para manter a cabeça limpa e as opiniões congeladas. Os elfos recusaram testá-lo duas vezes.',
+    'Officially a shield, practically a backpack full of blizzard. Blocks attacks and carries the snacks.':'Oficialmente um escudo, na prática uma mochila cheia de nevasca. Bloqueia ataques e carrega o lanche.',
+    'Boots that leave frost prints everywhere. Terrible for stealth, excellent for making pursuers slip.':'Botas que deixam pegadas de gelo por todo lado. Péssimas para furtividade, ótimas para fazer perseguidores escorregarem.',
+    'A blizzard trapped in glass. Hums one Christmas carol on loop, forever — and the frost it lends ignores resistances.':'Uma nevasca presa no vidro. Assobia um cântico de Natal em loop, para sempre — e o gelo que empresta ignora resistências.',
+    'A festive trinket that keeps enemies cold and your collar colder. Warning: may attract penguins.':'Um amuleto festivo que mantém os inimigos frios e o seu colarinho mais frio ainda. Aviso: pode atrair pinguins.',
     'A heavy warhammer that shatters shields and bones alike.':'Um martelo de guerra pesado que estilhaça escudos e ossos igualmente.',
     'Heavy iron plate armour, nearly impenetrable by physical blows.':'Armadura de placas de ferro pesada, quase impenetrável a golpes físicos.',
     'Full-face iron helm with reinforced cheekguards.':'Elmo de ferro de rosto completo com protetores faciais reforçados.',
@@ -11732,6 +12021,7 @@ function translateSetNamePT(name) {
 // Translate the stat abbreviation tokens inside a set-bonus desc like
 // "2/5: +50 DEF · +25 Armor · +250 HP". Longer/tagged tokens replaced first.
 const SET_BONUS_TOKEN_PT = [
+    { re: /Frost Dmg/gi,                to: 'Dano de Gelo' },
     { re: /Min DMG|Min Dmg/gi,          to: 'Dano Mín' },
     { re: /Max DMG|Max Dmg/gi,          to: 'Dano Máx' },
     { re: /\bDMG\b|\bDmg\b/gi,          to: 'Dano' },
@@ -11790,13 +12080,14 @@ function qualityLabelPT(q) {
 const CELESTIAL_RARITY_COLOR = '#8be9fd';
 function celestialMaxUpgrade(q) {
     const s = String(q || '').toLowerCase();
-    if (s === 'celestial') return 6;
+    if (s === 'christmas' || s === 'celestial') return 6;
     if (s === 'legendary') return 5;
     if (s === 'epic' || s === 'rare') return 4;
     return 3;
 }
 function qualityColor(q) {
     const s = String(q || 'common').toLowerCase();
+    if (s === 'christmas') return '#2ecc71';
     if (s === 'celestial') return CELESTIAL_RARITY_COLOR;
     return ({ legendary: '#ffd700', epic: '#e67e22', rare: '#9b59b6', common: 'rgba(255,255,255,0.5)' })[s] || 'rgba(255,255,255,0.5)';
 }
@@ -12500,7 +12791,7 @@ async function loadBannerEvent() {
                         window._invGearData = window._invGearData || {};
                         window._invGearData[synId] = window._bannerItemData[synId];
                         const stats = it.stats || {};
-                        const statLines = Object.entries(stats).map(([k,v]) => `${k}: ${v}`).join(' · ');
+                        const statLines = Object.entries(stats).filter(([k]) => k !== 'maxUpgradeSlots').map(([k,v]) => `${k}: ${v}`).join(' · ');
                         const imgSrc = it.img || (it.name && !it.consumable ? (typeof getAssetImagePath === 'function' ? getAssetImagePath(it.name) : null) : null);
                         return `<div class="inv-item-cell inv-legendary" style="position:relative;cursor:pointer;aspect-ratio:1;min-height:0;display:flex;align-items:center;justify-content:center;flex-direction:column;border-radius:12px;" data-hover-action="hoverItemTooltip" data-args='["${synId}"]' data-leave-action="scheduleHideTooltip" data-action="openItemTooltip">
                             <div class="inv-item-icon" style="display:flex;align-items:center;justify-content:center;">
@@ -12844,7 +13135,7 @@ function renderShop() {
         else if(item.quality==='rare')cardClass+=' rare';
 
         const statsHtml = item.stats ? Object.entries(item.stats)
-            .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist')
+            .filter(([k]) => k !== 'elem_dmg' && k !== 'elem_dmg_type' && k !== 'elem_resist' && k !== 'maxUpgradeSlots')
             .filter(([,v]) => typeof v === 'number' && v !== 0)
             .map(([k,v]) => {
                 const label = statLabelHtml(k);
@@ -15908,7 +16199,7 @@ function showBattleReportModal(log, won, summary, dmgDealt, dmgTaken, options = 
             splash: true,
             fallback: enemyClass ? '⚔️' : '👾',
             side: 'right',
-            imageSrc: missionVisual?.img || null,
+            imageSrc: missionVisual?.img || (options.battleType === 'christmas_boss' ? FROST_BOSS_ART : null),
             metaText: missionVisual
                 ? [missionVisual.spotName, missionVisual.zoneName].filter(Boolean).join(' · ')
                 : ''
@@ -16462,6 +16753,7 @@ async function claimMessageReward(id) {
             character = result.character;
             renderTopBar();
         }
+        if (typeof loadInventory === 'function') loadInventory();
         loadInbox();
     } catch (e) {
         console.error('Claim reward failed:', e);
@@ -18371,7 +18663,7 @@ function showShopItemTooltip(event, itemJson) {
     ].filter(k => !k.includes('type')));
 
     for (const stat of allStats) {
-        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist') continue;
+        if (stat === 'elem_dmg' || stat === 'elem_dmg_type' || stat === 'elem_resist' || stat === 'maxUpgradeSlots') continue;
 
         const nv = (item.stats?.[stat] || 0) + (item.wp_stats?.[stat] || 0);
         const ov = ((equippedItem?.stats?.[stat]) || 0) + ((equippedItem?.wp_stats?.[stat]) || 0);
