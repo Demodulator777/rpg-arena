@@ -70,7 +70,7 @@ const auth = require('./middleware');
 const skillsModule = require('./skills');
 const bannerModule = require('./banner');
 const tournamentModule = require('./tournaments');
-const { runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance, processPendingWars, processAutoMissions } = require('./routes');
+const { runHourlyHpRegen, runHourlyElementalRegen, ensureBotRunner, autoProcessUpkeep, computeWeeklyLeaderboard, purgeAllOldData, migrateBase64Logos, backfillWeeklyPerformance, processPendingWars, processAutoMissions, processChristmasDelivery } = require('./routes');
 
 // Init DB first, then start server
 getDb().then(async (db) => {
@@ -321,6 +321,12 @@ getDb().then(async (db) => {
     }, 86400000);
   }, msUntilNextUpkeepDay);
   autoProcessUpkeep(db).catch(e => console.error('[Upkeep] init failed:', e.message));
+
+  // Christmas delivery — runs at startup and daily; only delivers on Dec 24.
+  processChristmasDelivery(db).catch(e => console.error('[Christmas] init failed:', e.message));
+  setInterval(() => {
+    processChristmasDelivery(db).catch(e => console.error('[Christmas] tick failed:', e.message));
+  }, 86400000);
 
   // Clan wars — auto-advance/resolve pending wars so the global report posts
   // even when no one is viewing the war panel. Tick every 30s.
