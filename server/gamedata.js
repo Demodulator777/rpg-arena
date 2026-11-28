@@ -1370,6 +1370,16 @@ const CRAFTING_SETS = {
         bonus3:{ strength:26, magic:26, defense:26, agility:12, hit_chance:40, desc:'2/5: +26 STR · +26 MAG · +26 DEF · +12 AGI · +40 Hit' },
         bonus4:{ strength:70, magic:70, defense:70, agility:32, hit_chance:95, crit_chance:45, armor:30, hp_max:1000, extra_hits:1, dmg_min:12, dmg_max:24, desc:'4/5: +70 STR/MAG/DEF · +32 AGI · +95 Hit · +45 Crit · +30 Armor · +1000 HP · +1 Extra Hit · +12-24 Dmg' },
     },
+    // Frostbite — the Christmas Gift Box set (7 pieces: the five armor slots
+    // count toward the set, jewelry does not). Defensive ice set with flat
+    // Frost damage on top of the 4pc.
+    frostbite: {
+        name:'Frostbite Set', emoji:'❄️',
+        bonus3:{ defense:70, armor:30, hp_max:450, water_resist:12,
+            desc:'2/5: +70 DEF · +30 Armor · +450 HP · +12 Water Resist' },
+        bonus4:{ defense:150, armor:65, hp_max:950, vitality:14, crit_chance:25, frost_dmg:30,
+            desc:'4/5: +150 DEF · +65 Armor · +950 HP · +14 VIT · +25 Crit · +30 Frost Dmg' },
+    },
 };
 
 const LOOT_BOXES = [
@@ -1442,6 +1452,17 @@ const LOOT_BOXES = [
         consumable: true,
         category: 'lootbox',
         lootType: 'mythic',
+        isRewardOnly: true
+    },
+    {
+        id: 'lootbox_christmas',
+        name: 'Christmas Gift Box',
+        emoji: '🎄🎁',
+        desc: 'A special Christmas gift containing 7 pieces of Frost gear. Frost damage bypasses all resistances!',
+        rarity: 'legendary',
+        consumable: true,
+        category: 'lootbox',
+        lootType: 'christmas',
         isRewardOnly: true
     }
 ];
