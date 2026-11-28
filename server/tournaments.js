@@ -5,7 +5,7 @@ const { getDb } = require('./db');
 const {
   simulateRound, calculateMagicShield, calcHpMax,
   calcBaseDamage, calcArmorValue, calcElemDmg, calcElemResist,
-  calcElemAttackValue, calcElemHealValue,
+  calcElemAttackValue, calcElemHealValue, calcFrostDmg,
   getEquippedStatTotal, getEquippedItemsArray, mergeActiveSkills, getActiveSkills,
   hasSkill, hasClassModifier, getActiveCombatEffect, getEffectiveMagic, applyMagicDamageModifiers,
   getFighterExtraHits,
@@ -656,6 +656,8 @@ async function buildFighter(db, participant, participants, noEquip) {
       wind:    (statsElemDmg.wind    || 0) + (skillPassives.wind_dmg    || 0),
       electro: (statsElemDmg.electro || 0) + (skillPassives.electro_dmg || 0)
     },
+    // Frostbite frost damage — simulateRound adds it to the elemental hit.
+    frost_dmg: calcFrostDmg(equippedArray),
     elem_resist: {
       pyro:    (statsElemResist.pyro    || 0) + (skillPassives.pyro_resist    || 0),
       water:   (statsElemResist.water   || 0) + (skillPassives.water_resist   || 0),
