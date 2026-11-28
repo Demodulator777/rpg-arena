@@ -5420,6 +5420,53 @@ function getAchievementPt(id) {
         'missions_complete_3000': { name: 'Inabalável', desc: 'Conclua 3.000 missões.' },
         'missions_complete_5000': { name: 'Missão Eterna', desc: 'Conclua 5.000 missões.' },
         'missions_complete_7500': { name: 'Lenda das Tarefas', desc: 'Conclua 7.500 missões.' },
+        'honor_earned_250': { name: 'Primeira Marca', desc: 'Ganhe 250 de Honra.' },
+        'honor_earned_500': { name: 'Preso à Honra', desc: 'Ganhe 500 de Honra.' },
+        'honor_earned_1000': { name: 'Marcado pela Arena', desc: 'Ganhe 1.000 de Honra.' },
+        'honor_earned_2000': { name: 'Um Nome Respeitado', desc: 'Ganhe 2.000 de Honra.' },
+        'honor_earned_3000': { name: 'Concorrente Honorado', desc: 'Ganhe 3.000 de Honra.' },
+        'honor_earned_4000': { name: 'Campeão Comprovado', desc: 'Ganhe 4.000 de Honra.' },
+        'honor_earned_5000': { name: 'Estandarte da Honra', desc: 'Ganhe 5.000 de Honra.' },
+        'honor_earned_7500': { name: 'Forjado em Honra', desc: 'Ganhe 7.500 de Honra.' },
+        'honor_earned_10000': { name: 'Campeão da Honra', desc: 'Ganhe 10.000 de Honra.' },
+        'honor_earned_12500': { name: 'Um Nome Que Se Fala', desc: 'Ganhe 12.500 de Honra.' },
+        'honor_earned_15000': { name: 'Voz da Arena', desc: 'Ganhe 15.000 de Honra.' },
+        'honor_earned_20000': { name: 'Paragão da Honra', desc: 'Ganhe 20.000 de Honra.' },
+        'honor_earned_25000': { name: 'Exemplo da Arena', desc: 'Ganhe 25.000 de Honra.' },
+        'honor_earned_30000': { name: 'Coroa da Honra', desc: 'Ganhe 30.000 de Honra.' },
+        'honor_earned_40000': { name: 'Concorrente Eterno', desc: 'Ganhe 40.000 de Honra.' },
+        'honor_earned_50000': { name: 'Lenda Viva da Arena', desc: 'Ganhe 50.000 de Honra.' },
+        'honor_earned_75000': { name: 'A Honra Encarnada', desc: 'Ganhe 75.000 de Honra.' },
+        'honor_earned_100000': { name: 'Renome Imortal', desc: 'Ganhe 100.000 de Honra.' },
+        'honor_earned_150000': { name: 'Soberano Incontestável', desc: 'Ganhe 150.000 de Honra.' },
+        'honor_earned_200000': { name: 'Mito da Arena', desc: 'Ganhe 200.000 de Honra.' },
+        'honor_earned_300000': { name: 'Honra Além da Medida', desc: 'Ganhe 300.000 de Honra.' },
+        'honor_standing_1000': { name: 'Limiar da Honra', desc: 'Mantenha 1.000 de Honra e o Limiar Celestial se abre para você.' },
+        'honor_standing_2000': { name: 'Postura Prateada', desc: 'Mantenha 2.000 de Honra.' },
+        'honor_standing_3000': { name: 'Portador da Aurora', desc: 'Mantenha 3.000 de Honra.' },
+        'honor_standing_4000': { name: 'Porte do Zênite', desc: 'Mantenha 4.000 de Honra.' },
+        'honor_standing_5000': { name: 'Guardião do Amanhecer', desc: 'Mantenha 5.000 de Honra e esteja no Trono do Amanhecer.' },
+        'celestial_wins_10': { name: 'Primeiros Passos Além', desc: 'Vença 10 missões Celestiais.' },
+        'celestial_wins_50': { name: 'Frequente do Celestial', desc: 'Vença 50 missões Celestiais.' },
+        'celestial_wins_250': { name: 'Ligado ao Amanhecer', desc: 'Vença 250 missões Celestiais.' },
+        'celestial_wins_1000': { name: 'Soberano do Amanhecer', desc: 'Vença 1.000 missões Celestiais.' },
+        'celestial_1_wins_25': { name: 'Desbravador do Limiar', desc: 'Vença 25 missões no Limiar Celestial.' },
+        'celestial_1_wins_100': { name: 'Soberano do Limiar', desc: 'Vença 100 missões no Limiar Celestial.' },
+        'celestial_1_spots': { name: 'Explorador do Limiar', desc: 'Lute nos 3 locais de missão do Limiar Celestial.' },
+        'celestial_2_wins_25': { name: 'Desafiante Prateado', desc: 'Vença 25 missões nos Terraços Prateados.' },
+        'celestial_2_wins_100': { name: 'Soberano Prateado', desc: 'Vença 100 missões nos Terraços Prateados.' },
+        'celestial_2_spots': { name: 'Explorador Prateado', desc: 'Lute nos 3 locais de missão dos Terraços Prateados.' },
+        'celestial_3_wins_25': { name: 'Adepto da Aurora', desc: 'Vença 25 missões no Santuário da Aurora.' },
+        'celestial_3_wins_100': { name: 'Soberano da Aurora', desc: 'Vença 100 missões no Santuário da Aurora.' },
+        'celestial_3_spots': { name: 'Explorador da Aurora', desc: 'Lute nos 3 locais de missão do Santuário da Aurora.' },
+        'celestial_4_wins_25': { name: 'Adepto do Zênite', desc: 'Vença 25 missões nos Salões do Zênite.' },
+        'celestial_4_wins_100': { name: 'Soberano do Zênite', desc: 'Vença 100 missões nos Salões do Zênite.' },
+        'celestial_4_spots': { name: 'Explorador do Zênite', desc: 'Lute nos 3 locais de missão dos Salões do Zênite.' },
+        'celestial_5_wins_25': { name: 'Adepto do Amanhecer', desc: 'Vença 25 missões no Trono do Amanhecer.' },
+        'celestial_5_wins_100': { name: 'Soberano do Trono', desc: 'Vença 100 missões no Trono do Amanhecer.' },
+        'celestial_5_spots': { name: 'Explorador do Amanhecer', desc: 'Lute nos 3 locais de missão do Trono do Amanhecer.' },
+        'celestial_zones_won_5': { name: 'Peregrino do Celestial', desc: 'Vença uma missão em todas as 5 zonas Celestiais.' },
+        'celestial_spots_discovered_15': { name: 'Cartógrafo Celestial', desc: 'Lute nos 15 locais de missão Celestiais.' },
     };
     // Spot milestone fallback: {location} {suffix} (ids like forest_camp_wins_25)
     // Mirrors server buildExtendedAchievements spotMilestoneDefs (count -> suffix).
@@ -5656,6 +5703,8 @@ function badgeTypeFor(def) {
     if (m === 'gems_earned') return BADGE_TYPES.gems;
     if (m === 'mp_spent') return BADGE_TYPES.mana;
     if (m === 'dungeon_floor') return BADGE_TYPES.floors;
+    if (m === 'honor_earned' || m === 'honor_current') return BADGE_TYPES.tournaments;
+    if (m.startsWith('celestial_')) return BADGE_TYPES.travel;
     if (m === 'stat_strength' || m === 'stat_defense' || m === 'stat_agility' || m === 'stat_magic' || m === 'stat_vitality' ||
         m === 'stat_hit_chance' || m === 'stat_crit_chance' || m === 'weapon_elem_dmg_max') return BADGE_TYPES.stats;
     if (m === 'damage_negated' || m === 'damage_negated_phys' || m === 'damage_negated_elem' || m === 'elem_resist_max') return BADGE_TYPES.defense;
